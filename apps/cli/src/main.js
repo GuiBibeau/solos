@@ -11,6 +11,7 @@ import { agent } from "./commands/agent.js";
 import { daemon } from "./commands/daemon.js";
 import { dev } from "./commands/dev.js";
 import { login } from "./commands/login.js";
+import { market } from "./commands/market.js";
 import { mcp } from "./commands/mcp.js";
 import { profiles } from "./commands/profiles.js";
 import { router } from "./commands/router.js";
@@ -21,7 +22,18 @@ const root = Command.make("solos").pipe(
   Command.withDescription(
     "solOS: Solana execution layer for LLM agents. Reusable tests run on Surfpool; live commands hit whatever SOLANA_RPC_URL points at.",
   ),
-  Command.withSubcommands([login, profiles, wallet, transfer, mcp, router, agent, daemon, dev]),
+  Command.withSubcommands([
+    login,
+    profiles,
+    wallet,
+    transfer,
+    market,
+    mcp,
+    router,
+    agent,
+    daemon,
+    dev,
+  ]),
 );
 
 const cli = Command.run(root, { name: "solos", version: "0.0.0" });

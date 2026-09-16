@@ -14,6 +14,9 @@ const FORWARDED_ENV = [
   "SOLOS_CONFIG_DIR",
   "SOLOS_LOG_LEVEL",
   "SOLOS_TOOL_TIER",
+  // Market intelligence (Elfa Iris): key + optional base URL override for fixtures.
+  "ELFA_API_KEY",
+  "ELFA_BASE_URL",
 ];
 
 /** Spawn our own server exactly as an external client would, forwarding only known env keys. */
