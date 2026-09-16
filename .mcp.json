@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "solos": {
+      "command": "bun",
+      "args": ["run", "packages/mcp/src/bin/stdio.js"],
+      "env": {
+        "SOLOS_PROFILE": "${SOLOS_PROFILE:-default}",
+        "SOLOS_LOG_LEVEL": "info"
+      }
+    }
+  }
+}

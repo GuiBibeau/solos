@@ -1,0 +1,22 @@
+{
+  "name": "@solos/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "solos-mcp": "./src/bin/stdio.js"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./src/client/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "@solos/actions": "workspace:*",
+    "@solos/core": "workspace:*",
+    "@solos/solana": "workspace:*",
+    "effect": "3.22.2",
+    "zod": "4.6.5"
+  }
+}

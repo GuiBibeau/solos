@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.solos/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+docs/dependency-graph.svg
+coverage/

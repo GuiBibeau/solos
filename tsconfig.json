@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": false,
+    "module": "esnext",
+    "target": "es2023",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "lib": ["es2023", "dom"]
+  },
+  "include": [
+    "packages/*/src/**/*.js",
+    "apps/*/src/**/*.js",
+    "scripts/**/*.js",
+    "harness.config.js"
+  ],
+  "exclude": ["node_modules", "**/node_modules", "**/*.test.js"]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "solos",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "check": "bun run format:check && bun run lint && bun run depcruise && bun run typecheck",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "depcruise": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "depcruise:graph": "depcruise packages apps --config .dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "bun test",
+    "test:unit": "bun test --test-name-pattern '^(?!.*\\[integration\\])'",
+    "test:integration": "bun test --test-name-pattern '\\[integration\\]'",
+    "solos": "bun run apps/cli/src/main.js",
+    "mcp": "bun run packages/mcp/src/bin/stdio.js"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "dependency-cruiser": "18.3.0",
+    "eslint": "10.10.0",
+    "eslint-plugin-boundaries": "7.2.0",
+    "eslint-plugin-import-x": "4.17.1",
+    "eslint-plugin-unicorn": "74.0.0",
+    "globals": "latest",
+    "typescript": "7.0.2"
+  }
+}

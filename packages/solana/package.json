@@ -1,0 +1,24 @@
+{
+  "name": "@solos/solana",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./surfnet": "./src/surfnet/index.js"
+  },
+  "dependencies": {
+    "@hpke/chacha20poly1305": "1.8.0",
+    "@hpke/core": "1.9.0",
+    "@solana-program/system": "0.14.1",
+    "@solana-program/token": "0.16.1",
+    "@solana/keychain": "1.4.0",
+    "@solana/keychain-memory": "1.4.0",
+    "@solana/kit": "8.3.0",
+    "@solos/actions": "workspace:*",
+    "@solos/core": "workspace:*",
+    "canonicalize": "5.0.0",
+    "effect": "3.22.2",
+    "zod": "4.6.5"
+  }
+}
