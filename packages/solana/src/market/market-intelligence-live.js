@@ -2,9 +2,11 @@
 import {
   IrisAuthFailed,
   IrisConfigMissing,
+  IrisHttpError,
+  IrisNetworkError,
   IrisRateLimited,
+  IrisResponseInvalid,
   IrisTimeout,
-  IrisUpstreamError,
   MarketIntelligence,
 } from "@solos/core";
 import { Effect, Layer } from "effect";
@@ -32,7 +34,7 @@ const statusError = (status) => {
   if (status === 401 || status === 403) return new IrisAuthFailed({ status });
   if (status === 429) return new IrisRateLimited({ status });
   if (status < 200 || status >= 300)
-    return new IrisUpstreamError({ status, reason: `elfa chat answered with HTTP ${status}` });
+    return new IrisHttpError({ status, reason: `elfa chat answered with HTTP ${status}` });
   return undefined;
 };
 
@@ -47,7 +49,7 @@ const fromOutcome = (outcome) => {
   const parsed = EnvelopeSchema.safeParse(parseJson(outcome.body));
   if (!parsed.success) {
     return Effect.fail(
-      new IrisUpstreamError({
+      new IrisResponseInvalid({
         status: outcome.status,
         reason: "elfa chat response did not match the documented envelope",
       }),
@@ -96,7 +98,7 @@ export const MarketIntelligenceLive = (config) =>
           catch: (error) =>
             isDeadlineAbort(error)
               ? new IrisTimeout({ timeoutMs })
-              : new IrisUpstreamError({ status: null, reason: "elfa chat request failed" }),
+              : new IrisNetworkError({ reason: "elfa chat request failed" }),
         }).pipe(Effect.flatMap(fromOutcome));
       },
     }),

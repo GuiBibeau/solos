@@ -41,15 +41,26 @@ export class IrisRateLimited extends /** @type {IrisRateLimitedClass} */ (
 /** @typedef {{ readonly timeoutMs: number }} IrisTimeoutProps */
 export class IrisTimeout extends /** @type {IrisTimeoutClass} */ (taggedError("IrisTimeout")) {}
 
-/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisUpstreamError", IrisUpstreamErrorProps>} IrisUpstreamErrorClass */
-/** @typedef {{ readonly status: number | null; readonly reason: string }} IrisUpstreamErrorProps */
-/** Any other provider failure: network, non-JSON, or a response outside the documented envelope. */
-export class IrisUpstreamError extends /** @type {IrisUpstreamErrorClass} */ (
-  taggedError("IrisUpstreamError")
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisHttpError", IrisHttpErrorProps>} IrisHttpErrorClass */
+/** @typedef {{ readonly status: number; readonly reason: string }} IrisHttpErrorProps */
+export class IrisHttpError extends /** @type {IrisHttpErrorClass} */ (
+  taggedError("IrisHttpError")
+) {}
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisNetworkError", IrisNetworkErrorProps>} IrisNetworkErrorClass */
+/** @typedef {{ readonly reason: string }} IrisNetworkErrorProps */
+export class IrisNetworkError extends /** @type {IrisNetworkErrorClass} */ (
+  taggedError("IrisNetworkError")
+) {}
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisResponseInvalid", IrisResponseInvalidProps>} IrisResponseInvalidClass */
+/** @typedef {{ readonly status: number; readonly reason: string }} IrisResponseInvalidProps */
+export class IrisResponseInvalid extends /** @type {IrisResponseInvalidClass} */ (
+  taggedError("IrisResponseInvalid")
 ) {}
 
 /**
  * Everything the market-intelligence port can fail with. Structured props only, never a raw
  * response body or the API key.
- * @typedef {IrisQuestionInvalid | IrisConfigMissing | IrisAuthFailed | IrisRateLimited | IrisTimeout | IrisUpstreamError} IrisError
+ * @typedef {IrisQuestionInvalid | IrisConfigMissing | IrisAuthFailed | IrisRateLimited | IrisTimeout | IrisHttpError | IrisNetworkError | IrisResponseInvalid} IrisError
  */

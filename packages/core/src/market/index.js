@@ -1,12 +1,17 @@
 // @ts-check
 /** @typedef {import("./domain/errors.js").IrisError} IrisError */
+/** @typedef {import("./domain/types.js").AskIrisInput} AskIrisInput */
+/** @typedef {import("./domain/types.js").MarketAnswer} MarketAnswer */
+/** @typedef {import("./ports/market-intelligence.js").MarketIntelligenceShape} MarketIntelligenceShape */
 export {
   IrisAuthFailed,
   IrisConfigMissing,
+  IrisHttpError,
+  IrisNetworkError,
   IrisQuestionInvalid,
   IrisRateLimited,
+  IrisResponseInvalid,
   IrisTimeout,
-  IrisUpstreamError,
   PriceUnavailable,
   UnknownToken,
 } from "./domain/errors.js";

@@ -20,7 +20,7 @@ describe("MarketIntelligenceLive error mapping [integration]", () => {
     expect(await askFailure(fixture)).toMatchObject({ _tag: "IrisAuthFailed", status: 401 });
     expect(await askFailure(fixture)).toMatchObject({ _tag: "IrisAuthFailed", status: 403 });
     expect(await askFailure(fixture)).toMatchObject({ _tag: "IrisRateLimited", status: 429 });
-    expect(await askFailure(fixture)).toMatchObject({ _tag: "IrisUpstreamError", status: 503 });
+    expect(await askFailure(fixture)).toMatchObject({ _tag: "IrisHttpError", status: 503 });
     expect(fixture.requests).toHaveLength(4);
   });
 
@@ -34,7 +34,7 @@ describe("MarketIntelligenceLive error mapping [integration]", () => {
     ]);
     for (const reason of ["no json", "success false", "empty message", "no credits", "negative"]) {
       const failure = await askFailure(fixture);
-      expect(failure?._tag, reason).toBe("IrisUpstreamError");
+      expect(failure?._tag, reason).toBe("IrisResponseInvalid");
       expect(failure?.status, reason).toBe(200);
     }
     expect(fixture.requests).toHaveLength(5);
@@ -47,6 +47,29 @@ describe("MarketIntelligenceLive error mapping [integration]", () => {
       timeoutMs: 50,
     });
     expect(fixture.requests).toHaveLength(1);
+  });
+
+  test("the request deadline includes response body consumption", async () => {
+    fixture = startFixture([{ body: okEnvelope() }], { bodyDelayMs: 400 });
+    expect(await askFailure(fixture, { timeoutMs: 50 })).toMatchObject({
+      _tag: "IrisTimeout",
+      timeoutMs: 50,
+    });
+    expect(fixture.requests).toHaveLength(1);
+  });
+
+  test("maps a network rejection separately from HTTP and response failures", async () => {
+    fixture = startFixture([]);
+    const failure = await askFailure(fixture, {
+      fetchImpl: async () => {
+        throw new TypeError("socket closed");
+      },
+    });
+    expect(failure).toMatchObject({
+      _tag: "IrisNetworkError",
+      reason: "elfa chat request failed",
+    });
+    expect(fixture.requests).toHaveLength(0);
   });
 
   test("error payloads never carry the api key or a raw response body", async () => {

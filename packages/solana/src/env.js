@@ -13,8 +13,14 @@ const EnvSchema = z.object({
   // `direct` signs with the configured signer. `engine` is reserved for the vault-engine executor.
   SOLOS_EXECUTOR: z.enum(["direct"]).default("direct"),
   // Market intelligence (Elfa): the key is optional until a tool that bills credits is used.
-  ELFA_API_KEY: z.string().min(1).optional(),
-  ELFA_BASE_URL: z.string().url().optional(),
+  ELFA_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  ELFA_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
 });
 
 /** Elfa production endpoint; the only provider today, so the default lives beside its parsing. */

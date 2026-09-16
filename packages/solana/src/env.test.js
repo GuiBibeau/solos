@@ -49,6 +49,17 @@ describe("solana env", () => {
       ELFA_BASE_URL: "https://api.elfa.ai/",
     });
     expect(withKey.elfa).toEqual({ apiKey: "elfa-key", baseUrl: "https://api.elfa.ai" });
+
+    const fromBlankExample = loadSolanaEnv({
+      SOLANA_RPC_URL: "http://127.0.0.1:8899",
+      SOLOS_SIGNER_PRIVATE_KEY: "x",
+      ELFA_API_KEY: "",
+      ELFA_BASE_URL: "",
+    });
+    expect(fromBlankExample.elfa).toEqual({
+      apiKey: undefined,
+      baseUrl: "https://api.elfa.ai",
+    });
   });
 
   test("elfa base url allows plain http only on loopback hosts", () => {
