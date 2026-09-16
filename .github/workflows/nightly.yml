@@ -30,11 +30,12 @@ jobs:
         env:
           # test-surfnet.js forks mainnet when this is set (Surfpool online mode)
           SURFNET_DATASOURCE_RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
-        run: bun run solos dev verify --scope full --json > evidence-nightly.json
+        run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json"
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
-          file: evidence-nightly.json
+          name: evidence-nightly
+          file: ${{ runner.temp }}/evidence-nightly.json
       - name: Open or update the nightly-failure issue
         if: steps.verify.outcome == 'failure'
         env:
@@ -42,7 +43,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\n```json\n'"$(cat evidence-nightly.json 2>/dev/null || echo '{}')"$'\n```'
+          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\n```json\n'"$(cat "$RUNNER_TEMP/evidence-nightly.json" 2>/dev/null || echo '{}')"$'\n```'
           existing="$(gh issue list --label nightly-failure --state open --json number --jq '.[0].number')"
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"

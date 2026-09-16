@@ -23,11 +23,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - name: solos dev verify --scope check
-        run: bun run solos dev verify --scope check --json > evidence-check.json
+        run: bun run solos dev verify --scope check --json > "$RUNNER_TEMP/evidence-check.json"
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
-          file: evidence-check.json
+          name: evidence-check
+          file: ${{ runner.temp }}/evidence-check.json
 
   # Scope `unit`: pure domain tests, no Surfpool.
   unit:
@@ -38,11 +39,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - name: solos dev verify --scope unit
-        run: bun run solos dev verify --scope unit --json > evidence-unit.json
+        run: bun run solos dev verify --scope unit --json > "$RUNNER_TEMP/evidence-unit.json"
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
-          file: evidence-unit.json
+          name: evidence-unit
+          file: ${{ runner.temp }}/evidence-unit.json
 
   # Scope `full`: integration tests on Surfpool, offline. No RPC key, no mainnet, no secrets.
   integration:
@@ -55,11 +57,12 @@ jobs:
         with:
           surfpool: "true"
       - name: solos dev verify --scope full
-        run: bun run solos dev verify --scope full --json > evidence-full.json
+        run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-full.json"
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
-          file: evidence-full.json
+          name: evidence-full
+          file: ${{ runner.temp }}/evidence-full.json
 
   # The PR body must carry the author's Evidence for the head sha (agent or human).
   evidence:
