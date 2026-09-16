@@ -18,5 +18,15 @@ fi
 # Best effort: make `bun` resolve for sessions without touching PATH.
 ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun 2> /dev/null || true
 
+# Sessions run as a different uid than the template build: give them the same PATH and heap.
+{ echo 'export PATH="/workspace/.bun/bin:$PATH"'; echo 'export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"'; } > /etc/profile.d/solos-factory.sh 2> /dev/null || true
+
 bun install --frozen-lockfile
-bun run solos dev verify --scope check --json
+
+# Smoke test the checkout with the check scope; on failure, surface the Evidence in the build log
+# (stdout is swallowed by the template builder).
+if ! evidence="$(bun run solos dev verify --scope check --json)"; then
+  echo "factory-setup: verify --scope check failed; Evidence:" >&2
+  echo "$evidence" >&2
+  exit 1
+fi

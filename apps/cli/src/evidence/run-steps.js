@@ -10,13 +10,20 @@
 const SUMMARY_MAX = 200;
 
 /**
+ * `eslint .` over the whole repo peaks above Node's default heap; the factory sandboxes and CI
+ * would otherwise fail on memory rather than on code. Callers can still override the value.
+ */
+const DEFAULT_NODE_OPTIONS = "--max-old-space-size=6144";
+
+/**
  * Spawn a command and capture its combined output.
  * @param {string[]} argv
  * @returns {Promise<{ code: number; output: string }>}
  */
 export const captureCommand = async (argv) => {
   try {
-    const proc = Bun.spawn(argv, { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    const env = { ...process.env, NODE_OPTIONS: process.env.NODE_OPTIONS ?? DEFAULT_NODE_OPTIONS };
+    const proc = Bun.spawn(argv, { env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
