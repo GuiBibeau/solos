@@ -28,6 +28,8 @@ The factory never holds a Solana signer, RPC URL, wallet profile, or gateway key
 
 The reviewer must run on a different vendor than the implementer; `agent/lib/models.js` throws at module load otherwise, so discovery fails instead of shipping self-review. The orchestrator (`FACTORY_MODEL_ORCHESTRATOR`) never edits code: it routes, relays artifact ids, and assembles the PR body: problem statement, `## Plan`, `## Acceptance criteria` (the reviewer's table), `## Evidence` (the implementer's JSON in a ```json fence, untouched), deviations, `Closes #N`. CI parses the Evidence section (`solos dev evidence check`).
 
+Output-token limits are station-local: 40K for classification, 80K for analysis and research, 200K for implementation, and 100K for review. The root has a 2M aggregate cap because eve charges completed child usage back to the parent; this preserves every station's full window through the initial pass and both allowed revision cycles.
+
 Every station starts by reading `AGENTS.md` and `CONTEXT.md` in `/workspace/repo`. The implementer never edits `packages/actions/**`, `docs/adr/**`, `.github/**`, `eslint.config.js`, `biome.json`, `.dependency-cruiser.cjs`, `tsconfig.json`, `LICENSE`, or `CODEOWNERS`; a plan that needs one stops with `pushed: false` and the orchestrator reports which path a maintainer has to change.
 
 ## Layout
