@@ -9,6 +9,7 @@ import { FACTORY_REPO, FACTORY_SETUP_COMMAND } from "../constants.js";
 import { describeCloneFailure, safeErrorMessage } from "./bootstrap-diagnostics.js";
 import { githubCredentials } from "./credentials.js";
 import { brokerPolicy, mintInstallationToken, REMOTE_URL, REPO_DIR } from "./git-remote.js";
+import { prepareRepositoryCommand } from "./prepare-repository.js";
 import {
   assertNoSolanaSecrets,
   gitIdentity,
@@ -48,10 +49,7 @@ export const factoryRevalidationKey = () =>
  */
 const cloneOrExplain = async (sandbox) => {
   try {
-    await runOrThrow(
-      sandbox,
-      `mkdir -p ${REPO_DIR} && git clone --depth 50 ${REMOTE_URL} ${REPO_DIR}`,
-    );
+    await runOrThrow(sandbox, prepareRepositoryCommand({ directory: REPO_DIR, url: REMOTE_URL }));
   } catch (error) {
     throw new Error(describeCloneFailure(FACTORY_REPO, safeErrorMessage(error)), { cause: error });
   }

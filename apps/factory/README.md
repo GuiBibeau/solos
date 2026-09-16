@@ -72,6 +72,10 @@ Identity comes from the filesystem: `agent/tools/read-artifact.js` is the tool `
 
 See `.env.example`. `GITHUB_CONNECTOR` (Vercel Connect connector UID) and `FACTORY_REPO` are the two values a deployment sets; everything else has a default. `FACTORY_SETUP_COMMAND` defaults to `bash scripts/factory-setup.sh` (at the repo root), which installs Bun at the version in `.bun-version`, runs `bun install --frozen-lockfile`, and runs `bun run solos dev verify --scope check --json` inside the sandbox clone at template build.
 
+A failed template build can retain its checkout. On retry, bootstrap checks that it belongs to
+`FACTORY_REPO`, fetches the current remote HEAD, and checks it out before rerunning setup. It
+preserves install caches and refuses unrelated repositories or unfinished tracked edits.
+
 ## Commands
 
 ```sh
