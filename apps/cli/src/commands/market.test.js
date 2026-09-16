@@ -33,6 +33,16 @@ const runSolos = async (args, env) => {
   return { stdout, stderr, code };
 };
 
+/**
+ * `bun run` wraps the CLI's stderr with its own lines; pick the JSON line the CLI printed.
+ * @param {string} stderr
+ * @returns {any} the parsed CLI output, or undefined when stderr has no JSON line
+ */
+const stderrJson = (stderr) => {
+  const line = stderr.split("\n").find((candidate) => candidate.startsWith("{"));
+  return line === undefined ? undefined : JSON.parse(line);
+};
+
 /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
 let surfnet;
 /** @type {{ requests: unknown[]; url: string; stop: () => void }} */
@@ -81,7 +91,7 @@ describe("`solos market ask` and `solos mcp` through real child processes [integ
     });
     expect(code).not.toBe(0);
     expect(stdout).toBe("");
-    expect(JSON.parse(stderr).error).toMatchObject({ code: "IrisConfigMissing" });
+    expect(stderrJson(stderr)?.error).toMatchObject({ code: "IrisConfigMissing" });
     expect(fixture.requests.length).toBe(before);
   });
 
@@ -92,7 +102,7 @@ describe("`solos market ask` and `solos mcp` through real child processes [integ
       ELFA_BASE_URL: fixture.url,
     });
     expect(code).not.toBe(0);
-    expect(JSON.parse(stderr).error).toMatchObject({ code: "IrisQuestionInvalid" });
+    expect(stderrJson(stderr)?.error).toMatchObject({ code: "IrisQuestionInvalid" });
   });
 
   test("mcp list advertises the Iris tool", async () => {
