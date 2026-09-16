@@ -98,3 +98,5 @@ Models default to `deepseek/deepseek-v4.1-flash` (stations) and `alibaba/qwen3.8
 `FACTORY_MODEL_<STATION>`; the implementer and reviewer must stay on different vendors (the app
 asserts this at startup). Sandboxes bill per vCPU-second; the repo clone and `bun install` are
 paid once per template build, each session pays a fetch.
+
+<!-- webhook forwarding smoke test; this PR is closed without merging -->
