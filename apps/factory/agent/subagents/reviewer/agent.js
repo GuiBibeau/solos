@@ -17,6 +17,7 @@ export default defineAgent({
     "findings. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
     "branch name, and the implementer's report including its evidence field, plus an artifact id when the " +
     "analyst saved its detail.",
+  limits: { maxOutputTokensPerSession: 100_000 },
   ...modelConfigFor("reviewer"),
   outputSchema: {
     additionalProperties: false,
