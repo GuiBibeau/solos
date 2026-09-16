@@ -23,6 +23,8 @@ bun run solos wallet balance
 bun run solos mcp list
 ```
 
+Run the unit scope while iterating; run the full scope before opening a pull request.
+
 Requires Bun ≥ 1.3 and [Surfpool](https://solana.com/docs/tools/surfpool)
 (`curl -sL https://run.surfpool.run/ | bash`).
 
