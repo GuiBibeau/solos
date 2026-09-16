@@ -43,14 +43,15 @@ export const factoryRevalidationKey = () =>
 
 /**
  * Clone the repository through the brokered firewall, translating a failure into a message that
- * names `FACTORY_REPO` and the fix.
+ * names `FACTORY_REPO` and the fix. Idempotent: a template whose earlier bootstrap failed keeps its
+ * half-finished clone, so any leftover checkout is removed first.
  * @param {SandboxSession} sandbox
  */
 const cloneOrExplain = async (sandbox) => {
   try {
     await runOrThrow(
       sandbox,
-      `mkdir -p ${REPO_DIR} && git clone --depth 50 ${REMOTE_URL} ${REPO_DIR}`,
+      `rm -rf ${REPO_DIR} && mkdir -p ${REPO_DIR} && git clone --depth 50 ${REMOTE_URL} ${REPO_DIR}`,
     );
   } catch (error) {
     throw new Error(describeCloneFailure(FACTORY_REPO, safeErrorMessage(error)), { cause: error });
