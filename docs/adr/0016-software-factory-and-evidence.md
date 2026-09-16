@@ -32,8 +32,10 @@ which commit, not what an agent says it ran.
    only accepted proof of work, for humans, interactive agents, factory stations, and CI alike.
    Evidence counts only when `sha` equals the commit under review and `dirty` is false.
    Every pull request carries the author's Evidence under `## Evidence`; CI validates it against
-   the head sha (`solos dev evidence check`) and then re-runs the same command so agent Evidence
-   and CI Evidence sit side by side. Hand-edited or stale Evidence fails the check.
+   the head sha (`solos dev evidence check`), requires the declared scope's exact steps each
+   passed, and then re-runs the same command so agent Evidence and CI Evidence sit side by side.
+   Hand-edited, incomplete, or stale Evidence fails the check. Pull requests opened by Renovate or
+   the changesets bot carry no author Evidence; for them the CI re-run alone is the proof.
 
 3. **Stations verify with the lever.** The implementer runs `verify --scope unit` in its sandbox
    after committing and pastes the JSON verbatim. The reviewer re-runs `verify --scope check` in
@@ -43,7 +45,8 @@ which commit, not what an agent says it ran.
 
 4. **Protected paths** need a human: `packages/actions/`, `docs/adr/`, `.github/`, lint and type
    configuration, `LICENSE`. CODEOWNERS requires the owner's review; a workflow fails
-   `factory/*` branches that touch them; station instructions forbid it.
+   `factory/*` branches and any app-authored pull request that touch them; the factory's push tool
+   refuses branches without the `factory/` prefix; station instructions forbid it.
 
 5. **Funds boundary.** The factory never holds a Solana signer, RPC URL, wallet profile, or AI
    Gateway key. Sandboxes carry no `SOLOS_*`, `SOLANA_*`, or `AI_GATEWAY_API_KEY` values. Tests

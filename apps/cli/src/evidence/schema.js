@@ -11,6 +11,19 @@ export const ScopeSchema = z
 
 /** @typedef {z.infer<typeof ScopeSchema>} Scope */
 
+const CHECK_STEP_NAMES = ["format", "lint", "depcruise", "typecheck"];
+
+/**
+ * Step names each scope must show, in order. The runner emits exactly these; the PR check refuses
+ * Evidence that lacks them or shows one not passing, so `steps: []` can never pass as proof.
+ * @type {Record<Scope, readonly string[]>}
+ */
+export const REQUIRED_STEPS = {
+  check: CHECK_STEP_NAMES,
+  unit: [...CHECK_STEP_NAMES, "test:unit"],
+  full: [...CHECK_STEP_NAMES, "test:unit", "test:integration"],
+};
+
 export const StepSchema = z.object({
   name: z.string().min(1).describe("Short step name, e.g. lint"),
   command: z.string().min(1).describe("Command line that was (or would have been) run"),

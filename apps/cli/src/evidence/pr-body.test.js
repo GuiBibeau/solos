@@ -16,6 +16,9 @@ const sampleEvidence = {
       summary: "Checked 90 files",
     },
     { name: "lint", command: "bun run lint", ok: true, ms: 2400, summary: "ok" },
+    { name: "depcruise", command: "bun run depcruise", ok: true, ms: 160, summary: "ok" },
+    { name: "typecheck", command: "bun run typecheck", ok: true, ms: 300, summary: "ok" },
+    { name: "test:unit", command: "bun run test:unit", ok: true, ms: 320, summary: "51 pass" },
   ],
   startedAt: "2026-09-16T12:00:00.000Z",
   durationMs: 3212,
@@ -83,6 +86,23 @@ describe("pr-body evidence check", () => {
     const result = checkPrBody(bodyWith({ ...sampleEvidence, dirty: true }), SHA);
     expect(result.ok).toBe(false);
     expect(!result.ok && result.reason).toContain("dirty");
+  });
+
+  test("steps must be exactly the scope's required steps, each passed", () => {
+    const forged = checkPrBody(bodyWith({ ...sampleEvidence, steps: [] }), SHA);
+    expect(forged.ok).toBe(false);
+    if (!forged.ok) expect(forged.reason).toContain("requires steps");
+    const partial = checkPrBody(bodyWith({ ...sampleEvidence, scope: "full" }), SHA);
+    expect(partial.ok).toBe(false);
+    const skipped = checkPrBody(
+      bodyWith({
+        ...sampleEvidence,
+        steps: sampleEvidence.steps.map((step, i) => (i === 4 ? { ...step, ok: null } : step)),
+      }),
+      SHA,
+    );
+    expect(skipped.ok).toBe(false);
+    if (!skipped.ok) expect(skipped.reason).toContain("test:unit");
   });
 
   test("failed verification is rejected", () => {

@@ -31,3 +31,7 @@ The factory holds no Solana signer, RPC URL, wallet profile, or gateway key. No 
 6. Finish by calling `push-branch` with your branch name. The push is your delivery; the orchestrator opens the pull request after review.
 
 You cannot ask questions mid-run. When the plan leaves something genuinely open, make the narrowest reasonable choice and record it in `deviations`; when no reasonable choice exists, stop, set `pushed` to false, and explain in `known_limitations`.
+
+## Tooling
+
+Bun is installed at `/workspace/.bun/bin` (symlinked to `/usr/local/bin/bun`). If `bun` is not found, run `export PATH=/workspace/.bun/bin:$PATH` first. Never install another Bun or Node.

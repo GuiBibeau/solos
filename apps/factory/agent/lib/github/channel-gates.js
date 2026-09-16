@@ -86,7 +86,8 @@ export const isTrustedLabeler = async (ctx) => {
 
 /**
  * Whether the issue's current `labels` array carries the factory label. eve exposes the issue
- * object as `issue.raw`, not the webhook payload with the just-added label.
+ * object as `issue.raw`, not the webhook payload with the just-added label, so this is only the
+ * cheap pre-filter; {@link factoryLabelWasJustAdded} decides.
  * @param {Readonly<Record<string, unknown>>} issueRaw
  */
 export const hasFactoryLabel = (issueRaw) => {
@@ -102,3 +103,28 @@ export const hasFactoryLabel = (issueRaw) => {
  */
 export const checkSuiteHeadBranch = (suiteRaw) =>
   stringField(suiteRaw, "head_branch") ?? stringField(suiteRaw.check_suite, "head_branch");
+
+/**
+ * Whether the label this `labeled` webhook reports is the factory label, decided from the issue's
+ * event timeline: the most recent `labeled` event must name the factory label. Without this, any
+ * later label added to an already-`agent-ready` issue would start the unattended pipeline again.
+ * Fails closed on any error.
+ * @param {GitHubInboundContext} ctx
+ * @param {number} issueNumber
+ * @returns {Promise<boolean>}
+ */
+export const factoryLabelWasJustAdded = async (ctx, issueNumber) => {
+  try {
+    const { owner, name } = ctx.repository;
+    const response = await ctx.github.request({
+      method: "GET",
+      path: `/repos/${owner}/${name}/issues/${issueNumber}/events?per_page=100`,
+    });
+    if (!response.ok || !Array.isArray(response.body)) return false;
+    const labeled = response.body.filter((event) => stringField(event, "event") === "labeled");
+    const latest = labeled.at(-1);
+    return latest !== undefined && stringField(asRecord(latest)?.label, "name") === FACTORY_LABEL;
+  } catch {
+    return false;
+  }
+};

@@ -64,9 +64,12 @@ jobs:
           name: evidence-full
           file: ${{ runner.temp }}/evidence-full.json
 
-  # The PR body must carry the author's Evidence for the head sha (agent or human).
+  # The PR body must carry the author's Evidence for the head sha (agent or human). Renovate and
+  # the changesets bot cannot run `verify`; their PRs are proven by the CI re-run above alone.
   evidence:
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -9,8 +9,9 @@
  *   MEMBER, or COLLABORATOR commenters and stamps `trusted`, which is what lets the approval
  *   policies run reversible writes without a card. Anyone else's mention never starts a session.
  * - `onIssue` is the unattended intake: the `agent-ready` label, applied by someone with at least
- *   triage permission (verified against the API), rewrites the session to the autonomous principal
- *   with the intake issue stamped in.
+ *   triage permission (verified against the API) and confirmed as the label this event added (from
+ *   the issue timeline, so a later unrelated label never re-runs the pipeline), rewrites the
+ *   session to the autonomous principal with the intake issue stamped in.
  * - `onCheckSuite` is the red-CI fix loop, scoped to pull requests whose head branch carries the
  *   factory prefix, so a person's red PR never triggers an uninvited fix.
  * - `onPullRequest` posts one orienting comment on PRs opened by people (bots skipped); it is
@@ -23,6 +24,7 @@ import { FACTORY_BRANCH_PREFIX } from "../lib/constants.js";
 import { mentionPattern, resolveBotName } from "../lib/github/bot-name.js";
 import {
   checkSuiteHeadBranch,
+  factoryLabelWasJustAdded,
   hasFactoryLabel,
   isIgnoredComment,
   isTrustedCommenter,
@@ -62,6 +64,7 @@ export default githubChannel({
     if (issue.action !== "labeled" || !hasFactoryLabel(issue.raw) || ctx.sender.type === "Bot")
       return null;
     if (!(await isTrustedLabeler(ctx))) return null;
+    if (!(await factoryLabelWasJustAdded(ctx, issue.issueNumber))) return null;
     return {
       auth: stampAutonomous(defaultGitHubAuth(ctx), issue.issueNumber),
       context: [FACTORY_INTAKE_TASK],

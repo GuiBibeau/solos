@@ -3,7 +3,7 @@
  * Pull-request bodies carry the Evidence under `## Evidence` in a json fenced block. CI parses it
  * here and asserts it belongs to the commit under review, from a clean tree, and passed.
  */
-import { EvidenceSchema } from "./schema.js";
+import { EvidenceSchema, REQUIRED_STEPS } from "./schema.js";
 
 /** @typedef {import("./schema.js").Evidence} Evidence */
 /** @typedef {{ ok: true; evidence: Evidence } | { ok: false; reason: string; evidence?: unknown }} EvidenceCheck */
@@ -55,7 +55,23 @@ const assertEvidence = (evidence, sha) => {
     return `sha mismatch: evidence ${evidence.sha}, expected ${sha}`;
   if (evidence.dirty) return "evidence was produced from a dirty working tree";
   if (!evidence.ok) return "evidence reports a failed verification";
-  return undefined;
+  return assertSteps(evidence);
+};
+
+/**
+ * The declared scope must show exactly its required steps, in order, each passed. Without this a
+ * hand-written `{ ok: true, steps: [] }` would count as proof.
+ * @param {Evidence} evidence
+ * @returns {string | undefined}
+ */
+const assertSteps = (evidence) => {
+  const expected = REQUIRED_STEPS[evidence.scope];
+  const names = evidence.steps.map((step) => step.name);
+  if (names.length !== expected.length || names.some((name, i) => name !== expected[i])) {
+    return `scope ${evidence.scope} requires steps [${expected.join(", ")}], evidence has [${names.join(", ")}]`;
+  }
+  const failed = evidence.steps.find((step) => step.ok !== true);
+  return failed === undefined ? undefined : `step ${failed.name} did not pass`;
 };
 
 /**

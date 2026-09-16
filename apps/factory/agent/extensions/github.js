@@ -16,8 +16,8 @@ import {
   commentPolicy,
   createPullRequestPolicy,
   labelPolicy,
-  shipPolicy,
   updateIssuePolicy,
+  updatePullRequestPolicy,
   writePolicy,
 } from "../lib/github/approval.js";
 import { GITHUB_CONNECTOR } from "../lib/github/credentials.js";
@@ -70,6 +70,6 @@ export default githubExtension({
     removeLabel: labelPolicy,
     requestReviewers: writePolicy,
     updateIssue: updateIssuePolicy,
-    updatePullRequest: shipPolicy,
+    updatePullRequest: updatePullRequestPolicy,
   },
 });

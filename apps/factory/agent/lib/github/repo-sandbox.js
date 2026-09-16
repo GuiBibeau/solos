@@ -73,10 +73,16 @@ export const factoryBootstrap = async ({ use }) => {
   }
 };
 
+/** Bun lives outside any home directory so the session user finds the build-time install. */
+export const BUN_BIN = "/workspace/.bun/bin";
+
 /**
  * Session-scoped setup: fix git's ownership check (the template snapshot is owned by the builder
- * uid), write the commit identity where the session user reads it, and move the checkout to the
- * repository's current default branch, read from `origin/HEAD` rather than assumed.
+ * uid), write the commit identity where the session user reads it, move the checkout to the
+ * repository's current default branch (read from `origin/HEAD` rather than assumed), and
+ * reinstall from that revision's lockfile so a dependency change merged after the template build
+ * never leaves a station verifying against stale packages. Bun's cache makes this a no-op when
+ * nothing changed.
  * @param {SandboxSessionContext} input
  */
 export const factoryOnSession = async ({ use }) => {
@@ -97,4 +103,8 @@ export const factoryOnSession = async ({ use }) => {
   } finally {
     await sandbox.setNetworkPolicy("allow-all");
   }
+  await runOrThrow(
+    sandbox,
+    `cd repo && export PATH="${BUN_BIN}:$PATH" && bun install --frozen-lockfile`,
+  );
 };

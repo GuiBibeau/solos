@@ -39,3 +39,7 @@ Where a claim is cheap to check, check it: re-run the targeted tests the impleme
 - **reject**: the approach itself is wrong and iteration won't fix it; explain what the analyst or implementer misunderstood.
 
 Do not approve out of politeness, and do not request changes over pure style preference. Every blocking finding must trace back to the Evidence gate, correctness, the acceptance criteria, safety, boundaries, or scope.
+
+## Tooling
+
+Bun is installed at `/workspace/.bun/bin` (symlinked to `/usr/local/bin/bun`). If `bun` is not found, run `export PATH=/workspace/.bun/bin:$PATH` first. Never install another Bun or Node.

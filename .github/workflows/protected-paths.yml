@@ -7,7 +7,8 @@ on:
 
 jobs:
   protected-paths:
-    if: startsWith(github.head_ref, 'factory/')
+    # Factory branches by prefix, plus any PR opened by a GitHub App, so a misnamed branch cannot slip past.
+    if: startsWith(github.head_ref, 'factory/') || github.event.pull_request.user.type == 'Bot'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

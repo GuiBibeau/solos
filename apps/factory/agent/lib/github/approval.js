@@ -89,11 +89,45 @@ export const shipPolicy = (ctx) =>
     : "user-approval";
 
 /**
- * Closing and reopening issues is routine, reversible triage, so it runs for every caller that can
- * reach it. Only trusted mentions, autonomous label runs, and the dev TUI ever get a session.
+ * Closing and reopening issues is reversible triage, but a PR-summary session reads text anyone
+ * can write, so it is not ungated: trusted callers run it, an unattended run may close only its
+ * own intake issue, and everyone else parks on a card.
+ * @param {ApprovalContext} ctx
  * @returns {ApprovalStatus}
  */
-export const closeIssuePolicy = () => "not-applicable";
+export const closeIssuePolicy = (ctx) => {
+  const auth = ctx.session.auth.current;
+  if (!isAutonomous(auth)) return writePolicy(ctx);
+  const intakeIssue = intakeIssueNumber(auth);
+  if (intakeIssue !== null && ctx.toolInput?.issueNumber === intakeIssue) return "not-applicable";
+  return {
+    reason: "Unattended factory runs may close or reopen only the issue they were dispatched from.",
+    type: "denied",
+  };
+};
+
+/** `updatePullRequest` inputs that change what can merge: ready/draft, open/closed, base. */
+const SHIPPING_FIELDS = ["draft", "state", "base"];
+
+/**
+ * `updatePullRequest`: title and body edits on the run's own pull request are how the CI-fix loop
+ * refreshes the Evidence after pushing a repaired commit, so an unattended run may make them on
+ * the PR it was dispatched for; anything that changes mergeability follows {@link shipPolicy}.
+ * @param {ApprovalContext} ctx
+ * @returns {ApprovalStatus}
+ */
+export const updatePullRequestPolicy = (ctx) => {
+  const input = ctx.toolInput ?? {};
+  if (SHIPPING_FIELDS.some((field) => input[field] !== undefined)) return shipPolicy(ctx);
+  const auth = ctx.session.auth.current;
+  if (!isAutonomous(auth)) return writePolicy(ctx);
+  const intakeIssue = intakeIssueNumber(auth);
+  if (intakeIssue !== null && input.pullNumber === intakeIssue) return "not-applicable";
+  return {
+    reason: "Unattended factory runs may edit only the pull request they were dispatched for.",
+    type: "denied",
+  };
+};
 
 /**
  * `createPullRequest`: a draft cannot merge, so it runs for every caller; anything mergeable
@@ -111,4 +145,4 @@ export const createPullRequestPolicy = (ctx) =>
  * @returns {ApprovalStatus}
  */
 export const updateIssuePolicy = (ctx) =>
-  ctx.toolInput?.state === undefined ? writePolicy(ctx) : closeIssuePolicy();
+  ctx.toolInput?.state === undefined ? writePolicy(ctx) : closeIssuePolicy(ctx);

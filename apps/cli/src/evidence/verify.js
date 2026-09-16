@@ -1,35 +1,41 @@
 // @ts-check
 import { gitInfo, toolVersions } from "./git-info.js";
 import { runSteps, skippedStep } from "./run-steps.js";
-import { EvidenceSchema } from "./schema.js";
+import { EvidenceSchema, REQUIRED_STEPS } from "./schema.js";
 
 /** @typedef {import("./schema.js").Scope} Scope */
 /** @typedef {import("./schema.js").Evidence} Evidence */
 /** @typedef {import("./run-steps.js").StepSpec} StepSpec */
 
 /**
- * Repo scripts are the source of truth (root package.json); each step runs one of them.
- * @param {string} name @param {string} script
+ * Repo scripts are the source of truth (root package.json); each step runs one of them, the step
+ * name doubling as the script name unless `SCRIPT_FOR_STEP` says otherwise.
+ * @param {string} name
  * @returns {StepSpec}
  */
-const script = (name, script) => ({ name, command: ["bun", "run", "--silent", script] });
+const script = (name) => ({
+  name,
+  command: ["bun", "run", "--silent", SCRIPT_FOR_STEP[name] ?? name],
+});
 
-const CHECK_STEPS = [
-  script("format", "format:check"),
-  script("lint", "lint"),
-  script("depcruise", "depcruise"),
-  script("typecheck", "typecheck"),
-];
+/**
+ * Step name → package.json script. Names are the contract (`REQUIRED_STEPS`); scripts may move.
+ * @type {Record<string, string>}
+ */
+const SCRIPT_FOR_STEP = {
+  format: "format:check",
+  lint: "lint",
+  depcruise: "depcruise",
+  typecheck: "typecheck",
+  "test:unit": "test:unit",
+  "test:integration": "test:integration",
+};
 
 /** @type {Record<Scope, StepSpec[]>} */
 export const STEPS_BY_SCOPE = {
-  check: CHECK_STEPS,
-  unit: [...CHECK_STEPS, script("test:unit", "test:unit")],
-  full: [
-    ...CHECK_STEPS,
-    script("test:unit", "test:unit"),
-    script("test:integration", "test:integration"),
-  ],
+  check: REQUIRED_STEPS.check.map(script),
+  unit: REQUIRED_STEPS.unit.map(script),
+  full: REQUIRED_STEPS.full.map(script),
 };
 
 /**

@@ -2,11 +2,12 @@
 /**
  * The station git tools. Both are inert by construction, which is why they run without approval
  * inside task-mode stations: `validateBranch` refuses main, master, refs/*, HEAD, and anything
- * outside a conservative character set; the credential is brokered at the sandbox firewall and
+ * outside a conservative character set, and pushes must carry `FACTORY_BRANCH_PREFIX`; the credential is brokered at the sandbox firewall and
  * dropped again in a `finally`; and a feature branch alone ships nothing.
  */
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { FACTORY_BRANCH_PREFIX } from "../constants.js";
 import { githubCredentials } from "./credentials.js";
 import {
   brokerPolicy,
@@ -78,6 +79,12 @@ const checkoutBranch = async ({ branch }, ctx) => {
 const pushBranch = async ({ branch }, ctx) => {
   const refusal = validateBranch(branch);
   if (refusal !== null) return { error: refusal, success: false };
+  if (!branch.startsWith(FACTORY_BRANCH_PREFIX)) {
+    return {
+      error: `Factory branches must start with "${FACTORY_BRANCH_PREFIX}"; the protected-path check in CI keys on it.`,
+      success: false,
+    };
+  }
   const push = await runBrokered(
     ctx,
     `git -C ${REPO_DIR} push ${REMOTE_URL} 'refs/heads/${branch}:refs/heads/${branch}'`,
@@ -103,7 +110,8 @@ export const pushBranchTool = () =>
   defineTool({
     description:
       `Push a local branch of the ${REPO_DIR} checkout to the factory repository. The branch must already exist ` +
-      "locally with the work committed and the verification run; main and master are refused. After a successful " +
+      `locally with the work committed and the verification run, and its name must start with "${FACTORY_BRANCH_PREFIX}"; ` +
+      "main and master are refused. After a successful " +
       "push, report the branch name in your structured output so the orchestrator can open the pull request.",
     execute: pushBranch,
     inputSchema: z.object({
