@@ -3,6 +3,7 @@ import { Command, Options } from "@effect/cli";
 import { Effect } from "effect";
 import { emit } from "../output.js";
 import { surfpool } from "./dev-surfpool.js";
+import { evidence, verify } from "./dev-verify.js";
 
 /**
  * Run a repo script with inherited stdio and mirror its exit code.
@@ -37,5 +38,5 @@ const test = Command.make("test", { filter, integrationOnly }, (o) => {
 
 export const dev = Command.make("dev").pipe(
   Command.withDescription("Developer and agent verification lever"),
-  Command.withSubcommands([surfpool, check, test]),
+  Command.withSubcommands([surfpool, check, test, verify, evidence]),
 );

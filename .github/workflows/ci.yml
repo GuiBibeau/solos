@@ -5,28 +5,73 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SURFPOOL_VERSION: "1.3.1"
+  # eslint over the whole repo peaks above Node's default heap
+  NODE_OPTIONS: --max-old-space-size=6144
+
 jobs:
-  check-and-test:
+  # Scope `check`: format, lint, dependency rules, types. Emits Evidence (ADR-0016).
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup
+      - name: solos dev verify --scope check
+        run: bun run solos dev verify --scope check --json > evidence-check.json
+      - uses: ./.github/actions/evidence-summary
+        if: always()
         with:
-          bun-version: "1.3.14"
+          file: evidence-check.json
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+  # Scope `unit`: pure domain tests, no Surfpool.
+  unit:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: solos dev verify --scope unit
+        run: bun run solos dev verify --scope unit --json > evidence-unit.json
+      - uses: ./.github/actions/evidence-summary
+        if: always()
+        with:
+          file: evidence-unit.json
 
-      - name: Install Surfpool
-        run: |
-          curl -sL https://run.surfpool.run/ | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+  # Scope `full`: integration tests on Surfpool, offline. No RPC key, no mainnet, no secrets.
+  integration:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          surfpool: "true"
+      - name: solos dev verify --scope full
+        run: bun run solos dev verify --scope full --json > evidence-full.json
+      - uses: ./.github/actions/evidence-summary
+        if: always()
+        with:
+          file: evidence-full.json
 
-      - name: Quality gates (format, lint, dependency rules, types)
-        run: bun run check
-
-      # Integration tests run Surfpool offline: no RPC key, no mainnet state, no secrets.
-      - name: Tests
-        run: bun test
+  # The PR body must carry the author's Evidence for the head sha (agent or human).
+  evidence:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Write PR body to file
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$BODY" > pr-body.md
+      - name: solos dev evidence check
+        run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"

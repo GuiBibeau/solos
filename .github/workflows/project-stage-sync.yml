@@ -1,0 +1,68 @@
+name: project-stage-sync
+
+# Moves Project cards as issues and PRs change. `agent-ready` moves an issue to Ready; the same
+# label is what hands the issue to the factory (FACTORY_LABEL).
+on:
+  issues:
+    types: [reopened, labeled, closed]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, review_requested, converted_to_draft, closed]
+
+jobs:
+  sync-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_PROJECT_OWNER: ${{ vars.GH_PROJECT_OWNER }}
+      GH_PROJECT_NUMBER: ${{ vars.GH_PROJECT_NUMBER }}
+      GH_PROJECT_ID: ${{ vars.GH_PROJECT_ID }}
+      GH_PROJECT_EXECUTION_STAGE_FIELD_ID: ${{ vars.GH_PROJECT_EXECUTION_STAGE_FIELD_ID }}
+      GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
+      CONTENT_URL: ${{ github.event.issue.html_url || github.event.pull_request.html_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reopened issue → Inbox
+        if: github.event_name == 'issues' && github.event.action == 'reopened'
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_INBOX_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: agent-ready → Ready
+        if: github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'agent-ready'
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_READY_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: status:blocked → Blocked
+        if: github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'status:blocked'
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_BLOCKED_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: Closed issue → Done
+        if: github.event_name == 'issues' && github.event.action == 'closed'
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_DONE_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: Active PR → In progress
+        if: github.event_name == 'pull_request_target' && contains(fromJSON('["opened","reopened","ready_for_review"]'), github.event.action)
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_IN_PROGRESS_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: Review requested → Review
+        if: github.event_name == 'pull_request_target' && github.event.action == 'review_requested'
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_REVIEW_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: Back to draft → Ready
+        if: github.event_name == 'pull_request_target' && github.event.action == 'converted_to_draft'
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_READY_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: Merged → Done
+        if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_DONE_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage
+
+      - name: Closed unmerged → Ready
+        if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && !github.event.pull_request.merged
+        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_READY_OPTION_ID }}" }
+        run: bash scripts/github/project-item.sh set-stage

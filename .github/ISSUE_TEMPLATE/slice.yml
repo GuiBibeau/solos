@@ -1,0 +1,40 @@
+name: Slice
+description: A grilled slice, ready for the factory to implement
+labels: [slice, enhancement]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Slice name
+      description: kebab-case, becomes packages/core/src/<name>/
+    validations:
+      required: true
+  - type: input
+    id: adr
+    attributes:
+      label: ADR
+      description: The accepted ADR that defines this slice (docs/adr/NNNN-....md)
+    validations:
+      required: true
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tools
+      description: One per line as `solana_<group>_<verb>_<object> | tier | one-line description`. Every execute tool needs its simulate twin.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: ports
+    attributes:
+      label: Ports and adapters
+      description: Port tags the slice needs and where the adapter lives (packages/solana/src/<name>/).
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: Checkable by `solos` commands or tests. Copied verbatim by the analyst.
+    validations:
+      required: true

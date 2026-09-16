@@ -63,3 +63,27 @@ throwaway scripts.
 
 **Live verification** — running `solos` commands against mainnet with real funds, allowed for
 Claude Code on request. Distinct from reusable tests, which stay on Surfnet.
+
+**Factory** — the eve app in `apps/factory` that turns a Work item into a draft pull request
+through Stations. Holds no signer, RPC URL, profile, or gateway key.
+
+**Station** — one stage of the Factory run by its own subagent in its own sandbox: classifier,
+analyst, implementer, reviewer, and the optional researcher.
+
+**Work item** — a GitHub issue with acceptance criteria that reached Ready by receiving the
+`agent-ready` label.
+
+**Acceptance criteria** — the checkable statements the analyst copies from the Work item and may
+only extend; the reviewer judges the diff against them one by one.
+
+**Evidence** — the JSON printed by `solos dev verify --json`: `ok`, `sha`, `dirty`, `scope`, tool
+versions, and per-step results. The only accepted proof of work. Counts only when `sha` is the
+commit under review and `dirty` is false.
+
+**Scope** — how much `verify` runs: `check` (format, lint, dependency rules, types), `unit`
+(plus unit tests), `full` (plus Surfpool integration tests).
+
+**Human gate** — marking a draft pull request ready and merging it. Never done by the Factory.
+
+**Protected path** — a file or directory the Factory may not change: `packages/actions/`,
+`docs/adr/`, `.github/`, lint and type configuration, `LICENSE`. Enforced by CODEOWNERS and CI.

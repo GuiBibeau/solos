@@ -8,3 +8,8 @@ dist/
 .DS_Store
 docs/dependency-graph.svg
 coverage/
+
+# factory (eve) and Vercel
+apps/factory/.eve/
+.vercel/
+.env.local

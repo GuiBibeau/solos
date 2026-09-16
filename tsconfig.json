@@ -18,6 +18,8 @@
   "include": [
     "packages/*/src/**/*.js",
     "apps/*/src/**/*.js",
+    "apps/factory/agent/**/*.js",
+    "apps/factory/evals/**/*.js",
     "scripts/**/*.js",
     "harness.config.js"
   ],

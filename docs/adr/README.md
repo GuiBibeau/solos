@@ -20,3 +20,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0013](0013-execution-through-action-executor.md) | Execution goes through `ActionExecutor`; the wallet is the default target |
 | [0014](0014-solos-is-finance-harness.md) | solOS is `finance-harness`; vaults are an optional executor |
 | [0015](0015-login-and-profiles.md) | `solos login --provider` and wallet profiles; env wins, then `SOLOS_PROFILE` |
+| [0016](0016-software-factory-and-evidence.md) | Software factory in `apps/factory` on eve; `solos dev verify` Evidence is the verification contract |
