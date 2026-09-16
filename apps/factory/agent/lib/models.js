@@ -1,15 +1,17 @@
 // @ts-check
 /**
- * One place to change every station's model. Ids are Vercel AI Gateway strings
- * (`<vendor>/<model>`), read from `FACTORY_MODEL_*` with defaults, so routing, credentials, and
- * fallbacks stay on the gateway and no provider SDK is wired in. Each `agent.js` reads its entry
- * here (`model: MODELS.<agent>`) instead of hardcoding a string.
+ * One place to change every station's model. Ids use `<vendor>/<model>` and are read from
+ * `FACTORY_MODEL_*` with defaults. Each `agent.js` reads its entry
+ * here instead of hardcoding a string. Z.ai models use the Coding Plan endpoint directly;
+ * other vendors continue through the gateway.
  *
  * The factory never holds a gateway key itself: the gateway authenticates with the deployment's
  * OIDC token. `AI_GATEWAY_API_KEY` is not read here and never reaches a sandbox.
  */
 
-const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
+import { createZaiModel } from "./zai-model.js";
+
+const DEFAULT_MODEL = "zai/glm-5.3-flash";
 
 /** Different vendor from the implementer on purpose: independent review. */
 const DEFAULT_REVIEWER_MODEL = "openai/gpt-5.6-luna";
@@ -79,6 +81,12 @@ export const MODELS = assertIndependentReviewer(
  * @returns {AgentModelOptionsDefinition | undefined}
  */
 export const modelOptionsFor = (model) => {
+  if (vendorOf(model) === "zai")
+    return {
+      providerOptions: {
+        zai: { thinking: { clear_thinking: false, type: "enabled" }, tool_stream: true },
+      },
+    };
   if (vendorOf(model) !== "deepseek") return undefined;
   const only = fromEnv("FACTORY_GATEWAY_PROVIDERS", DEFAULT_DEEPSEEK_PROVIDERS.join(","))
     .split(",")
@@ -87,12 +95,13 @@ export const modelOptionsFor = (model) => {
   return { providerOptions: { gateway: { only } } };
 };
 
-/** `modelOptions` for each station, aligned with {@link MODELS}. */
-export const MODEL_OPTIONS = Object.freeze({
-  analyst: modelOptionsFor(MODELS.analyst),
-  classifier: modelOptionsFor(MODELS.classifier),
-  implementer: modelOptionsFor(MODELS.implementer),
-  orchestrator: modelOptionsFor(MODELS.orchestrator),
-  researcher: modelOptionsFor(MODELS.researcher),
-  reviewer: modelOptionsFor(MODELS.reviewer),
-});
+/** @param {FactoryAgent} station */
+export const modelConfigFor = (station) => {
+  const id = MODELS[station];
+  const isDirect = vendorOf(id) === "zai";
+  return {
+    model: isDirect ? createZaiModel(id.slice(4)) : id,
+    ...(isDirect && { modelContextWindowTokens: 1_000_000 }),
+    modelOptions: modelOptionsFor(id),
+  };
+};

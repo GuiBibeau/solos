@@ -6,7 +6,7 @@
  * against the acceptance criteria; it never modifies code.
  */
 import { defineAgent } from "eve";
-import { MODEL_OPTIONS, MODELS } from "../../lib/models.js";
+import { modelConfigFor } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -17,8 +17,7 @@ export default defineAgent({
     "findings. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
     "branch name, and the implementer's report including its evidence field, plus an artifact id when the " +
     "analyst saved its detail.",
-  model: MODELS.reviewer,
-  modelOptions: MODEL_OPTIONS.reviewer,
+  ...modelConfigFor("reviewer"),
   outputSchema: {
     additionalProperties: false,
     properties: {

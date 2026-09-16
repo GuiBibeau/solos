@@ -20,11 +20,11 @@ The factory never holds a Solana signer, RPC URL, wallet profile, or gateway key
 
 | Station | Model (env, default) | Own sandbox | What it returns |
 | --- | --- | --- | --- |
-| classifier | `FACTORY_MODEL_CLASSIFIER`, `deepseek/deepseek-v4.1-flash` | no | type, priority, complexity, slice, `needs_clarification` |
-| analyst | `FACTORY_MODEL_ANALYST`, `deepseek/deepseek-v4.1-flash` | clone of the repo | plan, slice, tool tier and `simulate` twin, constraining ADR, acceptance criteria copied from the issue form and only extended |
-| implementer | `FACTORY_MODEL_IMPLEMENTER`, `deepseek/deepseek-v4.1-flash` | clone of the repo | branch `factory/<type>-<slug>`, conventional commits, changeset when `packages/actions` changes, `evidence`: the JSON of `bun run solos dev verify --scope unit --json` verbatim |
+| classifier | `FACTORY_MODEL_CLASSIFIER`, `zai/glm-5.3-flash` | no | type, priority, complexity, slice, `needs_clarification` |
+| analyst | `FACTORY_MODEL_ANALYST`, `zai/glm-5.3-flash` | clone of the repo | plan, slice, tool tier and `simulate` twin, constraining ADR, acceptance criteria copied from the issue form and only extended |
+| implementer | `FACTORY_MODEL_IMPLEMENTER`, `zai/glm-5.3-flash` | clone of the repo | branch `factory/<type>-<slug>`, conventional commits, changeset when `packages/actions` changes, `evidence`: the JSON of `bun run solos dev verify --scope unit --json` verbatim |
 | reviewer | `FACTORY_MODEL_REVIEWER`, `openai/gpt-5.6-luna` | clone of the repo | Evidence gate first (`--scope check` in its own clone, sha compared with the implementer's; missing, mismatched, or dirty Evidence is `request_changes` before reading the diff), then criteria table and verdict |
-| researcher | `FACTORY_MODEL_RESEARCHER`, `deepseek/deepseek-v4.1-flash` | no | cited findings and gaps, on demand |
+| researcher | `FACTORY_MODEL_RESEARCHER`, `zai/glm-5.3-flash` | no | cited findings and gaps, on demand |
 
 The reviewer must run on a different vendor than the implementer; `agent/lib/models.js` throws at module load otherwise, so discovery fails instead of shipping self-review. The orchestrator (`FACTORY_MODEL_ORCHESTRATOR`) never edits code: it routes, relays artifact ids, and assembles the PR body: problem statement, `## Plan`, `## Acceptance criteria` (the reviewer's table), `## Evidence` (the implementer's JSON in a ```json fence, untouched), deviations, `Closes #N`. CI parses the Evidence section (`solos dev evidence check`).
 
@@ -70,7 +70,9 @@ Identity comes from the filesystem: `agent/tools/read-artifact.js` is the tool `
 
 ## Configuration
 
-See `.env.example`. `GITHUB_CONNECTOR` (Vercel Connect connector UID) and `FACTORY_REPO` are the two values a deployment sets; everything else has a default. `FACTORY_SETUP_COMMAND` defaults to `bash scripts/factory-setup.sh` (at the repo root), which installs Bun at the version in `.bun-version`, runs `bun install --frozen-lockfile`, and runs `bun run solos dev verify --scope check --json` inside the sandbox clone at template build.
+See `.env.example`. Set `ZAI_CODING_API_KEY` as a Vercel Secret for Production and Preview. The default stations use `glm-5.3-flash` directly at `https://api.z.ai/api/coding/paas/v4`, so their requests use the Coding Plan endpoint. There is no automatic fallback to the separately billed Model API or Gateway. The reviewer remains on `openai/gpt-5.6-luna` through Gateway for review by a different vendor. The Z.ai key is read at request time and never forwarded to sandboxes.
+
+ `GITHUB_CONNECTOR` (Vercel Connect connector UID) and `FACTORY_REPO` are the two values a deployment sets; everything else has a default. `FACTORY_SETUP_COMMAND` defaults to `bash scripts/factory-setup.sh` (at the repo root), which installs Bun at the version in `.bun-version`, runs `bun install --frozen-lockfile`, and runs `bun run solos dev verify --scope check --json` inside the sandbox clone at template build.
 
 ## Commands
 
