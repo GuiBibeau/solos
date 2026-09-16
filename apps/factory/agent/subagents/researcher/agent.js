@@ -5,7 +5,7 @@
  * none of the root's tools; the default harness's `web_search` and `web_fetch` cover the work.
  */
 import { defineAgent } from "eve";
-import { MODELS } from "../../lib/models.js";
+import { MODEL_OPTIONS, MODELS } from "../../lib/models.js";
 
 const SOURCE_SCHEMA = {
   additionalProperties: false,
@@ -25,6 +25,7 @@ export default defineAgent({
     "it couldn't verify. May save a long research memo as an artifact and return its id for later stations. " +
     "The caller passes the question and any known context in the message.",
   model: MODELS.researcher,
+  modelOptions: MODEL_OPTIONS.researcher,
   outputSchema: {
     additionalProperties: false,
     properties: {

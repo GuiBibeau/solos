@@ -12,7 +12,16 @@
 const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
 
 /** Different vendor from the implementer on purpose: independent review. */
-const DEFAULT_REVIEWER_MODEL = "alibaba/qwen3.8-flash";
+const DEFAULT_REVIEWER_MODEL = "openai/gpt-5.6-luna";
+
+/**
+ * Gateway providers allowed to serve DeepSeek models. The gateway's cheapest DeepSeek route is
+ * Alibaba-hosted and runs an output content inspection that rejects ordinary solOS vocabulary
+ * (signer, private key, mainnet) as "inappropriate content", killing the station mid-turn. These
+ * first-party and neutral hosts serve the same model with tool calling and no inspection layer.
+ * Override with FACTORY_GATEWAY_PROVIDERS (comma-separated gateway provider slugs).
+ */
+const DEFAULT_DEEPSEEK_PROVIDERS = ["deepseek", "fireworks", "deepinfra", "runware"];
 
 /**
  * @param {string} name
@@ -60,3 +69,30 @@ export const MODELS = assertIndependentReviewer(
 );
 
 /** @typedef {keyof typeof MODELS} FactoryAgent */
+
+/** @typedef {import("eve").AgentModelOptionsDefinition} AgentModelOptionsDefinition */
+
+/**
+ * Per-model AI SDK options forwarded to the gateway. Only DeepSeek needs provider pinning today;
+ * other vendors route by the gateway's defaults.
+ * @param {string} model
+ * @returns {AgentModelOptionsDefinition | undefined}
+ */
+export const modelOptionsFor = (model) => {
+  if (vendorOf(model) !== "deepseek") return undefined;
+  const only = fromEnv("FACTORY_GATEWAY_PROVIDERS", DEFAULT_DEEPSEEK_PROVIDERS.join(","))
+    .split(",")
+    .map((slug) => slug.trim())
+    .filter((slug) => slug !== "");
+  return { providerOptions: { gateway: { only } } };
+};
+
+/** `modelOptions` for each station, aligned with {@link MODELS}. */
+export const MODEL_OPTIONS = Object.freeze({
+  analyst: modelOptionsFor(MODELS.analyst),
+  classifier: modelOptionsFor(MODELS.classifier),
+  implementer: modelOptionsFor(MODELS.implementer),
+  orchestrator: modelOptionsFor(MODELS.orchestrator),
+  researcher: modelOptionsFor(MODELS.researcher),
+  reviewer: modelOptionsFor(MODELS.reviewer),
+});

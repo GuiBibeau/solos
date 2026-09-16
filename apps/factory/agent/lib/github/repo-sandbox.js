@@ -8,7 +8,7 @@
 import { FACTORY_REPO, FACTORY_SETUP_COMMAND } from "../constants.js";
 import { describeCloneFailure, safeErrorMessage } from "./bootstrap-diagnostics.js";
 import { githubCredentials } from "./credentials.js";
-import { brokerPolicy, mintInstallationToken, REMOTE_URL } from "./git-remote.js";
+import { brokerPolicy, mintInstallationToken, REMOTE_URL, REPO_DIR } from "./git-remote.js";
 import {
   assertNoSolanaSecrets,
   gitIdentity,
@@ -39,7 +39,7 @@ export const FACTORY_SANDBOX_CREATE_OPTIONS = {
  * template (authored sandbox source is tracked by eve automatically).
  */
 export const factoryRevalidationKey = () =>
-  `factory-repo-v1:${FACTORY_REPO}:${FACTORY_SETUP_COMMAND}`;
+  `factory-repo-v2:${FACTORY_REPO}:${FACTORY_SETUP_COMMAND}`;
 
 /**
  * Clone the repository through the brokered firewall, translating a failure into a message that
@@ -48,7 +48,10 @@ export const factoryRevalidationKey = () =>
  */
 const cloneOrExplain = async (sandbox) => {
   try {
-    await runOrThrow(sandbox, `git clone --depth 50 ${REMOTE_URL} repo`);
+    await runOrThrow(
+      sandbox,
+      `mkdir -p ${REPO_DIR} && git clone --depth 50 ${REMOTE_URL} ${REPO_DIR}`,
+    );
   } catch (error) {
     throw new Error(describeCloneFailure(FACTORY_REPO, safeErrorMessage(error)), { cause: error });
   }
@@ -67,7 +70,7 @@ export const factoryBootstrap = async ({ use }) => {
   await sandbox.setNetworkPolicy(brokerPolicy(token));
   try {
     await cloneOrExplain(sandbox);
-    await runOrThrow(sandbox, `cd repo && ${FACTORY_SETUP_COMMAND}`);
+    await runOrThrow(sandbox, `cd ${REPO_DIR} && ${FACTORY_SETUP_COMMAND}`);
   } finally {
     await sandbox.setNetworkPolicy("allow-all");
   }
@@ -88,6 +91,10 @@ export const BUN_BIN = "/workspace/.bun/bin";
 export const factoryOnSession = async ({ use }) => {
   const sandbox = await use();
   await assertNoSolanaSecrets(sandbox);
+  await runOrThrow(
+    sandbox,
+    `test -d ${REPO_DIR}/.git || { echo 'factory checkout missing at ${REPO_DIR}: the sandbox template predates the repository clone; redeploy the factory to rebuild templates' >&2; exit 1; }`,
+  );
   const identity = await gitIdentity();
   await runOrThrow(
     sandbox,
@@ -98,13 +105,13 @@ export const factoryOnSession = async ({ use }) => {
   try {
     await runOrThrow(
       sandbox,
-      `cd repo && branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||') && git fetch ${REMOTE_URL} "$branch" && git checkout -B "$branch" FETCH_HEAD`,
+      `cd ${REPO_DIR} && branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||') && git fetch ${REMOTE_URL} "$branch" && git checkout -B "$branch" FETCH_HEAD`,
     );
   } finally {
     await sandbox.setNetworkPolicy("allow-all");
   }
   await runOrThrow(
     sandbox,
-    `cd repo && export PATH="${BUN_BIN}:$PATH" && bun install --frozen-lockfile`,
+    `cd ${REPO_DIR} && export PATH="${BUN_BIN}:$PATH" && bun install --frozen-lockfile`,
   );
 };
