@@ -1,0 +1,33 @@
+name: evidence
+
+# The PR body must carry the author's Evidence for the head sha (agent or human). Runs on its own
+# so a body edit re-checks without re-running the suite, and reads the live body from the API
+# rather than the event payload (a push event carries the body as it was before the author
+# pasted the new Evidence). Renovate and the changesets bot cannot run `verify`; their PRs are
+# proven by the CI re-run alone.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: evidence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    if: >-
+      !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Fetch the live PR body
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body > pr-body.md
+      - name: solos dev evidence check
+        run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"

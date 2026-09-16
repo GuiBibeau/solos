@@ -63,21 +63,3 @@ jobs:
         with:
           name: evidence-full
           file: ${{ runner.temp }}/evidence-full.json
-
-  # The PR body must carry the author's Evidence for the head sha (agent or human). Renovate and
-  # the changesets bot cannot run `verify`; their PRs are proven by the CI re-run above alone.
-  evidence:
-    if: >-
-      github.event_name == 'pull_request' &&
-      !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-      - name: Write PR body to file
-        env:
-          BODY: ${{ github.event.pull_request.body }}
-        run: printf '%s' "$BODY" > pr-body.md
-      - name: solos dev evidence check
-        run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"
