@@ -10,6 +10,6 @@ import { modelConfigFor } from "./lib/models.js";
 
 export default defineAgent({
   compaction: { thresholdPercent: 0.75 },
-  limits: { maxOutputTokensPerSession: 100_000 },
+  limits: { maxOutputTokensPerSession: 200_000 },
   ...modelConfigFor("orchestrator"),
 });
