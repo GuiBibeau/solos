@@ -24,6 +24,8 @@ const elements = [
   { type: "mcp", pattern: "packages/mcp/src/**", partialMatch: false },
   { type: "harness", pattern: "apps/harness/src/**", partialMatch: false },
   { type: "cli", pattern: "apps/cli/src/**", partialMatch: false },
+  // The eve software factory is a leaf: it imports nothing from the rest of the monorepo.
+  { type: "factory", pattern: "apps/factory/**", partialMatch: false },
   { type: "scripts", pattern: "scripts/**", partialMatch: false },
 ];
 
@@ -126,6 +128,7 @@ const boundaryRules = {
         policy("mcp", [to("actions"), to("mcp")]),
         policy("harness", [to("actions"), to("harness")]),
         policy("cli", [to("actions"), to("cli")]),
+        policy("factory", [to("factory")]),
         policy("scripts", [to("scripts")]),
       ],
     },
@@ -133,7 +136,16 @@ const boundaryRules = {
 };
 
 export default [
-  { ignores: ["**/node_modules/**", "**/dist/**", ".solos/**", "docs/**"] },
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.eve/**",
+      "**/.output/**",
+      ".solos/**",
+      "docs/**",
+    ],
+  },
   js.configs.recommended,
   importX.flatConfigs.recommended,
   unicorn.configs.recommended,
@@ -192,5 +204,26 @@ export default [
   {
     files: ["scripts/**"],
     rules: { "unicorn/no-global-object-property-assignment": "off" },
+  },
+  {
+    // eve discovers these slots by their default export; everything else in the factory is named.
+    files: [
+      "apps/factory/agent/agent.js",
+      "apps/factory/agent/instructions.js",
+      "apps/factory/agent/sandbox.js",
+      "apps/factory/agent/{tools,channels,extensions}/*.js",
+      "apps/factory/agent/subagents/*/{agent,sandbox}.js",
+      "apps/factory/agent/subagents/*/tools/*.js",
+      "apps/factory/evals/evals.config.js",
+      "apps/factory/evals/**/*.eval.js",
+    ],
+    rules: { "import-x/no-default-export": "off" },
+  },
+  {
+    // The whole-repo lint already sits near the default heap ceiling; following the factory's
+    // imports into eve's bundled dist for cycle detection tips it into OOM. Cycles inside the
+    // factory are still checked.
+    files: ["apps/factory/**"],
+    rules: { "import-x/no-cycle": ["error", { ignoreExternal: true }] },
   },
 ];

@@ -19,8 +19,19 @@ bun run solos mcp list                   # spawns the MCP server over stdio, lis
 bun run solos mcp call solana_wallet_get_balance --args '{}'
 bun run solos dev check                  # format, lint, dependency rules, types
 bun run solos dev test                   # unit + integration (Surfpool starts itself)
+bun run solos dev verify --scope unit    # check + unit tests, prints Evidence JSON (scope: check|unit|full)
+bun run solos dev evidence check --body-file pr.md --sha $(git rev-parse HEAD)  # what CI runs on PR bodies
 bun run solos dev surfpool down
 ```
+
+### Evidence
+
+The JSON printed by `solos dev verify` is the only accepted proof of work. It records the HEAD sha,
+whether the tree was dirty, the scope, tool versions, and one entry per step (`ok` true/false/null
+for skipped, duration, last output line). Run it with `--json` and paste the object in the PR body
+under a `## Evidence` heading inside a ```json fence. CI runs `solos dev evidence check` against
+the PR body: the sha must match the PR head, `dirty` must be false, `ok` must be true. Then CI
+re-runs `solos dev verify` on the same sha. A description of what you ran is not evidence; the JSON is.
 
 Do not write throwaway scripts to poke the chain or the server. If a verification step is missing,
 add a `solos` command instead.

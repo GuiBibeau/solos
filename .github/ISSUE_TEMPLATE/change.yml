@@ -1,0 +1,32 @@
+name: Change
+description: A well-specified change the factory can implement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What changes
+      description: One paragraph. Name the slice and the files or tools involved.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: >-
+        One per line, each checkable by a `solos` command or a test. The analyst copies these
+        verbatim and may only add to them.
+      placeholder: |
+        - `solos mcp list` shows `solana_market_get_price` in group `market`, tier `read`
+        - `bun run solos dev verify --scope full` is green
+    validations:
+      required: true
+  - type: input
+    id: adr
+    attributes:
+      label: Constraining ADR
+      description: e.g. docs/adr/0007-tool-discovery.md
+  - type: textarea
+    id: out
+    attributes:
+      label: Out of scope

@@ -28,3 +28,5 @@ until a recipe repeats three times.
 
 - The CLI depends on every package; nothing depends on the CLI.
 - Missing verification steps are added as commands, never as scripts.
+
+See also: [0016](0016-software-factory-and-evidence.md), which makes `solos dev verify` Evidence the proof of work for humans, agents, and CI.

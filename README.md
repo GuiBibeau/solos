@@ -15,8 +15,8 @@ Plain JavaScript on Bun, Effect for architecture, Zod for schemas, Solana Kit 8 
 ```sh
 bun install
 bun run solos login --provider privy --rpc-url https://your-provider-url   # browser login; or local | pay
-bun run check                   # format, lint, dependency rules, types
-bun test                        # unit + integration (starts Surfpool offline automatically)
+bun run solos dev verify --scope unit --json   # Evidence: the only accepted proof of work (ADR-0016)
+bun run solos dev verify                        # full: adds Surfpool integration tests
 
 bun run solos dev surfpool up   # local network for manual verification
 bun run solos wallet balance
@@ -35,11 +35,21 @@ packages/solana   Kit + keychain adapters, DirectSignerExecutor, Surfpool helper
 packages/mcp      stdio MCP server, the single MCP client
 apps/harness      daemon, router, agent loop, sqlite store, tracing
 apps/cli          `solos`: operator CLI and verification lever
+apps/factory      eve software factory: GitHub issue → stations → draft PR (Node 24 for the eve CLI only)
 docs/adr          why things are the way they are
 docs/clients      wiring snippets for Claude Code, Codex, Cursor
 ```
 
 Read `AGENTS.md` before contributing (humans too) and `CONTEXT.md` for vocabulary.
+
+## How work gets done
+
+Design is human: a grilling session ends in an ADR and issues with acceptance criteria. Labelling
+an issue `agent-ready` hands it to the factory (`apps/factory`), which plans, implements, and
+independently reviews the change in sandboxes and opens a **draft** pull request. Every pull
+request, from a person or an agent, carries the JSON printed by `solos dev verify` under
+`## Evidence`; CI checks it against the head commit and re-runs the same command. A person marks
+the draft ready and merges. See `docs/factory.md` for operating the factory and ADR-0016 for why.
 
 ## Tools today
 

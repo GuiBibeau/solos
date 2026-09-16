@@ -1,0 +1,55 @@
+name: nightly
+
+# Integration suite against a live mainnet fork (Surfpool online) to catch drift in Kit or
+# program layouts. Read-only: the RPC URL is the only secret. Non-blocking; failures open an issue.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+env:
+  SURFPOOL_VERSION: "1.3.1"
+  # eslint over the whole repo peaks above Node's default heap
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  mainnet-fork:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          surfpool: "true"
+      - name: solos dev verify --scope full (online fork)
+        id: verify
+        continue-on-error: true
+        env:
+          # test-surfnet.js forks mainnet when this is set (Surfpool online mode)
+          SURFNET_DATASOURCE_RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
+        run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json"
+      - uses: ./.github/actions/evidence-summary
+        if: always()
+        with:
+          name: evidence-nightly
+          file: ${{ runner.temp }}/evidence-nightly.json
+      - name: Open or update the nightly-failure issue
+        if: steps.verify.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\n```json\n'"$(cat "$RUNNER_TEMP/evidence-nightly.json" 2>/dev/null || echo '{}')"$'\n```'
+          existing="$(gh issue list --label nightly-failure --state open --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "Nightly mainnet-fork run is red" --label nightly-failure --label bug --body "$body"
+          fi
+      - name: Fail the job when the suite failed
+        if: steps.verify.outcome == 'failure'
+        run: exit 1

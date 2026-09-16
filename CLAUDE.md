@@ -7,5 +7,6 @@
 - Prefer `bun run solos dev ...` for verification. The commands print JSON you can assert on.
 - Live verification against mainnet spends real SOL and is explicitly allowed when the user asks
   for it. Report every signature and amount. Reusable tests must stay on Surfpool.
-- After editing code, run `bun run solos dev check` before claiming completion. The lint rules
-  are intentionally strict; fix the code, do not loosen the rules without an ADR.
+- After editing code, run `bun run solos dev verify --scope unit --json` before claiming
+  completion and include the Evidence JSON it prints. The lint rules are intentionally strict; fix
+  the code, do not loosen the rules without an ADR.

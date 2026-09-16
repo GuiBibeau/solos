@@ -1,0 +1,54 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", ":preserveSemverRanges"],
+  "schedule": ["before 8am on monday"],
+  "timezone": "America/Montreal",
+  "labels": ["deps"],
+  "rangeStrategy": "pin",
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 8am on monday"] },
+  "packageRules": [
+    { "groupName": "solana", "matchPackagePatterns": ["^@solana/", "^@solana-program/"] },
+    { "groupName": "effect", "matchPackagePatterns": ["^effect$", "^@effect/"] },
+    { "groupName": "ai-sdk", "matchPackagePatterns": ["^ai$", "^@ai-sdk/"] },
+    { "groupName": "mcp", "matchPackagePatterns": ["^@modelcontextprotocol/"] },
+    { "groupName": "eve", "matchPackagePatterns": ["^eve$", "^@vercel/", "^@github-tools/"] },
+    {
+      "groupName": "lint",
+      "matchPackagePatterns": [
+        "eslint",
+        "^@biomejs/",
+        "^dependency-cruiser$",
+        "^typescript$",
+        "^globals$"
+      ]
+    },
+    {
+      "description": "Auto-merge devDependency minor/patch once CI is green (ADR-0016)",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Surfpool version pinned in workflows",
+      "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
+      "matchStrings": ["SURFPOOL_VERSION: \"(?<currentValue>[0-9.]+)\""],
+      "depNameTemplate": "txtx/surfpool",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Bun version file shared by CI and the factory sandbox",
+      "fileMatch": ["^\\.bun-version$"],
+      "matchStrings": ["^(?<currentValue>[0-9.]+)\\s*$"],
+      "depNameTemplate": "oven-sh/bun",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^bun-v(?<version>.*)$"
+    }
+  ]
+}

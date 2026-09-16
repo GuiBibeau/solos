@@ -1,0 +1,38 @@
+name: setup
+description: Bun from .bun-version, cached dependencies, optionally a pinned Surfpool.
+
+inputs:
+  surfpool:
+    description: Install Surfpool at $SURFPOOL_VERSION
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: .bun-version
+
+    - name: Cache Bun dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: bun-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: bun install --frozen-lockfile
+
+    - name: Install Surfpool ${{ env.SURFPOOL_VERSION }}
+      if: inputs.surfpool == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        url="https://github.com/txtx/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
+        mkdir -p "$HOME/.local/bin"
+        curl -fsSL "$url" | tar -xz -C "$HOME/.local/bin"
+        chmod +x "$HOME/.local/bin/surfpool"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        "$HOME/.local/bin/surfpool" --version

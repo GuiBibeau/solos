@@ -22,7 +22,9 @@
     "test:unit": "bun test --test-name-pattern '^(?!.*\\[integration\\])'",
     "test:integration": "bun test --test-name-pattern '\\[integration\\]'",
     "solos": "bun run apps/cli/src/main.js",
-    "mcp": "bun run packages/mcp/src/bin/stdio.js"
+    "verify": "bun run solos dev verify",
+    "mcp": "bun run packages/mcp/src/bin/stdio.js",
+    "changeset": "changeset"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
@@ -34,6 +36,7 @@
     "eslint-plugin-import-x": "4.17.1",
     "eslint-plugin-unicorn": "74.0.0",
     "globals": "latest",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "@changesets/cli": "3.0.3"
   }
 }

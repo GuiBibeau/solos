@@ -1,0 +1,40 @@
+name: Bug
+description: Something the lever can reproduce
+labels: [bug]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The `solos` commands you ran, in order. No prose descriptions of clicks.
+      render: sh
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: Paste the JSON the command printed.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: sha
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD`
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      options: [Surfpool offline, Surfpool online fork, mainnet]
+    validations:
+      required: true

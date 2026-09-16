@@ -1,0 +1,36 @@
+name: evidence-summary
+description: Upload an Evidence JSON as an artifact and render it in the job summary.
+
+inputs:
+  name:
+    description: Artifact name (e.g. evidence-check)
+    required: true
+  file:
+    description: Path to the Evidence JSON produced by `solos dev verify --json`, outside the checkout
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.file }}
+        if-no-files-found: warn
+
+    - name: Job summary
+      shell: bash
+      run: |
+        f="${{ inputs.file }}"
+        [ -s "$f" ] || { echo "no evidence file" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+        {
+          echo "### Evidence: $(jq -r .scope "$f") on $(jq -r .sha "$f" | cut -c1-12) (ok=$(jq -r .ok "$f"), dirty=$(jq -r .dirty "$f"))"
+          echo
+          echo "| step | ok | ms | summary |"
+          echo "|---|---|---|---|"
+          jq -r '.steps[] | "| \(.name) | \(.ok) | \(.ms) | \(.summary | gsub("\\|"; "\\|")) |"' "$f"
+          echo
+          echo '```json'
+          cat "$f"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
