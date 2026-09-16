@@ -93,7 +93,7 @@ Node 24 is required for the `eve` CLI only (ADR-0016). Everything else stays on 
 
 ## Costs
 
-Models default to `deepseek/deepseek-v4.1-flash` (stations) and `alibaba/qwen3.8-flash`
+Models default to `deepseek/deepseek-v4.1-flash` (stations, pinned to non-Alibaba gateway providers; Alibaba's output inspection rejects wallet vocabulary) and `openai/gpt-5.6-luna`
 (reviewer), both about 15 cents per million input tokens. Raise one station with
 `FACTORY_MODEL_<STATION>`; the implementer and reviewer must stay on different vendors (the app
 asserts this at startup). Sandboxes bill per vCPU-second; the repo clone and `bun install` are

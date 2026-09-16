@@ -5,7 +5,7 @@
  * `needs_clarification` is the stop signal.
  */
 import { defineAgent } from "eve";
-import { MODELS } from "../../lib/models.js";
+import { MODEL_OPTIONS, MODELS } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -13,6 +13,7 @@ export default defineAgent({
     "complexity, the slice or package involved, and whether it is actionable or needs clarification. Fast " +
     "triage only; no analysis or implementation. The caller passes the work item verbatim in the message.",
   model: MODELS.classifier,
+  modelOptions: MODEL_OPTIONS.classifier,
   outputSchema: {
     additionalProperties: false,
     properties: {

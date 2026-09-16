@@ -64,7 +64,9 @@ which commit, not what an agent says it ran.
 
 8. **Models** are cheap and configurable per station (`FACTORY_MODEL_<STATION>`); implementer
    and reviewer must be on different vendors. Defaults: DeepSeek v4.1 flash for orchestrator,
-   classifier, analyst, implementer, researcher; Qwen 3.8 flash for the reviewer. Expensive
+   classifier, analyst, implementer, researcher, served by gateway providers without an output
+   content filter (the Alibaba route rejects wallet vocabulary); GPT-5.6 luna for the reviewer.
+   Expensive
    reasoning stays upstream, in grilling and ADRs.
 
 ## Consequences

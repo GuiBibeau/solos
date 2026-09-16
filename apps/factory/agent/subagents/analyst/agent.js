@@ -6,7 +6,7 @@
  * produces are the contract the reviewer later judges the implementation against, verbatim.
  */
 import { defineAgent } from "eve";
-import { MODELS } from "../../lib/models.js";
+import { MODEL_OPTIONS, MODELS } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -17,6 +17,7 @@ export default defineAgent({
     "its classification, and any research findings in the message, plus a research artifact id when the " +
     "researcher saved a full memo. May save its own deep supporting detail as an analysis artifact.",
   model: MODELS.analyst,
+  modelOptions: MODEL_OPTIONS.analyst,
   outputSchema: {
     additionalProperties: false,
     properties: {

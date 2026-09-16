@@ -6,7 +6,7 @@
  * The pull request is opened later by the orchestrator, after review.
  */
 import { defineAgent } from "eve";
-import { MODELS } from "../../lib/models.js";
+import { MODEL_OPTIONS, MODELS } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -18,6 +18,7 @@ export default defineAgent({
     "the message, plus an artifact id when the analyst saved its detail; on a revision run it also passes the " +
     "existing branch and the reviewer's findings.",
   model: MODELS.implementer,
+  modelOptions: MODEL_OPTIONS.implementer,
   outputSchema: {
     additionalProperties: false,
     properties: {
