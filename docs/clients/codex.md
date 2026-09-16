@@ -17,7 +17,7 @@ Read-only preset:
 command = "bun"
 args = ["run", "/absolute/path/to/solos/packages/mcp/src/bin/stdio.js"]
 env = { SOLOS_PROFILE = "main", SOLOS_TOOL_TIER = "read" }
-enabled_tools = ["solana_wallet_get_address", "solana_wallet_get_balance"]
+enabled_tools = ["solana_wallet_get_address", "solana_wallet_get_balance", "solana_market_ask_iris"]
 ```
 
 `SOLOS_TOOL_TIER` filters on the server side; `enabled_tools` filters on the client side. Either

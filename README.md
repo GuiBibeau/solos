@@ -57,10 +57,34 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 |---|---|
 | `solana_wallet_get_address` | read |
 | `solana_wallet_get_balance` | read |
+| `solana_market_ask_iris` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
-`swap` and `market` have ports and use cases but no adapters yet; `signals` has ports only.
+`market` has the Iris adapter behind `ELFA_API_KEY`; `swap` still has ports and use cases but no
+adapter; `signals` has ports only.
+
+## Market intelligence (Elfa Iris)
+
+`solana_market_ask_iris` (MCP) and `solos market ask --question` (CLI) send one market question to
+Elfa's Iris and return the written answer, the credits the call consumed, and the receive time.
+Links appear only when the provider includes them; solOS never invents citations or certainty.
+
+- **Setup:** export `ELFA_API_KEY`. Chat access requires an Elfa Grow plan or above, or
+  pay-as-you-go credits. The key stays in the environment — never in tool arguments.
+- **Credits:** every call consumes Elfa credits; the response reports the exact amount as
+  `creditsConsumed`.
+- **Endpoint:** `POST {ELFA_BASE_URL}/v2/chat`, default `https://api.elfa.ai`. Plain `http` is
+  accepted only for loopback hosts running local test fixtures.
+- **One attempt, 30-second deadline.** Elfa bills per request and chat can run past a minute, so
+  solOS never retries automatically — a silent retry would double-bill.
+
+Trial (the ordinary Solana profile/RPC startup requirements still apply):
+
+```sh
+ELFA_API_KEY=... bun run solos market ask --question "What changed for SOL in the last 24 hours?"
+ELFA_API_KEY=... bun run solos mcp call solana_market_ask_iris --args '{"question":"What changed for SOL in the last 24 hours?"}'
+```
 
 ## License
 

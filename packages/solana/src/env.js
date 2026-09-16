@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { selectProfile, sourceFromProfile } from "./credentials/resolve.js";
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"]);
 
 const EnvSchema = z.object({
   SOLANA_RPC_URL: z.string().url("SOLANA_RPC_URL must be a URL").optional(),
@@ -12,7 +12,19 @@ const EnvSchema = z.object({
   SOLOS_PROFILE: z.string().min(1).optional(),
   // `direct` signs with the configured signer. `engine` is reserved for the vault-engine executor.
   SOLOS_EXECUTOR: z.enum(["direct"]).default("direct"),
+  // Market intelligence (Elfa): the key is optional until a tool that bills credits is used.
+  ELFA_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  ELFA_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
 });
+
+/** Elfa production endpoint; the only provider today, so the default lives beside its parsing. */
+export const DEFAULT_ELFA_BASE_URL = "https://api.elfa.ai";
 
 /**
  * @typedef {import("./credentials/resolve.js").SignerSource} SignerSource
@@ -22,6 +34,7 @@ const EnvSchema = z.object({
  *   readonly signer: SignerSource;
  *   readonly executor: "direct";
  *   readonly profile: string | undefined;
+ *   readonly elfa: { readonly apiKey: string | undefined; readonly baseUrl: string };
  * }} SolanaEnv
  */
 
@@ -34,6 +47,19 @@ export const deriveWsUrl = (rpcUrl) => {
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   if (LOCAL_HOSTS.has(url.hostname) && url.port !== "") {
     url.port = String(Number(url.port) + 1);
+  }
+  return url.href.replace(/\/$/, "");
+};
+
+/**
+ * Elfa API base URL. HTTPS everywhere except plain HTTP on loopback hosts, which exists for
+ * local test fixtures only.
+ * @param {string | undefined} raw
+ */
+export const elfaBaseUrl = (raw) => {
+  const url = new URL(raw ?? DEFAULT_ELFA_BASE_URL);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname))) {
+    throw new Error("ELFA_BASE_URL must use https (plain http only for loopback test fixtures)");
   }
   return url.href.replace(/\/$/, "");
 };
@@ -90,5 +116,6 @@ export const loadSolanaEnv = (env) => {
     signer,
     executor: parsed.SOLOS_EXECUTOR,
     profile: selected?.name,
+    elfa: { apiKey: parsed.ELFA_API_KEY, baseUrl: elfaBaseUrl(parsed.ELFA_BASE_URL) },
   };
 };

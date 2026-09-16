@@ -3,14 +3,15 @@ import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
 describe("tool registry", () => {
-  test("has at least the wallet and transfer tools", () => {
+  test("has at least the wallet, transfer, and market tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
+      "solana_market_ask_iris",
       "solana_transfer_send_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
       "solana_wallet_get_balance",
     ]);
-    expect(toolGroups).toEqual(["transfer", "wallet"]);
+    expect(toolGroups).toEqual(["market", "transfer", "wallet"]);
   });
 
   test("every tool is discovery-friendly", () => {
@@ -31,5 +32,12 @@ describe("tool registry", () => {
       const twin = tool.name.replace(/_send_|_execute_/, "_simulate_");
       expect(names.has(twin), `${tool.name} needs ${twin}`).toBe(true);
     }
+  });
+
+  test("the Iris tool is a read-tier market tool with a described question input", () => {
+    const tool = allTools.find((t) => t.name === "solana_market_ask_iris");
+    expect(tool?.group).toBe("market");
+    expect(tool?.tier).toBe("read");
+    expect(tool?.input.shape.question?.description).toBeTruthy();
   });
 });
