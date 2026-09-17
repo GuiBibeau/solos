@@ -50,7 +50,7 @@ export default defineAgent({
       },
       evidence: {
         description:
-          "The exact JSON printed by `bun run solos dev verify --scope unit --json` on the final commit, pasted verbatim as a string. Empty string when the command could not run.",
+          "The exact JSON printed by `bun run solos dev verify --scope unit --json` (full scope for rebase verification) on the final commit, pasted verbatim as a string. Empty string when the command could not run.",
         type: "string",
       },
       known_limitations: {

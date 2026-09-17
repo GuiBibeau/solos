@@ -74,8 +74,8 @@ export const intakeIssueNumber = (auth) => {
 export const isTrusted = (auth) => auth !== null && auth.attributes[TRUSTED_ATTRIBUTE] === "true";
 
 /**
- * The app principal eve stamps on schedule-dispatched turns. No schedule ships here, but the
- * policies recognise it so one added later inherits sensible write behaviour.
+ * The app principal eve supplies to schedules. The rebase sweep replaces it with a PR-scoped
+ * autonomous stamp before sending work, so it does not inherit broad runtime write authority.
  * @param {SessionAuthContext | null} auth
  */
 export const isScheduleAppAuth = (auth) =>
