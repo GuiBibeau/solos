@@ -64,7 +64,7 @@ export const discoveryAdapter = (config) => ({
     ),
   summary: ({ keywords, ...input }) =>
     readElfa(
-      { ...config, timeoutMs: config.timeoutMs ?? 120_000 },
+      { ...config, timeoutMs: config.timeoutMs ?? 180_000 },
       {
         path: "/v2/data/event-summary",
         query: { ...input, keywords: keywords.join(",") },

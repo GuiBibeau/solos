@@ -29,7 +29,7 @@ export const eventSummaryTool = defineTool({
   tier: "read",
   title: "Summarize market events",
   description:
-    "Summarize recent events matching keywords, with source links supplied by Elfa. Costs 5 Elfa credits per call, available on Free. May take up to 120 seconds or return no summaries for a quiet window.",
+    "Summarize recent events matching keywords, with source links supplied by Elfa. Costs 5 Elfa credits per call, available on Free. May take up to 180 seconds or return no summaries for a quiet window.",
   input: SummaryInputSchema,
   run: getEventSummary,
 });

@@ -65,7 +65,7 @@ const call = Command.make("call", { toolName, args }, (options) =>
   Effect.gen(function* () {
     const mcp = yield* connect;
     const parsed = /** @type {Record<string, unknown>} */ (JSON.parse(options.args));
-    const timeout = options.toolName === "solana_market_get_event_summary" ? 130_000 : undefined;
+    const timeout = options.toolName === "solana_market_get_event_summary" ? 190_000 : undefined;
     const result = yield* Effect.promise(() => mcp.callTool(options.toolName, parsed, { timeout }));
     yield* emit(result);
     if (result.isError) process.exitCode = 1;

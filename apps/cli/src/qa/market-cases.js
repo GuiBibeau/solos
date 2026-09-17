@@ -39,13 +39,13 @@ export const MARKET_CASES = [
   },
   {
     name: "cli-summary",
-    timeoutMs: 135_000,
+    timeoutMs: 195_000,
     args: ["market", "summary", "--keywords", "Solana", "--time-window", "24h"],
     schema: SummaryResultSchema,
   },
   {
     name: "mcp-summary",
-    timeoutMs: 135_000,
+    timeoutMs: 195_000,
     args: [
       "mcp",
       "call",

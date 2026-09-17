@@ -102,8 +102,8 @@ The same key supports these read tools on Elfa's Free plan:
 All use `--time-window` (`30m`, `1h`, `4h`, `24h`, `7d`, `30d`; default `24h`). Trending and news
 accept `--page` and `--page-size` (1–50, default 10); trending also accepts `--min-mentions`.
 News uses comma-separated **CoinGecko IDs**, not tickers. Summary accepts comma-separated keywords
-and `--search-type and|or` (default `or`). Each command makes one request without retries. Summary generation has a 120-second deadline;
-other endpoints have a 30-second deadline. External MCP clients should allow at least 130 seconds
+and `--search-type and|or` (default `or`). Each command makes one request without retries. Summary generation has a 180-second deadline;
+other endpoints have a 30-second deadline. External MCP clients should allow at least 190 seconds
 for `solana_market_get_event_summary` (the bundled CLI already does).
 
 ```sh

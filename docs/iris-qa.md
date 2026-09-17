@@ -27,7 +27,7 @@ checks block paid calls. The final checkout is checked again before reporting su
   five results per page, news coin ID `solana`, summary keyword `Solana`.
 - `iris`: two cases, CLI and MCP Chat with the fixed SOL question.
 - Maximum six or two provider requests respectively, no retries, stop on the first failure.
-  Summary generation has a 120-second HTTP deadline, 130-second MCP deadline, and 135-second
+  Summary generation has a 180-second HTTP deadline, 190-second MCP deadline, and 195-second
   QA process deadline; other requests retain the 30-second HTTP deadline.
 - `passed`: all cases returned the correct result contract with current receipt timestamps.
   Empty discovery/news/summary lists are valid; Chat requires a nonempty answer.
