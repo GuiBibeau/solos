@@ -61,11 +61,12 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_market_get_trending_tokens` | read |
 | `solana_market_get_token_news` | read |
 | `solana_market_get_event_summary` | read |
+| `solana_market_get_price` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
-`market` has the Iris adapter behind `ELFA_API_KEY`; `swap` still has ports and use cases but no
-adapter; `signals` has ports only.
+`market` has the Elfa Iris adapter behind `ELFA_API_KEY` and the Jupiter Price V3 adapter behind
+`JUPITER_API_KEY`; `swap` still has ports and use cases but no adapter; `signals` has ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -118,6 +119,48 @@ Results include `provider`, `receivedAt`, and `creditsConsumed` from Elfa's `x-e
 (`null` if unavailable). Receipt time is not a source freshness guarantee. Empty result lists are
 valid. Trending is experimental; it measures attention, not price or sentiment. News contains
 links and metrics, not raw post text. See [live QA](docs/iris-qa.md) for the bounded six-call suite.
+
+## Jupiter Price V3
+
+`solana_market_get_price` (MCP) and `solos market price --mint <address>` (CLI) read the current
+USD price of one token mint from Jupiter's Price V3 endpoint:
+`GET https://api.jup.ag/price/v3?ids=<mint>`, authenticated with `x-api-key` from
+`JUPITER_API_KEY`. The response normalizes to `{ mint, priceUsd, source: "jupiter", at }`, with
+`priceUsd` an exact decimal string.
+
+- **Setup:** export `JUPITER_API_KEY`. The key is **required to invoke the tool**; it stays in the
+  environment, never in tool arguments. The tool always lists — without the key every call fails
+  before any HTTP with `PriceConfigMissing`.
+- **`at` is the local receipt time**, not a source freshness guarantee: Jupiter stamps responses
+  with a `blockId` (a provider sequence number, not a timestamp) and serves them through a CDN
+  that caches for roughly 5 seconds.
+- **Omission is not zero.** A mint Jupiter does not price is reported as `PriceUnavailable`, never
+  as a zero price; a genuine `usdPrice: 0` still returns `"0"`.
+- **One attempt, 10-second deadline** covering the whole request including body read. Never
+  retried.
+
+`JUPITER_BASE_URL` overrides the endpoint (default `https://api.jup.ag`); plain `http` is accepted
+only for loopback hosts running local test fixtures. `lite-api.jup.ag` is deprecated and never a
+default or fallback.
+
+Trial (the ordinary Solana profile/RPC startup requirements still apply):
+
+```sh
+JUPITER_API_KEY=... bun run solos market price --mint So11111111111111111111111111111111111111112
+JUPITER_API_KEY=... bun run solos mcp call solana_market_get_price --args '{"mint":"So11111111111111111111111111111111111111112"}'
+```
+
+Operator QA with a real key: run both surfaces for wSOL and USDC and compare — the CLI and MCP
+must return the same `priceUsd` for the same mint, wSOL should track SOL's market price, and USDC
+should be close to 1. Each call makes exactly one provider request; back-to-back calls may return
+a CDN-cached price for up to ~5 seconds.
+
+```sh
+JUPITER_API_KEY=... bun run solos market price --mint So11111111111111111111111111111111111111112
+JUPITER_API_KEY=... bun run solos market price --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+JUPITER_API_KEY=... bun run solos mcp call solana_market_get_price --args '{"mint":"So11111111111111111111111111111111111111112"}'
+JUPITER_API_KEY=... bun run solos mcp call solana_market_get_price --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}'
+```
 
 ## License
 

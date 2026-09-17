@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { deriveWsUrl, elfaBaseUrl, loadSolanaEnv } from "./env.js";
+import { deriveWsUrl, elfaBaseUrl, jupiterBaseUrl, loadSolanaEnv } from "./env.js";
 
 describe("solana env", () => {
   test("derives ws url: local port+1, remote same host", () => {
@@ -29,6 +29,7 @@ describe("solana env", () => {
       signer: { kind: "keypairPath", path: "/k.json" },
       executor: "direct",
       elfa: { apiKey: undefined, baseUrl: "https://api.elfa.ai" },
+      jupiter: { apiKey: undefined, baseUrl: "https://api.jup.ag" },
     });
   });
 
@@ -68,5 +69,38 @@ describe("solana env", () => {
     const OFF_LOOPBACK = "api.elfa.ai";
     expect(() => elfaBaseUrl(`http://${OFF_LOOPBACK}`)).toThrow(/ELFA_BASE_URL/);
     expect(() => elfaBaseUrl("ftp://api.elfa.ai")).toThrow(/ELFA_BASE_URL/);
+  });
+
+  test("jupiter key is optional and the base url defaults to the production endpoint", () => {
+    const env = loadSolanaEnv({
+      SOLANA_RPC_URL: "http://127.0.0.1:8899",
+      SOLOS_SIGNER_PRIVATE_KEY: "x",
+    });
+    expect(env.jupiter).toEqual({ apiKey: undefined, baseUrl: "https://api.jup.ag" });
+    const withKey = loadSolanaEnv({
+      SOLANA_RPC_URL: "http://127.0.0.1:8899",
+      SOLOS_SIGNER_PRIVATE_KEY: "x",
+      JUPITER_API_KEY: "jup-key",
+      JUPITER_BASE_URL: "https://api.jup.ag/",
+    });
+    expect(withKey.jupiter).toEqual({ apiKey: "jup-key", baseUrl: "https://api.jup.ag" });
+    const fromBlankExample = loadSolanaEnv({
+      SOLANA_RPC_URL: "http://127.0.0.1:8899",
+      SOLOS_SIGNER_PRIVATE_KEY: "x",
+      JUPITER_API_KEY: "",
+      JUPITER_BASE_URL: "",
+    });
+    expect(fromBlankExample.jupiter).toEqual({
+      apiKey: undefined,
+      baseUrl: "https://api.jup.ag",
+    });
+  });
+
+  test("jupiter base url allows plain http only on loopback hosts", () => {
+    expect(jupiterBaseUrl("http://127.0.0.1:8999")).toBe("http://127.0.0.1:8999");
+    expect(jupiterBaseUrl("http://localhost:8999/")).toBe("http://localhost:8999");
+    const OFF_LOOPBACK = "api.jup.ag";
+    expect(() => jupiterBaseUrl(`http://${OFF_LOOPBACK}`)).toThrow(/JUPITER_BASE_URL/);
+    expect(() => jupiterBaseUrl("ftp://api.jup.ag")).toThrow(/JUPITER_BASE_URL/);
   });
 });

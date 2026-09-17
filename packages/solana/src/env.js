@@ -21,10 +21,22 @@ const EnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
   ),
+  // Jupiter prices: the key is optional at startup and required only when a price is read.
+  JUPITER_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  JUPITER_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
 });
 
 /** Elfa production endpoint; the only provider today, so the default lives beside its parsing. */
 export const DEFAULT_ELFA_BASE_URL = "https://api.elfa.ai";
+
+/** Jupiter production endpoint; lite-api hosts are deprecated and never a default. */
+export const DEFAULT_JUPITER_BASE_URL = "https://api.jup.ag";
 
 /**
  * @typedef {import("./credentials/resolve.js").SignerSource} SignerSource
@@ -35,6 +47,7 @@ export const DEFAULT_ELFA_BASE_URL = "https://api.elfa.ai";
  *   readonly executor: "direct";
  *   readonly profile: string | undefined;
  *   readonly elfa: { readonly apiKey: string | undefined; readonly baseUrl: string };
+ *   readonly jupiter: { readonly apiKey: string | undefined; readonly baseUrl: string };
  * }} SolanaEnv
  */
 
@@ -52,17 +65,32 @@ export const deriveWsUrl = (rpcUrl) => {
 };
 
 /**
- * Elfa API base URL. HTTPS everywhere except plain HTTP on loopback hosts, which exists for
+ * Provider API base URL. HTTPS everywhere except plain HTTP on loopback hosts, which exists for
  * local test fixtures only.
  * @param {string | undefined} raw
+ * @param {string} defaultUrl
+ * @param {string} envName
  */
-export const elfaBaseUrl = (raw) => {
-  const url = new URL(raw ?? DEFAULT_ELFA_BASE_URL);
+const providerBaseUrl = (raw, defaultUrl, envName) => {
+  const url = new URL(raw ?? defaultUrl);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname))) {
-    throw new Error("ELFA_BASE_URL must use https (plain http only for loopback test fixtures)");
+    throw new Error(`${envName} must use https (plain http only for loopback test fixtures)`);
   }
   return url.href.replace(/\/$/, "");
 };
+
+/**
+ * Elfa API base URL.
+ * @param {string | undefined} raw
+ */
+export const elfaBaseUrl = (raw) => providerBaseUrl(raw, DEFAULT_ELFA_BASE_URL, "ELFA_BASE_URL");
+
+/**
+ * Jupiter API base URL.
+ * @param {string | undefined} raw
+ */
+export const jupiterBaseUrl = (raw) =>
+  providerBaseUrl(raw, DEFAULT_JUPITER_BASE_URL, "JUPITER_BASE_URL");
 
 /**
  * Signer from explicit env vars, when present. Exactly one of the two may be set.
@@ -117,5 +145,6 @@ export const loadSolanaEnv = (env) => {
     executor: parsed.SOLOS_EXECUTOR,
     profile: selected?.name,
     elfa: { apiKey: parsed.ELFA_API_KEY, baseUrl: elfaBaseUrl(parsed.ELFA_BASE_URL) },
+    jupiter: { apiKey: parsed.JUPITER_API_KEY, baseUrl: jupiterBaseUrl(parsed.JUPITER_BASE_URL) },
   };
 };

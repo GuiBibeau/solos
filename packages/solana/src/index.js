@@ -5,8 +5,9 @@
 /** @typedef {import("./credentials/profile.js").ProviderName} ProviderName */
 /** @typedef {import("./credentials/discover.js").DiscoveredWallet} DiscoveredWallet */
 import { Layer } from "effect";
-import { DEFAULT_ELFA_BASE_URL } from "./env.js";
+import { DEFAULT_ELFA_BASE_URL, DEFAULT_JUPITER_BASE_URL } from "./env.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
+import { JupiterPriceLive } from "./market/jupiter-price-live.js";
 import { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
@@ -15,9 +16,17 @@ import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 
 export * from "./credentials/index.js";
 export * from "./privy/index.js";
-export { DEFAULT_ELFA_BASE_URL, deriveWsUrl, elfaBaseUrl, loadSolanaEnv } from "./env.js";
+export {
+  DEFAULT_ELFA_BASE_URL,
+  DEFAULT_JUPITER_BASE_URL,
+  deriveWsUrl,
+  elfaBaseUrl,
+  jupiterBaseUrl,
+  loadSolanaEnv,
+} from "./env.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
+export { JupiterPriceLive } from "./market/jupiter-price-live.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
@@ -32,9 +41,16 @@ const adapters = Layer.mergeAll(SignerLive, BalanceReaderLive, DirectSignerExecu
 /**
  * Iris needs no chain access, so its Layer rides along unprovided: without ELFA_API_KEY the
  * tool stays advertised and fails with IrisConfigMissing only when actually asked.
- * @param {import("./env.js").SolanaEnv["elfa"] | undefined} elfa
+ * @param {SolanaEnv["elfa"] | undefined} elfa
  */
 const intelligence = (elfa) => MarketIntelligenceLive(elfa ?? { baseUrl: DEFAULT_ELFA_BASE_URL });
+
+/**
+ * Jupiter prices behave the same way: without JUPITER_API_KEY the tool stays advertised and
+ * fails with PriceConfigMissing only when actually read.
+ * @param {SolanaEnv["jupiter"] | undefined} jupiter
+ */
+const prices = (jupiter) => JupiterPriceLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
 
 /**
  * Production wiring from validated env: RPC + keychain signer + all adapters.
@@ -46,16 +62,18 @@ export const SolanaLive = (env) =>
     Layer.provideMerge(KitSignerLive(env.signer)),
     Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
     Layer.merge(intelligence(env.elfa)),
+    Layer.merge(prices(env.jupiter)),
   );
 
 /**
- * Test wiring: same adapters, signer from raw bytes, RPC by URL. `elfa` stays optional so
- * existing call sites are untouched; default config fails with IrisConfigMissing on ask.
- * @param {{ rpcUrl: string; wsUrl: string; seed: Uint8Array; elfa?: import("./env.js").SolanaEnv["elfa"] }} options
+ * Test wiring: same adapters, signer from raw bytes, RPC by URL. `elfa` and `jupiter` stay
+ * optional so existing call sites are untouched; default configs fail pre-HTTP on use.
+ * @param {{ rpcUrl: string; wsUrl: string; seed: Uint8Array; elfa?: SolanaEnv["elfa"]; jupiter?: SolanaEnv["jupiter"] }} options
  */
-export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa }) =>
+export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter }) =>
   adapters.pipe(
     Layer.provideMerge(KitSignerFromBytes(seed)),
     Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
     Layer.merge(intelligence(elfa)),
+    Layer.merge(prices(jupiter)),
   );

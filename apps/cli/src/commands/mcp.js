@@ -17,6 +17,9 @@ const FORWARDED_ENV = [
   // Market intelligence (Elfa Iris): key + optional base URL override for fixtures.
   "ELFA_API_KEY",
   "ELFA_BASE_URL",
+  // Jupiter prices: key + optional base URL override for fixtures.
+  "JUPITER_API_KEY",
+  "JUPITER_BASE_URL",
 ];
 
 /** Spawn our own server exactly as an external client would, forwarding only known env keys. */
