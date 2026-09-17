@@ -4,6 +4,7 @@
  * The JSON is the deliverable; PRs paste it under `## Evidence` and CI re-checks it.
  */
 import { z } from "zod";
+import { IrisQaSchema } from "../qa/schema.js";
 
 export const ScopeSchema = z
   .enum(["check", "unit", "full"])
@@ -47,6 +48,9 @@ export const EvidenceSchema = z.object({
     surfpool: z.string().nullable().describe("null when surfpool is not on PATH"),
   }),
   steps: z.array(StepSchema),
+  qa: IrisQaSchema.optional().describe(
+    "Opt-in live Iris QA; absent means live behavior was not assessed",
+  ),
   startedAt: z.iso.datetime().describe("ISO 8601 start time"),
   durationMs: z.number().int().nonnegative(),
 });

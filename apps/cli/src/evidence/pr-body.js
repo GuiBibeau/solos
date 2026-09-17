@@ -55,7 +55,17 @@ const assertEvidence = (evidence, sha) => {
     return `sha mismatch: evidence ${evidence.sha}, expected ${sha}`;
   if (evidence.dirty) return "evidence was produced from a dirty working tree";
   if (!evidence.ok) return "evidence reports a failed verification";
-  return assertSteps(evidence);
+  return assertQa(evidence, sha) ?? assertSteps(evidence);
+};
+
+/** @param {Evidence} evidence @param {string} sha */
+const assertQa = (evidence, sha) => {
+  if (!evidence.qa) return undefined;
+  if (evidence.qa.mode !== "live" || evidence.qa.status !== "passed")
+    return "live QA was requested but did not pass against Elfa";
+  if (evidence.sha.length !== 40 || evidence.sha !== sha)
+    return "live QA requires the full, exact reviewed commit SHA";
+  return undefined;
 };
 
 /**

@@ -1,4 +1,5 @@
 // @ts-check
+import { blockedIrisQa, runIrisQa } from "../qa/iris.js";
 import { gitInfo, toolVersions } from "./git-info.js";
 import { runSteps, skippedStep } from "./run-steps.js";
 import { EvidenceSchema, REQUIRED_STEPS } from "./schema.js";
@@ -58,20 +59,38 @@ const runScoped = (scope, specs) => {
 /**
  * Run the verification contract and return validated Evidence.
  * @param {Scope} scope
+ * @param {{ iris?: boolean }} [options]
  * @returns {Promise<Evidence>}
  */
-export const runVerify = async (scope) => {
+export const runVerify = async (scope, { iris = false } = {}) => {
   const startedAt = new Date();
   const [{ sha, dirty }, versions] = await Promise.all([gitInfo(), toolVersions()]);
   const steps = await runScoped(scope, STEPS_BY_SCOPE[scope]);
+  const checksPassed = steps.every((step) => step.ok === true);
+  const qa = iris ? await verifyIris(checksPassed && !dirty) : undefined;
+  const finalGit = await gitInfo();
   return EvidenceSchema.parse({
-    ok: steps.every((step) => step.ok === true),
+    ok: passedQa(checksPassed, qa) && finalGit.sha === sha && !finalGit.dirty,
     sha,
-    dirty,
+    dirty: dirty || finalGit.dirty,
     scope,
     versions,
     steps,
+    qa,
     startedAt: startedAt.toISOString(),
     durationMs: Date.now() - startedAt.getTime(),
   });
+};
+
+/** @param {boolean} checksPassed @param {import("../qa/schema.js").IrisQa | undefined} qa */
+const passedQa = (checksPassed, qa) => checksPassed && (!qa || qa.status === "passed");
+
+/** @param {boolean} ready */
+const verifyIris = async (ready) => {
+  if (!ready) return blockedIrisQa("Live QA requires a clean commit and passing offline checks");
+  try {
+    return await runIrisQa({ apiKey: process.env.ELFA_API_KEY });
+  } catch {
+    return blockedIrisQa("QA setup or execution failed; check Bun and Surfpool installation");
+  }
 };

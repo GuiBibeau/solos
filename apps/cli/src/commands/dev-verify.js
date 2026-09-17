@@ -14,9 +14,13 @@ const scope = Options.choice("scope", ["check", "unit", "full"]).pipe(
 const json = Options.boolean("json").pipe(
   Options.withDescription("Only the Evidence JSON on stdout; no table on stderr"),
 );
+const qa = Options.choice("qa", ["iris"]).pipe(
+  Options.optional,
+  Options.withDescription("Opt in to live Iris CLI + MCP QA (up to two paid Elfa requests)"),
+);
 
-export const verify = Command.make("verify", { scope, json }, (o) =>
-  Effect.promise(() => runVerify(o.scope))
+export const verify = Command.make("verify", { scope, json, qa }, (o) =>
+  Effect.promise(() => runVerify(o.scope, { iris: o.qa._tag === "Some" }))
     .pipe(
       Effect.tap((evidence) =>
         Effect.sync(() => {
