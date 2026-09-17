@@ -7,7 +7,8 @@
  *   deployment's OIDC token exists.
  * - `onComment` keeps the built-in mention and ignore rules, then dispatches only for OWNER,
  *   MEMBER, or COLLABORATOR commenters and stamps `trusted`, which is what lets the approval
- *   policies run reversible writes without a card. Anyone else's mention never starts a session.
+ *   policies run reversible writes without a card. Codex review findings use a separate,
+ *   PR-scoped autonomous gate; other bot comments never start a session.
  * - `onIssue` is the unattended intake: the `agent-ready` label, applied by someone with at least
  *   triage permission (verified against the API) and confirmed as the label this event added (from
  *   the issue timeline, so a later unrelated label never re-runs the pipeline), rewrites the
@@ -31,10 +32,15 @@ import {
   isTrustedLabeler,
 } from "../lib/github/channel-gates.js";
 import { CI_FIX_TASK, FACTORY_INTAKE_TASK, PR_SUMMARY_TASK } from "../lib/github/channel-tasks.js";
+import { codexReviewDispatch, isCodex } from "../lib/github/codex-review.js";
 import { githubCredentials } from "../lib/github/credentials.js";
 import { stampAutonomous, stampTrusted } from "../lib/trust.js";
 
-export default githubChannel({
+/** Exported for offline tests through the real signed-webhook route. */
+/** @type {import("eve/channels/github").GitHubChannelConfig} */
+export const githubConfig = {
+  // A redelivery on the same review thread must wait for the attempt marker to be written.
+  turnPolicy: "queue",
   botName: resolveBotName,
   credentials: githubCredentials,
   onCheckSuite: (ctx, suite) => {
@@ -54,6 +60,7 @@ export default githubChannel({
     // A resolution failure means the mention can't be matched; acknowledge without dispatching.
     const botName = await resolveBotName().catch(() => null);
     if (botName === null) return null;
+    if (isCodex(comment.author)) return codexReviewDispatch(ctx, comment, botName);
     const mentioned =
       !isIgnoredComment(comment, botName) &&
       mentionPattern(botName).test(comment.body) &&
@@ -74,4 +81,6 @@ export default githubChannel({
     pullRequest.action === "opened" && ctx.sender.type !== "Bot"
       ? { auth: defaultGitHubAuth(ctx), context: [PR_SUMMARY_TASK] }
       : null,
-});
+};
+
+export default githubChannel(githubConfig);
