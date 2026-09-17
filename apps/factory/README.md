@@ -15,6 +15,8 @@ The factory never holds a Solana signer, RPC URL, wallet profile, or gateway key
 - Red CI on a `factory/*` pull request dispatches a fix run, capped at two attempts counted from its own comments on the thread.
 - Codex inline review findings on a current, open `factory/*` PR in this repository dispatch an unattended revision without an @mention. The signed sender and comment author must both be `chatgpt-codex-connector[bot]` (GitHub account ID `199175422`). The earliest finding for the reviewed head supplies all that review's findings to one turn; other bots, review replies, status summaries, forks, closed PRs and stale reviews are ignored. The run evaluates the findings, revises the existing branch, reruns verification and updates Evidence; merge remains manual.
 - Automatic Codex revisions are capped at two attempts per PR. The factory records a `solos-factory:codex-review` marker before starting work. Intake rejects recorded attempts, and queued turns must recheck the marker and head before acting. A failed attempt consumes a slot; a maintainer can still request help with an @mention. These markers are agent-written safeguards, not an atomic distributed lock across different review or CI sessions.
+- Every 15 minutes, a deterministic schedule finds open, same-repository `factory/*` PRs behind `main` and queues a PR-scoped rebase revision. Current branches never wake a model. The tool rechecks both SHAs and uses GitHub’s `updatePullRequestBranch` with `REBASE` and `expectedHeadOid`; it exposes no general force-push capability. The implementer verifies the rebased head with full scope, an independent reviewer checks it, and the root refreshes Evidence only while its SHA still matches the PR.
+- Rebase attempts are recorded by the tool before mutation and limited to one per head/main pair. Conflicts or uncertain API outcomes stop with a human-visible blocker, preserving the draft/ready state and manual merge gate. Markers suppress repeat attempts but are not a cross-session lock: concurrent updates are refused by GitHub’s expected-head guard and ordinary non-fast-forward push protection. A failed verification needs maintainer follow-up; the sweep does not endlessly regenerate Evidence.
 - Someone opens a pull request: the factory posts one orienting comment, never a review.
 - The dev TUI (`bun run dev`): the local principal is untrusted, so every GitHub write parks on an approval card.
 
@@ -46,6 +48,7 @@ apps/factory/
     channels/eve.js          route auth: localDev user shim + vercelOidc
     extensions/github.js     @github-tools/eve-extension mount: explicit include list, approval policies
     tools/                   agent (disabled), glob, grep, read-artifact, get/save/clear-user-preferences, read/update-factory-brain
+    schedules/rebase-pull-requests.js   15-minute scan; dispatch only when main is ahead
     skills/                  writing-quality, triaging-issues
     subagents/<station>/     agent.js (outputSchema, so every call is task mode) + instructions.md + sandbox.js + tools/
     lib/
@@ -95,7 +98,7 @@ bun run build                                 # eve build (clones FACTORY_REPO t
 
 Deploy with `eve deploy` from `apps/factory` (it wraps `vercel deploy --prod`); the Vercel project's root directory is `apps/factory`, and `vercel.json`'s `ignoreCommand` skips builds when nothing under it changed. The GitHub connector needs the `issues`, `issue_comment`, `pull_request`, `pull_request_review_comment`, and `check_suite` events, and the app needs write access to contents, issues, and pull requests on `FACTORY_REPO`.
 
-Eve 0.56.0 filters every bot comment before its custom `onComment` hook. `patches/eve@0.56.0.patch` lets custom hooks decide which bots to accept; Eve's default mention handler, own-comment filter and webhook verification stay intact. Bun applies this pinned patch during install. The signed-webhook integration tests exercise the installed package through a loopback GitHub API and must pass when upgrading Eve. No new webhook subscriptions or credentials are needed. GitHub must still run Codex review first (usually on a ready PR or after a maintainer requests `@codex review`); the factory does not purchase or request reviews itself.
+Eve 0.56.0 filters every bot comment before its custom `onComment` hook. `patches/eve@0.56.0.patch` lets custom hooks decide which bots to accept; Eve's default mention handler, own-comment filter and webhook verification stay intact. Bun applies this pinned patch during install. The signed-webhook integration tests exercise the installed package through a loopback GitHub API and must pass when upgrading Eve. No new webhook subscriptions or credentials are needed. The rebase schedule is generated as a Vercel Cron Job by Eve; confirm `rebase-pull-requests` under Settings → Cron Jobs after deployment. GitHub branch rules still apply, and any rejected rebase stops for a maintainer. GitHub must still run Codex review first (usually on a ready PR or after a maintainer requests `@codex review`); the factory does not purchase or request reviews itself.
 
 ## Repo integration
 
@@ -109,7 +112,7 @@ Rules that are switched off or relaxed for `apps/factory/**` in the root `eslint
 
 | Rule | Scope | Why |
 | --- | --- | --- |
-| `import-x/no-default-export` | `agent/agent.js`, `agent/instructions.js`, `agent/sandbox.js`, `agent/{tools,channels,extensions}/*.js`, `agent/subagents/*/{agent,sandbox}.js`, `agent/subagents/*/tools/*.js`, `evals/evals.config.js`, `evals/**/*.eval.js` | eve discovers these slots by their default export. Everything under `agent/lib/` and `evals/helpers.js` uses named exports. |
+| `import-x/no-default-export` | `agent/agent.js`, `agent/instructions.js`, `agent/sandbox.js`, `agent/{tools,channels,extensions,schedules}/*.js`, `agent/subagents/*/{agent,sandbox}.js`, `agent/subagents/*/tools/*.js`, `evals/evals.config.js`, `evals/**/*.eval.js` | eve discovers these slots by their default export. Everything under `agent/lib/` and `evals/helpers.js` uses named exports. |
 | `import-x/no-cycle` with `ignoreExternal: true` | `apps/factory/**` | Cycles inside the factory are still checked. Following imports into eve's bundled `dist` (thousands of modules) from a whole-repo `eslint .` that already sits near the default heap ceiling ran out of memory. |
 
 The ESLint `ignores` list and the dependency-cruiser `exclude` also skip `**/.eve/**` and `**/.output/**`, eve's compiled artifacts.

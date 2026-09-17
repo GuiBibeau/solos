@@ -211,7 +211,7 @@ export default [
       "apps/factory/agent/agent.js",
       "apps/factory/agent/instructions.js",
       "apps/factory/agent/sandbox.js",
-      "apps/factory/agent/{tools,channels,extensions}/*.js",
+      "apps/factory/agent/{tools,channels,extensions,schedules}/*.js",
       "apps/factory/agent/subagents/*/{agent,sandbox}.js",
       "apps/factory/agent/subagents/*/tools/*.js",
       "apps/factory/evals/evals.config.js",
