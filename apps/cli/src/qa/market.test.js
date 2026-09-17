@@ -67,75 +67,93 @@ const fixture = ({ status = 200, credits = true, malformed = false } = {}) => {
   return { baseUrl: `http://127.0.0.1:${server.port}`, requests };
 };
 
+// Six real Bun processes plus Surfpool startup can exceed Bun's default 5s on CI.
+const PROCESS_SUITE_TIMEOUT_MS = 30_000;
+
 describe("Free-plan Elfa QA through real CLI and MCP [integration]", () => {
-  test("exercises all three GET endpoints on both surfaces and records the contract and billing", async () => {
-    const provider = fixture();
-    const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
-    expect(result).toMatchObject({
-      status: "passed",
-      mode: "fixture",
-      maxProviderRequests: 6,
-      callsStarted: 6,
-      reportedCredits: 14,
-      usageComplete: true,
-    });
-    expect(provider.requests).toHaveLength(6);
-    for (const request of provider.requests) {
-      expect(request).toMatchObject({ method: "GET", key: KEY });
-      expect(request.url.searchParams.get("timeWindow")).toBe("24h");
-    }
-    for (const index of [0, 1]) {
-      expect(provider.requests[index].url.pathname).toBe("/v2/aggregations/trending-tokens");
-      expect(provider.requests[index].url.searchParams.get("pageSize")).toBe("5");
-      expect(provider.requests[index].url.searchParams.get("minMentions")).toBe("5");
-      expect(result.cases[index].answer.tokens[0]).toEqual({
-        token: "SOL",
-        currentMentions: 20,
-        previousMentions: 10,
-        changePercent: 100,
-      });
-    }
-    for (const index of [2, 3]) {
-      expect(provider.requests[index].url.pathname).toBe("/v2/data/token-news");
-      expect(provider.requests[index].url.searchParams.get("coinIds")).toBe("solana");
-      expect(result.cases[index].answer.mentions[0]).toMatchObject({ link: LINK, viewCount: null });
-    }
-    for (const index of [4, 5]) {
-      expect(provider.requests[index].url.pathname).toBe("/v2/data/event-summary");
-      expect(provider.requests[index].url.searchParams.get("keywords")).toBe("Solana");
-      expect(provider.requests[index].url.searchParams.get("searchType")).toBe("or");
-      expect(result.cases[index].answer.summaries[0].sourceLinks).toEqual([LINK]);
-    }
-    expect(JSON.stringify(result)).not.toContain(KEY);
-    expect(IrisQaSchema.safeParse({ ...result, cases: result.cases.slice(0, 2) }).success).toBe(
-      false,
-    );
-    const wrong = result.cases.map((c) => ({ ...c, answer: result.cases[0].answer }));
-    expect(IrisQaSchema.safeParse({ ...result, cases: wrong }).success).toBe(false);
-  });
-
-  test("missing billing stays unknown, while valid results still work", async () => {
-    const provider = fixture({ credits: false });
-    const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
-    expect(result).toMatchObject({ status: "passed", reportedCredits: 0, usageComplete: false });
-    expect(result.cases.every((c) => c.answer.creditsConsumed === null)).toBe(true);
-  });
-
-  test("denied, rate-limited, failed, and malformed responses stop without retries or leaked bodies", async () => {
-    for (const [status, code] of [
-      [403, "IrisAuthFailed"],
-      [429, "IrisRateLimited"],
-      [503, "IrisHttpError"],
-      [200, "IrisResponseInvalid"],
-    ]) {
-      const provider = fixture({ status, malformed: status === 200 });
+  test(
+    "exercises all three GET endpoints on both surfaces and records the contract and billing",
+    async () => {
+      const provider = fixture();
       const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
-      expect(result.callsStarted).toBe(1);
-      expect(result.cases[0].code).toBe(code);
-      expect(result.cases.slice(1).every((c) => c.status === "skipped")).toBe(true);
-      expect(provider.requests).toHaveLength(1);
+      expect(result).toMatchObject({
+        status: "passed",
+        mode: "fixture",
+        maxProviderRequests: 6,
+        callsStarted: 6,
+        reportedCredits: 14,
+        usageComplete: true,
+      });
+      expect(provider.requests).toHaveLength(6);
+      for (const request of provider.requests) {
+        expect(request).toMatchObject({ method: "GET", key: KEY });
+        expect(request.url.searchParams.get("timeWindow")).toBe("24h");
+      }
+      for (const index of [0, 1]) {
+        expect(provider.requests[index].url.pathname).toBe("/v2/aggregations/trending-tokens");
+        expect(provider.requests[index].url.searchParams.get("pageSize")).toBe("5");
+        expect(provider.requests[index].url.searchParams.get("minMentions")).toBe("5");
+        expect(result.cases[index].answer.tokens[0]).toEqual({
+          token: "SOL",
+          currentMentions: 20,
+          previousMentions: 10,
+          changePercent: 100,
+        });
+      }
+      for (const index of [2, 3]) {
+        expect(provider.requests[index].url.pathname).toBe("/v2/data/token-news");
+        expect(provider.requests[index].url.searchParams.get("coinIds")).toBe("solana");
+        expect(result.cases[index].answer.mentions[0]).toMatchObject({
+          link: LINK,
+          viewCount: null,
+        });
+      }
+      for (const index of [4, 5]) {
+        expect(provider.requests[index].url.pathname).toBe("/v2/data/event-summary");
+        expect(provider.requests[index].url.searchParams.get("keywords")).toBe("Solana");
+        expect(provider.requests[index].url.searchParams.get("searchType")).toBe("or");
+        expect(result.cases[index].answer.summaries[0].sourceLinks).toEqual([LINK]);
+      }
       expect(JSON.stringify(result)).not.toContain(KEY);
-      server.stop(true);
-    }
-  });
+      expect(IrisQaSchema.safeParse({ ...result, cases: result.cases.slice(0, 2) }).success).toBe(
+        false,
+      );
+      const wrong = result.cases.map((c) => ({ ...c, answer: result.cases[0].answer }));
+      expect(IrisQaSchema.safeParse({ ...result, cases: wrong }).success).toBe(false);
+    },
+    PROCESS_SUITE_TIMEOUT_MS,
+  );
+
+  test(
+    "missing billing stays unknown, while valid results still work",
+    async () => {
+      const provider = fixture({ credits: false });
+      const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
+      expect(result).toMatchObject({ status: "passed", reportedCredits: 0, usageComplete: false });
+      expect(result.cases.every((c) => c.answer.creditsConsumed === null)).toBe(true);
+    },
+    PROCESS_SUITE_TIMEOUT_MS,
+  );
+
+  test(
+    "denied, rate-limited, failed, and malformed responses stop without retries or leaked bodies",
+    async () => {
+      for (const [status, code] of [
+        [403, "IrisAuthFailed"],
+        [429, "IrisRateLimited"],
+        [503, "IrisHttpError"],
+        [200, "IrisResponseInvalid"],
+      ]) {
+        const provider = fixture({ status, malformed: status === 200 });
+        const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
+        expect(result.callsStarted).toBe(1);
+        expect(result.cases[0].code).toBe(code);
+        expect(result.cases.slice(1).every((c) => c.status === "skipped")).toBe(true);
+        expect(provider.requests).toHaveLength(1);
+        expect(JSON.stringify(result)).not.toContain(KEY);
+        server.stop(true);
+      }
+    },
+    PROCESS_SUITE_TIMEOUT_MS,
+  );
 });
