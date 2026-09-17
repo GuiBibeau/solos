@@ -82,7 +82,11 @@ const fromOutcome = (outcome, mint) => {
   }
   if (!Object.hasOwn(parsed, mint)) {
     return Effect.fail(
-      new PriceUnavailable({ mint, source: SOURCE, reason: "omitted from the Jupiter price response" }),
+      new PriceUnavailable({
+        mint,
+        source: SOURCE,
+        reason: "omitted from the Jupiter price response",
+      }),
     );
   }
   const entry = MintEntrySchema.safeParse(parsed[mint]);

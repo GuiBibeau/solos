@@ -65,7 +65,9 @@ describe("JupiterPriceLive success and validation [integration]", () => {
   test("fails pre-HTTP without a key, blank keys included", async () => {
     fixture = startFixture([{ body: okBody() }]);
     expect((await priceFailure(fixture, { apiKey: "" }))?._tag).toBe("PriceConfigMissing");
-    expect((await priceFailure(fixture, { apiKey: "   " }))?._tag).toBe("PriceConfigMissing");
+    expect((await priceFailure(fixture, { apiKey: " ".repeat(3) }))?._tag).toBe(
+      "PriceConfigMissing",
+    );
     expect(fixture.requests).toHaveLength(0);
   });
 });

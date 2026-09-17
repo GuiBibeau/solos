@@ -1,6 +1,6 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { askIris } from "@solos/core";
+import { askIris, getPrice } from "@solos/core";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
@@ -18,7 +18,15 @@ const ask = Command.make("ask", { question }, (options) =>
   ),
 );
 
+const mint = Options.text("mint").pipe(
+  Options.withDescription("Base58 token mint address to price in USD, e.g. the wSOL mint"),
+);
+
+const price = Command.make("price", { mint }, (options) =>
+  withSolos(getPrice({ mint: options.mint }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(Command.withDescription("Get the current USD price of one mint from Jupiter's price feed"));
+
 export const market = Command.make("market").pipe(
-  Command.withDescription("Market intelligence (Elfa Iris)"),
-  Command.withSubcommands([ask, trending, news, summary]),
+  Command.withDescription("Market intelligence (Elfa Iris) and Jupiter USD token prices"),
+  Command.withSubcommands([ask, trending, news, summary, price]),
 );
