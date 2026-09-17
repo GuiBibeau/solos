@@ -2,7 +2,7 @@
 import { setTimeout } from "node:timers/promises";
 import { intakeIssueNumber, isAutonomous, isTrusted } from "../trust.js";
 import { asRecord } from "./channel-gates.js";
-import { behindMain, REPO_PATH, rebaseCandidate, rebaseList } from "./rebase-api.js";
+import { behindMain, REPO_PATH, readMainSha, rebaseCandidate, rebaseList } from "./rebase-api.js";
 import { rebaseAttempted, rebaseMarker } from "./rebase-task.js";
 
 /** @typedef {import("./rebase-api.js").RebaseApi} Api */
@@ -35,7 +35,10 @@ const requestRebase = async (api, pr) => {
 const confirmRebase = async (api, before) => {
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await setTimeout(2000);
-    const after = rebaseCandidate(await api(`${REPO_PATH}/pulls/${before.pullNumber}`));
+    const after = rebaseCandidate(
+      await api(`${REPO_PATH}/pulls/${before.pullNumber}`),
+      await readMainSha(api),
+    );
     if (!after) throw new Error("Pull request left the permitted rebase scope");
     if (after.head !== before.head && !(await behindMain(api, after))) return after.head;
   }
@@ -84,7 +87,10 @@ export const rebasePullRequest = async (input, context) => {
       status: "blocked",
       reason: "Rebases require trusted dispatch or this PR's autonomous scope.",
     };
-  const pr = rebaseCandidate(await context.api(`${REPO_PATH}/pulls/${input.pullNumber}`));
+  const pr = rebaseCandidate(
+    await context.api(`${REPO_PATH}/pulls/${input.pullNumber}`),
+    await readMainSha(context.api),
+  );
   if (!pr)
     return { status: "skipped", reason: "Not an open same-repository factory PR targeting main." };
   if (

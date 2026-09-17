@@ -23,6 +23,15 @@ describe("[integration] scheduled factory rebases", () => {
     expect(fixture.calls.every((call) => call.method === "GET")).toBe(true);
   });
 
+  test("dispatches with the actual main ref rather than cached PR base metadata", async () => {
+    const fixture = rebaseFixture();
+    fixture.pr.base.sha = "e".repeat(40);
+    expect(await scan(fixture)).toMatchObject([{ base: MAIN_SHA }]);
+    expect(fixture.calls.find((call) => call.path.includes("/compare/"))?.path).toContain(
+      `/compare/${MAIN_SHA}...${OLD_HEAD}`,
+    );
+  });
+
   test("does not wake a model for current PRs or a recorded failed attempt", async () => {
     const fixture = rebaseFixture();
     fixture.behind = false;
