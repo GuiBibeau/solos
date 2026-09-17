@@ -19,10 +19,24 @@ export const rebaseSchedule = (dependencies = {}) =>
         dependencies.api ?? rebaseApi(),
         await (dependencies.botName ?? resolveBotName)(),
       );
+      console.error(
+        JSON.stringify({ event: "factory-rebase-scan", candidates: candidates.length }),
+      );
       for (const pr of candidates) {
-        waitUntil(
-          to(github, { ...factoryRepo, pullRequestNumber: pr.pullNumber }).send(rebaseTask(pr), {
+        const dispatch = to(github, { ...factoryRepo, pullRequestNumber: pr.pullNumber }).send(
+          rebaseTask(pr),
+          {
             auth: stampAutonomous(appAuth, pr.pullNumber),
+          },
+        );
+        waitUntil(dispatch);
+        // Eve settles waitUntil tasks without throwing. Await here so failed handoffs fail the cron.
+        const session = await dispatch;
+        console.error(
+          JSON.stringify({
+            event: "factory-rebase-dispatched",
+            pullNumber: pr.pullNumber,
+            sessionId: session.id,
           }),
         );
       }

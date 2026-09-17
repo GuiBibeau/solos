@@ -57,6 +57,27 @@ describe("[integration] scheduled factory rebases", () => {
     await expect(scan(fixture)).rejects.toThrow("HTTP 503");
   });
 
+  test("a rejected channel handoff fails the cron instead of disappearing in waitUntil", async () => {
+    await withRebaseApi(rebaseFixture(), async (api) => {
+      const schedule = rebaseSchedule({ api, botName: async () => "solos-factory" });
+      const pending = /** @type {Promise<unknown>[]} */ ([]);
+      await expect(
+        schedule.run({
+          appAuth: APP_AUTH,
+          waitUntil: (promise) => {
+            pending.push(promise);
+          },
+          to: () => ({
+            send: async () => {
+              throw new Error("offline handoff failure");
+            },
+          }),
+        }),
+      ).rejects.toThrow("offline handoff failure");
+      await Promise.allSettled(pending);
+    });
+  });
+
   test("the actual schedule sends a PR-scoped verification task at a 15-minute cadence", async () => {
     const fixture = rebaseFixture();
     await withRebaseApi(fixture, async (api) => {
