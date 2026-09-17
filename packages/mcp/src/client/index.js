@@ -48,14 +48,16 @@ export const connectMcp = async ({
     /**
      * @param {string} toolName
      * @param {Record<string, unknown>} toolArgs
+     * @param {{ timeout?: number }} [options]
      */
-    callTool: (toolName, toolArgs) => client.callTool({ name: toolName, arguments: toolArgs }),
+    callTool: (toolName, toolArgs, options) =>
+      client.callTool({ name: toolName, arguments: toolArgs }, options),
     close: () => client.close(),
   };
 };
 
-/** Command line that starts this repo's own server. */
+/** Parent callers select the environment; a server child must not reload ambient .env files. */
 export const solosServerCommand = () => ({
   command: "bun",
-  args: [new URL("../bin/stdio.js", import.meta.url).pathname],
+  args: ["--no-env-file", new URL("../bin/stdio.js", import.meta.url).pathname],
 });

@@ -7,6 +7,7 @@ export {
   IrisAuthFailed,
   IrisConfigMissing,
   IrisHttpError,
+  IrisInputInvalid,
   IrisNetworkError,
   IrisQuestionInvalid,
   IrisRateLimited,
@@ -29,6 +30,10 @@ export { getPrice } from "./use-cases/get-price.js";
 export { askIrisTool } from "./tools/ask-iris.js";
 
 import { askIrisTool } from "./tools/ask-iris.js";
+import { eventSummaryTool, tokenNewsTool, trendingTokensTool } from "./tools/discovery.js";
 
 /** @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>} */
-export const marketTools = [askIrisTool];
+export const marketTools = [askIrisTool, trendingTokensTool, tokenNewsTool, eventSummaryTool];
+
+export * from "./domain/discovery.js";
+export { getEventSummary, getTokenNews, getTrendingTokens } from "./use-cases/discovery.js";
