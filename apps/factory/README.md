@@ -13,6 +13,8 @@ The factory never holds a Solana signer, RPC URL, wallet profile, or gateway key
 - A maintainer (at least triage permission, verified against the API) labels an issue `agent-ready`. The run is unattended: it may apply labels, comment on its own intake issue, close or reopen issues, and open a draft PR; everything else is denied rather than parked.
 - An owner, member, or collaborator @mentions the app on an issue or PR. The run is attended and trusted: reversible writes run without a card, shipping actions wait for approval.
 - Red CI on a `factory/*` pull request dispatches a fix run, capped at two attempts counted from its own comments on the thread.
+- Codex inline review findings on a current, open `factory/*` PR in this repository dispatch an unattended revision without an @mention. The signed sender and comment author must both be `chatgpt-codex-connector[bot]` (GitHub account ID `199175422`). The earliest finding for the reviewed head supplies all that review's findings to one turn; other bots, review replies, status summaries, forks, closed PRs and stale reviews are ignored. The run evaluates the findings, revises the existing branch, reruns verification and updates Evidence; merge remains manual.
+- Automatic Codex revisions are capped at two attempts per PR. The factory records a `solos-factory:codex-review` marker before starting work. Intake rejects recorded attempts, and queued turns must recheck the marker and head before acting. A failed attempt consumes a slot; a maintainer can still request help with an @mention. These markers are agent-written safeguards, not an atomic distributed lock across different review or CI sessions.
 - Someone opens a pull request: the factory posts one orienting comment, never a review.
 - The dev TUI (`bun run dev`): the local principal is untrusted, so every GitHub write parks on an approval card.
 
@@ -92,6 +94,8 @@ bun run build                                 # eve build (clones FACTORY_REPO t
 `eve info` needs `FACTORY_REPO` (defaults to `GuiBibeau/solos`) and `GITHUB_CONNECTOR` (defaults to `github/solos-factory`); no network call is made until a run. From the repo root, `bun run check` (format, lint, dependency rules, types) covers this app.
 
 Deploy with `eve deploy` from `apps/factory` (it wraps `vercel deploy --prod`); the Vercel project's root directory is `apps/factory`, and `vercel.json`'s `ignoreCommand` skips builds when nothing under it changed. The GitHub connector needs the `issues`, `issue_comment`, `pull_request`, `pull_request_review_comment`, and `check_suite` events, and the app needs write access to contents, issues, and pull requests on `FACTORY_REPO`.
+
+Eve 0.56.0 filters every bot comment before its custom `onComment` hook. `patches/eve@0.56.0.patch` lets custom hooks decide which bots to accept; Eve's default mention handler, own-comment filter and webhook verification stay intact. Bun applies this pinned patch during install. The signed-webhook integration tests exercise the installed package through a loopback GitHub API and must pass when upgrading Eve. No new webhook subscriptions or credentials are needed. GitHub must still run Codex review first (usually on a ready PR or after a maintainer requests `@codex review`); the factory does not purchase or request reviews itself.
 
 ## Repo integration
 
