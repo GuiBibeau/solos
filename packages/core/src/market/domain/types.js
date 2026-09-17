@@ -1,6 +1,7 @@
 // @ts-check
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
+import { base58ByteLength } from "../../shared/domain/base58.js";
 
 /**
  * `at` is when the price arrived locally, never a source-data timestamp: feed responses carry
@@ -15,9 +16,16 @@ export const TokenPriceSchema = z.object({
 
 /** @typedef {z.infer<typeof TokenPriceSchema>} TokenPrice */
 
-/** One price read: the mint to price in USD. */
+/**
+ * One price read: the mint to price in USD. Beyond the base58 shape, the address must decode to
+ * the 32 bytes of a Solana public key — the character range alone admits strings that decode to
+ * more, which would otherwise reach the provider instead of failing pre-HTTP.
+ */
 export const GetPriceInputSchema = z.object({
-  mint: AddressSchema.describe("Token mint address to price in USD"),
+  mint: AddressSchema.refine(
+    (value) => base58ByteLength(value) === 32,
+    "mint must decode to a 32-byte Solana address",
+  ).describe("Token mint address to price in USD"),
 });
 
 /** @typedef {z.infer<typeof GetPriceInputSchema>} GetPriceInput */

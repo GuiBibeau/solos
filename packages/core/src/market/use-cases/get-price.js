@@ -20,7 +20,7 @@ export const getPrice = (input) =>
     const parsed = GetPriceInputSchema.safeParse(input);
     if (!parsed.success) {
       return yield* new PriceInputInvalid({
-        reason: "mint must be a base58 Solana address",
+        reason: "mint must be a base58 Solana address that decodes to 32 bytes",
       });
     }
     return yield* (yield* PriceFeed).getPrice(parsed.data.mint);

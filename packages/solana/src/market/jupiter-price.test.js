@@ -4,6 +4,7 @@ import {
   BAD_MINT,
   KEY,
   MINT,
+  TOO_LONG_MINT,
   okBody,
   priceFailure,
   priceThrough,
@@ -59,6 +60,12 @@ describe("JupiterPriceLive success and validation [integration]", () => {
   test("rejects an invalid mint before any HTTP", async () => {
     fixture = startFixture([{ body: okBody() }]);
     expect((await priceFailure(fixture, {}, BAD_MINT))?._tag).toBe("PriceInputInvalid");
+    expect(fixture.requests).toHaveLength(0);
+  });
+
+  test("rejects a 44-character mint that decodes past 32 bytes before any HTTP", async () => {
+    fixture = startFixture([{ body: okBody() }]);
+    expect((await priceFailure(fixture, {}, TOO_LONG_MINT))?._tag).toBe("PriceInputInvalid");
     expect(fixture.requests).toHaveLength(0);
   });
 

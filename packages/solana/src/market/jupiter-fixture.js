@@ -7,6 +7,8 @@ export const KEY = "test-jupiter-key";
 /** wSOL: a well-known public mint, used as the fixture subject. */
 export const MINT = "So11111111111111111111111111111111111111112";
 export const BAD_MINT = "not-a-mint";
+/** Passes the 32–44 character base58 rule yet decodes to 33 bytes, not a Solana address. */
+export const TOO_LONG_MINT = "z".repeat(44);
 export const PRICE = 100.46852810203305;
 export const BODY_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
 
