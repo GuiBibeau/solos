@@ -15,5 +15,13 @@ export const rebaseCandidates = async (api, botName) => {
     const comments = await rebaseList(api, `${REPO_PATH}/issues/${pr.pullNumber}/comments`);
     if (!rebaseAttempted(comments, botName, rebaseMarker(pr))) candidates.push(pr);
   }
+  console.error(
+    JSON.stringify({
+      event: "factory-rebase-candidates",
+      main,
+      scanned: pulls.length,
+      pullNumbers: candidates.map((pr) => pr.pullNumber),
+    }),
+  );
   return candidates;
 };

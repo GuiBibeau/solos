@@ -56,7 +56,7 @@ export const rebaseCandidate = (value, main) => {
   if (!head || !base || !areFactoryRefs(head, base)) return null;
   const branch = stringField(head, "ref");
   if (!branch?.startsWith(FACTORY_BRANCH_PREFIX)) return null;
-  return parseCandidate(pr, { branch, head, base: main });
+  return parseCandidate(pr, { branch, head, base: main, repository: base.repo });
 };
 
 /** @param {Record<string, unknown>} head @param {Record<string, unknown>} base */
@@ -66,15 +66,17 @@ const areFactoryRefs = (head, base) =>
   stringField(base.repo, "full_name") === FACTORY_REPO;
 
 /** @param {Record<string, unknown>} pr
- * @param {{branch: string, head: Record<string, unknown> | null, base: string}} refs
+ * @param {{branch: string, head: Record<string, unknown> | null, base: string, repository: unknown}} refs
  */
 const parseCandidate = (pr, refs) => {
   const head = stringField(refs.head, "sha");
   const base = refs.base;
   const id = stringField(pr, "node_id");
-  if (!(head && base && id && typeof pr.number === "number")) return null;
+  const repositoryId = readRepositoryId(refs.repository);
+  if (!repositoryId) return null;
+  if (!(head && id && typeof pr.number === "number")) return null;
   if (!/^[a-f\d]{40}$/u.test(head) || !/^[a-f\d]{40}$/u.test(base)) return null;
-  return { pullNumber: pr.number, id, branch: refs.branch, head, base };
+  return { pullNumber: pr.number, repositoryId, id, branch: refs.branch, head, base };
 };
 
 /** @typedef {NonNullable<ReturnType<typeof rebaseCandidate>>} RebaseCandidate */
@@ -93,4 +95,10 @@ export const readMainSha = async (api) => {
   const sha = stringField(ref?.object, "sha");
   if (!sha || !/^[a-f\d]{40}$/u.test(sha)) throw new Error("Missing current main ref");
   return sha;
+};
+
+/** @param {unknown} repository */
+const readRepositoryId = (repository) => {
+  const value = asRecord(repository)?.id;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
 };
