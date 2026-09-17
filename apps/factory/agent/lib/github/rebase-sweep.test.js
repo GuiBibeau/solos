@@ -105,6 +105,7 @@ describe("[integration] scheduled factory rebases", () => {
         owner: "GuiBibeau",
         repo: "solos",
         pullRequestNumber: 37,
+        repositoryId: 123,
       });
       expect(isAutonomous(delivery?.auth ?? null)).toBe(true);
       expect(intakeIssueNumber(delivery?.auth ?? null)).toBe(37);
