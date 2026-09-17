@@ -2,14 +2,25 @@
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 
+/**
+ * `at` is when the price arrived locally, never a source-data timestamp: feed responses carry
+ * provider sequence numbers or cached data, so receipt time must not be read as freshness.
+ */
 export const TokenPriceSchema = z.object({
   mint: AddressSchema,
   priceUsd: z.string().describe("Decimal USD price"),
   source: z.string().describe("Feed that produced the price"),
-  at: z.number().int().describe("Unix epoch milliseconds"),
+  at: z.number().int().describe("Unix epoch milliseconds when the price was received locally"),
 });
 
 /** @typedef {z.infer<typeof TokenPriceSchema>} TokenPrice */
+
+/** One price read: the mint to price in USD. */
+export const GetPriceInputSchema = z.object({
+  mint: AddressSchema.describe("Token mint address to price in USD"),
+});
+
+/** @typedef {z.infer<typeof GetPriceInputSchema>} GetPriceInput */
 
 export const TokenMetadataSchema = z.object({
   mint: AddressSchema,

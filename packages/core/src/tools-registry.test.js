@@ -7,6 +7,7 @@ describe("tool registry", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
+      "solana_market_get_price",
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
       "solana_transfer_send_sol",
@@ -42,5 +43,12 @@ describe("tool registry", () => {
     expect(tool?.group).toBe("market");
     expect(tool?.tier).toBe("read");
     expect(tool?.input.shape.question?.description).toBeTruthy();
+  });
+
+  test("the price tool is a read-tier market tool with a described mint input", () => {
+    const tool = allTools.find((t) => t.name === "solana_market_get_price");
+    expect(tool?.group).toBe("market");
+    expect(tool?.tier).toBe("read");
+    expect(tool?.input.shape.mint?.description).toBeTruthy();
   });
 });
