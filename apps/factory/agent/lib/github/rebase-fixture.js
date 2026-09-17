@@ -27,6 +27,7 @@ export const rebaseFixture = () => ({
   },
   comments: /** @type {{user: typeof BOT, body: string}[]} */ ([]),
   calls: /** @type {{path: string, method: string, body: unknown}[]} */ ([]),
+  main: MAIN_SHA,
   behind: true,
   conflict: false,
   race: false,
@@ -69,6 +70,8 @@ const respond = async (fixture, request) => {
 
 /** @param {Fixture} fixture @param {{pathname: string, searchParams: URLSearchParams, body: {body: string} | undefined}} input */
 const readResponse = (fixture, { pathname, searchParams, body }) => {
+  if (pathname.endsWith("/git/ref/heads/main"))
+    return Response.json({ object: { sha: fixture.main } });
   const start = (Number(searchParams.get("page") ?? 1) - 1) * 100;
   if (pathname.endsWith("/pulls"))
     return Response.json((fixture.pulls ?? [fixture.pr]).slice(start, start + 100));

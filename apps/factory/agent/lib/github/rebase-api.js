@@ -46,9 +46,9 @@ export const rebaseList = async (api, path) => {
 };
 
 /** Only same-repository factory PRs targeting main may be rewritten.
- * @param {unknown} value
+ * @param {unknown} value @param {string} main
  */
-export const rebaseCandidate = (value) => {
+export const rebaseCandidate = (value, main) => {
   const pr = asRecord(value);
   if (!pr || pr.state !== "open") return null;
   const head = asRecord(pr.head);
@@ -56,7 +56,7 @@ export const rebaseCandidate = (value) => {
   if (!head || !base || !areFactoryRefs(head, base)) return null;
   const branch = stringField(head, "ref");
   if (!branch?.startsWith(FACTORY_BRANCH_PREFIX)) return null;
-  return parseCandidate(pr, { branch, head, base });
+  return parseCandidate(pr, { branch, head, base: main });
 };
 
 /** @param {Record<string, unknown>} head @param {Record<string, unknown>} base */
@@ -66,11 +66,11 @@ const areFactoryRefs = (head, base) =>
   stringField(base.repo, "full_name") === FACTORY_REPO;
 
 /** @param {Record<string, unknown>} pr
- * @param {{branch: string, head: Record<string, unknown> | null, base: Record<string, unknown>}} refs
+ * @param {{branch: string, head: Record<string, unknown> | null, base: string}} refs
  */
 const parseCandidate = (pr, refs) => {
   const head = stringField(refs.head, "sha");
-  const base = stringField(refs.base, "sha");
+  const base = refs.base;
   const id = stringField(pr, "node_id");
   if (!(head && base && id && typeof pr.number === "number")) return null;
   if (!/^[a-f\d]{40}$/u.test(head) || !/^[a-f\d]{40}$/u.test(base)) return null;
@@ -83,4 +83,14 @@ export const behindMain = async (api, pr) => {
   const result = asRecord(await api(`${REPO_PATH}/compare/${pr.base}...${pr.head}?per_page=1`));
   if (typeof result?.behind_by !== "number") throw new Error("Missing GitHub comparison");
   return result.behind_by > 0;
+};
+
+/** REST PR base.sha can lag behind the branch. Read the actual main ref for every operation.
+ * @param {RebaseApi} api
+ */
+export const readMainSha = async (api) => {
+  const ref = asRecord(await api(`${REPO_PATH}/git/ref/heads/main`));
+  const sha = stringField(ref?.object, "sha");
+  if (!sha || !/^[a-f\d]{40}$/u.test(sha)) throw new Error("Missing current main ref");
+  return sha;
 };

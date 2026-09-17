@@ -45,6 +45,15 @@ describe("[integration] guarded factory rebase", () => {
     expect(fixture.compareCount).toBe(2);
   });
 
+  test("uses current main even when the PR reports an older base SHA", async () => {
+    const fixture = rebaseFixture();
+    fixture.pr.base.sha = "e".repeat(40);
+    expect((await run(fixture)).status).toBe("rebased");
+    const comparisons = fixture.calls.filter((call) => call.path.includes("/compare/"));
+    expect(comparisons.every((call) => call.path.includes(`/compare/${MAIN_SHA}...`))).toBe(true);
+    expect(fixture.comments[0]?.body).toContain(marker);
+  });
+
   test("a concurrent push at mutation time cannot be overwritten", async () => {
     const fixture = rebaseFixture();
     fixture.race = true;
@@ -121,7 +130,7 @@ describe("[integration] guarded factory rebase", () => {
     [
       "new main",
       (f) => {
-        f.pr.base.sha = NEW_HEAD;
+        f.main = NEW_HEAD;
       },
     ],
     [
