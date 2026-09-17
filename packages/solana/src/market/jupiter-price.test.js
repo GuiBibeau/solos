@@ -1,5 +1,7 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { DEFAULT_TIMEOUT_MS } from "./jupiter-api.js";
 import {
   BAD_MINT,
   KEY,
@@ -85,5 +87,16 @@ describe("JupiterPriceLive success and validation [integration]", () => {
       "PriceConfigMissing",
     );
     expect(fixture.requests).toHaveLength(0);
+  });
+});
+describe("JupiterPriceLive deadline wiring", () => {
+  test("resolves the default whole-call deadline from Jupiter's documented 10 seconds", () => {
+    expect(DEFAULT_TIMEOUT_MS).toBe(10_000);
+    const source = readFileSync(new URL("jupiter-price-live.js", import.meta.url), "utf8");
+    const imports = source
+      .split("\n")
+      .filter((line) => line.startsWith("import") && line.includes("DEFAULT_TIMEOUT_MS"));
+    expect(imports).toHaveLength(1);
+    expect(imports[0]).toContain('from "./jupiter-api.js"');
   });
 });
