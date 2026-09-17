@@ -54,8 +54,8 @@ export const connectMcp = async ({
   };
 };
 
-/** Command line that starts this repo's own server. */
+/** Parent callers select the environment; a server child must not reload ambient .env files. */
 export const solosServerCommand = () => ({
   command: "bun",
-  args: [new URL("../bin/stdio.js", import.meta.url).pathname],
+  args: ["--no-env-file", new URL("../bin/stdio.js", import.meta.url).pathname],
 });

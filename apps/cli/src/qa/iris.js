@@ -85,8 +85,16 @@ export const runIrisQa = async ({ apiKey, baseUrl = IRIS_ENDPOINT }) => {
       ELFA_API_KEY: apiKey,
       ELFA_BASE_URL: baseUrl,
     };
-    return IrisQaSchema.parse(await exerciseCases(env, report));
+    await exerciseCases(env, report);
+  } catch {
+    report.status = "failed";
+    report.reason = "QaExecutionFailed";
+    report.usageComplete = report.callsStarted === 0;
   } finally {
-    await surfnet.stop();
+    await surfnet.stop().catch(() => {
+      report.status = "failed";
+      report.reason = "SurfpoolCleanupFailed";
+    });
   }
+  return IrisQaSchema.parse(report);
 };
