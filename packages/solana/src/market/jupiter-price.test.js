@@ -62,6 +62,15 @@ describe("JupiterPriceLive success and validation [integration]", () => {
     expect(fixture.requests).toHaveLength(0);
   });
 
+  test("follows a redirect whose loopback destination passes the policy and sends the key there", async () => {
+    fixture = startFixture([{ status: 302, location: "/moved" }, { body: okBody() }]);
+    const price = await priceThrough(fixture, MINT);
+    expect(fixture.requests).toHaveLength(2);
+    expect(new URL(fixture.requests[1].url).pathname).toBe("/moved");
+    expect(fixture.requests[1].key).toBe(KEY);
+    expect(price.priceUsd).toBe("100.46852810203305");
+  });
+
   test("fails pre-HTTP without a key, blank keys included", async () => {
     fixture = startFixture([{ body: okBody() }]);
     expect((await priceFailure(fixture, { apiKey: "" }))?._tag).toBe("PriceConfigMissing");

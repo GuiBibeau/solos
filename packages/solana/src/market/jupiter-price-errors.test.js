@@ -1,5 +1,6 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
+import { MAX_REDIRECTS } from "./jupiter-api.js";
 import { BODY_MARKER, KEY, MINT, okBody, priceFailure, startFixture } from "./jupiter-fixture.js";
 
 describe("JupiterPriceLive error mapping [integration]", () => {
@@ -73,6 +74,36 @@ describe("JupiterPriceLive error mapping [integration]", () => {
       reason: "Jupiter price request failed",
     });
     expect(fixture.requests).toHaveLength(0);
+  });
+
+  test("a redirect to a non-loopback http host fails before that host is contacted", async () => {
+    fixture = startFixture([{ status: 302, location: "http://203.0.113.1/price/v3" }]);
+    const attempted = [];
+    const failure = await priceFailure(fixture, {
+      fetchImpl: async (input, init) => {
+        attempted.push(String(input));
+        return fetch(input, init);
+      },
+    });
+    expect(failure).toMatchObject({
+      _tag: "PriceNetworkError",
+      reason: "Jupiter price request failed",
+    });
+    expect(attempted).toHaveLength(1);
+    expect(attempted[0].startsWith(fixture.url)).toBe(true);
+    expect(fixture.requests).toHaveLength(1);
+    const rendered = JSON.stringify(failure);
+    expect(rendered.includes(KEY)).toBe(false);
+    expect(rendered.includes("203.0.113.1")).toBe(false);
+  });
+
+  test("a redirect loop terminates as an error at the hop bound", async () => {
+    fixture = startFixture(
+      Array.from({ length: MAX_REDIRECTS + 2 }, () => ({ status: 302, location: "/loop" })),
+    );
+    const failure = await priceFailure(fixture);
+    expect(failure).toMatchObject({ _tag: "PriceNetworkError" });
+    expect(fixture.requests).toHaveLength(MAX_REDIRECTS + 1);
   });
 
   test("error payloads never carry the api key or a raw response body", async () => {

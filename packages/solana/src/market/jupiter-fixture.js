@@ -18,7 +18,7 @@ export const okBody = (usdPrice = PRICE) => ({
 /**
  * Offline loopback Jupiter fixture: records every request, answers by shifting the queue.
  * Never contacts the real Jupiter endpoint.
- * @param {Array<{ status?: number; body?: unknown }>} responses
+ * @param {Array<{ status?: number; body?: unknown; location?: string }>} responses
  * @param {{ delayMs?: number; bodyDelayMs?: number }} [options]
  */
 export const startFixture = (responses, { delayMs = 0, bodyDelayMs = 0 } = {}) => {
@@ -37,9 +37,13 @@ export const startFixture = (responses, { delayMs = 0, bodyDelayMs = 0 } = {}) =
       const next = responses.shift() ?? { status: 500, body: BODY_MARKER };
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       const payload = typeof next.body === "string" ? next.body : JSON.stringify(next.body);
+      const headers = /** @type {Record<string, string>} */ ({
+        "content-type": "application/json",
+      });
+      if (next.location) headers.location = next.location;
       return new Response(delayedBody(payload, bodyDelayMs), {
         status: next.status ?? 200,
-        headers: { "content-type": "application/json" },
+        headers,
       });
     },
   });
