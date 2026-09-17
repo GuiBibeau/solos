@@ -1,10 +1,7 @@
 // @ts-check
 import {
-  IrisAuthFailed,
   IrisConfigMissing,
-  IrisHttpError,
   IrisNetworkError,
-  IrisRateLimited,
   IrisResponseInvalid,
   IrisTimeout,
   MarketIntelligence,
@@ -12,6 +9,8 @@ import {
 import { Effect, Layer } from "effect";
 import { z } from "zod";
 import { DEFAULT_TIMEOUT_MS, elfaChat, isDeadlineAbort } from "./elfa-api.js";
+import { discoveryAdapter } from "./elfa-discovery.js";
+import { parseJson, statusError } from "./elfa-errors.js";
 
 /**
  * Documented success envelope, parsed in strip mode so provider extensions never break us.
@@ -25,18 +24,6 @@ const EnvelopeSchema = z.object({
     creditsConsumed: z.number().min(0),
   }),
 });
-
-/**
- * @param {number} status
- * @returns {import("@solos/core").IrisError | undefined}
- */
-const statusError = (status) => {
-  if (status === 401 || status === 403) return new IrisAuthFailed({ status });
-  if (status === 429) return new IrisRateLimited({ status });
-  if (status < 200 || status >= 300)
-    return new IrisHttpError({ status, reason: `elfa chat answered with HTTP ${status}` });
-  return undefined;
-};
 
 /**
  * Translate one outcome into the answer or a slice-owned error. Raw bodies and the API key
@@ -63,15 +50,6 @@ const fromOutcome = (outcome) => {
   });
 };
 
-/** @param {string} body @returns {unknown} */
-const parseJson = (body) => {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return undefined;
-  }
-};
-
 /**
  * Live market intelligence over the Elfa chat HTTP API. The key is optional at wiring time
  * and required only when a question is actually asked; missing config fails pre-HTTP.
@@ -81,6 +59,7 @@ export const MarketIntelligenceLive = (config) =>
   Layer.effect(
     MarketIntelligence,
     Effect.succeed({
+      ...discoveryAdapter(config),
       ask: (question) => {
         const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         const { apiKey } = config;

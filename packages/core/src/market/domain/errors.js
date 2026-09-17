@@ -26,7 +26,7 @@ export class IrisConfigMissing extends /** @type {IrisConfigMissingClass} */ (
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisAuthFailed", IrisAuthFailedProps>} IrisAuthFailedClass */
 /** @typedef {{ readonly status: number }} IrisAuthFailedProps */
-/** HTTP 401/403 from Elfa: the key is missing a plan with Chat access or is wrong. */
+/** HTTP 401/403 from Elfa: the key or account lacks endpoint access. */
 export class IrisAuthFailed extends /** @type {IrisAuthFailedClass} */ (
   taggedError("IrisAuthFailed")
 ) {}
@@ -62,5 +62,10 @@ export class IrisResponseInvalid extends /** @type {IrisResponseInvalidClass} */
 /**
  * Everything the market-intelligence port can fail with. Structured props only, never a raw
  * response body or the API key.
- * @typedef {IrisQuestionInvalid | IrisConfigMissing | IrisAuthFailed | IrisRateLimited | IrisTimeout | IrisHttpError | IrisNetworkError | IrisResponseInvalid} IrisError
+ * @typedef {IrisInputInvalid | IrisQuestionInvalid | IrisConfigMissing | IrisAuthFailed | IrisRateLimited | IrisTimeout | IrisHttpError | IrisNetworkError | IrisResponseInvalid} IrisError
  */
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisInputInvalid", { readonly reason: string }>} IrisInputInvalidClass */
+export class IrisInputInvalid extends /** @type {IrisInputInvalidClass} */ (
+  taggedError("IrisInputInvalid")
+) {}

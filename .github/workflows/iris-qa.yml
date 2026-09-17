@@ -5,6 +5,12 @@ on:
   pull_request:
     types: [labeled]
   workflow_dispatch:
+    inputs:
+      suite:
+        description: "Elfa endpoints to verify (consumes API credits)"
+        type: choice
+        default: elfa-market
+        options: [elfa-market, iris]
 
 permissions:
   contents: read
@@ -19,7 +25,7 @@ jobs:
       github.actor == github.repository_owner &&
       github.triggering_actor == github.repository_owner &&
       (github.event_name == 'workflow_dispatch' ||
-       (github.event.label.name == 'qa:iris' &&
+       (contains(fromJSON('["qa:iris", "qa:elfa-market"]'), github.event.label.name) &&
         github.event.pull_request.head.repo.full_name == github.repository))
     environment: iris-qa
     runs-on: ubuntu-latest
@@ -37,10 +43,11 @@ jobs:
           surfpool: "true"
       - name: Offline verification
         run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-offline.json"
-      - name: Live Iris CLI and MCP QA (at most two provider requests)
+      - name: Live CLI and MCP QA (2 Chat calls or 6 Free-plan data calls)
         env:
           ELFA_API_KEY: ${{ secrets.ELFA_API_KEY }}
-        run: bun run solos dev verify --scope check --qa iris --json > "$RUNNER_TEMP/evidence-iris.json"
+          QA_SUITE: ${{ github.event.label.name == 'qa:iris' && 'iris' || inputs.suite || 'elfa-market' }}
+        run: bun run solos dev verify --scope check --qa "$QA_SUITE" --json > "$RUNNER_TEMP/evidence-iris.json"
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:

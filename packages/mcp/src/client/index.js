@@ -48,8 +48,10 @@ export const connectMcp = async ({
     /**
      * @param {string} toolName
      * @param {Record<string, unknown>} toolArgs
+     * @param {{ timeout?: number }} [options]
      */
-    callTool: (toolName, toolArgs) => client.callTool({ name: toolName, arguments: toolArgs }),
+    callTool: (toolName, toolArgs, options) =>
+      client.callTool({ name: toolName, arguments: toolArgs }, options),
     close: () => client.close(),
   };
 };

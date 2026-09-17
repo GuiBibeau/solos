@@ -58,6 +58,9 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_wallet_get_address` | read |
 | `solana_wallet_get_balance` | read |
 | `solana_market_ask_iris` | read |
+| `solana_market_get_trending_tokens` | read |
+| `solana_market_get_token_news` | read |
+| `solana_market_get_event_summary` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
@@ -85,6 +88,36 @@ Trial (the ordinary Solana profile/RPC startup requirements still apply):
 ELFA_API_KEY=... bun run solos market ask --question "What changed for SOL in the last 24 hours?"
 ELFA_API_KEY=... bun run solos mcp call solana_market_ask_iris --args '{"question":"What changed for SOL in the last 24 hours?"}'
 ```
+
+### Free-plan discovery and news
+
+The same key supports these read tools on Elfa's Free plan:
+
+| CLI | MCP tool | Result |
+|---|---|---|
+| `market trending` | `solana_market_get_trending_tokens` | Tokens ranked by mention activity, previous counts and percentage changes |
+| `market news --coin-ids solana` | `solana_market_get_token_news` | News-source X posts, source links, timestamps and engagement |
+| `market summary --keywords Solana` | `solana_market_get_event_summary` | Event summaries and provider-supplied citations (5 credits/call) |
+
+All use `--time-window` (`30m`, `1h`, `4h`, `24h`, `7d`, `30d`; default `24h`). Trending and news
+accept `--page` and `--page-size` (1–50, default 10); trending also accepts `--min-mentions`.
+News uses comma-separated **CoinGecko IDs**, not tickers. Summary accepts comma-separated keywords
+and `--search-type and|or` (default `or`). Each command makes one request without retries. Summary generation has a 120-second deadline;
+other endpoints have a 30-second deadline. External MCP clients should allow at least 130 seconds
+for `solana_market_get_event_summary` (the bundled CLI already does).
+
+```sh
+bun run solos market trending --time-window 24h --page-size 5
+bun run solos market news --coin-ids solana --time-window 24h
+bun run solos market summary --keywords Solana --time-window 24h
+bun run solos mcp call solana_market_get_token_news --args '{"coinIds":["solana"],"timeWindow":"24h"}'
+bun run solos dev verify --scope full --qa elfa-market --json
+```
+
+Results include `provider`, `receivedAt`, and `creditsConsumed` from Elfa's `x-elfa-credits` header
+(`null` if unavailable). Receipt time is not a source freshness guarantee. Empty result lists are
+valid. Trending is experimental; it measures attention, not price or sentiment. News contains
+links and metrics, not raw post text. See [live QA](docs/iris-qa.md) for the bounded six-call suite.
 
 ## License
 

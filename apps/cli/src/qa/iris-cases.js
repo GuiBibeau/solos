@@ -21,7 +21,7 @@ export const IRIS_CASES = [
   },
 ];
 
-/** @param {typeof IRIS_CASES[number]} spec */
+/** @param {import("./market-cases.js").QaSpec} spec */
 export const skippedCase = (spec) => ({
   name: spec.name,
   command: `bun run solos ${spec.args.map((arg) => JSON.stringify(arg)).join(" ")}`,
@@ -34,6 +34,7 @@ const ErrorSchema = z.object({
     "IrisAuthFailed",
     "IrisConfigMissing",
     "IrisHttpError",
+    "IrisInputInvalid",
     "IrisNetworkError",
     "IrisQuestionInvalid",
     "IrisRateLimited",
@@ -63,20 +64,20 @@ const failure = (output) => {
   return { code: output.didTimeout ? "QaProcessTimeout" : "QaInvalidOutput" };
 };
 
-/** @param {import("@solos/core").MarketAnswer} answer @param {number} started */
+/** @param {import("./schema.js").QaAnswer} answer @param {number} started */
 const isFreshAnswer = (answer, started) =>
-  answer.receivedAt >= started && answer.receivedAt <= Date.now() && Boolean(answer.answer.trim());
+  answer.receivedAt >= started &&
+  answer.receivedAt <= Date.now() &&
+  (!("answer" in answer) || Boolean(answer.answer.trim()));
 
-/** @param {typeof IRIS_CASES[number]} spec @param {Record<string, string> & { ELFA_API_KEY: string }} env
+/** @param {import("./market-cases.js").QaSpec} spec @param {Record<string, string> & { ELFA_API_KEY: string }} env
  * @returns {Promise<import("./schema.js").QaCase>}
  */
 export const runIrisCase = async (spec, env) => {
   const started = Date.now();
-  const output = await captureSolos(spec.args, env);
+  const output = await captureSolos(spec, env);
   const value = jsonLine(output.stdout);
-  const answer = MarketAnswerSchema.safeParse(
-    spec.name === "mcp" ? value?.structuredContent : value,
-  );
+  const answer = parseAnswer(spec, value);
   const base = { ...skippedCase(spec), ms: Date.now() - started };
   if (output.exitCode !== 0 || value?.isError || !answer.success)
     return { ...base, status: "failed", ...failure(output) };
@@ -86,16 +87,22 @@ export const runIrisCase = async (spec, env) => {
   return {
     ...base,
     status: "passed",
-    answer: { ...observed, answer: observed.answer.replaceAll(env.ELFA_API_KEY, "[redacted]") },
+    answer: JSON.parse(JSON.stringify(observed).replaceAll(env.ELFA_API_KEY, "[redacted]")),
   };
 };
 
+/** @param {import("./market-cases.js").QaSpec} spec @param {any} value */
+const parseAnswer = (spec, value) =>
+  (spec.schema ?? MarketAnswerSchema).safeParse(
+    spec.name.startsWith("mcp") ? value?.structuredContent : value,
+  );
+
 /** Child processes exercise the public CLI with a fixed env, no ambient .env files.
- * @param {string[]} args @param {Record<string, string>} env
+ * @param {import("./market-cases.js").QaSpec} spec @param {Record<string, string>} env
  */
-const captureSolos = async (args, env) => {
+const captureSolos = async (spec, env) => {
   const proc = Bun.spawn(
-    [process.execPath, "--no-env-file", "run", "apps/cli/src/main.js", ...args],
+    [process.execPath, "--no-env-file", "run", "apps/cli/src/main.js", ...spec.args],
     {
       env,
       stdin: "ignore",
@@ -107,7 +114,7 @@ const captureSolos = async (args, env) => {
   const timer = setTimeout(() => {
     didTimeout = true;
     proc.kill("SIGKILL");
-  }, 45_000);
+  }, spec.timeoutMs ?? 45_000);
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
       new Response(proc.stdout).text(),

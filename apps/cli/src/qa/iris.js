@@ -7,26 +7,28 @@ import {
   runIrisCase,
   skippedCase,
 } from "./iris-cases.js";
+import { MARKET_CASES } from "./market-cases.js";
 import { IrisQaSchema } from "./schema.js";
 
-/** @typedef {{ apiKey?: string; baseUrl?: string }} IrisQaConfig */
+/** @typedef {{ apiKey?: string; baseUrl?: string; suite?: "iris" | "elfa-market" }} IrisQaConfig */
 
 /** @param {string} reason @param {string} [baseUrl]
+ * @param {"iris" | "elfa-market"} [suite]
  * @returns {import("./schema.js").IrisQa}
  */
-export const blockedIrisQa = (reason, baseUrl = IRIS_ENDPOINT) => ({
-  capability: "iris",
+export const blockedIrisQa = (reason, baseUrl = IRIS_ENDPOINT, suite = "iris") => ({
+  capability: suite,
   mode: baseUrl === IRIS_ENDPOINT ? "live" : "fixture",
-  endpoint: `${baseUrl}/v2/chat`,
+  endpoint: suite === "iris" ? `${baseUrl}/v2/chat` : baseUrl,
   status: "blocked",
   reason,
-  question: IRIS_QUESTION,
-  maxProviderRequests: 2,
+  question: suite === "iris" ? IRIS_QUESTION : undefined,
+  maxProviderRequests: suite === "iris" ? 2 : 6,
   callsStarted: 0,
   reportedCredits: 0,
   usageComplete: true,
   answerQuality: "unassessed",
-  cases: [skippedCase(IRIS_CASES[0]), skippedCase(IRIS_CASES[1])],
+  cases: (suite === "iris" ? IRIS_CASES : MARKET_CASES).map(skippedCase),
 });
 
 /** Fixed provider for operators; only loopback overrides are accepted for reusable tests.
@@ -40,11 +42,12 @@ const allowedEndpoint = (baseUrl) => {
   );
 };
 
-/** At most one CLI call and one MCP call; stop at first failure, never retry paid requests.
+/** One CLI and one MCP call per endpoint; stop at first failure, never retry requests.
  * @param {Record<string, string> & { ELFA_API_KEY: string }} env @param {import("./schema.js").IrisQa} report
  */
 const exerciseCases = async (env, report) => {
-  for (const [i, spec] of IRIS_CASES.entries()) {
+  const specs = report.capability === "iris" ? IRIS_CASES : MARKET_CASES;
+  for (const [i, spec] of specs.entries()) {
     report.callsStarted++;
     /** @type {import("./schema.js").QaCase} */
     const result = await runIrisCase(spec, env).catch(() => ({
@@ -53,7 +56,7 @@ const exerciseCases = async (env, report) => {
       code: "QaExecutionFailed",
     }));
     report.cases[i] = result;
-    report.reportedCredits += result.answer?.creditsConsumed ?? 0;
+    recordUsage(report, result);
     if (result.status !== "passed") {
       report.usageComplete = false;
       report.status = result.code === "IrisAuthFailed" ? "blocked" : "failed";
@@ -66,14 +69,20 @@ const exerciseCases = async (env, report) => {
   return report;
 };
 
+/** @param {import("./schema.js").IrisQa} report @param {import("./schema.js").QaCase} result */
+const recordUsage = (report, result) => {
+  report.reportedCredits += result.answer?.creditsConsumed ?? 0;
+  if (result.answer?.creditsConsumed === null) report.usageComplete = false;
+};
+
 /** Starts its own offline Surfpool and disposable signer; no profiles, RPCs or wallet funds.
  * @param {IrisQaConfig} config
  * @returns {Promise<import("./schema.js").IrisQa>}
  */
-export const runIrisQa = async ({ apiKey, baseUrl = IRIS_ENDPOINT }) => {
-  if (!apiKey?.trim()) return blockedIrisQa("ELFA_API_KEY is not configured", baseUrl);
+export const runIrisQa = async ({ apiKey, baseUrl = IRIS_ENDPOINT, suite = "iris" }) => {
+  if (!apiKey?.trim()) return blockedIrisQa("ELFA_API_KEY is not configured", baseUrl, suite);
   if (!allowedEndpoint(baseUrl)) throw new Error("QA requires Elfa or a loopback fixture");
-  const report = blockedIrisQa("QA did not complete", baseUrl);
+  const report = blockedIrisQa("QA did not complete", baseUrl, suite);
   const surfnet = await startSurfnet({});
   try {
     const env = {

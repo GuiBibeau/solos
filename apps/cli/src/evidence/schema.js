@@ -49,7 +49,7 @@ export const EvidenceSchema = z.object({
   }),
   steps: z.array(StepSchema),
   qa: IrisQaSchema.optional().describe(
-    "Opt-in live Iris QA; absent means live behavior was not assessed",
+    "Opt-in live Chat or Free-plan market QA; absent means live behavior was not assessed",
   ),
   startedAt: z.iso.datetime().describe("ISO 8601 start time"),
   durationMs: z.number().int().nonnegative(),

@@ -6,6 +6,9 @@ describe("tool registry", () => {
   test("has at least the wallet, transfer, and market tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_market_ask_iris",
+      "solana_market_get_event_summary",
+      "solana_market_get_token_news",
+      "solana_market_get_trending_tokens",
       "solana_transfer_send_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
