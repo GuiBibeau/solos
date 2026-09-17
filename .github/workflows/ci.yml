@@ -58,6 +58,9 @@ jobs:
           surfpool: "true"
       - name: solos dev verify --scope full
         run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-full.json"
+      - name: Show integration failure details
+        if: failure()
+        run: bun run solos dev test --filter '\[integration\]'
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
