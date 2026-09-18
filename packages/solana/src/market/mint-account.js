@@ -14,7 +14,14 @@ export const TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 export const CLASSIC_MINT_BYTES = 82;
 /** Hard bound on any account we are willing to decode as a mint. */
 export const MAX_MINT_ACCOUNT_BYTES = 16_384;
-/** Token-2022 byte 82 is AccountType: Uninitialized = 0, Mint = 1, Account = 2. */
+/**
+ * Extension-bearing Token-2022 layout (interface/src/extension/mod.rs): after the 82-byte base
+ * come 83 bytes of zero padding, so the AccountType byte always sits at 165 (the length of a
+ * classic Account — that anchor is what keeps mints and accounts distinguishable) and the TLV
+ * records start at 166. AccountType: Uninitialized = 0, Mint = 1, Account = 2.
+ */
+export const ACCOUNT_TYPE_OFFSET = 165;
+export const EXTENSIONS_OFFSET = 166;
 export const ACCOUNT_TYPE_MINT = 1;
 
 const base64 = getBase64Encoder();
@@ -90,6 +97,9 @@ const decodeMint = (account, program) => {
 };
 
 /**
+ * Exactly the 82-byte base is a valid extension-less mint. Anything longer follows the padded
+ * protocol layout: total lengths 83..165 have no AccountType location at all, and otherwise the
+ * byte at 165 must say Mint before the bytes from 166 are handed over as extension records.
  * @param {number} decimals
  * @param {Uint8Array} data
  * @returns {MintLayout}
@@ -98,7 +108,13 @@ const token2022Layout = (decimals, data) => {
   if (data.length === CLASSIC_MINT_BYTES) {
     return { verdict: "mint", program: "token-2022", decimals, extensions: undefined };
   }
-  if (data[CLASSIC_MINT_BYTES] !== ACCOUNT_TYPE_MINT) {
+  if (data.length < EXTENSIONS_OFFSET) {
+    return {
+      verdict: "not-a-mint",
+      reason: "token-2022 mint with extensions is at least 166 bytes; this is not a mint",
+    };
+  }
+  if (data[ACCOUNT_TYPE_OFFSET] !== ACCOUNT_TYPE_MINT) {
     return {
       verdict: "not-a-mint",
       reason: "token-2022 account type byte says this is not a Mint",
@@ -108,7 +124,7 @@ const token2022Layout = (decimals, data) => {
     verdict: "mint",
     program: "token-2022",
     decimals,
-    extensions: data.slice(CLASSIC_MINT_BYTES + 1),
+    extensions: data.slice(EXTENSIONS_OFFSET),
   };
 };
 

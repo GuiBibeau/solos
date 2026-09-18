@@ -2,13 +2,14 @@
 import { describe, expect, test } from "bun:test";
 import { address } from "@solana/kit";
 import {
+  ACCOUNT_TYPE_OFFSET,
   CLASSIC_MINT_BYTES,
   MAX_MINT_ACCOUNT_BYTES,
   TOKEN_2022_PROGRAM,
   TOKEN_PROGRAM,
   readMintLayout,
 } from "./mint-account.js";
-import { classicMintBytes, concat, token2022MintBytes, zeros } from "./test-fixtures.js";
+import { classicMintBytes, concat, tlvRecord, token2022MintBytes, zeros } from "./test-fixtures.js";
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
 
@@ -84,13 +85,34 @@ describe("mint account layout guards", () => {
     expect(result).toMatchObject({ verdict: "not-a-mint" });
   });
 
-  test("a token-2022 mint exposes the bytes after the AccountType byte as extensions", () => {
-    const extensions = concat(zeros(4), zeros(4));
+  test("zero padding at byte 82 no longer disqualifies an extension-bearing mint", () => {
+    const data = token2022MintBytes({ decimals: 9, records: [tlvRecord(18, zeros(64))] });
+    expect(data[CLASSIC_MINT_BYTES]).toBe(0);
+    expect(data[ACCOUNT_TYPE_OFFSET]).toBe(1);
+    expect(readMintLayout(account(TOKEN_2022_PROGRAM, data))).toMatchObject({
+      verdict: "mint",
+      program: "token-2022",
+      decimals: 9,
+    });
+  });
+
+  test("token-2022 lengths 83..165 have no protocol AccountType location and are not mints", () => {
+    for (const total of [83, 123, 164, 165]) {
+      const data = concat(classicMintBytes({ decimals: 6 }), zeros(total - CLASSIC_MINT_BYTES));
+      expect(readMintLayout(account(TOKEN_2022_PROGRAM, data))).toMatchObject({
+        verdict: "not-a-mint",
+        reason: "token-2022 mint with extensions is at least 166 bytes; this is not a mint",
+      });
+    }
+  });
+
+  test("a token-2022 mint exposes the bytes from 166 as its extension area", () => {
+    const records = tlvRecord(18, zeros(64));
     const result = readMintLayout(
-      account(TOKEN_2022_PROGRAM, token2022MintBytes({ decimals: 8, records: [extensions] })),
+      account(TOKEN_2022_PROGRAM, token2022MintBytes({ decimals: 8, records: [records] })),
     );
     expect(result).toMatchObject({ verdict: "mint", program: "token-2022", decimals: 8 });
-    expect(result.verdict === "mint" && result.extensions).toBeDefined();
+    expect(result.verdict === "mint" && result.extensions).toEqual(records);
   });
 
   test("an oversized account fails promptly instead of being decoded", () => {

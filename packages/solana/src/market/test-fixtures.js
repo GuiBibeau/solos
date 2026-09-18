@@ -2,8 +2,9 @@
 /**
  * Byte-level fixtures for mint metadata decoding, shared by the decode unit tests. These
  * encode exactly the layouts verified against the programs' own sources:
- * classic mint = 82 bytes; Token-2022 mint = 82 + AccountType byte + TLV records
- * (u16 LE type + u16 LE length + value); Metaplex V1 = key byte + 32 + 32 + u32 strings.
+ * classic mint = 82 bytes; Token-2022 mint = 82-byte base + 83 zero bytes + AccountType byte +
+ * TLV records (u16 LE type + u16 LE length + value); Metaplex V1 = key byte + 32 + 32 + u32
+ * strings.
  */
 import { getBase16Decoder, getUtf8Encoder, none } from "@solana/kit";
 import { getMintEncoder } from "@solana-program/token";
@@ -59,16 +60,24 @@ export const classicMintBytes = ({ decimals, isInitialized = true }) =>
     }),
   );
 
+/** Bytes 82..164 are zero padding on a Token-2022 mint, so the AccountType byte sits at 165. */
+const ACCOUNT_TYPE_PADDING = 83;
+
 /**
  * @param {{
  *   decimals: number;
  *   records: Uint8Array[];
  *   accountType?: number;
  * }} options
- * @returns {Uint8Array} Token-2022 mint: base 82 + AccountType + TLV records
+ * @returns {Uint8Array} Token-2022 mint: base 82 + zero padding 83 + AccountType + TLV records
  */
 export const token2022MintBytes = ({ decimals, records, accountType = 1 }) =>
-  concat(classicMintBytes({ decimals }), new Uint8Array([accountType]), ...records);
+  concat(
+    classicMintBytes({ decimals }),
+    zeros(ACCOUNT_TYPE_PADDING),
+    new Uint8Array([accountType]),
+    ...records,
+  );
 
 /** @param {number} length @returns {Uint8Array} all-zero bytes */
 export const zeros = (length) => new Uint8Array(length);
