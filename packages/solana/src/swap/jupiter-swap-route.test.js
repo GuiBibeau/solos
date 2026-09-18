@@ -1,56 +1,15 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  AMOUNT,
-  INPUT_MINT,
-  MIN_OUT_AMOUNT,
-  OUT_AMOUNT,
-  OUTPUT_MINT,
-  okBody,
-  quoteFailure,
-  quoteRequest,
-  quoteThrough,
-  startFixture,
-} from "./jupiter-swap-fixture.js";
+import { INPUT_MINT, OUT_AMOUNT, OUTPUT_MINT, okBody, routeHop } from "./jupiter-swap-bodies.js";
+import { quoteFailure, startFixture } from "./jupiter-swap-fixture.js";
 
 /**
- * Route-contract regressions for the V2 quote-only response: typed positive hops,
- * requested-pair reachability (order-independent — Metis splits and merges mid-route), and
- * terminal output coverage. No adjacency, allocation, or restart rules exist.
+ * Route-contract rejections for the V2 quote-only response: malformed route entries and
+ * non-positive hop amounts, hops disconnected from the requested pair, and impossible outputs
+ * whose terminal gross is below the claimed net.
  */
 
 const ALIEN_MINT = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
-/** Synthetic 32-byte intermediate mint, distinct from the requested pair. */
-const MID_MINT = "7xLkLgPycwFJnLo9vCuhAuJVHwvAgB4kiOQmZAwKSo6U";
-const FORK_A = "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R";
-const FORK_B = "mSoLzYCxHdYgdndUvHZ7VfTntVScGvjeFvMmLvpB8ri";
-
-/** Exact output floor at a tolerance, the same BigInt math the validator enforces. */
-const thresholdFor = (outAmount, slippageBps) =>
-  ((BigInt(outAmount) * BigInt(10_000 - slippageBps)) / 10_000n).toString();
-
-/**
- * One documented route step; fields default to a consistent single-hop wSOL -> USDC shape.
- * @param {{ from?: string; to?: string; amount?: string; out?: string; bps?: number }} [fields]
- */
-const hop = ({
-  from = INPUT_MINT,
-  to = OUTPUT_MINT,
-  amount = AMOUNT,
-  out = OUT_AMOUNT,
-  bps = 10_000,
-}) => ({
-  swapInfo: {
-    ammKey: "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-    label: "Orca",
-    inputMint: from,
-    outputMint: to,
-    inAmount: amount,
-    outAmount: out,
-  },
-  percent: bps / 100,
-  bps,
-});
 
 describe("JupiterSwapLive route contract [integration]", () => {
   /** @type {ReturnType<typeof startFixture>} */
@@ -91,13 +50,13 @@ describe("JupiterSwapLive route contract [integration]", () => {
   test("rejects hops disconnected from the input mint and unreachable outputs", async () => {
     fixture = startFixture([
       // No hop starts from the requested input mint.
-      { body: okBody({ routePlan: [hop({ from: OUTPUT_MINT })] }) },
+      { body: okBody({ routePlan: [routeHop({ from: OUTPUT_MINT })] }) },
       // The route never produces the requested output mint.
-      { body: okBody({ routePlan: [hop({ to: INPUT_MINT })] }) },
+      { body: okBody({ routePlan: [routeHop({ to: INPUT_MINT })] }) },
       // A second hop fed by a mint nothing produces is alien to the route.
       {
         body: okBody({
-          routePlan: [hop({}), hop({ from: ALIEN_MINT })],
+          routePlan: [routeHop({}), routeHop({ from: ALIEN_MINT })],
         }),
       },
     ]);
@@ -117,11 +76,11 @@ describe("JupiterSwapLive route contract [integration]", () => {
     const quarter = (BigInt(OUT_AMOUNT) / 4n).toString();
     fixture = startFixture([
       // A single terminal hop producing one unit cannot back the quoted output.
-      { body: okBody({ routePlan: [hop({ out: "1" })] }) },
+      { body: okBody({ routePlan: [routeHop({ out: "1" })] }) },
       // Two terminal branches jointly producing half the claimed output.
       {
         body: okBody({
-          routePlan: [hop({ out: quarter }), hop({ out: quarter })],
+          routePlan: [routeHop({ out: quarter }), routeHop({ out: quarter })],
         }),
       },
     ]);
@@ -133,65 +92,5 @@ describe("JupiterSwapLive route contract [integration]", () => {
       );
       expect(fixture.requests, expected).toHaveLength(index + 1);
     }
-  });
-
-  test("accepts an intermediate split and merge across the route", async () => {
-    const net = "900000";
-    fixture = startFixture([
-      {
-        body: okBody({
-          outAmount: net,
-          otherAmountThreshold: thresholdFor(net, 50),
-          routePlan: [
-            // The only producer of the intermediate mint; not itself a terminal hop.
-            hop({ to: MID_MINT, amount: AMOUNT, out: "2000000" }),
-            // The produced 2,000,000 splits 60/40 across two AMMs...
-            hop({ from: MID_MINT, to: FORK_A, amount: "1200000", out: "700000", bps: 6000 }),
-            hop({ from: MID_MINT, to: FORK_B, amount: "800000", out: "550000", bps: 4000 }),
-            // ...and each branch passes its whole output on towards the requested mint.
-            hop({ from: FORK_A, amount: "700000", out: "500000" }),
-            hop({ from: FORK_B, amount: "550000", out: "500000" }),
-          ],
-        }),
-      },
-    ]);
-    const quote = await quoteThrough(fixture);
-    expect(quote.outAmount).toBe(net);
-    expect(quote.minOutAmount).toBe(thresholdFor(net, 50));
-    expect(quote.routeSummary).toEqual(["Orca", "Orca", "Orca", "Orca", "Orca"]);
-    expect(fixture.requests).toHaveLength(1);
-  });
-
-  test("accepts a fee-adjusted output where terminal gross exceeds net, as live", async () => {
-    // Live single-hop numbers: gross terminal 1059158, net quoted 1058947 at 50 bps.
-    const gross = "1059158";
-    const net = "1058947";
-    fixture = startFixture([
-      {
-        body: okBody({
-          inAmount: "10000000",
-          outAmount: net,
-          otherAmountThreshold: thresholdFor(net, 50),
-          routePlan: [hop({ amount: "10000000", out: gross })],
-        }),
-      },
-    ]);
-    const quote = await quoteThrough(fixture, {}, { ...quoteRequest(), amount: "10000000" });
-    expect(quote.outAmount).toBe(net);
-    expect(quote.minOutAmount).toBe(thresholdFor(net, 50));
-    expect(fixture.requests).toHaveLength(1);
-  });
-
-  test("keeps the default and boundary tolerances within the requested protection", async () => {
-    fixture = startFixture([
-      { body: okBody({ otherAmountThreshold: MIN_OUT_AMOUNT }) },
-      { body: okBody({ slippageBps: 0, otherAmountThreshold: OUT_AMOUNT }) },
-      { body: okBody({ slippageBps: 10_000, otherAmountThreshold: "0" }) },
-    ]);
-    expect((await quoteThrough(fixture)).minOutAmount).toBe(MIN_OUT_AMOUNT);
-    const atZero = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 0 });
-    expect(atZero.minOutAmount).toBe(OUT_AMOUNT);
-    const atFull = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 10_000 });
-    expect(atFull.minOutAmount).toBe("0");
   });
 });

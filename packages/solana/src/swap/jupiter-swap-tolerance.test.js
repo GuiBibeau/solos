@@ -1,14 +1,7 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  MIN_OUT_AMOUNT,
-  OUT_AMOUNT,
-  okBody,
-  quoteFailure,
-  quoteRequest,
-  quoteThrough,
-  startFixture,
-} from "./jupiter-swap-fixture.js";
+import { MIN_OUT_AMOUNT, OUT_AMOUNT, okBody, quoteRequest } from "./jupiter-swap-bodies.js";
+import { quoteFailure, quoteThrough, startFixture } from "./jupiter-swap-fixture.js";
 
 /**
  * Slippage-tolerance regressions: the tolerance is a maximum loss, so the echoed threshold must
@@ -35,6 +28,19 @@ describe("JupiterSwapLive slippage tolerance [integration]", () => {
     const quote = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 123 });
     expect(new URL(fixture.requests[0].url).searchParams.get("slippageBps")).toBe("123");
     expect(quote.minOutAmount).toBe(threshold);
+  });
+
+  test("keeps the default and boundary tolerances within the requested protection", async () => {
+    fixture = startFixture([
+      { body: okBody({ otherAmountThreshold: MIN_OUT_AMOUNT }) },
+      { body: okBody({ slippageBps: 0, otherAmountThreshold: OUT_AMOUNT }) },
+      { body: okBody({ slippageBps: 10_000, otherAmountThreshold: "0" }) },
+    ]);
+    expect((await quoteThrough(fixture)).minOutAmount).toBe(MIN_OUT_AMOUNT);
+    const atZero = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 0 });
+    expect(atZero.minOutAmount).toBe(OUT_AMOUNT);
+    const atFull = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 10_000 });
+    expect(atFull.minOutAmount).toBe("0");
   });
 
   test("pins the boundary tolerances: zero bps holds the output, full bps allows only zero", async () => {

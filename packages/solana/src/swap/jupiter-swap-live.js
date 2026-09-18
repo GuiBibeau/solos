@@ -1,7 +1,7 @@
 // @ts-check
 import { QuoteConfigMissing, SwapFailed, SwapProvider } from "@solos/core";
 import { Effect, Layer } from "effect";
-import { fetchQuote } from "./jupiter-swap-quote.js";
+import { fetchQuote } from "./jupiter-swap-response.js";
 
 /** Fixed reason for the port-required execute method, unsupported until build execution (#18). */
 const EXECUTE_UNSUPPORTED =
