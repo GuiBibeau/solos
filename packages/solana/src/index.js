@@ -25,6 +25,7 @@ export {
   jupiterBaseUrl,
   loadSolanaEnv,
 } from "./env.js";
+export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
@@ -41,7 +42,7 @@ export { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 const adapters = Layer.mergeAll(
   SignerLive,
   BalanceReaderLive,
-  TokenRegistryLive,
+  TokenRegistryLive(),
   DirectSignerExecutor,
 );
 

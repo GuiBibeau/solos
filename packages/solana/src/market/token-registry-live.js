@@ -2,13 +2,15 @@
 /** @typedef {import("@solos/core/market").TokenRegistryError} TokenRegistryError */
 /** @typedef {import("@solos/core/market").TokenMetadata} TokenMetadata */
 /** @typedef {import("./mint-account.js").RawAccount} RawAccount */
+/** @typedef {import("./account-read.js").AccountRead} AccountRead */
 /** Metadata a verified read produced. @typedef {{ readonly name: string; readonly symbol: string; readonly logoUri: string | null }} VerifiedMetadata */
 /** @typedef {{ readonly status: "absent" } | { readonly status: "invalid"; readonly reason: string } | ({ readonly status: "present" } & VerifiedMetadata)} ReadMetadata */
 import { address, getAddressEncoder } from "@solana/kit";
 import { TokenMetadataUnavailable, TokenRegistry, UnknownToken } from "@solos/core";
 import { Effect, Layer } from "effect";
-import { rpcCall } from "../rpc/rpc-call.js";
+import { rpcOrigin } from "../rpc/rpc-origin.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
+import { fetchAccount, TOKEN_RPC_TIMEOUT_MS } from "./account-read.js";
 import { canonicalMint } from "./canonical-mints.js";
 import { decodeMetaplexMetadata, metadataPda } from "./metaplex-metadata.js";
 import { MAX_MINT_ACCOUNT_BYTES, base64AccountData, readMintLayout } from "./mint-account.js";
@@ -20,39 +22,15 @@ const MAX_SCHEMA_DECIMALS = 18;
 const addressBytes = getAddressEncoder();
 
 /**
- * Errors travel to CLI and MCP clients, and provider credentials can sit in the RPC URL query
- * or path — so errors carry the endpoint origin only, never the configured URL itself.
- * @param {string} url
- */
-const originOf = (url) => {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return "<unparseable rpc url>";
-  }
-};
-
-/**
- * One bounded account read. At most two of these happen per token read (mint, then metadata
- * PDA); no subscriptions, no retries, no off-chain fetches.
- * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
- * @param {string} account
- */
-const fetchAccount = (ctx, account) =>
-  rpcCall("getAccountInfo", originOf(ctx.url), () =>
-    ctx.rpc.getAccountInfo(address(account), { encoding: "base64" }).send(),
-  ).pipe(Effect.map((result) => result.value));
-
-/**
  * Metaplex metadata for one mint: derive the PDA (rejection is treated as unreadable), then
  * one bounded account read. `logoUri` is null by construction — Metaplex has no logo field,
  * and the decoded `uri` is discarded, never fetched, never presented as a logo.
- * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
+ * @param {AccountRead} read
  * @param {string} mint
  * @param {Uint8Array} mintBytes
  * @returns {Effect.Effect<ReadMetadata, TokenRegistryError>}
  */
-const metaplexMetadata = (ctx, mint, mintBytes) =>
+const metaplexMetadata = (read, mint, mintBytes) =>
   Effect.gen(function* () {
     const derived = yield* Effect.either(
       Effect.tryPromise({
@@ -66,7 +44,7 @@ const metaplexMetadata = (ctx, mint, mintBytes) =>
         reason: "metadata address could not be derived",
       };
     }
-    const info = yield* fetchAccount(ctx, derived.right);
+    const info = yield* fetchAccount(read, derived.right);
     const bytes =
       info === null
         ? null
@@ -81,12 +59,12 @@ const metaplexMetadata = (ctx, mint, mintBytes) =>
 /**
  * Token-2022 metadata: the in-mint extension when present, else the Metaplex PDA (some
  * Token-2022 mints carry classic Metaplex metadata instead).
- * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
+ * @param {AccountRead} read
  * @param {{ readonly extensions: Uint8Array | undefined }} layout
  * @param {{ readonly mint: string; readonly mintBytes: Uint8Array }} forMint
  * @returns {Effect.Effect<ReadMetadata, TokenRegistryError>}
  */
-const token2022Metadata = (ctx, layout, forMint) =>
+const token2022Metadata = (read, layout, forMint) =>
   Effect.gen(function* () {
     if (layout.extensions !== undefined) {
       const walked = readTokenMetadataExtension(layout.extensions, forMint.mintBytes);
@@ -100,7 +78,7 @@ const token2022Metadata = (ctx, layout, forMint) =>
       }
       if (walked.status === "invalid") return walked;
     }
-    return yield* metaplexMetadata(ctx, forMint.mint, forMint.mintBytes);
+    return yield* metaplexMetadata(read, forMint.mint, forMint.mintBytes);
   });
 
 /**
@@ -162,13 +140,13 @@ const rawAccountOf = (info) =>
  * own extension or its Metaplex PDA and must claim this mint; the canonical wSOL/USDC mapping
  * applies only when metadata is absent (never when unreadable) and only after the on-chain
  * decimals match the documented ones.
- * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
+ * @param {AccountRead} read
  * @param {string} mint
  * @returns {Effect.Effect<TokenMetadata, TokenRegistryError>}
  */
-const getMetadata = (ctx, mint) =>
+const getMetadata = (read, mint) =>
   Effect.gen(function* () {
-    const layout = readMintLayout(rawAccountOf(yield* fetchAccount(ctx, mint)));
+    const layout = readMintLayout(rawAccountOf(yield* fetchAccount(read, mint)));
     if (layout.verdict !== "mint") return yield* unverifiedMintError(mint, layout);
     if (layout.decimals > MAX_SCHEMA_DECIMALS) {
       return yield* new TokenMetadataUnavailable({
@@ -179,8 +157,8 @@ const getMetadata = (ctx, mint) =>
     const mintBytes = new Uint8Array(addressBytes.encode(address(mint)));
     const metadata =
       layout.program === "token-2022"
-        ? yield* token2022Metadata(ctx, layout, { mint, mintBytes })
-        : yield* metaplexMetadata(ctx, mint, mintBytes);
+        ? yield* token2022Metadata(read, layout, { mint, mintBytes })
+        : yield* metaplexMetadata(read, mint, mintBytes);
     if (metadata.status === "invalid") {
       return yield* new TokenMetadataUnavailable({ mint, reason: metadata.reason });
     }
@@ -191,10 +169,18 @@ const getMetadata = (ctx, mint) =>
 /**
  * Live `TokenRegistry` over the shared `SolanaRpc` service: one configured endpoint, the same
  * one every other Solana tool uses. No config parameter, no env access, no fallback endpoint.
+ * @param {{ readonly timeoutMs?: number }} [config] injectable read deadline, for tests
  */
-export const TokenRegistryLive = Layer.effect(
-  TokenRegistry,
-  Effect.map(SolanaRpc, (ctx) => ({
-    getMetadata: (mint) => getMetadata(ctx, mint),
-  })),
-);
+export const TokenRegistryLive = (config) =>
+  Layer.effect(
+    TokenRegistry,
+    Effect.map(SolanaRpc, (ctx) => {
+      /** @type {AccountRead} */
+      const read = {
+        rpc: ctx.rpc,
+        origin: rpcOrigin(ctx.url),
+        timeoutMs: config?.timeoutMs ?? TOKEN_RPC_TIMEOUT_MS,
+      };
+      return { getMetadata: (mint) => getMetadata(read, mint) };
+    }),
+  );
