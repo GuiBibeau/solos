@@ -63,12 +63,14 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_market_get_event_summary` | read |
 | `solana_market_get_price` | read |
 | `solana_market_get_token` | read |
+| `solana_swap_get_quote` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
-`JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` still
-has ports and use cases but no adapter; `signals` has ports only.
+`JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` has the
+Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes; execution
+arrives with Action-based build execution); `signals` has ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -209,6 +211,71 @@ Token metadata reads go through the same configured Solana endpoint as every oth
 SOLANA_RPC_URL=... bun run solos market token --mint So11111111111111111111111111111111111111112
 SOLANA_RPC_URL=... bun run solos mcp call solana_market_get_token --args '{"mint":"So11111111111111111111111111111111111111112"}'
 ```
+
+## Swap quotes (Jupiter V2, indicative)
+
+`solana_swap_get_quote` (MCP) and `solos swap quote --input-mint <mint> --output-mint <mint>
+--amount <base-units> [--slippage-bps 50]` (CLI) fetch an **indicative** quote from Jupiter's
+current Swap API V2: `GET {JUPITER_BASE_URL}/swap/v2/order`, authenticated with `x-api-key` from
+`JUPITER_API_KEY`. No `taker` is ever sent, so the response is quote-only and its embedded
+transaction is null — nothing is signed, built for sending, or submitted, and there is no
+/execute call.
+
+- **Setup:** export `JUPITER_API_KEY`. The key is **required to invoke the tool**; it stays in
+  the environment, never in tool arguments. The tool always lists — without the key every call
+  fails before any HTTP with `QuoteConfigMissing`.
+- **Metis-only routing.** Every request carries the documented
+  `excludeRouters=jupiterz,dflow,okx`, so quotes come from Jupiter's Metis router only — the same
+  routing the self-managed V2 build execution path uses. A response routed by anything else is
+  rejected (`QuoteResponseInvalid`).
+- **Field and unit mapping.** `inAmount`, `outAmount`, and `minOutAmount` (from the provider's
+  `otherAmountThreshold`) are exact decimal strings in base units and are never rounded through a
+  JS Number. `routeSummary` carries the `routePlan[].swapInfo.label` hop labels. `priceImpactPct`
+  keeps the legacy decimal-ratio convention: the provider's `priceImpact` is percentage points and
+  is divided by 100, so 1 percentage point => `"0.01"` (the deprecated provider `priceImpactPct`
+  string is ignored). Missing provider fields fail (`QuoteResponseInvalid`); solOS never
+  fabricates a zero.
+- **Tolerance and route validation.** The tolerance is a maximum loss: the echoed `slippageBps`
+  must equal the request, and `minOutAmount` must sit within
+  `floor(outAmount x (10000 - slippageBps) / 10000) <= minOutAmount <= outAmount` (BigInt, the
+  verified Jupiter floor rounding — live quotes compute `floor(netOut x 9950 / 10000)` at
+  50 bps). A threshold above the floor is more protective than requested and stays allowed; a
+  threshold below it means more slippage than requested and is rejected; at 0 bps the bound
+  collapses to equality. Route plans must span the requested pair with no traversal-order
+  assumptions (Metis splits and merges mid-route): every hop must be executable from the input
+  mint, the output mint must be produced, the hops ending at the output must jointly gross at
+  least the quoted net output (fees make gross exceed net; equality is not required), and the
+  validated hop data is retained in the non-executable `raw` payload. Redirects must stay on
+  the request's origin; a cross-origin redirect is refused before the other host is contacted
+  or receives the key.
+- **`expiresAt` is a local 30-second TTL**, the receipt time plus 30 000 ms. It is when solOS
+  stops presenting the quote as usable, **not** a provider price guarantee — V2 documents no
+  quote TTL.
+- **Indicative only.** The quote is never a promise to execute: an execution obtains a fresh
+  build. The provider port's `execute` method is present but fails fast with `SwapFailed` until
+  Action-based build execution lands; no send or signing path exists yet.
+- **Errors:** `NoRouteFound` (empty route plan, or the documented
+  400 `"Failed to get quotes"` body), `QuoteInputInvalid`, `QuoteConfigMissing`,
+  `QuoteAuthFailed` (401/403), `QuoteRateLimited` (429), `QuoteHttpError` (other non-2xx),
+  `QuoteTimeout`, `QuoteNetworkError`, `QuoteResponseInvalid`. **One attempt, 10-second
+  deadline** covering headers and body; never retried. Error payloads never contain the key, a
+  raw provider body, or the endpoint URL.
+
+`JUPITER_BASE_URL` overrides the endpoint (default `https://api.jup.ag`); plain `http` is
+accepted only for loopback hosts running local test fixtures.
+
+Operator QA (requires the configured `JUPITER_API_KEY`; blocked without one, never faked
+offline). A 0.01 SOL -> USDC quote sends nothing on chain:
+
+```sh
+JUPITER_API_KEY=... bun run solos swap quote --input-mint So11111111111111111111111111111111111111112 --output-mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --amount 10000000
+JUPITER_API_KEY=... bun run solos mcp call solana_swap_get_quote --args '{"inputMint":"So11111111111111111111111111111111111111112","outputMint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"10000000"}'
+```
+
+Inspect the answer's `routeSummary` hops, `minOutAmount` (worst case at 0.5% default slippage),
+and `priceImpactPct` (a decimal ratio: `"0.01"` means 1 percent). Both surfaces must return the
+same amounts for the same request, and the fixture-backed tests assert the request went to
+`/swap/v2/order` exactly once with no submit call.
 
 ## License
 

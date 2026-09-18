@@ -15,6 +15,7 @@ import { market } from "./commands/market.js";
 import { mcp } from "./commands/mcp.js";
 import { profiles } from "./commands/profiles.js";
 import { router } from "./commands/router.js";
+import { swap } from "./commands/swap.js";
 import { transfer } from "./commands/transfer.js";
 import { wallet } from "./commands/wallet.js";
 
@@ -28,6 +29,7 @@ const root = Command.make("solos").pipe(
     wallet,
     transfer,
     market,
+    swap,
     mcp,
     router,
     agent,
