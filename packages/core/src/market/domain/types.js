@@ -30,6 +30,20 @@ export const GetPriceInputSchema = z.object({
 
 /** @typedef {z.infer<typeof GetPriceInputSchema>} GetPriceInput */
 
+/**
+ * One token metadata read: the mint to describe. Same 32-byte base58 rule as the price input,
+ * described for its own tool. `TokenMetadataSchema` below stays the only public shape of the
+ * result; adapters may never widen it.
+ */
+export const GetTokenInputSchema = z.object({
+  mint: AddressSchema.refine(
+    (value) => base58ByteLength(value) === 32,
+    "mint must decode to a 32-byte Solana address",
+  ).describe("Token mint address to read on-chain metadata for"),
+});
+
+/** @typedef {z.infer<typeof GetTokenInputSchema>} GetTokenInput */
+
 export const TokenMetadataSchema = z.object({
   mint: AddressSchema,
   symbol: z.string(),
