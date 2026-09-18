@@ -110,6 +110,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
       "solana_market_get_price",
+      "solana_market_get_token",
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
       "solana_transfer_send_sol",
