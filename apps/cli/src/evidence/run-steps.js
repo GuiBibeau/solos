@@ -1,4 +1,6 @@
 // @ts-check
+import { redactDiagnostics, reportStepFailure } from "./diagnostics.js";
+
 /**
  * Step runner: children run with the inherited cwd, output captured (stdout is reserved for the
  * final JSON). The first failure stops the run; later steps are reported as skipped.
@@ -54,13 +56,15 @@ export const lastLine = (text) => {
 export const runStep = async (spec) => {
   const start = performance.now();
   const { code, output } = await captureCommand(spec.command);
+  const safeOutput = redactDiagnostics(output);
+  if (code !== 0) reportStepFailure(spec.name, { code, output: safeOutput });
   const fallback = code === 0 ? "ok" : `exit ${code}`;
   return {
     name: spec.name,
     command: spec.command.join(" "),
     ok: code === 0,
     ms: Math.round(performance.now() - start),
-    summary: lastLine(output) || fallback,
+    summary: lastLine(safeOutput) || fallback,
   };
 };
 

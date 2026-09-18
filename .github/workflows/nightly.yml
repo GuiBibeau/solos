@@ -29,8 +29,22 @@ jobs:
         continue-on-error: true
         env:
           # test-surfnet.js forks mainnet when this is set (Surfpool online mode)
-          SURFNET_DATASOURCE_RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
-        run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json"
+          SURFNET_DATASOURCE_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+          SURFNET_DIAGNOSTICS: "1"
+        run: |
+          if [ -z "$SURFNET_DATASOURCE_RPC_URL" ]; then
+            echo 'SOLANA_RPC_URL repository secret is required; no public RPC fallback.' | tee "$RUNNER_TEMP/diagnostics-nightly.log" >&2
+            exit 1
+          fi
+          bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json" 2> "$RUNNER_TEMP/diagnostics-nightly.log"
+      - name: Upload verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-nightly
+          path: ${{ runner.temp }}/diagnostics-nightly.log
+          if-no-files-found: warn
+          retention-days: 7
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
@@ -43,7 +57,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\n```json\n'"$(cat "$RUNNER_TEMP/evidence-nightly.json" 2>/dev/null || echo '{}')"$'\n```'
+          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\nDownload the diagnostics-nightly artifact from this run for bounded, secret-redacted assertion/stack and Surfpool output.\n\n```json\n'"$(cat "$RUNNER_TEMP/evidence-nightly.json" 2>/dev/null || echo '{}')"$'\n```'
           existing="$(gh issue list --label nightly-failure --state open --json number --jq '.[0].number')"
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"

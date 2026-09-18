@@ -70,8 +70,10 @@ have.
    gh project field-list <number> --owner GuiBibeau --format json
    ```
 
-4. **Nightly RPC.** Add the repo secret `SOLANA_RPC_URL` (a provider URL you pay for). Until
-   then the nightly mainnet-fork run uses the public endpoint and may be flaky.
+4. **Nightly RPC.** Add the repo secret `SOLANA_RPC_URL` (an authenticated provider URL).
+   The nightly mainnet-fork run fails clearly when it is missing; it never uses a public fallback.
+   Its `diagnostics-nightly` artifact retains bounded, secret-redacted failed-step output,
+   including assertions, stacks, and Surfpool diagnostics. Evidence stays separate JSON.
 
 5. **Renovate.** Install the Renovate GitHub App on the repository; `renovate.json` is committed.
 
