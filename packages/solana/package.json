@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.js",
+    "./market/test-seeds": "./src/market/test-seeds.js",
     "./surfnet": "./src/surfnet/index.js"
   },
   "dependencies": {

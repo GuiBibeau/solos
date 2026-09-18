@@ -9,6 +9,7 @@ import { DEFAULT_ELFA_BASE_URL, DEFAULT_JUPITER_BASE_URL } from "./env.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
 import { JupiterPriceLive } from "./market/jupiter-price-live.js";
 import { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
+import { TokenRegistryLive } from "./market/token-registry-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
@@ -24,9 +25,11 @@ export {
   jupiterBaseUrl,
   loadSolanaEnv,
 } from "./env.js";
+export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
+export { TokenRegistryLive } from "./market/token-registry-live.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
@@ -36,7 +39,12 @@ export { BalanceReaderLive } from "./wallet/balance-reader-live.js";
  * Every core port this package implements over a KitSigner. `ActionExecutor` is the wallet
  * executor by default; an engine executor replaces this one Layer in vault mode (ADR-0013).
  */
-const adapters = Layer.mergeAll(SignerLive, BalanceReaderLive, DirectSignerExecutor);
+const adapters = Layer.mergeAll(
+  SignerLive,
+  BalanceReaderLive,
+  TokenRegistryLive(),
+  DirectSignerExecutor,
+);
 
 /**
  * Iris needs no chain access, so its Layer rides along unprovided: without ELFA_API_KEY the

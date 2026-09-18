@@ -65,6 +65,19 @@ export class PriceResponseInvalid extends /** @type {PriceResponseInvalidClass} 
  * @typedef {PriceUnavailable | PriceInputInvalid | PriceConfigMissing | PriceAuthFailed | PriceRateLimited | PriceTimeout | PriceHttpError | PriceNetworkError | PriceResponseInvalid} PriceFeedError
  */
 
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"TokenMetadataUnavailable", TokenMetadataUnavailableProps>} TokenMetadataUnavailableClass */
+/** @typedef {{ readonly mint: string; readonly reason: string }} TokenMetadataUnavailableProps */
+/** A valid mint whose metadata is absent or unreadable. Never a made-up ticker. */
+export class TokenMetadataUnavailable extends /** @type {TokenMetadataUnavailableClass} */ (
+  taggedError("TokenMetadataUnavailable")
+) {}
+
+/**
+ * Everything the token registry port can fail with. `RpcError` is the shared transport error,
+ * the same one the wallet `BalanceReader` port carries.
+ * @typedef {UnknownToken | TokenMetadataUnavailable | import("../../shared/domain/errors.js").RpcError} TokenRegistryError
+ */
+
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisQuestionInvalid", IrisQuestionInvalidProps>} IrisQuestionInvalidClass */
 /** @typedef {{ readonly reason: string }} IrisQuestionInvalidProps */
 /** Raised before any provider access; carries no question text. */

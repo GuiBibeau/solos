@@ -61,8 +61,8 @@ add a `solos` command instead.
 | `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
 | `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. |
 
-Slices today: `wallet`, `transfer`, `market` (Elfa Chat + discovery/news/summaries implemented; PriceFeed/TokenRegistry still
-adapter-less), `swap` (ports + use cases, no adapters), `signals` (ports only).
+Slices today: `wallet`, `transfer`, `market` (Elfa Chat + discovery/news/summaries + Jupiter prices + on-chain token
+metadata implemented), `swap` (ports + use cases, no adapters), `signals` (ports only).
 
 ## Conventions that lint will enforce
 

@@ -1,0 +1,169 @@
+// @ts-check
+import { getBase64Encoder } from "@solana/kit";
+import { getMintDecoder } from "@solana-program/token";
+
+/**
+ * Program ids, pinned on chain. Declared locally instead of imported from the wallet slice so
+ * the market slice stays decoupled from wallet internals; the two constants are duplicated
+ * deliberately and are protocol constants, not configuration.
+ */
+export const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+export const TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+
+/** The classic program allocates exactly Mint::LEN = 82; 165 bytes would be a token account. */
+export const CLASSIC_MINT_BYTES = 82;
+/** Hard bound on any account we are willing to decode as a mint. */
+export const MAX_MINT_ACCOUNT_BYTES = 16_384;
+/**
+ * Extension-bearing Token-2022 layout (interface/src/extension/mod.rs): after the 82-byte base
+ * come 83 bytes of zero padding, so the AccountType byte always sits at 165 (the length of a
+ * classic Account — that anchor is what keeps mints and accounts distinguishable) and the TLV
+ * records start at 166. AccountType: Uninitialized = 0, Mint = 1, Account = 2.
+ */
+export const ACCOUNT_TYPE_OFFSET = 165;
+export const EXTENSIONS_OFFSET = 166;
+export const ACCOUNT_TYPE_MINT = 1;
+/** A 355-byte Token-2022 account is a Multisig — the program rejects it as account data. */
+export const MULTISIG_ACCOUNT_BYTES = 355;
+
+const base64 = getBase64Encoder();
+const mintDecoder = getMintDecoder();
+
+/** An account as returned by `getAccountInfo` with base64 data. @typedef {{ readonly owner: string; readonly data: Uint8Array }} RawAccount */
+
+/**
+ * Outcome of the layout guards, before any metadata work. `not-a-mint` maps to `UnknownToken`
+ * (covers wrong owner, wrong length — including a token account passed as a mint —
+ * uninitialized and undecodable base layout); `account-too-large` maps to
+ * `TokenMetadataUnavailable` so oversized accounts fail promptly instead of being decoded.
+ * @typedef {{
+ *   readonly verdict: "mint";
+ *   readonly program: "spl" | "token-2022";
+ *   readonly decimals: number;
+ *   readonly extensions: Uint8Array | undefined;
+ * } | {
+ *   readonly verdict: "not-a-mint";
+ *   readonly reason: string;
+ * } | {
+ *   readonly verdict: "account-too-large";
+ *   readonly bytes: number;
+ * }} MintLayout
+ */
+
+/**
+ * @param {string} owner
+ * @returns {"spl" | "token-2022" | undefined}
+ */
+const programOf = (owner) => {
+  if (owner === TOKEN_PROGRAM) return "spl";
+  if (owner === TOKEN_2022_PROGRAM) return "token-2022";
+  return undefined;
+};
+
+/**
+ * Classic mints are exactly 82 bytes; Token-2022 mints carry at least the 82-byte base plus
+ * the AccountType byte when extensions exist.
+ * @param {"spl" | "token-2022"} program
+ * @param {number} length
+ * @returns {string | undefined}
+ */
+const lengthError = (program, length) => {
+  if (program === "spl" && length !== CLASSIC_MINT_BYTES) {
+    return "classic token program accounts are exactly 82 bytes; this is not a mint";
+  }
+  if (program === "token-2022" && length < CLASSIC_MINT_BYTES) {
+    return "token-2022 mints are at least 82 bytes; this is not a mint";
+  }
+  return undefined;
+};
+
+/**
+ * Base-decode the first 82 bytes with the program's own codec, then cut the Token-2022
+ * extension area loose.
+ * @param {RawAccount} account
+ * @param {"spl" | "token-2022"} program
+ * @returns {MintLayout}
+ */
+const decodeMint = (account, program) => {
+  try {
+    const mint = mintDecoder.decode(account.data);
+    if (mint.isInitialized !== true)
+      return { verdict: "not-a-mint", reason: "mint is not initialized" };
+    if (program === "spl") {
+      return { verdict: "mint", program, decimals: mint.decimals, extensions: undefined };
+    }
+    return token2022Layout(mint.decimals, account.data);
+  } catch {
+    return { verdict: "not-a-mint", reason: "account does not decode as a mint" };
+  }
+};
+
+/**
+ * Exactly the 82-byte base is a valid extension-less mint. Anything longer follows the padded
+ * protocol layout: total lengths 83..165 have no AccountType location at all, and otherwise the
+ * byte at 165 must say Mint before the bytes from 166 are handed over as extension records.
+ * @param {number} decimals
+ * @param {Uint8Array} data
+ * @returns {MintLayout}
+ */
+const token2022Layout = (decimals, data) => {
+  if (data.length === CLASSIC_MINT_BYTES) {
+    return { verdict: "mint", program: "token-2022", decimals, extensions: undefined };
+  }
+  if (data.length === MULTISIG_ACCOUNT_BYTES) {
+    return { verdict: "not-a-mint", reason: "a 355-byte token-2022 account is a multisig" };
+  }
+  if (data.length < EXTENSIONS_OFFSET) {
+    return {
+      verdict: "not-a-mint",
+      reason: "token-2022 mint with extensions is at least 166 bytes; this is not a mint",
+    };
+  }
+  for (let i = CLASSIC_MINT_BYTES; i < ACCOUNT_TYPE_OFFSET; i++) {
+    if (data[i] !== 0) {
+      return {
+        verdict: "not-a-mint",
+        reason: "token-2022 padding before the account type byte is not zero",
+      };
+    }
+  }
+  if (data[ACCOUNT_TYPE_OFFSET] !== ACCOUNT_TYPE_MINT) {
+    return {
+      verdict: "not-a-mint",
+      reason: "token-2022 account type byte says this is not a Mint",
+    };
+  }
+  return {
+    verdict: "mint",
+    program: "token-2022",
+    decimals,
+    extensions: data.slice(EXTENSIONS_OFFSET),
+  };
+};
+
+/**
+ * Guard an account as a mint before any decode: owner first, then the per-program length
+ * rules (a token account passed as a mint fails here, never "decodes"), then the absolute
+ * size bound, and only then the base layout.
+ * @param {RawAccount | null} account null when the RPC says the account does not exist
+ * @returns {MintLayout}
+ */
+export const readMintLayout = (account) => {
+  if (account === null) return { verdict: "not-a-mint", reason: "account does not exist" };
+  const program = programOf(account.owner);
+  if (program === undefined)
+    return { verdict: "not-a-mint", reason: "owner is neither token program" };
+  const badLength = lengthError(program, account.data.length);
+  if (badLength !== undefined) return { verdict: "not-a-mint", reason: badLength };
+  if (account.data.length > MAX_MINT_ACCOUNT_BYTES) {
+    return { verdict: "account-too-large", bytes: account.data.length };
+  }
+  return decodeMint(account, program);
+};
+
+/**
+ * Decode base64 account data from `getAccountInfo` into a plain mutable `Uint8Array`, so the
+ * pure decode helpers never deal with Kit's readonly views.
+ * @param {readonly [string, string]} data
+ */
+export const base64AccountData = (data) => new Uint8Array(base64.encode(data[0]));

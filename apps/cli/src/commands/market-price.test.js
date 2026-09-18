@@ -1,8 +1,10 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import path from "node:path";
 import { ensureSurfnet, randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
 
 const ROOT = new URL("../../../..", import.meta.url).pathname;
+const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
 const KEY = "test-jupiter-key";
 const MINT = "So11111111111111111111111111111111111111112";
 const PRICE = 100.46852810203305;
@@ -15,12 +17,15 @@ const solanaEnv = async () => ({
 });
 
 /**
- * Spawn `bun run solos ...` exactly as a human or agent would, with only the given env.
+ * Spawn the CLI entry directly — `bun --no-env-file run apps/cli/src/main.js`. The flag must
+ * govern the one process that loads env files: going through the `solos` package script would
+ * start a second Bun without the flag, which loads `.env`/`.env.local` again. Real users keep
+ * normal env loading; only this harness opts out.
  * @param {string[]} args
  * @param {Record<string, string>} env
  */
 const runSolos = async (args, env) => {
-  const proc = Bun.spawn([process.execPath, "run", "solos", ...args], {
+  const proc = Bun.spawn([process.execPath, "--no-env-file", "run", CLI_ENTRY, ...args], {
     cwd: ROOT,
     env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },
     stdout: "pipe",
@@ -110,6 +115,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
       "solana_market_get_price",
+      "solana_market_get_token",
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
       "solana_transfer_send_sol",

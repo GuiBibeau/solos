@@ -6,7 +6,7 @@
  */
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { allTools } from "@solos/core";
-import { loadSolanaEnv } from "@solos/solana";
+import { loadSolanaEnv, rpcOrigin } from "@solos/solana";
 import { z } from "zod";
 import { makeToolRuntime } from "../runtime.js";
 import { createSolosServer } from "../server/create-server.js";
@@ -31,8 +31,14 @@ const main = async () => {
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
   await server.connect(new StdioServerTransport());
+  // Credentials can sit in an authenticated endpoint's path or query: the startup line, like
+  // every token-read error, carries the origin only.
   console.error(
-    JSON.stringify({ message: "solos mcp ready", rpcUrl: env.rpcUrl, tools: allTools.length }),
+    JSON.stringify({
+      message: "solos mcp ready",
+      rpcUrl: rpcOrigin(env.rpcUrl),
+      tools: allTools.length,
+    }),
   );
 };
 
