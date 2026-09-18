@@ -73,6 +73,42 @@ describe("TokenRegistry over the shared SolanaRpc [integration]", () => {
     });
   });
 
+  test("a mint shaped exactly like a real extended chain mint decodes end to end", async () => {
+    // base 82 + zero padding to 165 + AccountType 1 + TransferFeeConfig/pointer/metadata TLV
+    await expect(read(fx.token2022RealShape)).resolves.toEqual({
+      mint: fx.token2022RealShape,
+      name: "Fixture Cat",
+      symbol: "FCAT",
+      decimals: 6,
+      logoUri: "https://fixture.example/real.png",
+    });
+  });
+
+  test("an extended token-2022 account (AccountType 2 at 165) passed as a mint is UnknownToken", async () => {
+    await expect(readFailure(fx.token2022ExtendedAccount)).resolves.toMatchObject({
+      _tag: "UnknownToken",
+      mint: fx.token2022ExtendedAccount,
+    });
+  });
+
+  test("non-zero padding before the AccountType byte is invalid layout, never a mint", async () => {
+    await expect(readFailure(fx.token2022BadPadding)).resolves.toMatchObject({
+      _tag: "UnknownToken",
+    });
+  });
+
+  test("a truncated TLV header fails as invalid layout", async () => {
+    await expect(readFailure(fx.token2022TruncatedTlv)).resolves.toMatchObject({
+      _tag: "TokenMetadataUnavailable",
+    });
+  });
+
+  test("a TLV value length crossing the account end fails as invalid layout", async () => {
+    await expect(readFailure(fx.token2022OverrunTlv)).resolves.toMatchObject({
+      _tag: "TokenMetadataUnavailable",
+    });
+  });
+
   test("an unsupported pointer target fails as metadata-unavailable", async () => {
     await expect(readFailure(fx.token2022WrongPointer)).resolves.toMatchObject({
       _tag: "TokenMetadataUnavailable",
