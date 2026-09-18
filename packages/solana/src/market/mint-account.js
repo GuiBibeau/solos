@@ -23,6 +23,8 @@ export const MAX_MINT_ACCOUNT_BYTES = 16_384;
 export const ACCOUNT_TYPE_OFFSET = 165;
 export const EXTENSIONS_OFFSET = 166;
 export const ACCOUNT_TYPE_MINT = 1;
+/** A 355-byte Token-2022 account is a Multisig — the program rejects it as account data. */
+export const MULTISIG_ACCOUNT_BYTES = 355;
 
 const base64 = getBase64Encoder();
 const mintDecoder = getMintDecoder();
@@ -108,11 +110,22 @@ const token2022Layout = (decimals, data) => {
   if (data.length === CLASSIC_MINT_BYTES) {
     return { verdict: "mint", program: "token-2022", decimals, extensions: undefined };
   }
+  if (data.length === MULTISIG_ACCOUNT_BYTES) {
+    return { verdict: "not-a-mint", reason: "a 355-byte token-2022 account is a multisig" };
+  }
   if (data.length < EXTENSIONS_OFFSET) {
     return {
       verdict: "not-a-mint",
       reason: "token-2022 mint with extensions is at least 166 bytes; this is not a mint",
     };
+  }
+  for (let i = CLASSIC_MINT_BYTES; i < ACCOUNT_TYPE_OFFSET; i++) {
+    if (data[i] !== 0) {
+      return {
+        verdict: "not-a-mint",
+        reason: "token-2022 padding before the account type byte is not zero",
+      };
+    }
   }
   if (data[ACCOUNT_TYPE_OFFSET] !== ACCOUNT_TYPE_MINT) {
     return {

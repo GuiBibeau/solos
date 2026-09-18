@@ -106,18 +106,39 @@ const readAdditionalPairs = (bytes, start) => {
 };
 
 /**
+ * The one extension type solOS interprets per record besides skipping: the metadata pointer
+ * must not point away, and TokenMetadata is the payload. Unknown types never reach here.
+ * @param {number} type
+ * @param {Uint8Array} value
+ * @param {Uint8Array} mintBytes
+ * @returns {TlvMetadata | undefined} a terminal verdict, or undefined to keep walking
+ */
+const readKnownRecord = (type, value, mintBytes) => {
+  if (type === EXTENSION_METADATA_POINTER) {
+    const pointer = pointerError(value, mintBytes);
+    return pointer === undefined ? undefined : invalid(pointer);
+  }
+  if (type === EXTENSION_TOKEN_METADATA) return decodeTokenMetadata(value, mintBytes);
+  return undefined;
+};
+
+/**
  * Walk the Token-2022 extension records that follow the AccountType byte. Records are u16 LE
- * type + u16 LE length + value, back to back with no padding. The walk stops at type 0 (the
- * program's Uninitialized marker, also its multisig-size disambiguation padding) or a
- * truncated header — trailing allocated space is normal, never an error. Unknown types are
- * skipped by length, so future extensions cannot break the read.
+ * type + u16 LE length + value, back to back with no alignment padding. The walk stops at
+ * type 0 (the program's Uninitialized marker, also its trailing allocated space); a remaining
+ * fragment shorter than a header, or a value crossing the buffer end, is malformed — the
+ * program rejects both as invalid account data. Unknown types are skipped by length, so
+ * future extensions cannot break the read.
  * @param {Uint8Array} extensions bytes after the AccountType byte
  * @param {Uint8Array} mintBytes the mint the account must claim to describe
  * @returns {TlvMetadata}
  */
 export const readTokenMetadataExtension = (extensions, mintBytes) => {
   let offset = 0;
-  while (extensions.length - offset >= RECORD_HEADER_BYTES) {
+  while (offset < extensions.length) {
+    if (extensions.length - offset < RECORD_HEADER_BYTES) {
+      return invalid("extension record header is truncated");
+    }
     const type = readU16(extensions, offset);
     if (type === 0) break;
     const length = readU16(extensions, offset + 2);
@@ -128,29 +149,46 @@ export const readTokenMetadataExtension = (extensions, mintBytes) => {
       offset + RECORD_HEADER_BYTES,
       offset + RECORD_HEADER_BYTES + length,
     );
-    if (type === EXTENSION_METADATA_POINTER) {
-      const pointer = pointerError(value, mintBytes);
-      if (pointer !== undefined) return invalid(pointer);
-    } else if (type === EXTENSION_TOKEN_METADATA) {
-      return decodeTokenMetadata(value, mintBytes);
-    }
+    const verdict = readKnownRecord(type, value, mintBytes);
+    if (verdict !== undefined) return verdict;
     offset += RECORD_HEADER_BYTES + length;
   }
   return { status: "absent" };
 };
 
+/** Longest logo URI we will surface; anything longer is treated as malformed. */
+export const MAX_LOGO_URI_BYTES = 1024;
+
+// C0 control range (below 32) plus DEL (127): the URL parser silently strips newline, tab and
+// carriage return, and control characters never belong in a URI we surface.
+const CONTROL_CHARS_MAX = 31;
+const DEL_CHAR = 127;
+
+/** @param {string} value @returns {boolean} true when the candidate carries a control character */
+const hasControlChars = (value) => {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.codePointAt(i) ?? DEL_CHAR;
+    if (code === DEL_CHAR || code <= CONTROL_CHARS_MAX) return true;
+  }
+  return false;
+};
+
 /**
- * A value is a usable logo URI only when it parses as an absolute URL whose protocol is http
- * or https. A value that merely starts with `https://` but does not parse (such as `https://`
- * alone) is rejected here, so malformed logo metadata can never fail the whole token read
- * further downstream.
+ * A value is a usable logo URI only when it is bounded, free of control characters, and parses
+ * as an absolute URL whose protocol is http or https with a non-empty host. A value that
+ * merely starts with `https://` but does not parse (such as `https://` alone) is rejected
+ * here, so malformed logo metadata leaves `logoUri` null instead of poisoning an otherwise
+ * readable record.
  * @param {string} value
  * @returns {boolean}
  */
-const isHttpUrl = (value) => {
+export const isHttpUrl = (value) => {
+  if (value.length > MAX_LOGO_URI_BYTES || hasControlChars(value)) return false;
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname.length > 0
+    );
   } catch {
     return false;
   }

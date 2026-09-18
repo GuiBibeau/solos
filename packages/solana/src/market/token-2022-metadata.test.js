@@ -12,6 +12,8 @@ import {
 } from "./test-fixtures.js";
 import {
   MAX_ADDITIONAL_PAIRS,
+  MAX_LOGO_URI_BYTES,
+  isHttpUrl,
   logoUriFromPairs,
   readTokenMetadataExtension,
 } from "./token-2022-metadata.js";
@@ -37,8 +39,14 @@ describe("token-2022 TLV walk", () => {
     });
   });
 
-  test("a truncated header is a normal end, not an error", () => {
-    expect(readTokenMetadataExtension(new Uint8Array(3), mintBytes)).toEqual({ status: "absent" });
+  test("a trailing fragment shorter than a header is malformed, per the program", () => {
+    expect(readTokenMetadataExtension(new Uint8Array(3), mintBytes)).toMatchObject({
+      status: "invalid",
+      reason: "extension record header is truncated",
+    });
+    expect(readTokenMetadataExtension(new Uint8Array(1), mintBytes)).toMatchObject({
+      status: "invalid",
+    });
   });
 
   test("unknown extension types are skipped by length", () => {
@@ -217,5 +225,49 @@ describe("logoUri from additional metadata", () => {
         ["logo", "https://a.io/l.png"],
       ]),
     ).toBe("https://a.io/l.png");
+  });
+
+  test("a scheme prefix alone is not a well-formed URI", () => {
+    expect(logoUriFromPairs([["logo", "https://"]])).toBeNull();
+    expect(logoUriFromPairs([["logo", "http://"]])).toBeNull();
+  });
+
+  test("a URL the parser rejects leaves logoUri null instead of throwing", () => {
+    expect(isHttpUrl("https://a io/l.png")).toBeFalse();
+    expect(isHttpUrl("https://a.io:99999/l.png")).toBeFalse();
+    expect(logoUriFromPairs([["logo", "https://a io/l.png"]])).toBeNull();
+  });
+
+  test("control characters are malformed even when the parser would strip them", () => {
+    expect(isHttpUrl("https://a.io/l.png\nx")).toBeFalse();
+    expect(isHttpUrl("https://a.io/l.png\t")).toBeFalse();
+    expect(isHttpUrl("https://a.io/l.png\r")).toBeFalse();
+    expect(logoUriFromPairs([["logo", "https://a.io/l.png\nx"]])).toBeNull();
+  });
+
+  test("oversized candidates are malformed, never surfaced", () => {
+    const oversized = `https://a.io/${"l".repeat(MAX_LOGO_URI_BYTES)}.png`;
+    expect(oversized.length).toBeGreaterThan(MAX_LOGO_URI_BYTES);
+    expect(isHttpUrl(oversized)).toBeFalse();
+    expect(logoUriFromPairs([["logo", oversized]])).toBeNull();
+  });
+
+  test("a malformed logo never poisons the rest of the record", () => {
+    const walked = readTokenMetadataExtension(
+      metadataRecord({
+        name: "Dog Coin",
+        symbol: "DOG",
+        uri: "https://dog.io/t.json",
+        pairs: [
+          ["logo", "https://"],
+          ["logo", "https://dog.io/l.png"],
+        ],
+      }),
+      mintBytes,
+    );
+    expect(walked).toMatchObject({ status: "present", name: "Dog Coin" });
+    expect(walked.status === "present" && logoUriFromPairs(walked.additionalMetadata)).toBe(
+      "https://dog.io/l.png",
+    );
   });
 });

@@ -85,6 +85,22 @@ describe("mint account layout guards", () => {
     expect(result).toMatchObject({ verdict: "not-a-mint" });
   });
 
+  test("non-zero padding before the AccountType byte is invalid layout, not a mint", () => {
+    const corrupted = concat(
+      classicMintBytes({ decimals: 6 }),
+      new Uint8Array(83).fill(7),
+      new Uint8Array([1]),
+    );
+    expect(readMintLayout(account(TOKEN_2022_PROGRAM, corrupted))).toMatchObject({
+      verdict: "not-a-mint",
+      reason: "token-2022 padding before the account type byte is not zero",
+    });
+  });
+
+  test("a 355-byte token-2022 account is a multisig, never a mint", () => {
+    expect(readMintLayout(account(TOKEN_2022_PROGRAM, zeros(355))).verdict).toBe("not-a-mint");
+  });
+
   test("zero padding at byte 82 no longer disqualifies an extension-bearing mint", () => {
     const data = token2022MintBytes({ decimals: 9, records: [tlvRecord(18, zeros(64))] });
     expect(data[CLASSIC_MINT_BYTES]).toBe(0);
