@@ -30,7 +30,10 @@ export const OUTPUT_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 /** 31 digits: base units must never pass through a JS Number on the way in or out. */
 export const AMOUNT = "1000000000000000000000000000000";
 export const OUT_AMOUNT = "169900000000000000000000000000";
-/** Exact worst case at the 50 bps default tolerance: floor(OUT_AMOUNT * 9950 / 10000), BigInt. */
+/****
+ * Requested minimum at the 50 bps default tolerance: floor(OUT_AMOUNT * 9950 / 10000), BigInt.
+ * The tolerance is a maximum loss, so this floor is the least protective threshold allowed.
+ */
 export const MIN_OUT_AMOUNT = "169050500000000000000000000000";
 /** One percentage point: asserts the legacy divide-by-100 ratio convention ("0.01"). */
 export const PRICE_IMPACT = 1;

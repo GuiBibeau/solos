@@ -6,24 +6,28 @@
  * with BigInt — exact values only. JS Number appears solely in the priceImpact ratio conversion,
  * which stays in the normalization module.
  *
- * Slippage rule the tolerance check assumes: the echoed `slippageBps` must equal the request,
- * and `otherAmountThreshold` is the worst case at that tolerance — the provider computes
- * `floor(outAmount * (10000 - slippageBps) / 10000)` with integer rounding and may apply
- * *additional* protective slippage in volatility (threshold lower), never less than requested.
- * A threshold above that exact floor, or above the quoted output, is rejected.
+ * Slippage rule the tolerance check enforces: the requested tolerance is a maximum loss, so the
+ * echoed `slippageBps` must equal the request and the threshold must satisfy
+ * `floor(outAmount * (10000 - slippageBps) / 10000) <= otherAmountThreshold <= outAmount`,
+ * with the verified Jupiter integer rounding (floor division; live examples compute
+ * `floor(netOut * 9950 / 10000)` at 50 bps). A threshold above the floor is more protective
+ * than requested and stays allowed; a threshold below it means the provider allows more
+ * slippage than requested and is rejected. At 0 bps the bound collapses to equality.
  *
- * Route rule the plan checks assume: `routePlan` is a depth-first walk. A hop with
- * `bps < 10000` starts a branch over from the input mint; a hop with `bps = 10000` continues
- * from the previous hop's output. The branch-starting hops (the first hop and every hop with
- * `bps < 10000`) carry the input allocation: their bps must sum to 10000 and their inputs must
- * consume the whole quoted input exactly.
+ * Route rule the plan checks enforce: only what a usable route needs, nothing about traversal
+ * order — Metis splits and merges at intermediate stages. Hops carry typed positive amounts;
+ * every hop must be executable from the echoed input mint (reachability fixpoint over the
+ * route's own hops, so no hop is disconnected or alien), and the echoed output mint must be
+ * produced. Terminal hops (those ending at the echoed output, position-independent so merges
+ * work) must jointly produce at least the quoted net output: fees legitimately make gross
+ * exceed net, so equality is not required — but gross below net is impossible.
  */
 
 const BASE_UNITS = /^\d+$/;
 const POSITIVE_BASE_UNITS = /^[1-9]\d*$/;
 
 /**
- * Exact worst case at the requested tolerance, BigInt floor division.
+ * Exact output floor at the requested tolerance, BigInt floor division.
  * @param {string} outAmount
  * @param {number} slippageBps
  */
@@ -82,16 +86,16 @@ const outputRejection = (quote) => {
 };
 
 /**
- * The minimum output may sit below the exact tolerance worst case (extra protective slippage)
- * but never above it; boundary tolerances pin the bound (0 bps -> at most the output,
- * 10000 bps -> at most zero).
+ * The tolerance is a maximum loss: the threshold must protect at least the requested worst
+ * case. Below the floor the provider allows more slippage than requested; at 0 bps the bound
+ * collapses to equality with the output.
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope} quote
  * @returns {string | undefined}
  */
 const toleranceRejection = (quote) => {
-  const limit = worstCaseFor(quote.outAmount, quote.slippageBps);
-  if (BigInt(/** @type {string} */ (quote.otherAmountThreshold)) > limit) {
-    return "minimum output was above the exact worst case for the requested slippage tolerance";
+  const floor = worstCaseFor(quote.outAmount, quote.slippageBps);
+  if (BigInt(/** @type {string} */ (quote.otherAmountThreshold)) < floor) {
+    return "minimum output was below the exact worst case for the requested slippage tolerance";
   }
   return undefined;
 };
@@ -132,88 +136,89 @@ const hopRejection = (hop) => {
 };
 
 /**
- * Consecutive hops must chain mint-to-mint and amount-to-amount within a branch, and a new
- * branch must start over from the input mint.
- * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"][number]} previous
- * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"][number]} next
- * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope} quote
+ * One relaxation pass; adds newly reachable outputs and reports whether anything changed.
+ * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"]} hops
+ * @param {Set<string>} reachable
  */
-const pairRejection = (previous, next, quote) => {
-  if (next.bps === 10_000) {
-    if (next.swapInfo.inputMint !== previous.swapInfo.outputMint) {
-      return "route hops did not chain mint to mint";
+const relaxOnce = (hops, reachable) => {
+  let didChange = false;
+  for (const hop of hops) {
+    if (!reachable.has(hop.swapInfo.inputMint) || reachable.has(hop.swapInfo.outputMint)) {
+      continue;
     }
-    if (BigInt(next.swapInfo.inAmount) !== BigInt(previous.swapInfo.outAmount)) {
-      return "route hops did not chain amount to amount";
-    }
-    return undefined;
+
+    reachable.add(hop.swapInfo.outputMint);
+    didChange = true;
   }
-  return next.swapInfo.inputMint === quote.inputMint
-    ? undefined
-    : "split route branch did not start from the input mint";
+  return didChange;
 };
 
 /**
+ * Mints reachable from the echoed input through the route's own hops — an order-independent
+ * fixpoint, so splits and merges at intermediate stages need no adjacency assumptions.
+ * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"]} hops
+ * @param {string} inputMint
+ * @returns {Set<string>}
+ */
+const reachableMints = (hops, inputMint) => {
+  const reachable = new Set([inputMint]);
+  let didChange = true;
+  while (didChange) {
+    didChange = relaxOnce(hops, reachable);
+  }
+  return reachable;
+};
+
+/**
+ * Reachability: the echoed output must be produced, and every hop must execute from the input
+ * side — no disconnected or alien hops. No ordering, allocation, or restart rules are imposed.
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"]} hops
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope} quote
+ * @returns {string | undefined}
  */
-const pairsRejection = (hops, quote) => {
-  let previous;
+const reachabilityRejection = (hops, quote) => {
+  const reachable = reachableMints(hops, quote.inputMint);
+  if (!reachable.has(quote.outputMint)) return "route never reaches the output mint";
   for (const hop of hops) {
-    if (previous !== undefined) {
-      const rejected = pairRejection(previous, hop, quote);
-      if (rejected) return rejected;
+    if (!reachable.has(hop.swapInfo.inputMint)) {
+      return "route contained a hop disconnected from the input mint";
     }
-    previous = hop;
   }
   return undefined;
 };
 
 /**
- * Branch-starting hops must allocate the whole swap: bps summing to 10000 and inputs that
- * consume the quoted input exactly.
+ * Terminal coverage: hops ending at the echoed output must jointly produce at least the quoted
+ * net output — fees make gross exceed net (live: gross 1059158 vs net 1058947), so equality is
+ * not required, but gross below net is impossible.
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"]} hops
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope} quote
  * @returns {string | undefined}
  */
-const allocationRejection = (hops, quote) => {
-  const first = hops[0];
-  if (first === undefined) return undefined;
-  let allocation = first.bps;
-  let consumed = BigInt(first.swapInfo.inAmount);
-  for (let index = 1; index < hops.length; index++) {
-    const hop = hops[index];
-    if (hop !== undefined && hop.bps < 10_000) {
-      allocation += hop.bps;
-      consumed += BigInt(hop.swapInfo.inAmount);
+const terminalRejection = (hops, quote) => {
+  let gross = 0n;
+  for (const hop of hops) {
+    if (hop.swapInfo.outputMint === quote.outputMint) {
+      gross += BigInt(hop.swapInfo.outAmount);
     }
   }
-  if (allocation !== 10_000) return "route allocations did not cover the whole swap";
-  return consumed === BigInt(quote.inAmount)
+  return gross >= BigInt(quote.outAmount)
     ? undefined
-    : "route branches did not consume the whole quoted input";
+    : "route terminal output was below the quoted output";
 };
 
 /**
- * Route-level invariants for a non-empty plan: usable hops, endpoints at the requested pair,
- * consistent chaining, and an allocation that covers the swap.
+ * Route-level invariants for a non-empty plan: typed positive hops, requested-pair
+ * reachability, and terminal output coverage.
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope} quote
  * @returns {string | undefined} the fixed reason, or undefined when the route is usable
  */
 export const routeRejection = (quote) => {
   const hops = quote.routePlan;
-  const first = hops[0];
-  const last = hops.at(-1);
-  if (first === undefined || last === undefined) return undefined;
+  if (hops[0] === undefined) return undefined;
   for (const hop of hops) {
     const rejected = hopRejection(hop);
     if (rejected) return rejected;
   }
-  if (first.swapInfo.inputMint !== quote.inputMint) {
-    return "route did not start from the input mint";
-  }
-  if (last.swapInfo.outputMint !== quote.outputMint) {
-    return "route did not end at the output mint";
-  }
-  return allocationRejection(hops, quote) ?? pairsRejection(hops, quote);
+  return reachabilityRejection(hops, quote) ?? terminalRejection(hops, quote);
 };

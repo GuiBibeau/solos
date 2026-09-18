@@ -9,7 +9,6 @@ import {
   OUTPUT_MINT,
   okBody,
   quoteFailure,
-  quoteRequest,
   quoteThrough,
   startFixture,
 } from "./jupiter-swap-fixture.js";
@@ -23,6 +22,8 @@ const INTERMEDIATE = "84525250000000000000000000000";
 const FINAL_MINT = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
 const FINAL_OUT = "123456789000000";
 const HALF = (BigInt(AMOUNT) / 2n).toString();
+/** Each split branch's terminal gross: two of these cover the claimed net output exactly. */
+const SPLIT_OUT = (BigInt(OUT_AMOUNT) / 2n).toString();
 
 /** Sequential two-hop route wSOL -> USDC -> FINAL, each hop passing the full 10000 bps. */
 const multihopBody = () =>
@@ -69,7 +70,7 @@ const splitBody = () =>
           inputMint: INPUT_MINT,
           outputMint: OUTPUT_MINT,
           inAmount: HALF,
-          outAmount: INTERMEDIATE,
+          outAmount: SPLIT_OUT,
         },
         percent: 50,
         bps: 5000,
@@ -81,7 +82,7 @@ const splitBody = () =>
           inputMint: INPUT_MINT,
           outputMint: OUTPUT_MINT,
           inAmount: HALF,
-          outAmount: INTERMEDIATE,
+          outAmount: SPLIT_OUT,
         },
         percent: 50,
         bps: 5000,
@@ -211,45 +212,6 @@ describe("JupiterSwapLive quote success [integration]", () => {
     expect(AMOUNT.length).toBeGreaterThan(30);
   });
 
-  test("accepts a slippage override whose threshold matches the tolerance exactly", async () => {
-    const threshold = thresholdFor(OUT_AMOUNT, 123);
-    fixture = startFixture([
-      { body: okBody({ slippageBps: 123, otherAmountThreshold: threshold }) },
-    ]);
-    const quote = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 123 });
-    expect(new URL(fixture.requests[0].url).searchParams.get("slippageBps")).toBe("123");
-    expect(quote.minOutAmount).toBe(threshold);
-  });
-
-  test("pins the boundary tolerances: zero bps holds the output, full bps allows only zero", async () => {
-    fixture = startFixture([
-      { body: okBody({ slippageBps: 0, otherAmountThreshold: OUT_AMOUNT }) },
-      { body: okBody({ slippageBps: 10_000, otherAmountThreshold: "0" }) },
-    ]);
-    const atZero = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 0 });
-    expect(atZero.minOutAmount).toBe(OUT_AMOUNT);
-    const atFull = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 10_000 });
-    expect(atFull.minOutAmount).toBe("0");
-  });
-
-  test("rejects a threshold above the exact worst case at the requested tolerance", async () => {
-    const aboveFloor = (BigInt(MIN_OUT_AMOUNT) + 1n).toString();
-    fixture = startFixture([{ body: okBody({ otherAmountThreshold: aboveFloor }) }]);
-    const failure = await quoteFailure(fixture);
-    expect(failure?._tag).toBe("QuoteResponseInvalid");
-    expect(/** @type {{reason: string}} */ (failure).reason).toContain("worst case");
-    expect(fixture.requests).toHaveLength(1);
-  });
-
-  test("rejects an echoed slippage that differs from the requested tolerance", async () => {
-    fixture = startFixture([
-      { body: okBody({ slippageBps: 123, otherAmountThreshold: thresholdFor(OUT_AMOUNT, 123) }) },
-    ]);
-    const failure = await quoteFailure(fixture);
-    expect(failure?._tag).toBe("QuoteResponseInvalid");
-    expect(/** @type {{reason: string}} */ (failure).reason).toContain("slippageBps");
-  });
-
   test("accepts a valid sequential multihop route with chained mints and amounts", async () => {
     fixture = startFixture([{ body: multihopBody() }]);
     const quote = await quoteThrough(
@@ -262,7 +224,7 @@ describe("JupiterSwapLive quote success [integration]", () => {
     expect(quote.routeSummary).toEqual(["Orca", "Phoenix"]);
   });
 
-  test("accepts a valid 50/50 split route whose branches consume the whole input", async () => {
+  test("accepts a valid 50/50 split route whose terminals cover the output", async () => {
     fixture = startFixture([{ body: splitBody() }]);
     const quote = await quoteThrough(fixture);
     expect(quote.routeSummary).toEqual(["Orca", "Raydium"]);

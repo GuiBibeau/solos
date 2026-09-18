@@ -235,16 +235,19 @@ transaction is null — nothing is signed, built for sending, or submitted, and 
   is divided by 100, so 1 percentage point => `"0.01"` (the deprecated provider `priceImpactPct`
   string is ignored). Missing provider fields fail (`QuoteResponseInvalid`); solOS never
   fabricates a zero.
-- **Tolerance and route validation.** The echoed `slippageBps` must equal the request, and
-  `minOutAmount` may sit below but never above the exact worst case
-  `floor(outAmount x (10000 - slippageBps) / 10000)` — the check assumes integer (floor)
-  rounding and that the provider applies at least the requested tolerance, never less.
-  Route plans must span the requested pair: hops chain mint-to-mint and amount-to-amount within
-  a branch, split branches restart from the input mint, branch-starting hops allocate the whole
-  swap (bps summing to 10000, inputs consuming the quoted input exactly), and the validated hop
-  data is retained in the non-executable `raw` payload. Redirects must stay on the request's
-  origin; a cross-origin redirect is refused before the other host is contacted or receives the
-  key.
+- **Tolerance and route validation.** The tolerance is a maximum loss: the echoed `slippageBps`
+  must equal the request, and `minOutAmount` must sit within
+  `floor(outAmount x (10000 - slippageBps) / 10000) <= minOutAmount <= outAmount` (BigInt, the
+  verified Jupiter floor rounding — live quotes compute `floor(netOut x 9950 / 10000)` at
+  50 bps). A threshold above the floor is more protective than requested and stays allowed; a
+  threshold below it means more slippage than requested and is rejected; at 0 bps the bound
+  collapses to equality. Route plans must span the requested pair with no traversal-order
+  assumptions (Metis splits and merges mid-route): every hop must be executable from the input
+  mint, the output mint must be produced, the hops ending at the output must jointly gross at
+  least the quoted net output (fees make gross exceed net; equality is not required), and the
+  validated hop data is retained in the non-executable `raw` payload. Redirects must stay on
+  the request's origin; a cross-origin redirect is refused before the other host is contacted
+  or receives the key.
 - **`expiresAt` is a local 30-second TTL**, the receipt time plus 30 000 ms. It is when solOS
   stops presenting the quote as usable, **not** a provider price guarantee — V2 documents no
   quote TTL.
