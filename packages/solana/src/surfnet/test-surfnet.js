@@ -14,7 +14,11 @@ let shared;
 const attachOrStart = async () => {
   const attached = process.env.SURFNET_RPC_URL;
   if (attached) return { rpcUrl: attached, wsUrl: deriveWsUrl(attached) };
-  const handle = await startSurfnet({ datasourceUrl: process.env.SURFNET_DATASOURCE_RPC_URL });
+  const handle = await startSurfnet({
+    datasourceUrl: process.env.SURFNET_DATASOURCE_RPC_URL,
+    // Used by nightly's verify command, which captures and redacts failed-step output.
+    log: process.env.SURFNET_DIAGNOSTICS === "1",
+  });
   const register =
     /** @type {{ __solosRegisterStopper?: (handle: { stop: () => Promise<void>; kill: () => void }) => void }} */ (
       globalThis

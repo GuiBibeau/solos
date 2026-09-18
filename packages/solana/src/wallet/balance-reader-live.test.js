@@ -3,7 +3,7 @@ import { getBalances } from "@solos/core";
 import { Effect } from "effect";
 import { SolanaTestLive } from "../index.js";
 import { KitSigner } from "../signer/kit-signer.js";
-import { USDC_MINT, ensureSurfnet, randomSeed } from "../surfnet/test-surfnet.js";
+import { USDC_MINT, ensureSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
 
 describe("wallet against Surfnet [integration]", () => {
   /** @type {ReturnType<typeof SolanaTestLive>} */
@@ -34,9 +34,13 @@ describe("wallet against Surfnet [integration]", () => {
   });
 
   test("reads another wallet when owner is given", async () => {
-    const other = "11111111111111111111111111111112";
+    // A fixed address can hold real tokens on an online fork. Own the fixture instead.
+    const other = await seedAddress(randomSeed());
+    await surfnet.cheats.fundSol(other, 3);
     const balances = await Effect.runPromise(getBalances(other).pipe(Effect.provide(layer)));
     expect(balances.owner).toBe(other);
+    expect(balances.sol).toBe("3");
+    expect(balances.lamports).toBe("3000000000");
     expect(balances.tokens).toEqual([]);
   });
 });
