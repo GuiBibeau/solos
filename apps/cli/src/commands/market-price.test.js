@@ -15,12 +15,13 @@ const solanaEnv = async () => ({
 });
 
 /**
- * Spawn `bun run solos ...` exactly as a human or agent would, with only the given env.
+ * Spawn `bun run solos ...` exactly as a human or agent would, with only the given env. The
+ * harness opts the child out of Bun's automatic `.env` loading (real users are unaffected).
  * @param {string[]} args
  * @param {Record<string, string>} env
  */
 const runSolos = async (args, env) => {
-  const proc = Bun.spawn([process.execPath, "run", "solos", ...args], {
+  const proc = Bun.spawn([process.execPath, "--no-env-file", "run", "solos", ...args], {
     cwd: ROOT,
     env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },
     stdout: "pipe",

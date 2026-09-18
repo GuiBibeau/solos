@@ -22,12 +22,14 @@ const solanaEnv = async () => ({
 });
 
 /**
- * Spawn `bun run solos ...` exactly as a human or agent would, with only the given env.
+ * Spawn `bun run solos ...` exactly as a human or agent would, with only the given env. The
+ * harness opts the child out of Bun's automatic `.env` loading (real users are unaffected):
+ * a developer's repo-root `.env.local` must never supply test configuration.
  * @param {string[]} args
  * @param {Record<string, string>} env
  */
 const runSolos = async (args, env) => {
-  const proc = Bun.spawn([process.execPath, "run", "solos", ...args], {
+  const proc = Bun.spawn([process.execPath, "--no-env-file", "run", "solos", ...args], {
     cwd: ROOT,
     env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },
     stdout: "pipe",
@@ -135,6 +137,29 @@ describe("`solos market token` and `solos mcp` through real child processes [int
       symbol: "FCAT",
       decimals: 8,
       logoUri: "https://fixture.example/cat.png",
+    });
+  });
+
+  test("a mint shaped exactly like a real extended chain mint reads through MCP", async () => {
+    const { stdout, code } = await runSolos(
+      [
+        "mcp",
+        "call",
+        "solana_market_get_token",
+        "--args",
+        JSON.stringify({ mint: fx.token2022RealShape }),
+      ],
+      { ...(await solanaEnv()) },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({
+      mint: fx.token2022RealShape,
+      name: "Fixture Cat",
+      symbol: "FCAT",
+      decimals: 6,
+      logoUri: "https://fixture.example/real.png",
     });
   });
 
