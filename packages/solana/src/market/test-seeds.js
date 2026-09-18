@@ -45,7 +45,7 @@ const accountWriter =
       { lamports: RENT_LAMPORTS, data: base16(data), owner, executable: false },
     ]);
 
-/** @typedef {{ readonly classicWithMetaplex: string; readonly token2022WithExtension: string; readonly token2022RealShape: string; readonly token2022WrongPointer: string; readonly token2022ExtendedAccount: string; readonly token2022BadPadding: string; readonly token2022TruncatedTlv: string; readonly token2022OverrunTlv: string; readonly tokenAccountAsMint: string; readonly wrongOwner: string; readonly wrongMintMetadata: string; readonly oversized: string; readonly decimalsTooHigh: string; readonly bareClassic: string }} TokenFixtureAddresses */
+/** @typedef {{ readonly classicWithMetaplex: string; readonly token2022WithExtension: string; readonly token2022RealShape: string; readonly token2022TailPadding: string; readonly token2022WrongPointer: string; readonly token2022ExtendedAccount: string; readonly token2022BadPadding: string; readonly token2022TruncatedTlv: string; readonly token2022OverrunTlv: string; readonly tokenAccountAsMint: string; readonly wrongOwner: string; readonly wrongMintMetadata: string; readonly oversized: string; readonly decimalsTooHigh: string; readonly bareClassic: string }} TokenFixtureAddresses */
 
 /** @typedef {(account: string, owner: string, data: Uint8Array) => Promise<unknown>} AccountWriter */
 
@@ -65,6 +65,18 @@ const seedClassicFixtures = async (setAccount, fx) => {
 /** Metaplex PDA fixtures: real metadata for one fixture mint, impostor metadata for another. @param {AccountWriter} setAccount @param {TokenFixtureAddresses} fx */
 const seedMetaplexFixtures = async (setAccount, fx) => {
   await Promise.all([
+    metadataPda(fx.token2022TailPadding).then((pda) =>
+      setAccount(
+        pda,
+        METAPLEX_PROGRAM,
+        metaplexV1Bytes({
+          mintBytes: mintBytes(fx.token2022TailPadding),
+          name: "Fixture Owl",
+          symbol: "FOWL",
+          uri: "https://fixture.example/owl.json",
+        }),
+      ),
+    ),
     metadataPda(fx.classicWithMetaplex).then((pda) =>
       setAccount(
         pda,
@@ -105,6 +117,7 @@ export const seedTokenFixtures = async (rpcUrl, usdcMint) => {
     classicWithMetaplex: randomAddress(),
     token2022WithExtension: randomAddress(),
     token2022RealShape: randomAddress(),
+    token2022TailPadding: randomAddress(),
     token2022WrongPointer: randomAddress(),
     token2022ExtendedAccount: randomAddress(),
     token2022BadPadding: randomAddress(),

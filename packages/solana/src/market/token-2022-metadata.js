@@ -123,12 +123,43 @@ const readKnownRecord = (type, value, mintBytes) => {
 };
 
 /**
+ * One record at `offset`, after the permitted-end checks: zero bytes and a final single byte
+ * (the last may be used during a realloc) end the walk, as does the two-byte type-0
+ * Uninitialized marker before any length bytes are required. A nonzero type demands the full
+ * four-byte header and an in-bounds value; both violations are malformed, as the program
+ * rejects them. The `status` field marks a terminal walk outcome rather than a record.
+ * @param {Uint8Array} extensions
+ * @param {number} offset
+ * @returns {{ readonly type: number; readonly value: Uint8Array } | TlvMetadata}
+ */
+const readRecord = (extensions, offset) => {
+  const remaining = extensions.length - offset;
+  if (remaining < 2) return { status: "absent" };
+  const type = readU16(extensions, offset);
+  if (type === 0) return { status: "absent" };
+  if (remaining < RECORD_HEADER_BYTES) {
+    return invalid("extension record header is truncated");
+  }
+  const length = readU16(extensions, offset + 2);
+  if (offset + RECORD_HEADER_BYTES + length > extensions.length) {
+    return invalid("extension record runs past the end of the account");
+  }
+  return {
+    type,
+    value: extensions.subarray(offset + RECORD_HEADER_BYTES, offset + RECORD_HEADER_BYTES + length),
+  };
+};
+
+/**
  * Walk the Token-2022 extension records that follow the AccountType byte. Records are u16 LE
- * type + u16 LE length + value, back to back with no alignment padding. The walk stops at
- * type 0 (the program's Uninitialized marker, also its trailing allocated space); a remaining
- * fragment shorter than a header, or a value crossing the buffer end, is malformed — the
- * program rejects both as invalid account data. Unknown types are skipped by length, so
- * future extensions cannot break the read.
+ * type + u16 LE length + value, back to back with no alignment padding. Permitted ends are
+ * recognized before any header is demanded: zero bytes, a final single byte (the last byte
+ * may be used during a realloc, `adjust_len_for_multisig` pads with two), and the two-byte
+ * type-0 Uninitialized marker, which ends the walk before any length bytes are required. For
+ * a nonzero type the full four-byte header plus an in-bounds value is then enforced — a
+ * truncated initialized record or a value crossing the buffer end is malformed, as the
+ * program rejects both. Unknown types are skipped by length, so future extensions cannot
+ * break the read.
  * @param {Uint8Array} extensions bytes after the AccountType byte
  * @param {Uint8Array} mintBytes the mint the account must claim to describe
  * @returns {TlvMetadata}
@@ -136,22 +167,11 @@ const readKnownRecord = (type, value, mintBytes) => {
 export const readTokenMetadataExtension = (extensions, mintBytes) => {
   let offset = 0;
   while (offset < extensions.length) {
-    if (extensions.length - offset < RECORD_HEADER_BYTES) {
-      return invalid("extension record header is truncated");
-    }
-    const type = readU16(extensions, offset);
-    if (type === 0) break;
-    const length = readU16(extensions, offset + 2);
-    if (offset + RECORD_HEADER_BYTES + length > extensions.length) {
-      return invalid("extension record runs past the end of the account");
-    }
-    const value = extensions.subarray(
-      offset + RECORD_HEADER_BYTES,
-      offset + RECORD_HEADER_BYTES + length,
-    );
-    const verdict = readKnownRecord(type, value, mintBytes);
+    const record = readRecord(extensions, offset);
+    if ("status" in record) return record;
+    const verdict = readKnownRecord(record.type, record.value, mintBytes);
     if (verdict !== undefined) return verdict;
-    offset += RECORD_HEADER_BYTES + length;
+    offset += RECORD_HEADER_BYTES + record.value.length;
   }
   return { status: "absent" };
 };

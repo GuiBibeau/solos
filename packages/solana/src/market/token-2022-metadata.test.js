@@ -39,13 +39,36 @@ describe("token-2022 TLV walk", () => {
     });
   });
 
-  test("a trailing fragment shorter than a header is malformed, per the program", () => {
-    expect(readTokenMetadataExtension(new Uint8Array(3), mintBytes)).toMatchObject({
+  test("a permitted one-byte realloc tail ends the walk, whatever its value", () => {
+    expect(readTokenMetadataExtension(new Uint8Array([0]), mintBytes)).toEqual({
+      status: "absent",
+    });
+    expect(readTokenMetadataExtension(new Uint8Array([255]), mintBytes)).toEqual({
+      status: "absent",
+    });
+  });
+
+  test("a permitted two-byte type-zero end marker ends the walk (multisig padding tail)", () => {
+    expect(readTokenMetadataExtension(new Uint8Array([0, 0]), mintBytes)).toEqual({
+      status: "absent",
+    });
+    // The tail is also a clean end after a real record the walk skips.
+    const skipped = concat(tlvRecord(5, zeros(10)), new Uint8Array([0, 0]));
+    expect(readTokenMetadataExtension(skipped, mintBytes)).toEqual({ status: "absent" });
+  });
+
+  test("a three-byte tail with a nonzero type half-header is still malformed", () => {
+    // A half-header: two type bytes with nonzero type, one byte short of a full record header.
+    expect(readTokenMetadataExtension(new Uint8Array([18, 52, 0]), mintBytes)).toMatchObject({
       status: "invalid",
       reason: "extension record header is truncated",
     });
-    expect(readTokenMetadataExtension(new Uint8Array(1), mintBytes)).toMatchObject({
+  });
+
+  test("a truncated initialized record is rejected; permitted tails do not cover it", () => {
+    expect(readTokenMetadataExtension(new Uint8Array([19, 0, 0]), mintBytes)).toMatchObject({
       status: "invalid",
+      reason: "extension record header is truncated",
     });
   });
 

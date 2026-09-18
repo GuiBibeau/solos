@@ -28,7 +28,10 @@ const tokenMetadataRecord = (mint, pairs) =>
     tokenMetadataValue({ mintBytes: mint, name: "Fixture Cat", symbol: "FCAT", uri: "", pairs }),
   );
 
-/** The addresses a seed set needs. @typedef {{ readonly token2022WithExtension: string; readonly token2022RealShape: string; readonly token2022WrongPointer: string; readonly token2022ExtendedAccount: string; readonly token2022BadPadding: string; readonly token2022TruncatedTlv: string; readonly token2022OverrunTlv: string; readonly oversized: string }} Token2022SeedAddresses */
+/** @param {Uint8Array} mint @param {string} logo */
+const withLogo = (mint, logo) => tokenMetadataRecord(mint, [["logo", logo]]);
+
+/** The addresses a seed set needs. @typedef {{ readonly token2022WithExtension: string; readonly token2022RealShape: string; readonly token2022TailPadding: string; readonly token2022WrongPointer: string; readonly token2022ExtendedAccount: string; readonly token2022BadPadding: string; readonly token2022TruncatedTlv: string; readonly token2022OverrunTlv: string; readonly oversized: string }} Token2022SeedAddresses */
 
 /** One account to write through the `surfnet_setAccount` cheatcode. @typedef {{ readonly account: string; readonly data: Uint8Array }} Token2022Seed */
 
@@ -45,9 +48,7 @@ const decodableSeeds = (fx, wsolMint) => [
       decimals: 8,
       records: [
         tlvRecord(18, zeros(64)),
-        tokenMetadataRecord(mintBytes(fx.token2022WithExtension), [
-          ["logo", "https://fixture.example/cat.png"],
-        ]),
+        withLogo(mintBytes(fx.token2022WithExtension), "https://fixture.example/cat.png"),
       ],
     }),
   },
@@ -59,10 +60,17 @@ const decodableSeeds = (fx, wsolMint) => [
       records: [
         tlvRecord(1, zeros(TRANSFER_FEE_CONFIG_LEN)),
         tlvRecord(18, concat(zeros(32), mintBytes(fx.token2022RealShape))),
-        tokenMetadataRecord(mintBytes(fx.token2022RealShape), [
-          ["logo", "https://fixture.example/real.png"],
-        ]),
+        withLogo(mintBytes(fx.token2022RealShape), "https://fixture.example/real.png"),
       ],
+    }),
+  },
+  {
+    // Permitted two-byte type-zero padding tail (multisig adjustment), no TokenMetadata
+    // record: the walk must end cleanly so the mint's Metaplex PDA is reachable.
+    account: fx.token2022TailPadding,
+    data: token2022MintBytes({
+      decimals: 6,
+      records: [tlvRecord(1, zeros(TRANSFER_FEE_CONFIG_LEN)), new Uint8Array([0, 0])],
     }),
   },
   {

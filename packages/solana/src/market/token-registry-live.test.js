@@ -84,6 +84,18 @@ describe("TokenRegistry over the shared SolanaRpc [integration]", () => {
     });
   });
 
+  test("a tail-padding token-2022 mint without in-mint metadata falls back to Metaplex", async () => {
+    // TransferFeeConfig record + the permitted two-byte type-zero padding tail; the walk must
+    // end cleanly so the mint's valid Metaplex PDA is reached and read.
+    await expect(read(fx.token2022TailPadding)).resolves.toEqual({
+      mint: fx.token2022TailPadding,
+      name: "Fixture Owl",
+      symbol: "FOWL",
+      decimals: 6,
+      logoUri: null,
+    });
+  });
+
   test("an extended token-2022 account (AccountType 2 at 165) passed as a mint is UnknownToken", async () => {
     await expect(readFailure(fx.token2022ExtendedAccount)).resolves.toMatchObject({
       _tag: "UnknownToken",
