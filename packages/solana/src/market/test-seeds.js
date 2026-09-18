@@ -31,6 +31,14 @@ const mintBytes = (mint) => new Uint8Array(addressBytes.encode(address(mint)));
 export const setClassicMint = (rpcUrl, mint, decimals) =>
   accountWriter(rpcUrl)(mint, TOKEN_PROGRAM, classicMintBytes({ decimals }));
 
+/** Keep a bare canonical fixture bare even on an online fork. @param {string} rpcUrl @param {string} mint */
+const excludeCanonicalMetadata = async (rpcUrl, mint) => {
+  const pda = await metadataPda(mint);
+  // Clear previously fetched metadata, then block only this PDA from remote downloads.
+  await jsonRpc(rpcUrl, "surfnet_resetAccount", [pda]);
+  await jsonRpc(rpcUrl, "surfnet_offlineAccount", [pda]);
+};
+
 /** Curied raw-account writer for one Surfnet. @param {string} rpcUrl */
 const accountWriter =
   (rpcUrl) =>
@@ -107,7 +115,8 @@ const seedMetaplexFixtures = async (setAccount, fx) => {
 
 /**
  * Seed the fixture family. Canonical wSOL/USDC are seeded as bare classic mints with their
- * documented decimals (9 and 6); everything else is a fresh random address.
+ * documented decimals (9 and 6). Their metadata PDAs stay absent on online forks too;
+ * otherwise real Metaplex data would bypass the canonical fallback under test.
  * @param {string} rpcUrl
  * @param {string} usdcMint
  * @returns {Promise<TokenFixtureAddresses>}
@@ -137,6 +146,7 @@ export const seedTokenFixtures = async (rpcUrl, usdcMint) => {
   ) => setAccount(seed.account, owner, seed.data);
   await setAccount(usdcMint, TOKEN_PROGRAM, classicMintBytes({ decimals: 6 }));
   await seedClassicFixtures(setAccount, fixtures);
+  await Promise.all([WSOL_MINT, usdcMint].map((mint) => excludeCanonicalMetadata(rpcUrl, mint)));
   await Promise.all(
     token2022SeedAccounts(fixtures, WSOL_MINT).map((seed) => write(TOKEN_2022_PROGRAM, seed)),
   );
