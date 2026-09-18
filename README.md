@@ -179,11 +179,14 @@ on-chain metadata for one mint and return `{ mint, name, symbol, decimals, logoU
 - **Canonical wSOL/USDC.** Wrapped SOL and USDC map to their canonical names only after the
   mint account, its owner program, and its decimals are verified on chain (9 for wSOL, 6 for
   USDC). The mapping never applies when metadata is unreadable or decimals disagree.
-- **`logoUri` is null unless a real logo URI is on chain.** The metadata JSON `uri` is not a
-  logo and is never fetched: solOS makes no off-chain requests for token metadata.
-- **Bounded decoding.** Mint and metadata accounts are size-checked before decoding; string
-  lengths are bounded and NUL padding is trimmed, so malformed or oversized metadata fails
-  promptly instead of being parsed into garbage.
+- **`logoUri` is null unless a real logo URI is on chain.** Only a well-formed http(s)
+  additional-metadata `logo` pair qualifies — a scheme prefix alone, control characters, an
+  oversized value, or a non-http(s) scheme all leave `logoUri` null. The metadata JSON `uri`
+  is not a logo and is never fetched: solOS makes no off-chain requests for token metadata.
+- **Bounded decoding and bounded reads.** Mint and metadata accounts are size-checked before
+  decoding; string lengths are bounded and NUL padding is trimmed, so malformed or oversized
+  metadata fails promptly instead of being parsed into garbage. Each account read carries an
+  aborting deadline that covers the response headers and the full body.
 
 ### `SOLANA_RPC_URL`
 
@@ -194,8 +197,10 @@ Token metadata reads go through the same configured Solana endpoint as every oth
   env, then `SOLOS_PROFILE`, then the default profile). There is **no default RPC**: with
   neither configured, startup fails with a clear error naming `SOLANA_RPC_URL`.
 - An authenticated RPC URL (provider keys in the path or query) belongs only in the operator or
-  approved QA environment. solOS redacts endpoint credentials in token-metadata errors to the
-  URL origin; never paste such a URL into logs, errors, issue comments, or committed files.
+  approved QA environment. solOS redacts endpoint credentials in token-metadata errors and in
+  the MCP server's startup line to the URL origin, and transport errors carry fixed reasons —
+  a provider's own failure text never travels; never paste such a URL into logs, errors, issue
+  comments, or committed files.
 - Automated tests run offline on Surfnet. Live QA of real mints (compare a Token-2022 mint
   against its known name/symbol) requires an explicitly configured operator RPC and is
   **blocked** without one — the factory never provisions RPC credentials.
