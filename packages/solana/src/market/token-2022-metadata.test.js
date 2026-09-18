@@ -197,11 +197,25 @@ describe("token-2022 TokenMetadata record", () => {
 describe("logoUri from additional metadata", () => {
   test("only a pair keyed exactly `logo` with an http(s) value counts", () => {
     expect(logoUriFromPairs([["logo", "https://a.io/l.png"]])).toBe("https://a.io/l.png");
-    expect(logoUriFromPairs([["logo", "https://a.io/l.png"]])).toBe("https://a.io/l.png");
     expect(logoUriFromPairs([["Logo", "https://a.io/l.png"]])).toBeNull();
     expect(logoUriFromPairs([["logo", "javascript:alert(1)"]])).toBeNull();
     expect(logoUriFromPairs([["logo", "ipfs://bafy..."]])).toBeNull();
     expect(logoUriFromPairs([["website", "https://a.io"]])).toBeNull();
     expect(logoUriFromPairs([])).toBeNull();
+  });
+
+  test("a value that merely starts with http(s) but does not parse is skipped, not returned", () => {
+    expect(logoUriFromPairs([["logo", "https://"]])).toBeNull();
+    expect(logoUriFromPairs([["logo", "http://"]])).toBeNull();
+    expect(logoUriFromPairs([["logo", "https://bad host.io/l.png"]])).toBeNull();
+  });
+
+  test("a malformed logo pair does not hide a later valid one", () => {
+    expect(
+      logoUriFromPairs([
+        ["logo", "https://"],
+        ["logo", "https://a.io/l.png"],
+      ]),
+    ).toBe("https://a.io/l.png");
   });
 });

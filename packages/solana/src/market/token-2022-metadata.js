@@ -140,14 +140,31 @@ export const readTokenMetadataExtension = (extensions, mintBytes) => {
 };
 
 /**
- * logoUri comes only from an additional-metadata pair keyed exactly `logo` whose value is an
- * http(s) URL. The metadata `uri` field is never treated as a logo.
+ * A value is a usable logo URI only when it parses as an absolute URL whose protocol is http
+ * or https. A value that merely starts with `https://` but does not parse (such as `https://`
+ * alone) is rejected here, so malformed logo metadata can never fail the whole token read
+ * further downstream.
+ * @param {string} value
+ * @returns {boolean}
+ */
+const isHttpUrl = (value) => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * logoUri comes only from an additional-metadata pair keyed exactly `logo` whose value parses
+ * as an http(s) URL; null otherwise. The metadata `uri` field is never treated as a logo.
  * @param {ReadonlyArray<readonly [string, string]>} pairs
  * @returns {string | null}
  */
 export const logoUriFromPairs = (pairs) => {
   for (const [key, value] of pairs) {
-    if (key === "logo" && /^https?:\/\//u.test(value)) return value;
+    if (key === "logo" && isHttpUrl(value)) return value;
   }
   return null;
 };
