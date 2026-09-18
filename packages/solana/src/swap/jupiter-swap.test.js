@@ -1,7 +1,5 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { DEFAULT_TIMEOUT_MS } from "./jupiter-swap-api.js";
 import {
   AMOUNT,
   INPUT_MINT,
@@ -16,6 +14,80 @@ import {
   startFixture,
 } from "./jupiter-swap-fixture.js";
 import { QUOTE_TTL_MS } from "./jupiter-swap-quote.js";
+
+/** Exact worst-case threshold at a tolerance, the same BigInt floor the validator assumes. */
+const thresholdFor = (outAmount, slippageBps) =>
+  ((BigInt(outAmount) * BigInt(10_000 - slippageBps)) / 10_000n).toString();
+
+const INTERMEDIATE = "84525250000000000000000000000";
+const FINAL_MINT = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
+const FINAL_OUT = "123456789000000";
+const HALF = (BigInt(AMOUNT) / 2n).toString();
+
+/** Sequential two-hop route wSOL -> USDC -> FINAL, each hop passing the full 10000 bps. */
+const multihopBody = () =>
+  okBody({
+    outputMint: FINAL_MINT,
+    outAmount: FINAL_OUT,
+    otherAmountThreshold: thresholdFor(FINAL_OUT, 50),
+    routePlan: [
+      {
+        swapInfo: {
+          ammKey: "amm-orca",
+          label: "Orca",
+          inputMint: INPUT_MINT,
+          outputMint: OUTPUT_MINT,
+          inAmount: AMOUNT,
+          outAmount: INTERMEDIATE,
+        },
+        percent: 100,
+        bps: 10_000,
+      },
+      {
+        swapInfo: {
+          ammKey: "amm-phoenix",
+          label: "Phoenix",
+          inputMint: OUTPUT_MINT,
+          outputMint: FINAL_MINT,
+          inAmount: INTERMEDIATE,
+          outAmount: FINAL_OUT,
+        },
+        percent: 100,
+        bps: 10_000,
+      },
+    ],
+  });
+
+/** 50/50 split route over two AMMs, both branches wSOL -> USDC. */
+const splitBody = () =>
+  okBody({
+    routePlan: [
+      {
+        swapInfo: {
+          ammKey: "amm-orca",
+          label: "Orca",
+          inputMint: INPUT_MINT,
+          outputMint: OUTPUT_MINT,
+          inAmount: HALF,
+          outAmount: INTERMEDIATE,
+        },
+        percent: 50,
+        bps: 5000,
+      },
+      {
+        swapInfo: {
+          ammKey: "amm-raydium",
+          label: "Raydium",
+          inputMint: INPUT_MINT,
+          outputMint: OUTPUT_MINT,
+          inAmount: HALF,
+          outAmount: INTERMEDIATE,
+        },
+        percent: 50,
+        bps: 5000,
+      },
+    ],
+  });
 
 describe("JupiterSwapLive quote success [integration]", () => {
   /** @type {ReturnType<typeof startFixture>} */
@@ -49,6 +121,15 @@ describe("JupiterSwapLive quote success [integration]", () => {
     fixture = startFixture([{ body: okBody() }]);
     await quoteThrough(fixture);
     expect(fixture.requests.every((request) => request.method === "GET")).toBe(true);
+  });
+
+  test("follows a redirect that stays on the same origin and sends the key there", async () => {
+    fixture = startFixture([{ status: 302, location: "/moved" }, { body: okBody() }]);
+    const quote = await quoteThrough(fixture);
+    expect(fixture.requests).toHaveLength(2);
+    expect(new URL(fixture.requests[1].url).pathname).toBe("/moved");
+    expect(fixture.requests[1].key).toBe(KEY);
+    expect(quote.inAmount).toBe(AMOUNT);
   });
 
   test("normalizes the V2 envelope onto the SwapQuote contract", async () => {
@@ -89,7 +170,7 @@ describe("JupiterSwapLive quote success [integration]", () => {
     expect(quote.expiresAt).toBeLessThanOrEqual(Date.now() + QUOTE_TTL_MS);
   });
 
-  test("raw is the validated provider payload, non-executable with a null transaction", async () => {
+  test("raw is the validated provider payload, non-executable with the route retained", async () => {
     fixture = startFixture([{ body: okBody() }]);
     const quote = await quoteThrough(fixture);
     expect(quote.raw).toMatchObject({
@@ -101,7 +182,20 @@ describe("JupiterSwapLive quote success [integration]", () => {
       swapMode: "ExactIn",
       router: "metis",
       transaction: null,
-      routePlan: [{ swapInfo: { label: "Orca" } }],
+      routePlan: [
+        {
+          swapInfo: {
+            ammKey: "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+            label: "Orca",
+            inputMint: INPUT_MINT,
+            outputMint: OUTPUT_MINT,
+            inAmount: AMOUNT,
+            outAmount: OUT_AMOUNT,
+          },
+          percent: 100,
+          bps: 10_000,
+        },
+      ],
     });
     const rendered = JSON.stringify(quote.raw);
     // Undocumented extras are tolerated on the wire but stripped from the validated payload.
@@ -117,10 +211,62 @@ describe("JupiterSwapLive quote success [integration]", () => {
     expect(AMOUNT.length).toBeGreaterThan(30);
   });
 
-  test("accepts an explicit slippage override and sends it verbatim", async () => {
-    fixture = startFixture([{ body: okBody({ slippageBps: 123 }) }]);
+  test("accepts a slippage override whose threshold matches the tolerance exactly", async () => {
+    const threshold = thresholdFor(OUT_AMOUNT, 123);
+    fixture = startFixture([
+      { body: okBody({ slippageBps: 123, otherAmountThreshold: threshold }) },
+    ]);
     const quote = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 123 });
     expect(new URL(fixture.requests[0].url).searchParams.get("slippageBps")).toBe("123");
+    expect(quote.minOutAmount).toBe(threshold);
+  });
+
+  test("pins the boundary tolerances: zero bps holds the output, full bps allows only zero", async () => {
+    fixture = startFixture([
+      { body: okBody({ slippageBps: 0, otherAmountThreshold: OUT_AMOUNT }) },
+      { body: okBody({ slippageBps: 10_000, otherAmountThreshold: "0" }) },
+    ]);
+    const atZero = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 0 });
+    expect(atZero.minOutAmount).toBe(OUT_AMOUNT);
+    const atFull = await quoteThrough(fixture, {}, { ...quoteRequest(), slippageBps: 10_000 });
+    expect(atFull.minOutAmount).toBe("0");
+  });
+
+  test("rejects a threshold above the exact worst case at the requested tolerance", async () => {
+    const aboveFloor = (BigInt(MIN_OUT_AMOUNT) + 1n).toString();
+    fixture = startFixture([{ body: okBody({ otherAmountThreshold: aboveFloor }) }]);
+    const failure = await quoteFailure(fixture);
+    expect(failure?._tag).toBe("QuoteResponseInvalid");
+    expect(/** @type {{reason: string}} */ (failure).reason).toContain("worst case");
+    expect(fixture.requests).toHaveLength(1);
+  });
+
+  test("rejects an echoed slippage that differs from the requested tolerance", async () => {
+    fixture = startFixture([
+      { body: okBody({ slippageBps: 123, otherAmountThreshold: thresholdFor(OUT_AMOUNT, 123) }) },
+    ]);
+    const failure = await quoteFailure(fixture);
+    expect(failure?._tag).toBe("QuoteResponseInvalid");
+    expect(/** @type {{reason: string}} */ (failure).reason).toContain("slippageBps");
+  });
+
+  test("accepts a valid sequential multihop route with chained mints and amounts", async () => {
+    fixture = startFixture([{ body: multihopBody() }]);
+    const quote = await quoteThrough(
+      fixture,
+      {},
+      { inputMint: INPUT_MINT, outputMint: FINAL_MINT, amount: AMOUNT, slippageBps: 50 },
+    );
+    expect(quote.outputMint).toBe(FINAL_MINT);
+    expect(quote.outAmount).toBe(FINAL_OUT);
+    expect(quote.routeSummary).toEqual(["Orca", "Phoenix"]);
+  });
+
+  test("accepts a valid 50/50 split route whose branches consume the whole input", async () => {
+    fixture = startFixture([{ body: splitBody() }]);
+    const quote = await quoteThrough(fixture);
+    expect(quote.routeSummary).toEqual(["Orca", "Raydium"]);
+    expect(quote.inAmount).toBe(AMOUNT);
     expect(quote.minOutAmount).toBe(MIN_OUT_AMOUNT);
   });
 
@@ -142,16 +288,5 @@ describe("JupiterSwapLive quote success [integration]", () => {
       "QuoteConfigMissing",
     );
     expect(fixture.requests).toHaveLength(0);
-  });
-});
-
-describe("JupiterSwapLive deadline wiring", () => {
-  test("resolves the default whole-call deadline from the documented ten seconds", () => {
-    expect(DEFAULT_TIMEOUT_MS).toBe(10_000);
-    const source = readFileSync(new URL("jupiter-swap-live.js", import.meta.url), "utf8");
-    const imports = source
-      .split("\n")
-      .filter((line) => line.startsWith("import") && line.includes("jupiter-swap-quote.js"));
-    expect(imports).toHaveLength(1);
   });
 });

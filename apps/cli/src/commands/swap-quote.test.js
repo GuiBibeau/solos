@@ -10,7 +10,7 @@ const INPUT_MINT = "So11111111111111111111111111111111111111112";
 const OUTPUT_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const AMOUNT = "1000000000000000000000000000000";
 const OUT_AMOUNT = "169900000000000000000000000000";
-const MIN_OUT_AMOUNT = "169732000000000000000000000000";
+const MIN_OUT_AMOUNT = "169050500000000000000000000000";
 
 /** Quote-only Metis-routed body, reconstructed from the documented V2 envelope. */
 const BODY = {
@@ -57,7 +57,20 @@ const expectedRaw = () => ({
   swapMode: "ExactIn",
   slippageBps: 50,
   router: "metis",
-  routePlan: [{ swapInfo: { label: "Orca" } }],
+  routePlan: [
+    {
+      swapInfo: {
+        ammKey: "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+        label: "Orca",
+        inputMint: INPUT_MINT,
+        outputMint: OUTPUT_MINT,
+        inAmount: AMOUNT,
+        outAmount: OUT_AMOUNT,
+      },
+      percent: 100,
+      bps: 10_000,
+    },
+  ],
   transaction: null,
 });
 

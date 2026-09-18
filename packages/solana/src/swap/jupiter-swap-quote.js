@@ -12,17 +12,19 @@ import { Effect } from "effect";
 import { z } from "zod";
 import { isDeadlineAbort } from "../market/elfa-api.js";
 import { DEFAULT_TIMEOUT_MS, jupiterSwapOrder } from "./jupiter-swap-api.js";
+import { envelopeRejection, routeRejection } from "./jupiter-swap-validate.js";
 
 /**
- * Normalization of the Jupiter Swap API V2 quote-only response (`GET /swap/v2/order`, no
- * `taker`) onto the slice's `SwapQuote`.
+ * Normalization of the Jupiter Swap V2 quote-only response (`GET /swap/v2/order`, no `taker`)
+ * onto the slice's `SwapQuote`.
  *
  * Units: `inAmount`, `outAmount`, and `otherAmountThreshold` are exact decimal strings in base
- * units and travel verbatim — never through a JS Number. `priceImpact` is a JSON number in
- * percentage points; `priceImpactPct` keeps the slice's legacy decimal-ratio convention by
- * dividing by 100 (1 percentage point => "0.01"), shortest-round-trip Number math on a ratio,
- * never on a base-unit amount — same documented rationale as the Jupiter price adapter. V2 has
- * no `routeSummary` object; hop labels are `routePlan[].swapInfo.label`.
+ * units and travel verbatim — never through a JS Number; consistency bounds are checked with
+ * BigInt (see jupiter-swap-validate.js). `priceImpact` is a JSON number in percentage points;
+ * `priceImpactPct` keeps the slice's legacy decimal-ratio convention by dividing by 100
+ * (1 percentage point => "0.01"), shortest-round-trip Number math on a ratio, never on a
+ * base-unit amount — same documented rationale as the Jupiter price adapter. V2 has no
+ * `routeSummary` object; hop labels are `routePlan[].swapInfo.label`.
  *
  * Freshness: V2 documents no quote TTL, so `expiresAt` is the local receipt time plus a
  * 30-second local TTL — when solOS stops presenting the quote as usable, not a price guarantee.
@@ -36,20 +38,38 @@ const NO_ROUTE_MESSAGE = "Failed to get quotes";
 
 const PROVIDER = /** @type {const} */ ("jupiter");
 
+/** Documented routing step: the hop identity, its base-unit amounts, and its allocation. */
+const RouteStepSchema = z.object({
+  swapInfo: z
+    .object({
+      ammKey: z.string().min(1),
+      label: z.string().min(1),
+      inputMint: z.string().min(1),
+      outputMint: z.string().min(1),
+      inAmount: z.string(),
+      outAmount: z.string(),
+    })
+    .strip(),
+  percent: z.number().min(1).max(100),
+  bps: z.number().int().min(1).max(10_000),
+});
+
 /** Documented 200 envelope, parsed in strip mode so provider extensions never break us. */
 const QuoteEnvelopeSchema = z.object({
   inputMint: z.string(),
   outputMint: z.string(),
-  inAmount: z.string().min(1),
-  outAmount: z.string().min(1),
-  otherAmountThreshold: z.string().min(1).optional(),
+  inAmount: z.string(),
+  outAmount: z.string(),
+  otherAmountThreshold: z.string().optional(),
   priceImpact: z.number().finite().optional(),
   swapMode: z.string(),
-  slippageBps: z.number().int(),
+  slippageBps: z.number().int().min(0).max(10_000),
   router: z.string(),
-  routePlan: z.array(z.object({ swapInfo: z.object({ label: z.string().min(1) }) }).strip()),
+  routePlan: z.array(RouteStepSchema.strip()),
   transaction: z.union([z.string(), z.null()]),
 });
+
+/** @typedef {z.infer<typeof QuoteEnvelopeSchema>} JupiterQuoteEnvelope */
 
 /** @param {string} body @returns {unknown} */
 const parseJson = (body) => {
@@ -97,47 +117,11 @@ const statusError = (outcome, request) => {
   return undefined;
 };
 
-/**
- * Reject quote-only responses that fail the contract's invariants, with one fixed reason per
- * shape. Echo checks hold the provider to the exact request; a non-null transaction is
- * undocumented for a taker-less request and would make `raw` executable.
- * @param {z.infer<typeof QuoteEnvelopeSchema>} quote
- * @param {import("@solos/core").SwapQuoteRequest} request
- * @returns {string | undefined} the fixed reason, or undefined when the response is acceptable
- */
-const rejectionReason = (quote, request) => {
-  if (quote.transaction !== null) return "quote-only response carried a non-null transaction";
-  if (quote.router !== "metis")
-    return "response was routed by a router outside the Metis-only restriction";
-  if (quote.swapMode !== "ExactIn") return "response was not an ExactIn quote";
-  return echoRejection(quote, request);
-};
-
-/**
- * Echo checks hold the provider to the exact requested pair and amount; a missing minimum output
- * or price impact is never replaced with a fabricated value.
- * @param {z.infer<typeof QuoteEnvelopeSchema>} quote
- * @param {import("@solos/core").SwapQuoteRequest} request
- * @returns {string | undefined} the fixed reason, or undefined when the response is acceptable
- */
-const echoRejection = (quote, request) => {
-  if (quote.inputMint !== request.inputMint || quote.outputMint !== request.outputMint) {
-    return "echoed mints did not match the requested pair";
-  }
-  if (quote.inAmount !== request.amount)
-    return "echoed inAmount did not match the requested amount";
-  if (quote.otherAmountThreshold === undefined) {
-    return "response had no otherAmountThreshold; the minimum output is never fabricated";
-  }
-  if (quote.priceImpact === undefined) return "response had no priceImpact";
-  return undefined;
-};
-
 /** @param {number} status @param {string} reason */
 const invalid = (status, reason) => new QuoteResponseInvalid({ status, reason });
 
 /**
- * @param {z.infer<typeof QuoteEnvelopeSchema>} quote
+ * @param {JupiterQuoteEnvelope} quote
  * @param {import("@solos/core").SwapQuoteRequest} request
  * @returns {import("@solos/core").SwapQuote}
  */
@@ -147,7 +131,7 @@ const toSwapQuote = (quote, request) => ({
   outputMint: request.outputMint,
   inAmount: quote.inAmount,
   outAmount: quote.outAmount,
-  // Presence is guaranteed by rejectionReason before this runs.
+  // Presence is guaranteed by envelopeRejection before this runs.
   minOutAmount: /** @type {string} */ (quote.otherAmountThreshold),
   priceImpactPct: String(/** @type {number} */ (quote.priceImpact) / 100),
   routeSummary: quote.routePlan.map((step) => step.swapInfo.label),
@@ -158,7 +142,7 @@ const toSwapQuote = (quote, request) => ({
 /**
  * Translate one outcome into a SwapQuote or a slice-owned error. Raw bodies and the API key
  * never become error props; only the HTTP status and a short fixed reason travel. An empty
- * route plan is the structural no-route case.
+ * route plan is the structural no-route case; a non-empty one must pass the route contract.
  * @param {import("./jupiter-swap-api.js").JupiterSwapOutcome} outcome
  * @param {import("@solos/core").SwapQuoteRequest} request
  */
@@ -174,8 +158,8 @@ const fromOutcome = (outcome, request) => {
       invalid(outcome.status, "response did not match the documented quote envelope"),
     );
   }
-  const reason = rejectionReason(envelope.data, request);
-  if (reason) return Effect.fail(invalid(outcome.status, reason));
+  const envelopeReason = envelopeRejection(envelope.data, request);
+  if (envelopeReason) return Effect.fail(invalid(outcome.status, envelopeReason));
   if (envelope.data.routePlan.length === 0) {
     return Effect.fail(
       new NoRouteFound({
@@ -185,6 +169,8 @@ const fromOutcome = (outcome, request) => {
       }),
     );
   }
+  const routeReason = routeRejection(envelope.data);
+  if (routeReason) return Effect.fail(invalid(outcome.status, routeReason));
   return Effect.succeed(toSwapQuote(envelope.data, request));
 };
 

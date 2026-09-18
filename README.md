@@ -235,6 +235,16 @@ transaction is null — nothing is signed, built for sending, or submitted, and 
   is divided by 100, so 1 percentage point => `"0.01"` (the deprecated provider `priceImpactPct`
   string is ignored). Missing provider fields fail (`QuoteResponseInvalid`); solOS never
   fabricates a zero.
+- **Tolerance and route validation.** The echoed `slippageBps` must equal the request, and
+  `minOutAmount` may sit below but never above the exact worst case
+  `floor(outAmount x (10000 - slippageBps) / 10000)` — the check assumes integer (floor)
+  rounding and that the provider applies at least the requested tolerance, never less.
+  Route plans must span the requested pair: hops chain mint-to-mint and amount-to-amount within
+  a branch, split branches restart from the input mint, branch-starting hops allocate the whole
+  swap (bps summing to 10000, inputs consuming the quoted input exactly), and the validated hop
+  data is retained in the non-executable `raw` payload. Redirects must stay on the request's
+  origin; a cross-origin redirect is refused before the other host is contacted or receives the
+  key.
 - **`expiresAt` is a local 30-second TTL**, the receipt time plus 30 000 ms. It is when solOS
   stops presenting the quote as usable, **not** a provider price guarantee — V2 documents no
   quote TTL.

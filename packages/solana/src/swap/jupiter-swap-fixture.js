@@ -30,10 +30,13 @@ export const OUTPUT_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 /** 31 digits: base units must never pass through a JS Number on the way in or out. */
 export const AMOUNT = "1000000000000000000000000000000";
 export const OUT_AMOUNT = "169900000000000000000000000000";
-export const MIN_OUT_AMOUNT = "169732000000000000000000000000";
+/** Exact worst case at the 50 bps default tolerance: floor(OUT_AMOUNT * 9950 / 10000), BigInt. */
+export const MIN_OUT_AMOUNT = "169050500000000000000000000000";
 /** One percentage point: asserts the legacy divide-by-100 ratio convention ("0.01"). */
 export const PRICE_IMPACT = 1;
 export const BODY_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
+/** Live-observed Orca ammKey used by the canned route hop. */
+export const OK_AMM_KEY = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
 
 /** Documented success body the fixture serves by default: quote-only, Metis-routed. */
 export const okBody = (overrides = {}) => ({
@@ -52,7 +55,7 @@ export const okBody = (overrides = {}) => ({
   routePlan: [
     {
       swapInfo: {
-        ammKey: "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+        ammKey: OK_AMM_KEY,
         label: "Orca",
         inputMint: INPUT_MINT,
         outputMint: OUTPUT_MINT,

@@ -41,12 +41,11 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"]);
 
 /**
- * Endpoint policy, identical to the base-url rule applied at startup: https everywhere, plain
- * http only for loopback test-fixture hosts. Every hop is re-checked before anything — including
- * the x-api-key header — is sent to it.
+ * Scheme policy, identical to the base-url rule applied at startup: https everywhere, plain
+ * http only for loopback test-fixture hosts.
  * @param {URL} url
  */
-const isAllowedDestination = (url) =>
+const isAllowedScheme = (url) =>
   url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname));
 
 /**
@@ -102,11 +101,12 @@ const orderUrl = (url, params) => {
 /**
  * One quote-only GET to the Jupiter Swap V2 order endpoint, following redirects hop by hop.
  * Single attempt, no retries — a quote is indicative and stale the moment it lands. Because
- * fetch follows redirects by default, each hop's destination must pass the endpoint policy
- * before it is contacted: a permitted endpoint or loopback fixture cannot bounce the request,
- * and its key, onto an unvalidated host, and a chain past the hop bound is a loop that fails.
- * One deadline, created here before the first hop, covers every hop and the body read. Failures
- * are fixed-message errors and are translated upstream.
+ * fetch follows redirects by default, each hop's destination must pass the destination policy
+ * before it is contacted: https (plain http only on loopback fixtures) and — because this
+ * endpoint is fixed — the origin the request started from. A permitted endpoint or loopback
+ * fixture therefore cannot bounce the request, and its key, onto another host, and a chain past
+ * the hop bound is a loop that fails. One deadline, created here before the first hop, covers
+ * every hop and the body read. Failures are fixed-message errors and are translated upstream.
  * @param {JupiterSwapConfig} config
  * @param {SwapOrderParams} params
  * @returns {Promise<JupiterSwapOutcome>}
@@ -116,10 +116,15 @@ export const jupiterSwapOrder = async (
   params,
 ) => {
   const signal = AbortSignal.timeout(timeoutMs);
-  let destination = orderUrl(new URL(SWAP_V2_ORDER_PATH, baseUrl), params);
+  const start = orderUrl(new URL(SWAP_V2_ORDER_PATH, baseUrl), params);
+  const origin = start.origin;
+  let destination = start;
   for (let hops = 0; hops <= MAX_REDIRECTS; hops++) {
-    if (!isAllowedDestination(destination)) {
+    if (!isAllowedScheme(destination)) {
       throw new Error("Jupiter swap destination was not an allowed endpoint");
+    }
+    if (destination.origin !== origin) {
+      throw new Error("Jupiter swap redirect crossed origins");
     }
     const response = await fetchHop({ fetchImpl, apiKey, signal }, destination);
     if (!REDIRECT_STATUSES.has(response.status)) {

@@ -6,6 +6,7 @@ import {
   BODY_MARKER,
   KEY,
   INPUT_MINT,
+  OUT_AMOUNT,
   OUTPUT_MINT,
   okBody,
   quoteFailure,
@@ -133,6 +134,47 @@ describe("JupiterSwapLive error mapping [integration]", () => {
     expect((await quoteFailure(fixture))?._tag).toBe("QuoteResponseInvalid");
     expect((await quoteFailure(fixture))?._tag).toBe("QuoteResponseInvalid");
     expect(fixture.requests).toHaveLength(2);
+  });
+
+  test("rejects malformed and inverted output amounts instead of trusting strings", async () => {
+    const inverted = (BigInt(OUT_AMOUNT) + 1n).toString();
+    fixture = startFixture([
+      { body: okBody({ outAmount: "12.5" }) },
+      { body: okBody({ otherAmountThreshold: "1.5" }) },
+      { body: okBody({ otherAmountThreshold: "-5" }) },
+      { body: okBody({ otherAmountThreshold: inverted }) },
+    ]);
+    for (const expected of [
+      "outAmount was not",
+      "otherAmountThreshold was not",
+      "otherAmountThreshold was not",
+      "exceeded the quoted output",
+    ]) {
+      const failure = await quoteFailure(fixture);
+      expect(failure?._tag, expected).toBe("QuoteResponseInvalid");
+      expect(/** @type {{reason: string}} */ (failure).reason, expected).toContain(expected);
+    }
+    expect(fixture.requests).toHaveLength(4);
+  });
+
+  test("a redirect to another origin is rejected before that destination is contacted", async () => {
+    const other = startFixture([]);
+    fixture = startFixture([{ status: 302, location: `${other.url}/swap/v2/order` }]);
+    const attempted = [];
+    const failure = await quoteFailure(fixture, {
+      fetchImpl: async (input, init) => {
+        attempted.push(String(input));
+        return fetch(input, init);
+      },
+    });
+    expect(failure).toMatchObject({ _tag: "QuoteNetworkError" });
+    expect(attempted).toHaveLength(1);
+    expect(attempted[0].startsWith(fixture.url)).toBe(true);
+    expect(other.requests).toHaveLength(0);
+    const rendered = JSON.stringify(failure);
+    expect(rendered.includes(KEY)).toBe(false);
+    expect(rendered.includes(other.url)).toBe(false);
+    other.stop();
   });
 
   test("a request past its deadline fails once and is never retried", async () => {
