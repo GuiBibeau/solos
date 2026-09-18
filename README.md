@@ -62,11 +62,13 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_market_get_token_news` | read |
 | `solana_market_get_event_summary` | read |
 | `solana_market_get_price` | read |
+| `solana_market_get_token` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
-`market` has the Elfa Iris adapter behind `ELFA_API_KEY` and the Jupiter Price V3 adapter behind
-`JUPITER_API_KEY`; `swap` still has ports and use cases but no adapter; `signals` has ports only.
+`market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
+`JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` still
+has ports and use cases but no adapter; `signals` has ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -160,6 +162,47 @@ JUPITER_API_KEY=... bun run solos market price --mint So111111111111111111111111
 JUPITER_API_KEY=... bun run solos market price --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 JUPITER_API_KEY=... bun run solos mcp call solana_market_get_price --args '{"mint":"So11111111111111111111111111111111111111112"}'
 JUPITER_API_KEY=... bun run solos mcp call solana_market_get_price --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}'
+```
+
+## Token metadata
+
+`solana_market_get_token` (MCP) and `solos market token --mint <address>` (CLI) read verified
+on-chain metadata for one mint and return `{ mint, name, symbol, decimals, logoUri }`:
+
+- **Sources.** Standard SPL mints are read from their Metaplex metadata PDA; Token-2022 mints
+  from their in-mint metadata extension (including a `logo` pair in `additionalMetadata`), with
+  the Metaplex PDA as a fallback. The decoded metadata must name the requested mint itself —
+  wrong-mint or foreign-pointer metadata fails, it is never trusted.
+- **No invented tickers.** An address that does not exist or is not a mint account (a token
+  account, a system-owned account) fails `UnknownToken`. A valid mint whose metadata is absent
+  or unreadable fails `TokenMetadataUnavailable`. These two tags are the whole failure surface.
+- **Canonical wSOL/USDC.** Wrapped SOL and USDC map to their canonical names only after the
+  mint account, its owner program, and its decimals are verified on chain (9 for wSOL, 6 for
+  USDC). The mapping never applies when metadata is unreadable or decimals disagree.
+- **`logoUri` is null unless a real logo URI is on chain.** The metadata JSON `uri` is not a
+  logo and is never fetched: solOS makes no off-chain requests for token metadata.
+- **Bounded decoding.** Mint and metadata accounts are size-checked before decoding; string
+  lengths are bounded and NUL padding is trimmed, so malformed or oversized metadata fails
+  promptly instead of being parsed into garbage.
+
+### `SOLANA_RPC_URL`
+
+Token metadata reads go through the same configured Solana endpoint as every other Solana tool
+(shared `SolanaRpc` service; no second configuration path, no public fallback):
+
+- `SOLANA_RPC_URL` **overrides** the active profile's stored `rpcUrl` (ADR-0015 precedence:
+  env, then `SOLOS_PROFILE`, then the default profile). There is **no default RPC**: with
+  neither configured, startup fails with a clear error naming `SOLANA_RPC_URL`.
+- An authenticated RPC URL (provider keys in the path or query) belongs only in the operator or
+  approved QA environment. solOS redacts endpoint credentials in token-metadata errors to the
+  URL origin; never paste such a URL into logs, errors, issue comments, or committed files.
+- Automated tests run offline on Surfnet. Live QA of real mints (compare a Token-2022 mint
+  against its known name/symbol) requires an explicitly configured operator RPC and is
+  **blocked** without one — the factory never provisions RPC credentials.
+
+```sh
+SOLANA_RPC_URL=... bun run solos market token --mint So11111111111111111111111111111111111111112
+SOLANA_RPC_URL=... bun run solos mcp call solana_market_get_token --args '{"mint":"So11111111111111111111111111111111111111112"}'
 ```
 
 ## License
