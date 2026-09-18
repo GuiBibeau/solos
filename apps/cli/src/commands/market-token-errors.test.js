@@ -18,16 +18,18 @@ const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
 const CREDENTIAL = "qa-synthetic-credential";
 
 /**
- * Spawn the CLI entry exactly as `bun --no-env-file run apps/cli/src/main.js` — the harness
- * opts every test child out of Bun's automatic `.env` loading so a developer's repo-root
- * `.env.local` can never supply configuration into a test.
+ * Spawn the CLI entry exactly as `bun --no-env-file run apps/cli/src/main.js` — env-file
+ * loading is DISABLED by default (isolation on), so a developer's repo-root `.env.local` can
+ * never supply configuration into a test. The direct entry matters: through the `solos`
+ * package script the flag would only govern an outer Bun, and the script's second Bun would
+ * load `.env` files again.
  * @param {string[]} args
  * @param {Record<string, string>} env
- * @param {{ cwd?: string; shouldLoadEnvFile?: boolean }} [options] `shouldLoadEnvFile: false`
- *   spawns WITH `.env` loading, only to prove the poison is real
+ * @param {{ cwd?: string; shouldLoadEnvFile?: boolean }} [options] `shouldLoadEnvFile: true`
+ *   opts OUT of isolation, only to prove the poison is real
  */
 const runCli = async (args, env, options = {}) => {
-  const { cwd = ROOT, shouldLoadEnvFile = true } = options;
+  const { cwd = ROOT, shouldLoadEnvFile = false } = options;
   const proc = Bun.spawn(
     [process.execPath, ...(shouldLoadEnvFile ? [] : ["--no-env-file"]), "run", CLI_ENTRY, ...args],
     {
@@ -172,7 +174,7 @@ describe("token read redaction and configuration isolation [integration]", () =>
     const poisoned = await runCli(
       ["market", "token", "--mint", fx.classicWithMetaplex],
       poisonedEnv,
-      { cwd: /** @type {string} */ (poisonedDir) },
+      { cwd: /** @type {string} */ (poisonedDir), shouldLoadEnvFile: true },
     );
     expect(poisoned.code).not.toBe(0);
     expect(stderrJson(poisoned.stderr)?.error).toMatchObject({
@@ -183,7 +185,7 @@ describe("token read redaction and configuration isolation [integration]", () =>
     const blocked = await runCli(
       ["market", "token", "--mint", fx.classicWithMetaplex],
       poisonedEnv,
-      { cwd: /** @type {string} */ (poisonedDir), shouldLoadEnvFile: false },
+      { cwd: /** @type {string} */ (poisonedDir) },
     );
     expect(blocked.code).not.toBe(0);
     expect(stderrJson(blocked.stderr)?.error).toMatchObject({ code: "InternalError" });
@@ -198,7 +200,7 @@ describe("token read redaction and configuration isolation [integration]", () =>
         SOLOS_SIGNER_PRIVATE_KEY: signerKey ?? "",
         SOLOS_LOG_LEVEL: "warn",
       },
-      { cwd: /** @type {string} */ (poisonedDir), shouldLoadEnvFile: false },
+      { cwd: /** @type {string} */ (poisonedDir) },
     );
     expect(isolated.code).toBe(0);
     expect(JSON.parse(isolated.stdout)).toMatchObject({ name: "Fixture Dog", symbol: "FDOG" });

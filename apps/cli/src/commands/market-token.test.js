@@ -13,6 +13,7 @@ import {
 } from "@solos/solana/surfnet";
 
 const ROOT = new URL("../../../..", import.meta.url).pathname;
+const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
 
 const solanaEnv = async () => ({
   SOLANA_RPC_URL: surfnet.rpcUrl,
@@ -22,14 +23,14 @@ const solanaEnv = async () => ({
 });
 
 /**
- * Spawn `bun run solos ...` exactly as a human or agent would, with only the given env. The
- * harness opts the child out of Bun's automatic `.env` loading (real users are unaffected):
- * a developer's repo-root `.env.local` must never supply test configuration.
+ * Spawn the CLI entry directly — `bun --no-env-file run apps/cli/src/main.js`. The flag must
+ * govern the one process that loads env files: via the `solos` package script a second Bun
+ * without the flag loads `.env` files again. Only this harness opts out, never operators.
  * @param {string[]} args
  * @param {Record<string, string>} env
  */
 const runSolos = async (args, env) => {
-  const proc = Bun.spawn([process.execPath, "--no-env-file", "run", "solos", ...args], {
+  const proc = Bun.spawn([process.execPath, "--no-env-file", "run", CLI_ENTRY, ...args], {
     cwd: ROOT,
     env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },
     stdout: "pipe",
@@ -161,6 +162,35 @@ describe("`solos market token` and `solos mcp` through real child processes [int
       decimals: 6,
       logoUri: "https://fixture.example/real.png",
     });
+  });
+
+  test("a tail-padding token-2022 mint reads through the Metaplex fallback, CLI and MCP", async () => {
+    const expected = {
+      mint: fx.token2022TailPadding,
+      name: "Fixture Owl",
+      symbol: "FOWL",
+      decimals: 6,
+      logoUri: null,
+    };
+    const cli = await runSolos(["market", "token", "--mint", fx.token2022TailPadding], {
+      ...(await solanaEnv()),
+    });
+    expect(cli.code).toBe(0);
+    expect(JSON.parse(cli.stdout)).toEqual(expected);
+    const mcp = await runSolos(
+      [
+        "mcp",
+        "call",
+        "solana_market_get_token",
+        "--args",
+        JSON.stringify({ mint: fx.token2022TailPadding }),
+      ],
+      { ...(await solanaEnv()) },
+    );
+    expect(mcp.code).toBe(0);
+    const result = JSON.parse(mcp.stdout);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(expected);
   });
 
   test("SOLANA_RPC_URL wins over the profile's stored rpcUrl (dead endpoint) [integration]", async () => {
