@@ -20,7 +20,8 @@ import {
  */
 
 const ALIEN_MINT = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
-const MID_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+/** Synthetic 32-byte intermediate mint, distinct from the requested pair. */
+const MID_MINT = "7xLkLgPycwFJnLo9vCuhAuJVHwvAgB4kiOQmZAwKSo6U";
 const FORK_A = "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R";
 const FORK_B = "mSoLzYCxHdYgdndUvHZ7VfTntVScGvjeFvMmLvpB8ri";
 
@@ -30,9 +31,15 @@ const thresholdFor = (outAmount, slippageBps) =>
 
 /**
  * One documented route step; fields default to a consistent single-hop wSOL -> USDC shape.
- * @param {{ from?: string; to?: string; amount?: string; out?: string }} [fields]
+ * @param {{ from?: string; to?: string; amount?: string; out?: string; bps?: number }} [fields]
  */
-const hop = ({ from = INPUT_MINT, to = OUTPUT_MINT, amount = AMOUNT, out = OUT_AMOUNT }) => ({
+const hop = ({
+  from = INPUT_MINT,
+  to = OUTPUT_MINT,
+  amount = AMOUNT,
+  out = OUT_AMOUNT,
+  bps = 10_000,
+}) => ({
   swapInfo: {
     ammKey: "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
     label: "Orca",
@@ -41,8 +48,8 @@ const hop = ({ from = INPUT_MINT, to = OUTPUT_MINT, amount = AMOUNT, out = OUT_A
     inAmount: amount,
     outAmount: out,
   },
-  percent: 100,
-  bps: 10_000,
+  percent: bps / 100,
+  bps,
 });
 
 describe("JupiterSwapLive route contract [integration]", () => {
@@ -136,11 +143,14 @@ describe("JupiterSwapLive route contract [integration]", () => {
           outAmount: net,
           otherAmountThreshold: thresholdFor(net, 50),
           routePlan: [
+            // The only producer of the intermediate mint; not itself a terminal hop.
             hop({ to: MID_MINT, amount: AMOUNT, out: "2000000" }),
-            hop({ from: MID_MINT, to: FORK_A, amount: "2000000", out: "1000000" }),
-            hop({ from: MID_MINT, to: FORK_B, amount: "2000000", out: "1000000" }),
-            hop({ from: FORK_A, amount: "1000000", out: "500000" }),
-            hop({ from: FORK_B, amount: "1000000", out: "500000" }),
+            // The produced 2,000,000 splits 60/40 across two AMMs...
+            hop({ from: MID_MINT, to: FORK_A, amount: "1200000", out: "700000", bps: 6000 }),
+            hop({ from: MID_MINT, to: FORK_B, amount: "800000", out: "550000", bps: 4000 }),
+            // ...and each branch passes its whole output on towards the requested mint.
+            hop({ from: FORK_A, amount: "700000", out: "500000" }),
+            hop({ from: FORK_B, amount: "550000", out: "500000" }),
           ],
         }),
       },
