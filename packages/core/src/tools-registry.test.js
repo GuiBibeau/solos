@@ -3,7 +3,7 @@ import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
 describe("tool registry", () => {
-  test("has at least the wallet, transfer, and market tools", () => {
+  test("has at least the wallet, transfer, market, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
@@ -11,12 +11,13 @@ describe("tool registry", () => {
       "solana_market_get_token",
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
+      "solana_swap_get_quote",
       "solana_transfer_send_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
       "solana_wallet_get_balance",
     ]);
-    expect(toolGroups).toEqual(["market", "transfer", "wallet"]);
+    expect(toolGroups).toEqual(["market", "swap", "transfer", "wallet"]);
   });
 
   test("every tool is discovery-friendly", () => {
@@ -58,5 +59,15 @@ describe("tool registry", () => {
     expect(tool?.group).toBe("market");
     expect(tool?.tier).toBe("read");
     expect(tool?.input.shape.mint?.description).toBeTruthy();
+  });
+
+  test("the swap quote tool is a read-tier swap tool with described arguments", () => {
+    const tool = allTools.find((t) => t.name === "solana_swap_get_quote");
+    expect(tool?.group).toBe("swap");
+    expect(tool?.tier).toBe("read");
+    expect(tool?.input.shape.inputMint?.description).toBeTruthy();
+    expect(tool?.input.shape.outputMint?.description).toBeTruthy();
+    expect(tool?.input.shape.amount?.description).toBeTruthy();
+    expect(tool?.input.shape.slippageBps?.description).toBeTruthy();
   });
 });
