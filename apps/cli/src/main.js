@@ -14,6 +14,7 @@ import { launch } from "./commands/launch.js";
 import { login } from "./commands/login.js";
 import { market } from "./commands/market.js";
 import { mcp } from "./commands/mcp.js";
+import { perp } from "./commands/perp.js";
 import { profiles } from "./commands/profiles.js";
 import { router } from "./commands/router.js";
 import { swap } from "./commands/swap.js";
@@ -32,6 +33,7 @@ const root = Command.make("solos").pipe(
     market,
     swap,
     launch,
+    perp,
     mcp,
     router,
     agent,
