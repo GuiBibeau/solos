@@ -15,6 +15,13 @@ describe("lamports math", () => {
     expect(lamportsToSol(1n)).toBe("0.000000001");
   });
 
+  test("converts leading-dot decimals exactly, truncating like any other spelling", () => {
+    expect(solToLamports(".5")).toBe(500_000_000n);
+    expect(solToLamports(".000000001")).toBe(1n);
+    expect(solToLamports(".0000000001")).toBe(0n);
+    expect(solToLamports(".5e-7")).toBe(50n);
+  });
+
   test("truncates beyond nine decimals", () => {
     expect(solToLamports("0.1234567899")).toBe(123_456_789n);
   });
@@ -26,10 +33,18 @@ describe("lamports math", () => {
     expect(solToLamports("2e+21")).toBe(2_000_000_000_000_000_000_000_000_000_000n);
   });
 
+  test("bounds exponent expansion before building any string", () => {
+    expect(() => solToLamports("1e+999999999"), "huge positive").toThrow(RangeError);
+    expect(() => solToLamports("2e+2147483647"), "int-max positive").toThrow(RangeError);
+    expect(solToLamports("1e-999999999"), "huge negative").toBe(0n);
+    expect(solToLamports("123e-5000"), "small below one lamport").toBe(0n);
+  });
+
   test("carries the sign through conversion, so negatives stay negative", () => {
     expect(solToLamports("-1e-9")).toBe(-1n);
     expect(solToLamports("-0.000000001")).toBe(-1n);
     expect(solToLamports("-0.5")).toBe(-500_000_000n);
+    expect(solToLamports("-.5")).toBe(-500_000_000n);
     expect(solToLamports("-1")).toBe(-1_000_000_000n);
     expect(solToLamports("-2e+21")).toBe(-2_000_000_000_000_000_000_000_000_000_000n);
   });
@@ -48,7 +63,6 @@ describe("lamports math", () => {
       " 1",
       "1 ",
       ".",
-      ".5",
       "-.",
       "-",
       "+",

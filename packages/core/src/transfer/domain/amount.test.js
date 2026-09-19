@@ -18,7 +18,7 @@ const rejection = (amountSol) => {
 
 describe("transfer amount rule", () => {
   test("rejects zero-equivalents and values that truncate to zero lamports", () => {
-    for (const amountSol of ["0", "0.0", "0.000000000", "000", 0, 4.9e-10]) {
+    for (const amountSol of ["0", "0.0", "0.000000000", "000", 0, 4.9e-10, ".0000000001"]) {
       expect(rejection(amountSol)).toBeInstanceOf(ValidationError);
       expect(rejection(amountSol)).toMatchObject({ field: "amountSol", value: amountSol });
     }
@@ -32,7 +32,14 @@ describe("transfer amount rule", () => {
   });
 
   test("rejects negative amounts, scientific and fractional alike", () => {
-    for (const amountSol of ["-1", "-0.5", "-1e-9", "-0.000000001", "-2e+21"]) {
+    for (const amountSol of ["-1", "-0.5", "-.5", "-1e-9", "-0.000000001", "-2e+21"]) {
+      expect(rejection(amountSol)).toBeInstanceOf(ValidationError);
+      expect(rejection(amountSol)).toMatchObject({ field: "amountSol", value: amountSol });
+    }
+  });
+
+  test("rejects out-of-range exponents without expanding them", () => {
+    for (const amountSol of ["1e+999999999", "2e+2147483647", "1e-999999999"]) {
       expect(rejection(amountSol)).toBeInstanceOf(ValidationError);
       expect(rejection(amountSol)).toMatchObject({ field: "amountSol", value: amountSol });
     }
@@ -41,6 +48,8 @@ describe("transfer amount rule", () => {
   test("accepts exact positive amounts down to one lamport", () => {
     expect(transferLamports(1e-9)).toBe(1n);
     expect(transferLamports("0.000000001")).toBe(1n);
+    expect(transferLamports(".5")).toBe(500_000_000n);
+    expect(transferLamports(".000000001")).toBe(1n);
     expect(transferLamports("0.25")).toBe(250_000_000n);
     expect(transferLamports("1.000000001")).toBe(1_000_000_001n);
   });

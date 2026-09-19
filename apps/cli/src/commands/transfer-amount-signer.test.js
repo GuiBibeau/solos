@@ -85,6 +85,17 @@ describe("`solos transfer sol` rejects bad amounts before the missing keypair is
   test("send rejects a double-sign fraction pre-signer", async () => {
     await rejectWithoutSigner(["--amount=--1.1"], []);
   });
+  test("send rejects a leading-dot truncate-to-zero pre-signer", async () => {
+    await rejectWithoutSigner(["--amount", ".0000000001"], []);
+  });
+
+  test("send rejects a huge positive exponent pre-signer", async () => {
+    await rejectWithoutSigner(["--amount", "1e999999999"], []);
+  });
+
+  test("send rejects a huge negative exponent pre-signer", async () => {
+    await rejectWithoutSigner(["--amount", "1e-999999999"], []);
+  });
 
   test("a good amount in the same broken-signer env fails later as SignerUnavailable", async () => {
     const env = await unusableSignerEnv();

@@ -7,6 +7,7 @@ import { offlineEnv, runSolos, stderrJson, transferEnv } from "./transfer-fixtur
 /**
  * Amount-boundary cases against the dead loopback RPC with a loadable throwaway signer: the
  * structured failures prove no balance RPC ran, and positives still work against Surfnet.
+ * One child process per test, so every deadline measures a single startup.
  */
 describe("`solos transfer sol` amount boundary through real child processes [integration]", () => {
   /** @type {Awaited<ReturnType<typeof ensureSurfnet>> | undefined} */
@@ -48,6 +49,26 @@ describe("`solos transfer sol` amount boundary through real child processes [int
     });
   };
 
+  /**
+   * Simulate `amount` against Surfnet with a fresh funded throwaway signer, asserting the
+   * exact lamports of the result.
+   * @param {string} amount
+   * @param {string} lamports
+   */
+  const simulateExact = async (amount, lamports) => {
+    const seed = randomSeed();
+    const sender = await seedAddress(seed);
+    await surfnet?.cheats.fundSol(sender, 1);
+    const env = await transferEnv(surfnet?.rpcUrl ?? "", seed);
+    configDirs.push(env.SOLOS_CONFIG_DIR);
+    const { stdout, code } = await runSolos(
+      ["transfer", "sol", "--to", RECIPIENT, "--amount", amount, "--simulate-only"],
+      env,
+    );
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({ to: RECIPIENT, lamports });
+  };
+
   test("rejects --amount 0 with a structured ValidationError", async () => {
     await rejectOffline("0");
   });
@@ -74,16 +95,14 @@ describe("`solos transfer sol` amount boundary through real child processes [int
   });
 
   test("simulates one lamport against Surfnet through the real CLI", async () => {
-    const seed = randomSeed();
-    const sender = await seedAddress(seed);
-    await surfnet?.cheats.fundSol(sender, 0.1);
-    const env = await transferEnv(surfnet?.rpcUrl ?? "", seed);
-    configDirs.push(env.SOLOS_CONFIG_DIR);
-    const { stdout, code } = await runSolos(
-      ["transfer", "sol", "--to", RECIPIENT, "--amount", "0.000000001", "--simulate-only"],
-      env,
-    );
-    expect(code).toBe(0);
-    expect(JSON.parse(stdout)).toMatchObject({ to: RECIPIENT, lamports: "1" });
+    await simulateExact("0.000000001", "1");
+  });
+
+  test("simulates a leading-dot half SOL exactly through the real CLI", async () => {
+    await simulateExact(".5", "500000000");
+  });
+
+  test("simulates a leading-dot lamport exactly through the real CLI", async () => {
+    await simulateExact(".000000001", "1");
   });
 });
