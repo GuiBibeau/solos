@@ -30,6 +30,11 @@ const EnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
   ),
+  // Phoenix Perps reads are public; only the endpoint is configurable (loopback fixtures).
+  PHOENIX_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
 });
 
 /** Elfa production endpoint; the only provider today, so the default lives beside its parsing. */
@@ -37,6 +42,9 @@ export const DEFAULT_ELFA_BASE_URL = "https://api.elfa.ai";
 
 /** Jupiter production endpoint; lite-api hosts are deprecated and never a default. */
 export const DEFAULT_JUPITER_BASE_URL = "https://api.jup.ag";
+
+/** Phoenix Perps production endpoint; reads are public and need no credential. */
+export const DEFAULT_PHOENIX_BASE_URL = "https://perp-api.phoenix.trade";
 
 /**
  * @typedef {import("./credentials/resolve.js").SignerSource} SignerSource
@@ -48,6 +56,7 @@ export const DEFAULT_JUPITER_BASE_URL = "https://api.jup.ag";
  *   readonly profile: string | undefined;
  *   readonly elfa: { readonly apiKey: string | undefined; readonly baseUrl: string };
  *   readonly jupiter: { readonly apiKey: string | undefined; readonly baseUrl: string };
+ *   readonly phoenix: { readonly baseUrl: string };
  * }} SolanaEnv
  */
 
@@ -91,6 +100,13 @@ export const elfaBaseUrl = (raw) => providerBaseUrl(raw, DEFAULT_ELFA_BASE_URL, 
  */
 export const jupiterBaseUrl = (raw) =>
   providerBaseUrl(raw, DEFAULT_JUPITER_BASE_URL, "JUPITER_BASE_URL");
+
+/**
+ * Phoenix Perps API base URL.
+ * @param {string | undefined} raw
+ */
+export const phoenixBaseUrl = (raw) =>
+  providerBaseUrl(raw, DEFAULT_PHOENIX_BASE_URL, "PHOENIX_BASE_URL");
 
 /**
  * Signer from explicit env vars, when present. Exactly one of the two may be set.
@@ -146,5 +162,6 @@ export const loadSolanaEnv = (env) => {
     profile: selected?.name,
     elfa: { apiKey: parsed.ELFA_API_KEY, baseUrl: elfaBaseUrl(parsed.ELFA_BASE_URL) },
     jupiter: { apiKey: parsed.JUPITER_API_KEY, baseUrl: jupiterBaseUrl(parsed.JUPITER_BASE_URL) },
+    phoenix: { baseUrl: phoenixBaseUrl(parsed.PHOENIX_BASE_URL) },
   };
 };

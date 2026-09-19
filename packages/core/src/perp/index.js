@@ -1,8 +1,10 @@
 // @ts-check
 /** @typedef {import("./domain/errors.js").PerpError} PerpError */
 /** @typedef {import("./domain/types.js").GetPositionInput} GetPositionInput */
+/** @typedef {import("./domain/types.js").GetPositionRequest} GetPositionRequest */
 /** @typedef {import("./domain/types.js").GetPositionResult} GetPositionResult */
 /** @typedef {import("./domain/types.js").ListPositionsInput} ListPositionsInput */
+/** @typedef {import("./domain/types.js").ListPositionsInput["owner"]} ListOwner */
 /** @typedef {import("./domain/types.js").PerpEnumeration} PerpEnumeration */
 /** @typedef {import("./domain/types.js").PerpPosition} PerpPosition */
 /** @typedef {import("./domain/types.js").PerpAccount} PerpAccount */

@@ -5,7 +5,8 @@
 /** @typedef {import("./credentials/profile.js").ProviderName} ProviderName */
 /** @typedef {import("./credentials/discover.js").DiscoveredWallet} DiscoveredWallet */
 import { Layer } from "effect";
-import { DEFAULT_ELFA_BASE_URL, DEFAULT_JUPITER_BASE_URL } from "./env.js";
+import { DEFAULT_ELFA_BASE_URL, DEFAULT_JUPITER_BASE_URL, DEFAULT_PHOENIX_BASE_URL } from "./env.js";
+import { PerpVenueLive } from "./perp/perp-venue-live.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
 import { LaunchVenueLive } from "./launch/launch-venue-live.js";
 import { JupiterPriceLive } from "./market/jupiter-price-live.js";
@@ -22,10 +23,12 @@ export * from "./privy/index.js";
 export {
   DEFAULT_ELFA_BASE_URL,
   DEFAULT_JUPITER_BASE_URL,
+  DEFAULT_PHOENIX_BASE_URL,
   deriveWsUrl,
   elfaBaseUrl,
   jupiterBaseUrl,
   loadSolanaEnv,
+  phoenixBaseUrl,
 } from "./env.js";
 export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
@@ -34,6 +37,7 @@ export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
 export { TokenRegistryLive } from "./market/token-registry-live.js";
 export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
+export { PerpVenueLive } from "./perp/perp-venue-live.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
@@ -73,6 +77,13 @@ const prices = (jupiter) => JupiterPriceLive(jupiter ?? { baseUrl: DEFAULT_JUPIT
 const quotes = (jupiter) => JupiterSwapLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
 
 /**
+ * Phoenix Perps reads need no credential at all, so the layer is always constructible: the
+ * tool stays advertised and only an individual read can fail with a transport error.
+ * @param {SolanaEnv["phoenix"] | undefined} phoenix
+ */
+const perp = (phoenix) => PerpVenueLive(phoenix ?? { baseUrl: DEFAULT_PHOENIX_BASE_URL });
+
+/**
  * Production wiring from validated env: RPC + keychain signer + all adapters.
  * `provideMerge` keeps the internal tags visible for the CLI and tests.
  * @param {SolanaEnv} env
@@ -84,18 +95,28 @@ export const SolanaLive = (env) =>
     Layer.merge(intelligence(env.elfa)),
     Layer.merge(prices(env.jupiter)),
     Layer.merge(quotes(env.jupiter)),
+    Layer.merge(perp(env.phoenix)),
   );
 
 /**
- * Test wiring: same adapters, signer from raw bytes, RPC by URL. `elfa` and `jupiter` stay
- * optional so existing call sites are untouched; default configs fail pre-HTTP on use.
- * @param {{ rpcUrl: string; wsUrl: string; seed: Uint8Array; elfa?: SolanaEnv["elfa"]; jupiter?: SolanaEnv["jupiter"] }} options
+ * Test wiring: same adapters, signer from raw bytes, RPC by URL. `elfa`, `jupiter` and
+ * `phoenix` stay optional so existing call sites are untouched; default configs fail pre-HTTP
+ * on use.
+ * @param {{
+ *   rpcUrl: string;
+ *   wsUrl: string;
+ *   seed: Uint8Array;
+ *   elfa?: SolanaEnv["elfa"];
+ *   jupiter?: SolanaEnv["jupiter"];
+ *   phoenix?: SolanaEnv["phoenix"];
+ * }} options
  */
-export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter }) =>
+export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix }) =>
   adapters.pipe(
     Layer.provideMerge(KitSignerFromBytes(seed)),
     Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
     Layer.merge(intelligence(elfa)),
     Layer.merge(prices(jupiter)),
     Layer.merge(quotes(jupiter)),
+    Layer.merge(perp(phoenix)),
   );

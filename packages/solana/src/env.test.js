@@ -46,6 +46,7 @@ describe("solana env resolution [integration]", () => {
       executor: "direct",
       elfa: { apiKey: undefined, baseUrl: "https://api.elfa.ai" },
       jupiter: { apiKey: undefined, baseUrl: "https://api.jup.ag" },
+      phoenix: { baseUrl: "https://perp-api.phoenix.trade" },
     });
   });
 

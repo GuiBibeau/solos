@@ -3,6 +3,8 @@ import { PerpAccountSchema, PerpPositionSchema } from "@solos/actions";
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 
+/** @typedef {import("../../shared/domain/address.js").Address} Address */
+
 /** @typedef {z.infer<typeof PerpPositionSchema>} PerpPosition */
 /** @typedef {z.infer<typeof PerpAccountSchema>} PerpAccount */
 
