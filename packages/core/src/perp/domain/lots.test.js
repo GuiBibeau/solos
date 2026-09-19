@@ -21,9 +21,9 @@ describe("parseLots", () => {
 describe("sideFromLots", () => {
   test("sign is the direction; flat is exactly zero", () => {
     expect(sideFromLots(1n)).toBe("long");
-    expect(sideFromLots(150000n)).toBe("long");
+    expect(sideFromLots(150_000n)).toBe("long");
     expect(sideFromLots(-1n)).toBe("short");
-    expect(sideFromLots(-150000n)).toBe("short");
+    expect(sideFromLots(-150_000n)).toBe("short");
     expect(sideFromLots(0n)).toBe("flat");
   });
 });
@@ -35,7 +35,7 @@ describe("lotsToBaseUnits", () => {
     expect(lotsToBaseUnits(1n, 2)).toBe("0.01");
     expect(lotsToBaseUnits(-1n, 2)).toBe("-0.01");
     expect(lotsToBaseUnits(1400n, 2)).toBe("14");
-    expect(lotsToBaseUnits(123456789n, 9)).toBe("0.123456789");
+    expect(lotsToBaseUnits(123_456_789n, 9)).toBe("0.123456789");
   });
 
   test("zero is the plain string zero, never negative zero", () => {
@@ -55,15 +55,15 @@ describe("lotsToBaseUnits", () => {
   });
 
   test("stays exact far beyond the double-precision range", () => {
-    expect(lotsToBaseUnits(123456789012345678901n, 2)).toBe("1234567890123456789.01");
+    expect(lotsToBaseUnits(123_456_789_012_345_678_901n, 2)).toBe("1234567890123456789.01");
   });
 });
 
 describe("quoteLotsToUsd", () => {
   test("one quote lot is one micro-USDC", () => {
-    expect(quoteLotsToUsd(1234567n)).toBe("1.234567");
+    expect(quoteLotsToUsd(1_234_567n)).toBe("1.234567");
     expect(quoteLotsToUsd(-100n)).toBe("-0.0001");
     expect(quoteLotsToUsd(0n)).toBe("0");
-    expect(quoteLotsToUsd(1000000n)).toBe("1");
+    expect(quoteLotsToUsd(1_000_000n)).toBe("1");
   });
 });

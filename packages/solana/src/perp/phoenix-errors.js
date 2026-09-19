@@ -1,10 +1,5 @@
 // @ts-check
-import {
-  PerpAuthFailed,
-  PerpHttpError,
-  PerpMarketUnknown,
-  PerpRateLimited,
-} from "@solos/core";
+import { PerpAuthFailed, PerpHttpError, PerpMarketUnknown, PerpRateLimited } from "@solos/core";
 
 /**
  * Non-2xx status to the provider-unavailable family, or undefined for 2xx. Reasons are fixed

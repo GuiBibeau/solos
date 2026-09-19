@@ -41,7 +41,11 @@ export const TRADER_PDA_INDEX = 0;
  * @param {Record<string, string>} [query]
  * @returns {Promise<PhoenixOutcome>}
  */
-export const phoenixGet = async ({ baseUrl, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch }, path, query = {}) => {
+export const phoenixGet = async (
+  { baseUrl, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch },
+  path,
+  query = {},
+) => {
   const url = new URL(path, baseUrl);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
   const response = await fetchImpl(url.href, { signal: AbortSignal.timeout(timeoutMs) });

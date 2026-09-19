@@ -12,7 +12,12 @@ import {
 } from "./phoenix-api.js";
 import { marketStatusError, statusError } from "./phoenix-errors.js";
 import { mapEnumeration, mapPointRead } from "./phoenix-map.js";
-import { MarketConfigSchema, MarketsListSchema, TraderStateSchema, parseJson } from "./phoenix-wire.js";
+import {
+  MarketConfigSchema,
+  MarketsListSchema,
+  TraderStateSchema,
+  parseJson,
+} from "./phoenix-wire.js";
 
 /** @typedef {import("./phoenix-api.js").PhoenixConfig} PhoenixConfig */
 

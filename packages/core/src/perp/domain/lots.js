@@ -43,7 +43,7 @@ export const sideFromLots = (lots) => {
  * @returns {string}
  */
 export const lotsToBaseUnits = (lots, decimals) => {
-  if (!Number.isInteger(decimals) || decimals < 0) {
+  if (!Number.isSafeInteger(decimals) || decimals < 0) {
     throw new ValidationError({
       field: "decimals",
       value: decimals,
@@ -51,11 +51,11 @@ export const lotsToBaseUnits = (lots, decimals) => {
     });
   }
   const scale = 10n ** BigInt(decimals);
-  const negative = lots < 0n;
-  const absolute = negative ? -lots : lots;
+  const isNegative = lots < 0n;
+  const absolute = isNegative ? -lots : lots;
   const whole = absolute / scale;
   const frac = (absolute % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
-  const sign = negative && absolute !== 0n ? "-" : "";
+  const sign = isNegative && absolute !== 0n ? "-" : "";
   return frac === "" ? `${sign}${whole}` : `${sign}${whole}.${frac}`;
 };
 

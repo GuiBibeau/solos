@@ -21,8 +21,7 @@ export const SECRET_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
  */
 
 /** @param {unknown} body @param {number} [status] */
-const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+const json = (body, status = 200) => Response.json(body, { status, headers: JSON_HEADERS });
 
 /** @param {string} payload @param {number} status @param {number} delayMs */
 const delayedBody = (payload, status, delayMs) => {
@@ -55,15 +54,22 @@ const marketResponse = (script, symbol) => {
     (entry) => entry.symbol === symbol,
   );
   if (listed !== undefined) return json(listed);
-  return json(script.marketNotFound ?? { error: `Market '${symbol}' not found` }, script.marketStatus ?? 404);
+  return json(
+    script.marketNotFound ?? { error: `Market '${symbol}' not found` },
+    script.marketStatus ?? 404,
+  );
 };
 
 /** @param {PhoenixScript} script @param {string} authority @param {number} bodyDelayMs */
 const traderResponse = (script, authority, bodyDelayMs) => {
   const status = script.traderStatus ?? 200;
-  if (script.rawTraderBody !== undefined) return delayedBody(script.rawTraderBody, status, bodyDelayMs);
+  if (script.rawTraderBody !== undefined)
+    return delayedBody(script.rawTraderBody, status, bodyDelayMs);
   const source = script.trader;
-  const body = typeof source === "function" ? /** @type {(a: string) => unknown} */ (source)(authority) : source;
+  const body =
+    typeof source === "function"
+      ? /** @type {(a: string) => unknown} */ (source)(authority)
+      : source;
   return delayedBody(JSON.stringify(body ?? coldState(authority)), status, bodyDelayMs);
 };
 
@@ -74,7 +80,11 @@ const respond = (script, url, bodyDelayMs) => {
     return marketResponse(script, decodeURIComponent(url.pathname.slice(MARKET_PATH.length + 1)));
   }
   if (url.pathname.startsWith(`${TRADER_STATE_PATH}/`)) {
-    return traderResponse(script, decodeURIComponent(url.pathname.slice(TRADER_STATE_PATH.length + 1)), bodyDelayMs);
+    return traderResponse(
+      script,
+      decodeURIComponent(url.pathname.slice(TRADER_STATE_PATH.length + 1)),
+      bodyDelayMs,
+    );
   }
   return json({ error: "not found" }, 404);
 };

@@ -5,13 +5,17 @@
 /** @typedef {import("./credentials/profile.js").ProviderName} ProviderName */
 /** @typedef {import("./credentials/discover.js").DiscoveredWallet} DiscoveredWallet */
 import { Layer } from "effect";
-import { DEFAULT_ELFA_BASE_URL, DEFAULT_JUPITER_BASE_URL, DEFAULT_PHOENIX_BASE_URL } from "./env.js";
-import { PerpVenueLive } from "./perp/perp-venue-live.js";
+import {
+  DEFAULT_ELFA_BASE_URL,
+  DEFAULT_JUPITER_BASE_URL,
+  DEFAULT_PHOENIX_BASE_URL,
+} from "./env.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
 import { LaunchVenueLive } from "./launch/launch-venue-live.js";
 import { JupiterPriceLive } from "./market/jupiter-price-live.js";
 import { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 import { TokenRegistryLive } from "./market/token-registry-live.js";
+import { PerpVenueLive } from "./perp/perp-venue-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";

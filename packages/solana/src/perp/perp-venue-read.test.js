@@ -1,5 +1,6 @@
 // @ts-check
 import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { startPhoenixFixture } from "./phoenix-fixture.js";
 import {
   DEFAULT_AUTHORITY,
   OTHER_AUTHORITY,
@@ -10,7 +11,6 @@ import {
   shortState,
 } from "./phoenix-scenarios.js";
 import { listThrough, readThrough } from "./phoenix-through.js";
-import { startPhoenixFixture } from "./phoenix-fixture.js";
 
 describe("PerpVenueLive position reads through the loopback Phoenix fixture [integration]", () => {
   /** @type {ReturnType<typeof startPhoenixFixture>} */
@@ -83,7 +83,11 @@ describe("PerpVenueLive position reads through the loopback Phoenix fixture [int
     const enumeration = await listThrough(fixture, DEFAULT_AUTHORITY);
     expect(enumeration.positions).toHaveLength(2);
     expect(enumeration.positions[0]).toMatchObject({ instrument: "SOL", side: "long" });
-    expect(enumeration.positions[1]).toMatchObject({ instrument: "ETH", side: "short", amount: "1000" });
+    expect(enumeration.positions[1]).toMatchObject({
+      instrument: "ETH",
+      side: "short",
+      amount: "1000",
+    });
     expect(enumeration.perpAccounts).toEqual([
       { protocol: "phoenix", account: DEFAULT_AUTHORITY, equityUsd: null },
     ]);

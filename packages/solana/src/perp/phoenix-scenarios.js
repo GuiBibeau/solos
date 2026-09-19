@@ -80,7 +80,7 @@ export function traderState(authority, subaccounts, state = "active") {
   return {
     authority,
     traderPdaIndex: 0,
-    slot: 448348464,
+    slot: 448_348_464,
     slotIndex: 1355,
     snapshot: {
       version: 1,
@@ -95,7 +95,8 @@ export function traderState(authority, subaccounts, state = "active") {
 /** A valid market with no registered trader: cold, empty, zero collateral.
  * @param {string} authority
  */
-export const coldState = (authority) => traderState(authority, [subaccount(0, { collateral: "0" })], "cold");
+export const coldState = (authority) =>
+  traderState(authority, [subaccount(0, { collateral: "0" })], "cold");
 
 /** One open long: 1500 base lots at 2 decimals = 15 SOL.
  * @param {string} [authority]
@@ -112,8 +113,7 @@ export const shortState = (authority = DEFAULT_AUTHORITY) =>
 /** An active trader with collateral and no open market.
  * @param {string} [authority]
  */
-export const flatState = (authority = DEFAULT_AUTHORITY) =>
-  traderState(authority, [subaccount(0)]);
+export const flatState = (authority = DEFAULT_AUTHORITY) => traderState(authority, [subaccount(0)]);
 
 /** Open positions in two markets; subaccounts arrive out of index order on purpose.
  * @param {string} [authority]

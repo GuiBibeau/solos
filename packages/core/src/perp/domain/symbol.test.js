@@ -14,7 +14,16 @@ describe("normalizeMarketSymbol", () => {
   });
 
   test("rejects grammar that could never be an exchange symbol", () => {
-    for (const bad of ["", "   ", "-SOL", "SOL-", "SOL--PERP", "SOL PERP", "SOL/PERP", "SOL@1"]) {
+    for (const bad of [
+      "",
+      " ".repeat(3),
+      "-SOL",
+      "SOL-",
+      "SOL--PERP",
+      "SOL PERP",
+      "SOL/PERP",
+      "SOL@1",
+    ]) {
       expect(() => normalizeMarketSymbol(bad), JSON.stringify(bad)).toThrow(PerpInputInvalid);
     }
   });

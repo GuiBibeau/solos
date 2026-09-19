@@ -32,11 +32,12 @@ export const validateEcho = (state, authority) => {
  * Select subaccount zero by value, never "whichever entry comes first": the array carries all
  * subaccounts of the trader PDA in no promised order.
  * @param {TraderStateWire} state
- * @param {string} authority
  * @returns {SubaccountWire}
  */
-export const selectSubaccountZero = (state, authority) => {
-  const sub = state.snapshot.subaccounts.find((entry) => entry.subaccountIndex === TRADER_PDA_INDEX);
+export const selectSubaccountZero = (state) => {
+  const sub = state.snapshot.subaccounts.find(
+    (entry) => entry.subaccountIndex === TRADER_PDA_INDEX,
+  );
   if (sub === undefined) {
     throw new PerpStateIncomplete({ reason: "the snapshot carries no subaccount index 0" });
   }

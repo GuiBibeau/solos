@@ -90,11 +90,14 @@ const accountFromSubaccount = (sub, account) => {
  */
 export const mapPointRead = ({ authority, market, state }) => {
   validateEcho(state, authority);
-  const sub = selectSubaccountZero(state, authority);
+  const sub = selectSubaccountZero(state);
   const decimals = baseLotsDecimals(market, market.symbol);
   const row = sub.positions.find((entry) => entry.symbol === market.symbol);
-  const position =
-    row === undefined ? positionFromRow({ symbol: market.symbol, basePositionLots: "0" }, decimals, authority) : positionFromRow(row, decimals, authority);
+  const position = positionFromRow(
+    row ?? { symbol: market.symbol, basePositionLots: "0" },
+    decimals,
+    authority,
+  );
   return { position, account: accountFromSubaccount(sub, authority) };
 };
 
@@ -106,7 +109,7 @@ export const mapPointRead = ({ authority, market, state }) => {
  */
 export const mapEnumeration = ({ authority, markets, state }) => {
   validateEcho(state, authority);
-  const sub = selectSubaccountZero(state, authority);
+  const sub = selectSubaccountZero(state);
   const open = sub.positions.filter((row) => lotsOrCorrupt(authority, row.basePositionLots) !== 0n);
   if (open.length > MAX_ENUMERATION_POSITIONS) {
     throw new PerpEnumerationIncomplete({

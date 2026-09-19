@@ -33,7 +33,9 @@ const enumerationEffect = (owner) =>
  * @param {{ timeoutMs?: number; fetchImpl?: import("./phoenix-api.js").Fetch }} [overrides]
  */
 export const readThrough = (fixture, request, overrides) =>
-  Effect.runPromise(positionEffect(request).pipe(Effect.provide(PerpVenueLive(toConfig(fixture, overrides)))));
+  Effect.runPromise(
+    positionEffect(request).pipe(Effect.provide(PerpVenueLive(toConfig(fixture, overrides)))),
+  );
 
 /**
  * Read through the live Layer and hand back the tagged failure, or undefined on success.
@@ -55,7 +57,9 @@ export const readFailure = async (fixture, request, overrides) => {
  * @param {{ timeoutMs?: number; fetchImpl?: import("./phoenix-api.js").Fetch }} [overrides]
  */
 export const listThrough = (fixture, owner, overrides) =>
-  Effect.runPromise(enumerationEffect(owner).pipe(Effect.provide(PerpVenueLive(toConfig(fixture, overrides)))));
+  Effect.runPromise(
+    enumerationEffect(owner).pipe(Effect.provide(PerpVenueLive(toConfig(fixture, overrides)))),
+  );
 
 /**
  * Enumerate through the live Layer and hand back the tagged failure, or undefined on success.

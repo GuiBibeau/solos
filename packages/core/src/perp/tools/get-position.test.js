@@ -6,7 +6,7 @@ import { getPositionTool } from "./get-position.js";
 describe("perp position tool input guard", () => {
   test("rejects symbols that are not exchange grammar before any runtime", () => {
     expect(getPositionTool.check).toBeTypeOf("function");
-    for (const market of ["", "   ", "SOL PERP", "-SOL", "SOL/PERP"]) {
+    for (const market of ["", " ".repeat(3), "SOL PERP", "-SOL", "SOL/PERP"]) {
       expect(() => getPositionTool.check({ market }), JSON.stringify(market)).toThrow(
         PerpInputInvalid,
       );
@@ -16,8 +16,9 @@ describe("perp position tool input guard", () => {
   test("accepts wire symbols and the documented -PERP alias", () => {
     expect(getPositionTool.check({ market: "SOL" })).toBeUndefined();
     expect(getPositionTool.check({ market: "sol-perp" })).toBeUndefined();
-    expect(getPositionTool.check({ market: "SOL-PERP", owner: "11111111111111111111111111111111" }))
-      .toBeUndefined();
+    expect(
+      getPositionTool.check({ market: "SOL-PERP", owner: "11111111111111111111111111111111" }),
+    ).toBeUndefined();
   });
 
   test("the schema accepts and describes both arguments", () => {

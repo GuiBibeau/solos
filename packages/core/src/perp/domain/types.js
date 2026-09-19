@@ -1,12 +1,12 @@
 // @ts-check
-import { PerpAccountSchema, PerpPositionSchema } from "@solos/actions";
+
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 
 /** @typedef {import("../../shared/domain/address.js").Address} Address */
 
-/** @typedef {z.infer<typeof PerpPositionSchema>} PerpPosition */
-/** @typedef {z.infer<typeof PerpAccountSchema>} PerpAccount */
+/** @typedef {z.infer<typeof import("@solos/actions").PerpPositionSchema>} PerpPosition */
+/** @typedef {z.infer<typeof import("@solos/actions").PerpAccountSchema>} PerpAccount */
 
 /** @typedef {z.infer<typeof GetPositionInputSchema>} GetPositionInput */
 /** @typedef {z.infer<typeof ListPositionsInputSchema>} ListPositionsInput */
@@ -43,16 +43,16 @@ export const GetPositionInputSchema = z.object({
     .min(1)
     .max(32)
     .describe("Perp market symbol, e.g. SOL or SOL-PERP (normalized to the exchange symbol)"),
-  owner: AddressSchema
-    .optional()
-    .describe("Trader address to read. Defaults to the configured signer wallet"),
+  owner: AddressSchema.optional().describe(
+    "Trader address to read. Defaults to the configured signer wallet",
+  ),
 });
 
 /** One owner enumeration: whose trader account to list. Omitted means the configured signer. */
 export const ListPositionsInputSchema = z.object({
-  owner: AddressSchema
-    .optional()
-    .describe("Trader address to enumerate. Defaults to the configured signer wallet"),
+  owner: AddressSchema.optional().describe(
+    "Trader address to enumerate. Defaults to the configured signer wallet",
+  ),
 });
 
-export { PerpAccountSchema, PerpPositionSchema };
+export { PerpAccountSchema, PerpPositionSchema } from "@solos/actions";

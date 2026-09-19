@@ -6,6 +6,8 @@ import {
   PerpPositionSchema,
   PerpStateIncomplete,
 } from "@solos/core";
+import { PHOENIX_PERPS_PROGRAM, RISE_REVISION, RISE_SDK_VERSION } from "./phoenix-api.js";
+import { mapEnumeration, mapPointRead } from "./phoenix-map.js";
 import {
   DEFAULT_AUTHORITY,
   OTHER_AUTHORITY,
@@ -19,12 +21,6 @@ import {
   subaccount,
   traderState,
 } from "./phoenix-scenarios.js";
-import { mapEnumeration, mapPointRead } from "./phoenix-map.js";
-import {
-  PHOENIX_PERPS_PROGRAM,
-  RISE_REVISION,
-  RISE_SDK_VERSION,
-} from "./phoenix-api.js";
 
 const SOL = marketConfig("SOL", 2);
 const ETH = marketConfig("ETH", 3);
@@ -54,7 +50,11 @@ describe("mapPointRead", () => {
       decimals: 2,
       valueUsd: null,
     });
-    expect(account).toMatchObject({ protocol: "phoenix", account: DEFAULT_AUTHORITY, equityUsd: null });
+    expect(account).toMatchObject({
+      protocol: "phoenix",
+      account: DEFAULT_AUTHORITY,
+      equityUsd: null,
+    });
   });
 
   test("a short keeps the direction in side, never in the amount", () => {
@@ -97,16 +97,20 @@ describe("mapPointRead", () => {
 
   test("an authority echo mismatch is a corrupt account, not a position", () => {
     expect(() =>
-      mapPointRead({ authority: DEFAULT_AUTHORITY, market: SOL, state: longState(OTHER_AUTHORITY) }),
+      mapPointRead({
+        authority: DEFAULT_AUTHORITY,
+        market: SOL,
+        state: longState(OTHER_AUTHORITY),
+      }),
     ).toThrow(PerpAccountCorrupt);
   });
 
   test("a snapshot for another traderPdaIndex is a corrupt account", () => {
     const state = longState();
     state.traderPdaIndex = 1;
-    expect(() =>
-      mapPointRead({ authority: DEFAULT_AUTHORITY, market: SOL, state }),
-    ).toThrow(PerpAccountCorrupt);
+    expect(() => mapPointRead({ authority: DEFAULT_AUTHORITY, market: SOL, state })).toThrow(
+      PerpAccountCorrupt,
+    );
   });
 
   test("subaccount zero is selected by value from an out-of-order array", () => {
@@ -137,7 +141,7 @@ describe("mapPointRead", () => {
 
   test("market metadata without a lot size is incomplete state", () => {
     const state = longState();
-    const { baseLotsDecimals: _omitted, ...bare } = SOL;
+    const bare = { ...SOL, baseLotsDecimals: undefined };
     expect(() => mapPointRead({ authority: DEFAULT_AUTHORITY, market: bare, state })).toThrow(
       PerpStateIncomplete,
     );
@@ -153,7 +157,12 @@ describe("mapEnumeration", () => {
     });
     expect(positions).toHaveLength(2);
     expect(positions[0]).toMatchObject({ instrument: "SOL", side: "long", amount: "1500" });
-    expect(positions[1]).toMatchObject({ instrument: "ETH", side: "short", amount: "1000", decimals: 3 });
+    expect(positions[1]).toMatchObject({
+      instrument: "ETH",
+      side: "short",
+      amount: "1000",
+      decimals: 3,
+    });
     expect(perpAccounts).toEqual([
       { protocol: "phoenix", account: DEFAULT_AUTHORITY, equityUsd: null },
     ]);
@@ -189,17 +198,17 @@ describe("mapEnumeration", () => {
     const rows = Array.from({ length: 257 }, (_, index) => positionRow(`M${index}`, "1"));
     const state = traderState(DEFAULT_AUTHORITY, [subaccount(0, { positions: rows })]);
     const markets = rows.map((row) => marketConfig(row.symbol, 2));
-    expect(() =>
-      mapEnumeration({ authority: DEFAULT_AUTHORITY, markets, state }),
-    ).toThrow(PerpEnumerationIncomplete);
+    expect(() => mapEnumeration({ authority: DEFAULT_AUTHORITY, markets, state })).toThrow(
+      PerpEnumerationIncomplete,
+    );
   });
 
   test("a snapshot position in an unknown market fails the whole enumeration", () => {
     const state = traderState(DEFAULT_AUTHORITY, [
       subaccount(0, { positions: [positionRow("DOGE", "5")] }),
     ]);
-    expect(() =>
-      mapEnumeration({ authority: DEFAULT_AUTHORITY, markets: [SOL], state }),
-    ).toThrow(PerpStateIncomplete);
+    expect(() => mapEnumeration({ authority: DEFAULT_AUTHORITY, markets: [SOL], state })).toThrow(
+      PerpStateIncomplete,
+    );
   });
 });

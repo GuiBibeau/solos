@@ -1,7 +1,12 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import path from "node:path";
-import { ensureSurfnet, randomSeed, seedAddress, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import {
+  ensureSurfnet,
+  randomSeed,
+  seedAddress,
+  seedToPrivateKeyString,
+} from "@solos/solana/surfnet";
 
 const ROOT = new URL("../../../..", import.meta.url).pathname;
 const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
@@ -14,7 +19,7 @@ const MARKET_CONFIG = { symbol: "SOL", baseLotsDecimals: 2, tickSize: 100 };
 const traderState = (authority) => ({
   authority,
   traderPdaIndex: 0,
-  slot: 448348464,
+  slot: 448_348_464,
   slotIndex: 1355,
   snapshot: {
     version: 1,
@@ -115,7 +120,10 @@ describe("`solos perp position` through a real CLI child process [integration]",
     const { seed, env } = await signerEnv();
     const address = await seedAddress(seed);
     const before = fixture.requests.length;
-    const { stdout, stderr, code } = await runSolos(["perp", "position", "--market", "SOL-PERP"], env);
+    const { stdout, stderr, code } = await runSolos(
+      ["perp", "position", "--market", "SOL-PERP"],
+      env,
+    );
     expect(stderr).toBe("");
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
@@ -129,7 +137,11 @@ describe("`solos perp position` through a real CLI child process [integration]",
       decimals: 2,
       valueUsd: null,
     });
-    expect(result.account).toMatchObject({ protocol: "phoenix", account: address, equityUsd: null });
+    expect(result.account).toMatchObject({
+      protocol: "phoenix",
+      account: address,
+      equityUsd: null,
+    });
     const seen = fixture.requests.slice(before);
     const market = seen.find((entry) => entry.path.startsWith("/v1/view/exchange/market/"));
     const trader = seen.find((entry) => entry.path.startsWith("/v1/trader/state/"));

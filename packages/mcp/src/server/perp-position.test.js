@@ -10,7 +10,7 @@ const MARKET_CONFIG = { symbol: "SOL", baseLotsDecimals: 2, tickSize: 100 };
 const traderState = (authority) => ({
   authority,
   traderPdaIndex: 0,
-  slot: 448348464,
+  slot: 448_348_464,
   slotIndex: 1355,
   snapshot: {
     version: 1,
