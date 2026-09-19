@@ -26,7 +26,7 @@ export const OutcomeSchema = z.enum([
   "blocked",
 ]);
 
-const UsageSchema = z
+export const UsageSchema = z
   .object({
     accountingScope: z.enum(["station", "root_aggregate"]),
     billedCostSource: z.string().min(1).max(200).optional(),
@@ -40,20 +40,21 @@ const UsageSchema = z
     path: ["billedCostSource"],
   });
 
-const BlockerSchema = z
-  .object({
-    attemptedCorrection: z.string().min(1).max(1000),
-    attempts: z.number().int().positive(),
-    escalationEmittedAt: z.iso.datetime().optional(),
-    escalationMessage: z.string().min(1).max(1200).optional(),
-    fingerprint: z.string().min(1).max(200),
-    lastObservedAt: z.iso.datetime(),
-  })
-  .refine(
-    (blocker) =>
-      (blocker.escalationEmittedAt === undefined) === (blocker.escalationMessage === undefined),
-    { message: "Escalation timestamp and message must be recorded together" },
-  );
+const EscalationSchema = z.object({
+  deliveryKey: z.string().min(1).max(200),
+  deliveredAt: z.iso.datetime().optional(),
+  id: z.string().regex(/^esc_[a-f\d]{24}$/),
+  message: z.string().min(1).max(1200),
+  queuedAt: z.iso.datetime(),
+});
+
+const BlockerSchema = z.object({
+  attemptedCorrection: z.string().min(1).max(1000),
+  attempts: z.number().int().positive(),
+  escalation: EscalationSchema.optional(),
+  fingerprint: z.string().min(1).max(200),
+  lastObservedAt: z.iso.datetime(),
+});
 
 export const StationCheckpointSchema = z.object({
   artifactIds: z.array(Id).max(20).default([]),

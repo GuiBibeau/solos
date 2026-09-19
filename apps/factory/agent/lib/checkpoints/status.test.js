@@ -42,7 +42,7 @@ describe("station lifecycle replay", () => {
   });
 });
 
-test("unchanged blockers escalate once and monitoring backoff is bounded", () => {
+test("queued blockers reconcile until delivered and monitoring backoff is bounded", () => {
   expect(blockerStatus(issue18Checkpoint)).toMatchObject({
     attempts: 2,
     shouldEscalate: true,
@@ -51,12 +51,26 @@ test("unchanged blockers escalate once and monitoring backoff is bounded", () =>
     ...issue18Checkpoint,
     blocker: {
       ...issue18Checkpoint.blocker,
-      escalationEmittedAt: issue18Checkpoint.updatedAt,
-      escalationMessage: "Implementer remains blocked after the attempted static-check correction.",
+      escalation: {
+        deliveryKey: "solos-station-escalation:esc_1234567890abcdef12345678",
+        id: "esc_1234567890abcdef12345678",
+        message: "Implementer remains blocked after the attempted static-check correction.",
+        queuedAt: issue18Checkpoint.updatedAt,
+      },
+    },
+  });
+  const delivered = StationCheckpointSchema.parse({
+    ...emitted,
+    blocker: {
+      ...emitted.blocker,
+      escalation: { ...emitted.blocker?.escalation, deliveredAt: issue18Checkpoint.updatedAt },
     },
   });
   expect(blockerStatus(emitted)).toMatchObject({
-    escalationMessage: expect.stringContaining("remains blocked"),
+    escalation: { message: expect.stringContaining("remains blocked") },
+    shouldEscalate: true,
+  });
+  expect(blockerStatus(delivered)).toMatchObject({
     shouldEscalate: false,
   });
   expect(monitoringBackoffMs(0)).toBe(5000);

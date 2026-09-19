@@ -5,27 +5,25 @@ import { escalationOutbox } from "../lib/checkpoints/escalation-outbox.js";
 import { StationSchema } from "../lib/checkpoints/schema.js";
 
 const InputSchema = z.object({
+  escalationId: z.string().regex(/^esc_[a-f\d]{24}$/),
   fingerprint: z.string().min(1).max(200),
   rootRunId: z.string().min(1).max(200),
   station: StationSchema,
   workItem: z.string().min(1).max(200),
 });
 const OutputSchema = z.object({
-  delivery: z.enum(["pending", "delivered", "ineligible"]),
-  deliveryKey: z.string().optional(),
-  escalation: z.string().optional(),
-  escalationId: z.string().optional(),
+  acknowledged: z.boolean(),
+  delivery: z.enum(["delivered", "ineligible"]).optional(),
   reason: z.string().optional(),
   revision: z.number().int().positive().optional(),
 });
 
 /** @param {z.infer<typeof InputSchema>} input */
-const execute = async (input) => OutputSchema.parse(await escalationOutbox.enqueue(input));
+const execute = async (input) => OutputSchema.parse(await escalationOutbox.acknowledge(input));
 
 export default defineTool({
   description:
-    "Queue one durable escalation for a repeated station blocker. If delivery is pending, " +
-    "reconcile the delivery key on the originating thread, post only when absent, then acknowledge it.",
+    "Acknowledge a queued station escalation after its delivery key is present on the originating thread.",
   execute,
   inputSchema: InputSchema,
   outputSchema: OutputSchema,

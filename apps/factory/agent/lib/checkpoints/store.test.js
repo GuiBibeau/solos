@@ -1,104 +1,64 @@
 // @ts-check
-import { describe, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
+import { createCheckpointMemoryIo } from "./checkpoint-test-io.js";
 import { checkpointKey } from "./config.js";
 import { issue18Checkpoint } from "./fixtures.js";
 import { createCheckpointStore } from "./store.js";
 
-const createMemoryIo = () => {
-  const documents = new Map();
-  let version = 0;
-  return {
-    corrupt: (key) => documents.set(key, { contents: "not json", etag: "corrupt" }),
-    io: {
-      read: async (key) => {
-        const document = documents.get(key);
-        if (document === undefined) return { found: /** @type {const} */ (false) };
-        return {
-          content: document.contents,
-          etag: document.etag,
-          found: /** @type {const} */ (true),
-          uploadedAt: "2026-09-19T00:00:00.000Z",
-        };
-      },
-      write: async (key, contents, options) => {
-        const current = documents.get(key);
-        if (current !== undefined && !options.allowOverwrite) throw new Error("already exists");
-        if (options.ifMatch !== undefined && options.ifMatch !== current?.etag)
-          throw new Error("precondition failed");
-        version += 1;
-        documents.set(key, { contents, etag: `etag-${version}` });
-      },
-    },
+test("checkpoint survives restart and rejects an older delayed save", async () => {
+  const memory = createCheckpointMemoryIo();
+  const firstProcess = createCheckpointStore(memory.io);
+  const initial = { ...issue18Checkpoint, outcome: /** @type {const} */ ("active"), revision: 1 };
+  expect(await firstProcess.save(initial)).toMatchObject({ saved: true });
+
+  const restartedProcess = createCheckpointStore(memory.io);
+  expect(await restartedProcess.read(initial)).toMatchObject({
+    checkpoint: { branch: initial.branch, diagnostics: initial.diagnostics, revision: 1 },
+    found: true,
+  });
+
+  const current = { ...initial, nextMilestone: "Run focused typecheck.", revision: 2 };
+  expect(await restartedProcess.save(current)).toMatchObject({ saved: true });
+  expect(await firstProcess.save(initial)).toMatchObject({ saved: false });
+  expect(await restartedProcess.read(initial)).toMatchObject({
+    checkpoint: { nextMilestone: "Run focused typecheck.", revision: 2 },
+    found: true,
+  });
+});
+
+test("checkpoint read fails closed on malformed stored content", async () => {
+  const memory = createCheckpointMemoryIo();
+  const key = checkpointKey(
+    issue18Checkpoint.workItem,
+    issue18Checkpoint.rootRunId,
+    issue18Checkpoint.station,
+  );
+  if (key === null) throw new Error("fixture key must be valid");
+  memory.corrupt(key);
+  expect(await createCheckpointStore(memory.io).read(issue18Checkpoint)).toMatchObject({
+    found: false,
+  });
+});
+
+test("checkpoint save preserves a queued escalation for the same blocker", async () => {
+  const memory = createCheckpointMemoryIo();
+  const store = createCheckpointStore(memory.io);
+  const escalation = {
+    deliveryKey: "solos-station-escalation:esc_1234567890abcdef12345678",
+    id: "esc_1234567890abcdef12345678",
+    message: "Implementer remains blocked.",
+    queuedAt: "2026-09-19T03:45:00.000Z",
   };
-};
-
-describe("[integration] durable checkpoint store", () => {
-  test("survives a new reader and rejects an older delayed save", async () => {
-    const memory = createMemoryIo();
-    const firstProcess = createCheckpointStore(memory.io);
-    const initial = { ...issue18Checkpoint, outcome: "active", revision: 1 };
-    expect(await firstProcess.save(initial)).toMatchObject({ saved: true });
-
-    const restartedProcess = createCheckpointStore(memory.io);
-    expect(await restartedProcess.read(initial)).toMatchObject({
-      checkpoint: { branch: initial.branch, diagnostics: initial.diagnostics, revision: 1 },
-      found: true,
-    });
-
-    const current = { ...initial, nextMilestone: "Run focused typecheck.", revision: 2 };
-    expect(await restartedProcess.save(current)).toMatchObject({ saved: true });
-    expect(await firstProcess.save(initial)).toMatchObject({ saved: false });
-    expect(await restartedProcess.read(initial)).toMatchObject({
-      checkpoint: { nextMilestone: "Run focused typecheck.", revision: 2 },
-      found: true,
-    });
-  });
-
-  test("fails closed on malformed stored content", async () => {
-    const memory = createMemoryIo();
-    const key = checkpointKey(
-      issue18Checkpoint.workItem,
-      issue18Checkpoint.rootRunId,
-      issue18Checkpoint.station,
-    );
-    if (key === null) throw new Error("fixture key must be valid");
-    memory.corrupt(key);
-    expect(await createCheckpointStore(memory.io).read(issue18Checkpoint)).toMatchObject({
-      found: false,
-    });
-  });
-
-  test("emits one durable blocker escalation across concurrency and restart", async () => {
-    const memory = createMemoryIo();
-    const firstProcess = createCheckpointStore(memory.io);
-    const initial = { ...issue18Checkpoint, revision: 1 };
-    expect(await firstProcess.save(initial)).toMatchObject({ saved: true });
-    const input = {
-      fingerprint: initial.blocker?.fingerprint ?? "missing",
-      rootRunId: initial.rootRunId,
-      station: initial.station,
-      workItem: initial.workItem,
-    };
-
-    const emissions = await Promise.all([
-      firstProcess.emitEscalation(input),
-      createCheckpointStore(memory.io).emitEscalation(input),
-    ]);
-    expect(emissions.filter((emission) => emission.emitted)).toHaveLength(1);
-    expect(emissions.find((emission) => emission.emitted)?.escalation).toContain("remains blocked");
-    expect(await createCheckpointStore(memory.io).emitEscalation(input)).toEqual({
-      emitted: false,
-      reason: "already_emitted",
-    });
-    expect(await firstProcess.read(initial)).toMatchObject({
-      checkpoint: {
-        blocker: {
-          escalationEmittedAt: expect.any(String),
-          escalationMessage: expect.stringContaining("remains blocked"),
-        },
-        revision: 2,
-      },
-      found: true,
-    });
+  const initial = {
+    ...issue18Checkpoint,
+    blocker: { ...issue18Checkpoint.blocker, escalation },
+    revision: 1,
+  };
+  expect(await store.save(initial)).toMatchObject({ saved: true });
+  const update = { ...issue18Checkpoint, revision: 2 };
+  expect(await store.save(update)).toMatchObject({ saved: true });
+  expect(await store.read(update)).toMatchObject({
+    checkpoint: { blocker: { escalation }, revision: 2 },
+    found: true,
   });
 });

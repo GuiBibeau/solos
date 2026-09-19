@@ -4,7 +4,7 @@
  * @typedef {import("./schema.js").StationCheckpoint} StationCheckpoint
  * @typedef {{
  *   sessionStatus?: "running" | "waiting" | "completed" | "failed";
- *   taskOutcome?: "active" | "completed" | "failed" | "cancelled";
+ *   taskOutcome?: "active" | "budget_paused" | "completed" | "failed" | "cancelled";
  *   observationTimedOut?: boolean;
  *   latestActivityAt?: string;
  *   cursor?: string;
@@ -19,6 +19,7 @@
 
 const OBSERVED_STATUS = /** @type {const} */ ({
   active: "active",
+  budget_paused: "budget_paused",
   cancelled: "failed",
   completed: "completed",
   failed: "failed",
@@ -44,7 +45,7 @@ export const stationView = (checkpoint, observation) => ({
   status: stationStatus(checkpoint, observation),
 });
 
-/** One escalation is emitted only after the same blocker repeats without a recorded escalation. */
+/** A repeated blocker stays actionable until its durable escalation is acknowledged. */
 /** @param {StationCheckpoint} checkpoint */
 export const blockerStatus = (checkpoint) => {
   const blocker = checkpoint.blocker;
@@ -52,11 +53,10 @@ export const blockerStatus = (checkpoint) => {
   return {
     attemptedCorrection: blocker.attemptedCorrection,
     attempts: blocker.attempts,
-    escalationEmittedAt: blocker.escalationEmittedAt,
-    escalationMessage: blocker.escalationMessage,
+    escalation: blocker.escalation,
     fingerprint: blocker.fingerprint,
     lastOperation: checkpoint.latestOperation,
-    shouldEscalate: blocker.attempts > 1 && blocker.escalationEmittedAt === undefined,
+    shouldEscalate: blocker.attempts > 1 && blocker.escalation?.deliveredAt === undefined,
   };
 };
 
@@ -71,6 +71,7 @@ export const monitoringBackoffMs = (unchangedObservations) =>
  */
 export const reportUsage = (entries) => {
   const known = entries.filter((entry) => entry !== undefined);
+  if (known.length === 0) return undefined;
   const aggregate = known.find((entry) => entry?.accountingScope === "root_aggregate");
   if (aggregate !== undefined) return aggregate;
   const cachedInputTokens = known.flatMap((entry) => entry?.cachedInputTokens ?? []);

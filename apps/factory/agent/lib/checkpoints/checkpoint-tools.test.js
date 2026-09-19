@@ -1,67 +1,82 @@
 // @ts-check
 import { expect, test } from "bun:test";
+import { createCheckpointReader } from "./checkpoint-reader.js";
+import { createCheckpointSaver } from "./checkpoint-saver.js";
+import { createCheckpointMemoryIo } from "./checkpoint-test-io.js";
 import { issue18Checkpoint } from "./fixtures.js";
 import { createRuntimeObserver } from "./runtime-observer.js";
 import { createCheckpointStore } from "./store.js";
-import { createCheckpointReader, createCheckpointSaver } from "./tools.js";
 
-const memoryIo = () => {
-  /** @type {Map<string, {content: string; etag: string}>} */
-  const documents = new Map();
-  let version = 0;
-  return {
-    read: async (/** @type {string} */ key) => {
-      const value = documents.get(key);
-      return value === undefined
-        ? { found: /** @type {const} */ (false) }
-        : { ...value, found: /** @type {const} */ (true), uploadedAt: "2026-09-19T00:00:00Z" };
-    },
-    write: async (key, content, options) => {
-      const current = documents.get(key);
-      if (options.ifMatch !== undefined && options.ifMatch !== current?.etag)
-        throw new Error("conflict");
-      version += 1;
-      documents.set(key, { content, etag: `etag-${version}` });
-    },
-  };
-};
-
-test("save injects runtime identity and authoritative provider usage", async () => {
-  const io = memoryIo();
-  const checkpoints = createCheckpointStore(io);
-  const observer = createRuntimeObserver(io);
-  const completed = /** @type {import("eve/hooks").HookEvent} */ ({
+const usageEvent = (id, inputTokens = 10) =>
+  /** @type {import("eve/hooks").HookEvent} */ ({
     data: {
       finishReason: "stop",
       sequence: 1,
       stepIndex: 0,
       turnId: "turn-1",
-      usage: { cacheReadTokens: 3, costUsd: 0.01, inputTokens: 10, outputTokens: 2 },
+      usage: { cacheReadTokens: 3, costUsd: 0.01, inputTokens, outputTokens: 2 },
     },
-    meta: { at: "2026-09-19T00:00:01Z", id: "event-1" },
+    meta: { at: "2026-09-19T00:00:01Z", id },
     type: "step.completed",
   });
-  await observer.observe(completed, "runtime-session");
+
+const childUsageEvent = () =>
+  /** @type {import("eve/hooks").HookEvent} */ ({
+    data: {
+      result: {
+        callId: "runtime-call",
+        kind: "subagent-result",
+        origin: "child",
+        outcome: { kind: "completed", usageDelta: {} },
+        output: {},
+        subagentName: "implementer",
+        usage: { cacheReadTokens: 1, cacheWriteTokens: 0, inputTokens: 5, outputTokens: 1 },
+      },
+      sequence: 2,
+      status: "completed",
+      stepIndex: 1,
+      turnId: "root-turn",
+    },
+    meta: { at: "2026-09-19T00:00:02Z", id: "root-event-0002" },
+    type: "action.result",
+  });
+
+const childContext = () =>
+  /** @type {import("eve/tools").SessionContext} */ ({
+    session: {
+      id: "runtime-session",
+      parent: {
+        callId: "runtime-call",
+        rootSessionId: "root-session",
+        sessionId: "parent-session",
+        turn: { id: "parent-turn", sequence: 0 },
+      },
+      turn: { id: "runtime-turn", sequence: 0 },
+    },
+  });
+
+const writableCheckpoint = () => {
   const candidate = { ...issue18Checkpoint };
   Reflect.deleteProperty(candidate, "stationRunId");
   Reflect.deleteProperty(candidate, "taskId");
   Reflect.deleteProperty(candidate, "usage");
-  const save = createCheckpointSaver(checkpoints, observer);
-  const ctx = /** @type {import("eve/tools").SessionContext} */ ({
-    session: {
-      id: "runtime-session",
-      parent: { callId: "runtime-call" },
-      turn: { id: "runtime-turn" },
-    },
-  });
+  return candidate;
+};
 
-  expect(await save({ ...candidate, revision: 1 }, ctx)).toMatchObject({ saved: true });
+test("save injects Eve's derived task identity and provider usage", async () => {
+  const memory = createCheckpointMemoryIo();
+  const checkpoints = createCheckpointStore(memory.io);
+  const observer = createRuntimeObserver(memory.io);
+  await observer.observe(usageEvent("event-0001"), "runtime-session");
+  const save = createCheckpointSaver(checkpoints, observer);
+  const candidate = writableCheckpoint();
+  expect(await save({ ...candidate, revision: 1 }, childContext())).toMatchObject({ saved: true });
   expect(await checkpoints.read(candidate)).toMatchObject({
     checkpoint: {
       stationRunId: "runtime-session",
-      taskId: "runtime-call",
+      taskId: "task_336135bd2632c09d3de51f9d",
       usage: {
-        billedCostSource: "eve.step.completed.usage.costUsd",
+        billedCostSource: "eve.runtime.provider-reported",
         billedCostUsd: 0.01,
         cachedInputTokens: 3,
         inputTokens: 10,
@@ -69,25 +84,39 @@ test("save injects runtime identity and authoritative provider usage", async () 
       },
     },
   });
+});
 
-  const nextUsage = {
-    ...completed,
-    data: {
-      ...completed.data,
-      usage: { cacheReadTokens: 1, costUsd: 0.02, inputTokens: 5, outputTokens: 1 },
-    },
-    meta: { at: "2026-09-19T00:00:02Z", id: "event-2" },
-  };
-  await observer.observe(nextUsage, "runtime-session");
+test("reads refresh station usage from the runtime observation", async () => {
+  const memory = createCheckpointMemoryIo();
+  const checkpoints = createCheckpointStore(memory.io);
+  const observer = createRuntimeObserver(memory.io);
+  const candidate = writableCheckpoint();
+  const save = createCheckpointSaver(checkpoints, observer);
+  await observer.observe(usageEvent("event-0001"), "runtime-session");
+  await save({ ...candidate, revision: 1 }, childContext());
+  await observer.observe(usageEvent("event-0002", 5), "runtime-session");
   const read = createCheckpointReader(checkpoints, observer);
   expect(await read(candidate)).toMatchObject({
-    checkpoint: {
-      usage: {
-        billedCostUsd: 0.03,
-        cachedInputTokens: 4,
-        inputTokens: 15,
-        outputTokens: 3,
-      },
-    },
+    checkpoint: { usage: { billedCostUsd: 0.02, inputTokens: 15, outputTokens: 4 } },
+    usage: { accountingScope: "station", inputTokens: 15 },
+  });
+});
+
+test("root aggregate usage includes child usage exactly once", async () => {
+  const memory = createCheckpointMemoryIo();
+  const checkpoints = createCheckpointStore(memory.io);
+  const observer = createRuntimeObserver(memory.io);
+  await checkpoints.save({
+    ...issue18Checkpoint,
+    revision: 1,
+    stationRunId: "runtime-session",
+  });
+  await observer.observe(usageEvent("root-event-0001", 20), "root-session", "root_aggregate");
+  await observer.observe(childUsageEvent(), "root-session", "root_aggregate");
+  await observer.observe(usageEvent("station-event-0001", 5), "runtime-session");
+  const read = createCheckpointReader(checkpoints, observer);
+  expect(await read(issue18Checkpoint, childContext())).toMatchObject({
+    checkpoint: { usage: { accountingScope: "station", inputTokens: 5 } },
+    usage: { accountingScope: "root_aggregate", inputTokens: 25 },
   });
 });

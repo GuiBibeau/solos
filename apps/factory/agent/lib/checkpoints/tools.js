@@ -1,16 +1,16 @@
 // @ts-check
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { createCheckpointReader } from "./checkpoint-reader.js";
+import { createCheckpointSaver, saveInputSchema } from "./checkpoint-saver.js";
 import { runtimeObserver } from "./runtime-observer.js";
-import { StationCheckpointSchema, StationSchema } from "./schema.js";
-import { blockerStatus, monitoringBackoffMs, stationView } from "./status.js";
+import { StationCheckpointSchema, StationSchema, UsageSchema } from "./schema.js";
 import { checkpointStore } from "./store.js";
 
 const BlockerStatusSchema = z.object({
   attemptedCorrection: z.string().optional(),
   attempts: z.number().int().positive().optional(),
-  escalationEmittedAt: z.iso.datetime().optional(),
-  escalationMessage: z.string().optional(),
+  escalation: StationCheckpointSchema.shape.blocker.unwrap().shape.escalation.optional(),
   fingerprint: z.string().optional(),
   lastOperation: StationCheckpointSchema.shape.latestOperation.optional(),
   shouldEscalate: z.boolean(),
@@ -41,74 +41,11 @@ const ReadOutput = z.object({
   backoffMs: z.number().int().nonnegative().optional(),
   error: z.string().optional(),
   found: z.boolean(),
+  usage: UsageSchema.optional(),
   view: StatusViewSchema.optional(),
 });
 
-/** @param {typeof checkpointStore} checkpoints @param {typeof runtimeObserver} observer */
-export const createCheckpointReader =
-  (checkpoints, observer) => async (/** @type {z.infer<typeof ReadInput>} */ input) => {
-    const { workItem, rootRunId, station, unchangedObservations } = input;
-    const result = await checkpoints.read({ rootRunId, station, workItem });
-    if (!result.found || result.checkpoint === undefined) return result;
-    const observed =
-      result.checkpoint.stationRunId === undefined
-        ? { found: false }
-        : await observer.read(result.checkpoint.stationRunId);
-    const observation =
-      observed.found && observed.observation !== undefined
-        ? observed.observation
-        : { observationTimedOut: /** @type {const} */ (true) };
-    const checkpoint = withObservedUsage(result.checkpoint, observed);
-    return {
-      ...result,
-      checkpoint,
-      blocker: blockerStatus(checkpoint),
-      backoffMs: monitoringBackoffMs(unchangedObservations ?? 0),
-      view: stationView(checkpoint, observation),
-    };
-  };
-
-/** @param {z.infer<typeof StationCheckpointSchema>} checkpoint @param {Awaited<ReturnType<typeof runtimeObserver.read>>} observed */
-const withObservedUsage = (checkpoint, observed) => {
-  const usage = observed.found ? observed.observation?.usage : undefined;
-  return usage === undefined ? checkpoint : { ...checkpoint, usage };
-};
-
 export const readCheckpoint = createCheckpointReader(checkpointStore, runtimeObserver);
-
-const WritableBlockerSchema = z.object({
-  attemptedCorrection: z.string().min(1).max(1000),
-  attempts: z.number().int().positive(),
-  fingerprint: z.string().min(1).max(200),
-  lastObservedAt: z.iso.datetime(),
-});
-const WritableCheckpointSchema = StationCheckpointSchema.omit({
-  stationRunId: true,
-  taskId: true,
-  usage: true,
-}).extend({ blocker: WritableBlockerSchema.optional() });
-
-/** @param {z.infer<typeof StationSchema>} station */
-const saveInputSchema = (station) =>
-  WritableCheckpointSchema.extend({ station: z.literal(station) });
-
-/** @param {typeof checkpointStore} checkpoints @param {typeof runtimeObserver} observer */
-export const createCheckpointSaver =
-  (checkpoints, observer) =>
-  async (
-    /** @type {unknown} */ candidate,
-    /** @type {import("eve/tools").SessionContext} */ ctx,
-  ) => {
-    const input = WritableCheckpointSchema.parse(candidate);
-    const observed = await observer.read(ctx.session.id);
-    const usage = observed.found ? observed.observation?.usage : undefined;
-    return checkpoints.save({
-      ...input,
-      stationRunId: ctx.session.id,
-      taskId: ctx.session.parent?.callId ?? ctx.session.turn.id,
-      ...(usage !== undefined && { usage }),
-    });
-  };
 
 const saveCheckpoint = createCheckpointSaver(checkpointStore, runtimeObserver);
 

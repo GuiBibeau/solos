@@ -1,7 +1,9 @@
 // @ts-check
 import { readDocument, writeDocument } from "../blob.js";
 import { observationKey } from "./config.js";
+import { mergeLifecycle } from "./runtime-lifecycle.js";
 import { observationFromEvent, RuntimeObservationSchema } from "./runtime-observation.js";
+import { addUsage } from "./runtime-usage.js";
 
 /** @typedef {import("./runtime-observation.js").RuntimeObservation} RuntimeObservation */
 /** @typedef {{
@@ -43,40 +45,29 @@ const mergeObservation = (prior, event) => {
       revision: 0,
       seenEventIds: [],
     });
-  if (previous.seenEventIds.includes(event.eventId)) return null;
+  if (
+    previous.seenEventIds.includes(event.eventId) ||
+    (prior?.lastEventId !== undefined && event.eventId <= prior.lastEventId)
+  )
+    return null;
+  const lifecycle = mergeLifecycle(previous, event);
   return RuntimeObservationSchema.parse({
     cursor: event.cursor ?? previous.cursor,
+    lastEventId: event.eventId,
     latestActivityAt: event.latestActivityAt,
+    ...lifecycle,
     revision: previous.revision + 1,
     seenEventIds: [...previous.seenEventIds, event.eventId].slice(-100),
-    sessionStatus: event.sessionStatus,
     stationRunId: event.stationRunId,
-    taskOutcome: event.taskOutcome ?? previous.taskOutcome,
     usage: addUsage(previous.usage, event.usage),
   });
 };
 
-/** @param {RuntimeObservation["usage"]} prior @param {RuntimeObservation["usage"]} delta */
-const addUsage = (prior, delta) => {
-  if (delta === undefined) return prior;
-  /** @param {number | undefined} left @param {number | undefined} right */
-  const add = (left, right) =>
-    left === undefined && right === undefined ? undefined : (left ?? 0) + (right ?? 0);
-  return {
-    accountingScope: /** @type {const} */ ("station"),
-    ...(delta.billedCostSource !== undefined && { billedCostSource: delta.billedCostSource }),
-    billedCostUsd: add(prior?.billedCostUsd, delta.billedCostUsd),
-    cachedInputTokens: add(prior?.cachedInputTokens, delta.cachedInputTokens),
-    inputTokens: add(prior?.inputTokens, delta.inputTokens),
-    outputTokens: add(prior?.outputTokens, delta.outputTokens),
-  };
-};
-
 /** @param {ObservationIo} io */
 export const createRuntimeObserver = (io) => {
-  /** @param {import("eve/hooks").HookEvent} event @param {string} stationRunId */
-  const observe = async (event, stationRunId) => {
-    const observation = observationFromEvent(event, stationRunId);
+  /** @param {import("eve/hooks").HookEvent} event @param {string} stationRunId @param {"station" | "root_aggregate"} [accountingScope] */
+  const observe = async (event, stationRunId, accountingScope = "station") => {
+    const observation = observationFromEvent(event, stationRunId, accountingScope);
     if (observation !== null) await persist(io, observation);
   };
   const read = async (/** @type {string} */ stationRunId) => {
@@ -101,16 +92,15 @@ export const createRuntimeObserver = (io) => {
 
 export const runtimeObserver = createRuntimeObserver({ read: readDocument, write: writeDocument });
 
-/** @param {import("eve/hooks").HookEvent} event @param {import("eve/hooks").HookContext} ctx */
-export const observeRuntimeEvent = async (event, ctx) => {
-  try {
-    await runtimeObserver.observe(event, ctx.session.id);
-  } catch (error) {
-    console.error(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : String(error),
-        event: "station-observation-failed",
-      }),
+/** @param {Pick<typeof runtimeObserver, "observe">} observer */
+export const createRuntimeEventHandler =
+  (observer) =>
+  /** @param {import("eve/hooks").HookEvent} event @param {import("eve/hooks").HookContext} ctx */
+  async (event, ctx) =>
+    observer.observe(
+      event,
+      ctx.session.id,
+      ctx.session.parent === undefined ? "root_aggregate" : "station",
     );
-  }
-};
+
+export const observeRuntimeEvent = createRuntimeEventHandler(runtimeObserver);
