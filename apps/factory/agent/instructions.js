@@ -5,8 +5,11 @@
  * The station pipeline lives here; each station's own procedure lives in its `instructions.md`.
  */
 import { defineInstructions } from "eve/instructions";
+import { ACCEPTANCE } from "./lib/prompt/acceptance.js";
 import { DELIVERY } from "./lib/prompt/delivery.js";
 import { IDENTITY } from "./lib/prompt/identity.js";
 import { PIPELINE } from "./lib/prompt/pipeline.js";
 
-export default defineInstructions({ markdown: [IDENTITY, PIPELINE, DELIVERY].join("\n\n") });
+export default defineInstructions({
+  markdown: [IDENTITY, PIPELINE, ACCEPTANCE, DELIVERY].join("\n\n"),
+});

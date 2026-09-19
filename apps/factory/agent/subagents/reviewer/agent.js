@@ -7,6 +7,7 @@
  * cumulative token guardrail, so the default OpenAI reviewer retains independent safety caps.
  */
 import { defineAgent } from "eve";
+import { matrixOutputSchema, reviewOutputSchema } from "../../lib/acceptance/output-schema.js";
 import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
@@ -15,7 +16,7 @@ export default defineAgent({
     "fetch the branch, run `bun run solos dev verify --scope check --json` in an independent clone, compare its " +
     "sha with the implementer's Evidence (missing, mismatched, or dirty Evidence is request_changes before " +
     "reading the diff), then read the real diff and return approve, request_changes, or reject with specific " +
-    "findings. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
+    "findings; approve_draft preserves explicitly deferred operator/CI QA. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
     "branch name, and the implementer's report including its evidence field, plus an artifact id when the " +
     "analyst saved its detail.",
   limits: sessionLimitsFor("reviewer"),
@@ -23,27 +24,12 @@ export default defineAgent({
   outputSchema: {
     additionalProperties: false,
     properties: {
+      acceptance_matrix: matrixOutputSchema,
+      review: reviewOutputSchema,
       blocking_findings: {
         description:
           "Problems that block shipping: each names where it is, what is wrong, and why it matters.",
         items: { type: "string" },
-        type: "array",
-      },
-      criteria_results: {
-        description: "One entry per acceptance criterion from the analysis, judged individually.",
-        items: {
-          additionalProperties: false,
-          properties: {
-            criterion: { description: "The acceptance criterion, verbatim.", type: "string" },
-            evidence: {
-              description: "What in the diff or verification output shows it passing or failing.",
-              type: "string",
-            },
-            pass: { type: "boolean" },
-          },
-          required: ["criterion", "pass", "evidence"],
-          type: "object",
-        },
         type: "array",
       },
       evidence_check: {
@@ -57,12 +43,13 @@ export default defineAgent({
         type: "array",
       },
       summary: { description: "One paragraph: the verdict and what drove it.", type: "string" },
-      verdict: { enum: ["approve", "request_changes", "reject"], type: "string" },
+      verdict: { enum: ["approve", "approve_draft", "request_changes", "reject"], type: "string" },
     },
     required: [
       "verdict",
       "evidence_check",
-      "criteria_results",
+      "acceptance_matrix",
+      "review",
       "blocking_findings",
       "suggestions",
       "summary",

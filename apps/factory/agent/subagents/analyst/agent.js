@@ -6,6 +6,7 @@
  * produces are the contract the reviewer later judges the implementation against, verbatim.
  */
 import { defineAgent } from "eve";
+import { matrixOutputSchema } from "../../lib/acceptance/output-schema.js";
 import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
@@ -21,13 +22,7 @@ export default defineAgent({
   outputSchema: {
     additionalProperties: false,
     properties: {
-      acceptance_criteria: {
-        description:
-          "Objective, testable criteria the reviewer will check one by one, verbatim. Starts with the issue form's criteria unchanged; extensions follow.",
-        items: { type: "string" },
-        minItems: 1,
-        type: "array",
-      },
+      acceptance_matrix: matrixOutputSchema,
       adr: {
         description:
           "The ADR in docs/adr that constrains the change, cited by number and title, and the constraint it imposes.",
@@ -110,7 +105,7 @@ export default defineAgent({
       "affected_surface",
       "protected_paths_required",
       "risks",
-      "acceptance_criteria",
+      "acceptance_matrix",
       "test_strategy",
       "assumptions",
       "open_questions",

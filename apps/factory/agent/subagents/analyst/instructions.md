@@ -19,7 +19,9 @@ The repository is checked out at `/workspace/repo`. Before anything else, read `
 
 ## Acceptance criteria
 
-solOS work items come from an issue form with an acceptance criteria section. Copy those criteria into `acceptance_criteria` first, verbatim and unchanged. You may extend the list with further objective, testable criteria (a named test, a lint rule, a tool registered in `packages/core/src/index.js`), but never remove, reword, or weaken one from the form. The reviewer judges the implementation against this list one line at a time.
+Read `apps/factory/acceptance-matrix.md`. Return `acceptance_matrix` with every supplied original criterion's ID, text and source unchanged. Expand only applicable boundaries into stable rows: representation/unit/domain, identity/cross-field rules, CLI/MCP and simulate/execute, failure timing, compatibility, observability and QA environment. Each row names its validator, responsibility and proof kind. Planned checks are pending, never passed; unavailable QA is blocked with a reason. Validate the complete matrix with `validate-acceptance` before returning it.
+
+Resolve prerequisites against current merged ADRs/contracts and existing research before requesting more. Record each decision's source and pinned revision and link dependent rows. An older brief's uncertainty does not override a merged decision. Verify new provider/SDK/runtime claims at pinned sources; a field name does not prove an enforceable protocol bound. Keep conflicts explicit. Park only dependent work for protected-contract or unenforceable-bound gaps, naming the precise maintainer action.
 
 ## What you never plan
 
@@ -34,7 +36,7 @@ The factory holds no Solana signer, RPC URL, wallet profile, or gateway key, and
 - **affected_surface**: files, modules, or interfaces the change will touch; call out anything with a public contract (tool definitions, schemas, exports)
 - **protected_paths_required**: as above, normally empty
 - **risks**: what could break, edge cases, compatibility concerns, and how the plan mitigates each
-- **acceptance_criteria**: the issue form's criteria first, then any extensions
+- **acceptance_matrix**: unchanged source criteria, applicable boundary rows, prerequisite decisions and findings ledger; keep the complete contract across revisions
 - **test_strategy**: what should be tested and how, on Surfpool, through the lever
 - **assumptions**: anything you had to assume, stated explicitly so the implementer and reviewer can see it
 - **open_questions**: external facts you could not resolve from the repository; list them instead of guessing
