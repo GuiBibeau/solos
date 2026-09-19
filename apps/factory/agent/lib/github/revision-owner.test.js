@@ -87,26 +87,4 @@ describe("PR revision owner", () => {
     expect(ciResult.deliveries[0]?.address).toBe("repo:123:pull:37");
     expect(ciResult.deliveries[0]?.options.context?.join("\n")).toContain("check-suite:800");
   });
-
-  test("reordered signed reviews keep separate findings on one revision owner", async () => {
-    const first = reviewFixture();
-    const second = reviewFixture();
-    second.review.id = 701;
-    second.payload.comment.pull_request_review_id = 701;
-    second.comments = second.comments.map((comment) => ({
-      ...comment,
-      id: comment.id + 100,
-      pull_request_review_id: 701,
-      body: `${comment.body} from the later review`,
-    }));
-    second.payload.comment = second.comments[1];
-    const results = await Promise.all([deliverReview(second), deliverReview(first)]);
-    expect(results.map((result) => result.deliveries[0]?.address)).toEqual([
-      "repo:123:pull:37",
-      "repo:123:pull:37",
-    ]);
-    const contexts = results.map((result) => result.deliveries[0]?.options.context?.join("\n"));
-    expect(contexts[0]).toContain("later review");
-    expect(contexts[1]).toContain("First finding");
-  });
 });

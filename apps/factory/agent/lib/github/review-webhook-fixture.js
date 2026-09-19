@@ -84,7 +84,10 @@ const apiResponse = (fixture, request) => {
   throw new Error(`Unexpected GitHub request: ${pathname}`);
 };
 
-/** @param {Fixture} fixture @param {{event?: string, validSignature?: boolean, defaultHandler?: boolean}} [options] */
+/** @param {Fixture} fixture @param {{event?: string, validSignature?: boolean,
+ * defaultHandler?: boolean, deliveryId?: string,
+ * from?: import("eve/channels").ChannelFrom<import("eve/channels/github").GitHubChannelState>}} [options]
+ */
 export const deliverReview = async (fixture, options = {}) => {
   const server = Bun.serve({
     hostname: "127.0.0.1",
