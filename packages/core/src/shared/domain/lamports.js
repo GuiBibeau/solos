@@ -10,9 +10,14 @@ export const LamportsSchema = z
   .transform(BigInt)
   .describe("Amount in lamports (1 SOL = 1e9 lamports)");
 
-/** Positive SOL amount as a decimal string or number, e.g. "0.25". Max 9 decimals. */
+/**
+ * SOL amount as a decimal string or number, e.g. "0.25". Max 9 decimals. The number side
+ * accepts the whole finite numeric domain on purpose: zero and negatives must reach the
+ * consuming domain rule, which rejects them as a structured ValidationError, instead of
+ * failing earlier as an unstructured Zod parse error.
+ */
 export const SolAmountSchema = z
-  .union([z.number().positive(), z.string().regex(/^\d+(\.\d{1,9})?$/)])
+  .union([z.number(), z.string().regex(/^\d+(\.\d{1,9})?$/)])
   .describe("Amount in SOL as a decimal, e.g. 0.25");
 
 const EXPONENT_NOTATION = /^[+-]?\d+(?:\.\d*)?[eE][+-]?\d+$/;

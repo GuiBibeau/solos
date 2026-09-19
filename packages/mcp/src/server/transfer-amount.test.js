@@ -85,6 +85,15 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
     });
   });
 
+  test("rejects numeric amountSol 0 as the same structured ValidationError", async () => {
+    const result = await simulate(memorySigner, 0);
+    expect(result?.isError).toBe(true);
+    expect(result?.structuredContent).toMatchObject({
+      code: "ValidationError",
+      field: "amountSol",
+    });
+  });
+
   test("numeric amountSol 1e-9 fails downstream, never as a parsing defect", async () => {
     const result = await simulate(memorySigner, 1e-9);
     expect(result?.isError).toBe(true);
@@ -94,7 +103,7 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
   });
 
   test("with a nonexistent keypair, zero-equivalents fail as ValidationError, pre-signer", async () => {
-    for (const amountSol of ["0", "0.000000000", 4.9e-10]) {
+    for (const amountSol of ["0", "0.000000000", 0, 4.9e-10]) {
       const result = await simulate(brokenSigner, amountSol);
       expect(result?.isError).toBe(true);
       expect(result?.structuredContent).toMatchObject({
