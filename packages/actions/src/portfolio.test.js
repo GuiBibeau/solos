@@ -47,6 +47,8 @@ describe("Position identities and valuation units", () => {
     expect(PositionSchema.parse(lend)).toEqual(lend);
     expect(PositionSchema.safeParse({ ...lend, positions: [OWNER, OWNER] }).success).toBe(false);
     expect(PositionSchema.safeParse({ ...lend, market: undefined }).success).toBe(false);
+    expect(PositionSchema.safeParse({ ...lend, positions: [] }).success).toBe(false);
+    expect(PositionSchema.safeParse({ ...lend, amount: "0", positions: [] }).success).toBe(true);
   });
 
   test("shorts preserve direction and flat requires exactly zero size", () => {

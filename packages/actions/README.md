@@ -26,7 +26,8 @@ rounding. Schemas encode intent; on-chain ownership, layout, price ticks, lots a
 are executor responsibilities. A confirmed IOC order may have zero or partial fills.
 
 Wallet token positions keep their old shape; native SOL uses instrument `SOL`, not wSOL's mint.
-Lend positions add market and contributing obligation addresses. Perps add account and side;
+Lend positions add market and contributing obligation addresses; nonzero supply requires at
+least one obligation. Perps add account and side;
 amount is absolute exposure, with zero exactly `flat`. Shared signed equity lives once in
 `perpAccounts`, never in market valueUsd or notional. LP records have position identity, raw
 liquidity shares and two underlying quantities, not a generic amount/decimals pair. Consumers
@@ -73,7 +74,8 @@ actions.forEach((action) => ActionSchema.parse(action));
 The LP forms also accept `meteora` and `raydium` with the same fields. A Phoenix short changes
 side to `short` and uses limitPriceUsd as the minimum sell price. A close derives direction from
 current exposure and is always reduce-only. Pump budgets include protocol trading fees, but
-network fees and rent are separate. Ordinary swap validation remains compatible with 0.1;
+network fees and rent are separate. Pump schema validation requires a positive u64 amount and
+slippage of 0..9999 bps. Ordinary swap validation remains compatible with 0.1;
 venue executors must reject unsupported, zero or unsafe amounts before submission.
 
 ## Exact Position and portfolio examples

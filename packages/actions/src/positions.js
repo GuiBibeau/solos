@@ -16,17 +16,22 @@ export const TokenPositionSchema = z.object({
   protocol: z.string().nullable(),
 });
 
-export const LendPositionSchema = z.object({
-  kind: z.literal("lend"),
-  ...holding,
-  instrument: AddressSchema,
-  protocol: z.literal("kamino"),
-  market: AddressSchema,
-  positions: z
-    .array(AddressSchema)
-    .refine((items) => new Set(items).size === items.length, "duplicate obligation")
-    .describe("Distinct obligation accounts contributing to this mint in this market"),
-});
+export const LendPositionSchema = z
+  .object({
+    kind: z.literal("lend"),
+    ...holding,
+    instrument: AddressSchema,
+    protocol: z.literal("kamino"),
+    market: AddressSchema,
+    positions: z
+      .array(AddressSchema)
+      .refine((items) => new Set(items).size === items.length, "duplicate obligation")
+      .describe("Distinct obligation accounts contributing to this mint in this market"),
+  })
+  .refine((value) => /^0+$/.test(value.amount) || value.positions.length > 0, {
+    path: ["positions"],
+    message: "nonzero lending supply requires a contributing obligation",
+  });
 
 export const PerpPositionSchema = z
   .object({

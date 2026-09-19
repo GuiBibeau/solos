@@ -11,6 +11,26 @@ describe("Trading Action boundaries", () => {
     expect(ActionSchema.safeParse({ ...SWAP, venue: "auto" }).success).toBe(false);
   });
 
+  test("Pump bounds are strict while legacy Jupiter amounts and slippage are unchanged", () => {
+    for (const change of [
+      { amount: "0" },
+      { amount: "18446744073709551616" },
+      { maxSlippageBps: 10_000 },
+    ]) {
+      const legacy = { ...SWAP, ...change };
+      expect(ActionSchema.parse(legacy)).toEqual(legacy);
+      expect(ActionSchema.parse({ ...legacy, venue: "jupiter" })).toMatchObject(legacy);
+      expect(ActionSchema.safeParse({ ...legacy, venue: "pump" }).success).toBe(false);
+    }
+    for (const amount of ["1", "18446744073709551615"]) {
+      for (const maxSlippageBps of [0, 9999]) {
+        expect(
+          ActionSchema.safeParse({ ...SWAP, venue: "pump", amount, maxSlippageBps }).success,
+        ).toBe(true);
+      }
+    }
+  });
+
   test("LP adds need a position and at least one positive u64 spend budget", () => {
     for (const protocol of ["orca", "meteora", "raydium"]) {
       expect(ActionSchema.parse({ ...ADD, protocol }).type).toBe("add_liquidity");

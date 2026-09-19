@@ -1,6 +1,7 @@
 // @ts-check
 import { z } from "zod";
 import { AddressSchema, AmountSchema } from "./primitives.js";
+import { PositiveAmountSchema, SlippageBpsSchema } from "./trading-primitives.js";
 import {
   AddLiquidityActionSchema,
   ClosePerpActionSchema,
@@ -18,17 +19,33 @@ export const TransferSolActionSchema = z.object({
   lamports: AmountSchema.describe("Lamports to send"),
 });
 
-export const SwapActionSchema = z.object({
-  type: z.literal("swap"),
-  venue: z
-    .enum(["jupiter", "pump"])
-    .optional()
-    .describe("Omitted means Jupiter; launch buys explicitly choose pump"),
-  inputMint: AddressSchema,
-  outputMint: AddressSchema,
-  amount: AmountSchema.describe("Input amount in base units of inputMint"),
-  maxSlippageBps: bps,
-});
+export const SwapActionSchema = z
+  .object({
+    type: z.literal("swap"),
+    venue: z
+      .enum(["jupiter", "pump"])
+      .optional()
+      .describe("Omitted means Jupiter; launch buys explicitly choose pump"),
+    inputMint: AddressSchema,
+    outputMint: AddressSchema,
+    amount: AmountSchema.describe("Input amount in base units of inputMint"),
+    maxSlippageBps: bps,
+  })
+  .refine(
+    (action) => action.venue !== "pump" || PositiveAmountSchema.safeParse(action.amount).success,
+    {
+      path: ["amount"],
+      message: "Pump amount must be a positive u64 integer",
+    },
+  )
+  .refine(
+    (action) =>
+      action.venue !== "pump" || SlippageBpsSchema.safeParse(action.maxSlippageBps).success,
+    {
+      path: ["maxSlippageBps"],
+      message: "Pump slippage must be 0..9999 bps",
+    },
+  );
 
 /** Everything an agent may ask an executor to do. Discriminated on `type`. */
 export const ActionSchema = z.discriminatedUnion("type", [
