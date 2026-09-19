@@ -16,6 +16,7 @@ export default defineAgent({
     "form and only extended, and test strategy. Planning only; writes no code. The caller passes the work item, " +
     "its classification, and any research findings in the message, plus a research artifact id when the " +
     "researcher saved a full memo. May save its own deep supporting detail as an analysis artifact.",
+  limits: { maxInputTokensPerSession: false },
   ...modelConfigFor("analyst"),
   outputSchema: {
     additionalProperties: false,

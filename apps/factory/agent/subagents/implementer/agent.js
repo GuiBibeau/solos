@@ -17,6 +17,7 @@ export default defineAgent({
     "when the plan needs a protected path. The caller passes the work item, classification, and full analysis in " +
     "the message, plus an artifact id when the analyst saved its detail; on a revision run it also passes the " +
     "existing branch and the reviewer's findings.",
+  limits: { maxInputTokensPerSession: false },
   ...modelConfigFor("implementer"),
   outputSchema: {
     additionalProperties: false,
