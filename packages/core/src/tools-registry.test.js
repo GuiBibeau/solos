@@ -14,7 +14,9 @@ describe("tool registry", () => {
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
       "solana_perp_get_position",
+      "solana_swap_execute_swap",
       "solana_swap_get_quote",
+      "solana_swap_simulate_swap",
       "solana_transfer_send_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
@@ -80,6 +82,29 @@ describe("tool registry", () => {
     expect(tool?.input.shape.outputMint?.description).toBeTruthy();
     expect(tool?.input.shape.amount?.description).toBeTruthy();
     expect(tool?.input.shape.slippageBps?.description).toBeTruthy();
+  });
+
+  test("the swap simulate twin is simulate-tier with described arguments", () => {
+    const tool = allTools.find((t) => t.name === "solana_swap_simulate_swap");
+    expect(tool?.group).toBe("swap");
+    expect(tool?.tier).toBe("simulate");
+    expect(tool?.input.shape.inputMint?.description).toBeTruthy();
+    expect(tool?.input.shape.outputMint?.description).toBeTruthy();
+    expect(tool?.input.shape.amount?.description).toBeTruthy();
+    expect(tool?.input.shape.slippageBps?.description).toBeTruthy();
+  });
+
+  test("the swap execute twin is execute-tier, defaults skipSimulation false, describes it", () => {
+    const tool = allTools.find((t) => t.name === "solana_swap_execute_swap");
+    expect(tool?.group).toBe("swap");
+    expect(tool?.tier).toBe("execute");
+    expect(tool?.input.shape.skipSimulation?.description).toBeTruthy();
+    const parsed = tool.input.parse({
+      inputMint: "So11111111111111111111111111111111111111112",
+      outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      amount: "1000000",
+    });
+    expect(parsed.skipSimulation).toBe(false);
   });
 
   test("the launch curve tool is a read-tier launch tool with a described mint input", () => {

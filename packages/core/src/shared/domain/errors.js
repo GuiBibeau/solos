@@ -40,3 +40,14 @@ export class TransactionFailed extends /** @type {TransactionFailedClass} */ (
 export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
   taggedError("UnsupportedAction")
 ) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
+/** @typedef {{ readonly reason: string }} BuildRejectedProps */
+/**
+ * The executor refused a provider-built transaction before signing or sending: an intent echo
+ * mismatch, a program outside the allowlist, an unexpected signer, payer, or recipient, or a
+ * lifetime that already expired. Nothing reached the network as a transaction.
+ */
+export class BuildRejected extends /** @type {BuildRejectedClass} */ (
+  taggedError("BuildRejected")
+) {}
