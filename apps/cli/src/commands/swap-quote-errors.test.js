@@ -37,6 +37,7 @@ describe("`solos swap quote` error and discovery scenarios [integration]", () =>
     expect(code).toBe(0);
     const names = JSON.parse(stdout).tools.map((/** @type {{ name: string }} */ t) => t.name);
     expect(names).toEqual([
+      "solana_launch_get_curve",
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
       "solana_market_get_price",

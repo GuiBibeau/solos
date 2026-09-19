@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.js",
     "./market/test-seeds": "./src/market/test-seeds.js",
-    "./surfnet": "./src/surfnet/index.js"
+    "./surfnet": "./src/surfnet/index.js",
+    "./launch/test-seeds": "./src/launch/test-seeds.js"
   },
   "dependencies": {
     "@hpke/chacha20poly1305": "1.8.0",

@@ -9,6 +9,7 @@
     "./transfer": "./src/transfer/index.js",
     "./swap": "./src/swap/index.js",
     "./market": "./src/market/index.js",
+    "./launch": "./src/launch/index.js",
     "./signals": "./src/signals/index.js",
     "./shared": "./src/shared/index.js"
   },
