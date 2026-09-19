@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-The matrix is a compact station handoff, not a new product contract. `schema.js` defines the
+The matrix is a compact station handoff, not a new product contract. `agent/lib/acceptance/schema.js` defines the
 shared analyst/implementer/reviewer output. `validate-acceptance` validates the same pure data
 in the orchestrator and stations; offline tests need no model, provider, credentials or chain.
 

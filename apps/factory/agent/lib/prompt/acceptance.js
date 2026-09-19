@@ -7,7 +7,7 @@ required_surfaces (explicit paths required by that criterion/context; [] for non
 Assign stable issue-number/ac/ordinal IDs once; retain these even if later comments clarify scope.
 Pass originals independently of station output. An analyst may add boundary rows, never rewrite criteria.
 Every analyst, implementer and reviewer returns acceptance_matrix; relay the whole matrix unchanged.
-The matrix schema and examples are in apps/factory/agent/lib/acceptance/README.md in the checkout.
+The matrix schema and examples are in apps/factory/acceptance-matrix.md in the checkout.
 
 Before implementation, call validate-acceptance with phase analysis, originals, the analyst matrix,
 previous:null, the checkout revision and reviews:[]. Require valid:true. Preserve this baseline.
