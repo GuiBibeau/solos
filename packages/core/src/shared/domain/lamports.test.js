@@ -17,4 +17,11 @@ describe("lamports math", () => {
   test("truncates beyond nine decimals", () => {
     expect(solToLamports("0.1234567899")).toBe(123_456_789n);
   });
+
+  test("expands exponent notation exactly, without floating-point math", () => {
+    expect(solToLamports(1e-9)).toBe(1n);
+    expect(solToLamports("1.5e-7")).toBe(150n);
+    expect(solToLamports("4.9e-10")).toBe(0n);
+    expect(solToLamports("2e+21")).toBe(2_000_000_000_000_000_000_000_000_000_000n);
+  });
 });

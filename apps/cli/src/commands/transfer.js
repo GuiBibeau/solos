@@ -1,6 +1,6 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { sendSol, simulateSol } from "@solos/core";
+import { sendSol, simulateSol, transferLamports } from "@solos/core";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
@@ -20,8 +20,19 @@ const sol = Command.make("sol", { to, amount, skipSimulation, simulateOnly }, (o
     amountSol: options.amount,
     skipSimulation: options.skipSimulation,
   };
-  const program = options.simulateOnly ? simulateSol(input) : sendSol(input);
-  return withSolos(program.pipe(Effect.flatMap(emit))).pipe(exitOnFailure);
+  // Amount validation precedes the tool Layer: Effect builds supplied Layers before the program
+  // body runs, so a bad amount must fail outside `withSolos`, before any signer is loaded.
+  const validAmount = Effect.try({
+    try: () => transferLamports(input.amountSol),
+    catch: (error) => /** @type {import("@solos/core").ValidationError} */ (error),
+  });
+  const program = (options.simulateOnly ? simulateSol(input) : sendSol(input)).pipe(
+    Effect.flatMap(emit),
+  );
+  return validAmount.pipe(
+    Effect.andThen(() => withSolos(program)),
+    exitOnFailure,
+  );
 }).pipe(Command.withDescription("Send SOL from the configured signer (real funds on mainnet)"));
 
 export const transfer = Command.make("transfer").pipe(

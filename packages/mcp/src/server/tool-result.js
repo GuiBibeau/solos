@@ -30,12 +30,23 @@ export const successResult = (value) => {
 export const errorResult = (cause) => {
   const failure = Cause.failureOption(cause);
   const payload = Option.isSome(failure) ? describeFailure(failure.value) : describeDefect(cause);
-  return {
-    content: [{ type: "text", text: JSON.stringify(payload) }],
-    structuredContent: payload,
-    isError: true,
-  };
+  return packError(payload);
 };
+
+/**
+ * Input guards run before the runtime exists, so their rejections arrive as thrown tagged
+ * errors rather than failed exits. Same `{ code, ...props }` shape either way.
+ * @param {unknown} error
+ * @returns {ToolResult}
+ */
+export const thrownResult = (error) => packError(describeFailure(error));
+
+/** @param {Record<string, unknown>} payload @returns {ToolResult} */
+const packError = (payload) => ({
+  content: [{ type: "text", text: JSON.stringify(payload) }],
+  structuredContent: payload,
+  isError: true,
+});
 
 /** @param {unknown} error */
 const describeFailure = (error) => {

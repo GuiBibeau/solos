@@ -15,12 +15,34 @@ export const SolAmountSchema = z
   .union([z.number().positive(), z.string().regex(/^\d+(\.\d{1,9})?$/)])
   .describe("Amount in SOL as a decimal, e.g. 0.25");
 
+const EXPONENT_NOTATION = /^[+-]?\d+(?:\.\d*)?[eE][+-]?\d+$/;
+
+/**
+ * Rewrite exponent notation ("1.5e-7", how JS prints tiny numbers) as positional digits
+ * ("0.00000015") by moving the decimal point with string operations only, so the exact value
+ * never passes through floating-point math.
+ * @param {string} text
+ * @returns {string}
+ */
+const expandExponent = (text) => {
+  if (!EXPONENT_NOTATION.test(text)) return text;
+  const parts = text.split(/[eE]/);
+  const plain = /** @type {string} */ (parts[0]).replace(/^[+-]/, "").split(".", 2);
+  const whole = /** @type {string} */ (plain[0]);
+  const digits = whole + (plain[1] ?? "");
+  const point = whole.length + Number(parts[1]);
+  const sign = text.startsWith("-") ? "-" : "";
+  if (point <= 0) return `${sign}0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${sign}${digits}${"0".repeat(point - digits.length)}`;
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+};
+
 /**
  * @param {string | number} sol
  * @returns {bigint}
  */
 export const solToLamports = (sol) => {
-  const [whole = "0", fraction = ""] = String(sol).split(".", 2);
+  const [whole = "0", fraction = ""] = expandExponent(String(sol)).split(".", 2);
   const padded = fraction.padEnd(SOL_DECIMALS, "0").slice(0, SOL_DECIMALS);
   return BigInt(whole) * LAMPORTS_PER_SOL + BigInt(padded || "0");
 };

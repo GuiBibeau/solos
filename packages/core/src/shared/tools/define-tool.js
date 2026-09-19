@@ -19,6 +19,7 @@
  *   readonly description: string;
  *   readonly input: Input;
  *   readonly run: (input: import("zod").output<Input>) => import("effect").Effect.Effect<Output, E, R>;
+ *   readonly check?: (input: import("zod").output<Input>) => void;
  * }} ToolDefinition
  */
 
@@ -33,6 +34,7 @@
  *   readonly description: string;
  *   readonly input: import("zod").ZodObject;
  *   readonly run: (input: any) => import("effect").Effect.Effect<unknown, unknown, any>;
+ *   readonly check?: (input: any) => void;
  * }} AnyToolDefinition
  */
 
