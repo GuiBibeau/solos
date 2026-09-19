@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { deriveWsUrl, elfaBaseUrl, jupiterBaseUrl, loadSolanaEnv } from "./env.js";
+import { loadSolanaEnv } from "./env.js";
 
 const MAIN_RPC = "http://127.0.0.1:8899";
 
@@ -13,21 +13,15 @@ let emptyDir;
  * Test-owned credential store. Every `loadSolanaEnv` call points `SOLOS_CONFIG_DIR` here, so
  * resolution never falls back to the operator's real `~/.config/solos`, which keeps a default
  * wallet profile on QA machines. The store stays credential-free: absent-profile assertions
- * must hold whatever the machine's login state is.
+ * must hold whatever the machine's login state is. Store I/O is filesystem work, so this whole
+ * suite is integration scope; pure URL parsing stays in `env-url.test.js`.
  */
 beforeAll(() => {
   emptyDir = mkdtempSync(path.join(tmpdir(), "solos-env-empty-"));
 });
 afterAll(() => rmSync(emptyDir, { recursive: true, force: true }));
 
-describe("solana env", () => {
-  test("derives ws url: local port+1, remote same host", () => {
-    expect(deriveWsUrl("http://127.0.0.1:8899")).toBe("ws://127.0.0.1:8900");
-    expect(deriveWsUrl("https://mainnet.helius-rpc.com/?api-key=x")).toBe(
-      "wss://mainnet.helius-rpc.com/?api-key=x",
-    );
-  });
-
+describe("solana env resolution [integration]", () => {
   test("requires exactly one signer source", () => {
     // Empty fixture store: must throw even when the machine has a real default profile.
     expect(() => loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLANA_RPC_URL: MAIN_RPC })).toThrow();
@@ -96,14 +90,6 @@ describe("solana env", () => {
     });
   });
 
-  test("elfa base url allows plain http only on loopback hosts", () => {
-    expect(elfaBaseUrl("http://127.0.0.1:8999")).toBe("http://127.0.0.1:8999");
-    expect(elfaBaseUrl("http://localhost:8999/v1")).toBe("http://localhost:8999/v1");
-    const OFF_LOOPBACK = "api.elfa.ai";
-    expect(() => elfaBaseUrl(`http://${OFF_LOOPBACK}`)).toThrow(/ELFA_BASE_URL/);
-    expect(() => elfaBaseUrl("ftp://api.elfa.ai")).toThrow(/ELFA_BASE_URL/);
-  });
-
   test("jupiter key is optional and the base url defaults to the production endpoint", () => {
     const env = loadSolanaEnv({
       SOLOS_CONFIG_DIR: emptyDir,
@@ -130,13 +116,5 @@ describe("solana env", () => {
       apiKey: undefined,
       baseUrl: "https://api.jup.ag",
     });
-  });
-
-  test("jupiter base url allows plain http only on loopback hosts", () => {
-    expect(jupiterBaseUrl("http://127.0.0.1:8999")).toBe("http://127.0.0.1:8999");
-    expect(jupiterBaseUrl("http://localhost:8999/")).toBe("http://localhost:8999");
-    const OFF_LOOPBACK = "api.jup.ag";
-    expect(() => jupiterBaseUrl(`http://${OFF_LOOPBACK}`)).toThrow(/JUPITER_BASE_URL/);
-    expect(() => jupiterBaseUrl("ftp://api.jup.ag")).toThrow(/JUPITER_BASE_URL/);
   });
 });
