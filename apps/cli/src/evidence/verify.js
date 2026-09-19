@@ -24,6 +24,7 @@ const script = (name) => ({
  * @type {Record<string, string>}
  */
 const SCRIPT_FOR_STEP = {
+  "line-limit": "check:lines",
   format: "format:check",
   lint: "lint",
   depcruise: "depcruise",
