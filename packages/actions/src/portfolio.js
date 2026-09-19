@@ -31,6 +31,14 @@ const positionIdentity = (position) => {
   }
 };
 
+/** @param {import("./positions.js").Position} position */
+const hasKnownValue = (position) => {
+  if (position.kind === "perp" || position.valueUsd !== null) return true;
+  const principal =
+    position.kind === "lp" ? position.tokenA.amount + position.tokenB.amount : position.amount;
+  return /^0+$/.test(principal);
+};
+
 /** What the agent reads before deciding; a supported-asset view, never a claim of full net worth. */
 export const PortfolioStateSchema = z
   .object({
@@ -46,6 +54,16 @@ export const PortfolioStateSchema = z
       .describe("One equity observation per unique trader account"),
     at: TimestampSchema,
   })
+  .refine(
+    (value) =>
+      value.valuationUsd === null ||
+      ([...value.cash, ...value.positions].every(hasKnownValue) &&
+        value.perpAccounts.every((account) => account.equityUsd !== null)),
+    {
+      path: ["valuationUsd"],
+      message: "unknown nonzero holdings or account equity require null valuation",
+    },
+  )
   .refine(
     (value) => {
       const holdings = [...value.cash, ...value.positions];

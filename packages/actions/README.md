@@ -28,6 +28,8 @@ are executor responsibilities. A confirmed IOC order may have zero or partial fi
 Wallet token positions keep their old shape; native SOL uses instrument `SOL`, not wSOL's mint.
 Portfolio validation rejects duplicate identities across cash and positions: token by mint,
 lending by protocol/market/mint, perps by protocol/account/market, and LPs by protocol/position.
+Unknown nonzero principal value or unknown account equity requires a null aggregate valuation;
+zero principal and per-market perp null values do not make known equity unknown.
 Lend positions add market and contributing obligation addresses; nonzero supply requires at
 least one obligation. Perps add account and side;
 amount is absolute exposure, with zero exactly `flat`. Shared signed equity lives once in
