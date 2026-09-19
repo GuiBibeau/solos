@@ -53,7 +53,7 @@ beforeAll(async () => {
 });
 afterAll(() => rmSync(fixtureDir, { recursive: true, force: true }));
 
-describe("solana env profiles", () => {
+describe("solana env profiles [integration]", () => {
   test("the fixture store's default profile resolves without any signer env", () => {
     const env = loadSolanaEnv({ SOLOS_CONFIG_DIR: fixtureDir });
     expect(env.profile).toBe("qa-main");
