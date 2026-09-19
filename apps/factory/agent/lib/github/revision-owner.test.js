@@ -1,5 +1,6 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { FACTORY_REPO } from "../constants.js";
 import { codexReviewTask } from "./codex-review-task.js";
 import { deliverReview, reviewFixture } from "./review-webhook-fixture.js";
 import { revisionOwnerAddress, revisionOwnerReceipt } from "./revision-owner.js";
@@ -37,6 +38,7 @@ describe("PR revision owner", () => {
       source: "https://github.com/GuiBibeau/solos/pull/37#discussion_r1",
     });
     expect(receipt).toContain('pull_request="37"');
+    expect(receipt).toContain(`repository="${FACTORY_REPO}"`);
     expect(receipt).toContain("discussion_r1");
     expect(receipt).toContain("delivery_id: delivery-1");
     expect(receipt).toContain("only one branch-writing station");

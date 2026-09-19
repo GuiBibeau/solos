@@ -45,16 +45,15 @@ const alreadyAttempted = (comments, botName, marker) => {
   );
 };
 
-/** @param {unknown} value @param {string} sha */
-const isCurrentReview = (value, sha) => {
+const SHA = /^[0-9a-f]{40}$/u;
+
+/** @param {unknown} value */
+const reviewedSha = (value) => {
   const review = asRecord(value);
-  if (!review) return false;
-  return (
-    isCodex(review.user) &&
-    review.commit_id === sha &&
-    Boolean(review.submitted_at) &&
-    review.state !== "DISMISSED"
-  );
+  const sha = stringField(review, "commit_id");
+  if (!review || review.state === "DISMISSED" || !review.submitted_at) return;
+  if (!sha || !SHA.test(sha) || !isCodex(review.user)) return;
+  return sha;
 };
 
 /** @param {unknown} value @returns {value is number} */
@@ -72,13 +71,13 @@ const reviewDispatch = async (ctx, comment, botName) => {
   if (!pullNumber || !isReviewId(reviewId)) return null;
   const path = `/repos/${FACTORY_REPO}/pulls/${pullNumber}`;
   const { body: pr } = await ctx.github.request({ method: "GET", path });
-  const sha = currentFactoryHead(pr);
-  if (!sha) return null;
+  if (!currentFactoryHead(pr)) return null;
   const { body: rawReview } = await ctx.github.request({
     method: "GET",
     path: `${path}/reviews/${reviewId}`,
   });
-  if (!isCurrentReview(rawReview, sha)) return null;
+  const sha = reviewedSha(rawReview);
+  if (!sha) return null;
   const findings = reviewFindings(
     await readGitHubList(ctx, `${path}/reviews/${reviewId}/comments`),
     {

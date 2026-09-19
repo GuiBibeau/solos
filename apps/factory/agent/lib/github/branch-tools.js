@@ -9,6 +9,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { FACTORY_BRANCH_PREFIX } from "../constants.js";
 import { authorizeBranchPush } from "./branch-owner.js";
+import { ancestryCommand, guardedPushCommand } from "./branch-push-protection.js";
 import { githubCredentials } from "./credentials.js";
 import {
   brokerPolicy,
@@ -97,10 +98,13 @@ const pushBranch = async ({ branch, expectedHead }, ctx) => {
     };
   const ownership = authorizeBranchPush({ expectedHead, remoteOutput: observed.detail });
   if (!ownership.allowed) return { error: ownership.error, success: false };
-  const push = await runBrokered(
-    ctx,
-    `git -C ${REPO_DIR} push ${REMOTE_URL} 'refs/heads/${branch}:refs/heads/${branch}'`,
-  );
+  const ancestry = ancestryCommand(branch, expectedHead);
+  if (ancestry) {
+    const check = await runBrokered(ctx, ancestry);
+    if (check.exitCode !== 0)
+      return { error: "Local update is not a fast-forward from expectedHead.", success: false };
+  }
+  const push = await runBrokered(ctx, guardedPushCommand(branch, expectedHead));
   if (push.exitCode !== 0)
     return { error: `git push exited ${push.exitCode}: ${push.detail}`, success: false };
   return { branch, sha: await revParse(ctx, branch), success: true };

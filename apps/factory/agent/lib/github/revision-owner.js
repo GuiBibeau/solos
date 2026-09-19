@@ -5,6 +5,8 @@
  * failures and proactive rebase work already use the pull-request address.
  */
 
+import { FACTORY_REPO } from "../constants.js";
+
 const REVIEW_ADDRESS = /^(repo:\d+:pull:\d+):review-comment:\d+$/u;
 
 /** @param {string} address */
@@ -36,7 +38,7 @@ export const withRevisionOwner = (channel) => ({
 /** @param {{deliveryId: string, pullNumber: number, source: string}} input */
 export const revisionOwnerReceipt = (input) =>
   [
-    `<revision_owner repository="GuiBibeau/solos" pull_request="${input.pullNumber}">`,
+    `<revision_owner repository="${FACTORY_REPO}" pull_request="${input.pullNumber}">`,
     `source: ${input.source}`,
     `delivery_id: ${input.deliveryId}`,
     "Queue this amendment behind any active revision. Before delegating, fetch the current PR head, checks, review findings, and active station state. Drop only work proven stale or resolved against that head.",
