@@ -7,7 +7,6 @@ const KEY = "test-jupiter-key";
 const MINT = "So11111111111111111111111111111111111111112";
 const PRICE = 100.46852810203305;
 
-
 /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
 let surfnet;
 /** @type {{ requests: Array<{ key: string | undefined; ids: string | undefined }>; url: string; stop: () => void }} */

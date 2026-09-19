@@ -7,7 +7,9 @@
     ".": "./src/index.js",
     "./market/test-seeds": "./src/market/test-seeds.js",
     "./surfnet": "./src/surfnet/index.js",
-    "./launch/fixture-accounts": "./src/launch/fixture-accounts.js"
+    "./launch/fixture-accounts": "./src/launch/fixture-accounts.js",
+    "./perp/phoenix-fixture": "./src/perp/phoenix-fixture.js",
+    "./perp/phoenix-scenarios": "./src/perp/phoenix-scenarios.js"
   },
   "dependencies": {
     "@hpke/chacha20poly1305": "1.8.0",
