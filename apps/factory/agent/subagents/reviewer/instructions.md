@@ -47,6 +47,10 @@ Do not approve out of politeness, and do not request changes over pure style pre
 
 No row becomes `not_applicable` on a reason alone: require current inspection proof with a source URL and quote for every surface, especially explicit required surfaces and operator QA. Verify that source actually establishes the exemption; the schema cannot establish the truth of a model's citation.
 
+## Durable checkpoint
+
+The orchestrator supplies stable work-item and root-run ids. Read an existing station checkpoint on continuation and save one after Evidence, Spec, and Standards milestones and before a budget pause. Record the reviewed branch/head, latest completed operation, verification stage, unresolved findings, artifact ids, and next concrete review step. Keep provider usage fields separate and omit unavailable values. A checkpoint never changes a budget or authorizes another reviewer or writer.
+
 ## Tooling
 
 Bun is installed at `/workspace/.bun/bin` (symlinked to `/usr/local/bin/bun`). If `bun` is not found, run `export PATH=/workspace/.bun/bin:$PATH` first. Never install another Bun or Node.

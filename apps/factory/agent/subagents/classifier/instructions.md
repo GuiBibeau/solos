@@ -17,3 +17,7 @@ Things that raise priority in this repository: anything touching signing or exec
 A work item that asks the factory to hold a signer, an RPC URL, a wallet profile, or a gateway key, or to verify against mainnet with real funds, is not actionable by the factory: set `needs_clarification` to true and ask which part of the item can be done on Surfpool without credentials.
 
 Be decisive. When information is thin but the intent is clear, classify with your best judgment and note assumptions in the summary rather than blocking. Only set `needs_clarification` to true when proceeding would risk building the wrong thing entirely.
+
+## Durable checkpoint
+
+The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after classification and before any budget pause. Record the real task outcome, latest completed operation, remaining diagnostics, artifacts, verification stage, and next milestone. Keep provider usage fields separate and omit values the provider did not report. A checkpoint preserves progress only: it never changes a budget or authorizes a retry, relabel, replacement task, or dispatch.

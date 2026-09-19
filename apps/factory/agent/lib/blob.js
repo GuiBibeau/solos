@@ -19,6 +19,9 @@ export const FACTORY_BRAIN_PREFIX = "factory-brain/";
 /** Blob path prefix holding handoff artifacts passed between stations. */
 export const ARTIFACTS_PREFIX = "artifacts/";
 
+/** Blob path prefix holding restart-safe station progress checkpoints. */
+export const STATION_CHECKPOINTS_PREFIX = "station-checkpoints/";
+
 /**
  * @typedef {object} ReservedNamespace
  * @property {string} label Human-readable description of what the namespace holds.
@@ -28,6 +31,11 @@ export const ARTIFACTS_PREFIX = "artifacts/";
 
 /** @type {Readonly<Record<string, ReservedNamespace>>} */
 const RESERVED_NAMESPACES = {
+  [STATION_CHECKPOINTS_PREFIX]: {
+    label: "station progress checkpoints",
+    readTool: "read-station-checkpoint",
+    writeTool: "save-station-checkpoint",
+  },
   [ARTIFACTS_PREFIX]: {
     label: "handoff artifacts",
     readTool: "read-artifact",
@@ -85,32 +93,34 @@ export const reservedReadMessage = (namespace) =>
 /**
  * Read a Markdown document by its exact key. A missing document is `found: false`, not an error.
  * @param {string} key
- * @returns {Promise<{ found: false } | { content: string; found: true; uploadedAt: string }>}
+ * @returns {Promise<{ found: false } | { content: string; etag: string; found: true; uploadedAt: string }>}
  */
 export const readDocument = async (key) => {
-  const result = await get(key, { access: "public" });
+  const result = await get(key, { access: "public", useCache: false });
   if (result === null || result.stream === null) return { found: false };
   return {
     content: await new Response(result.stream).text(),
+    etag: result.blob.etag,
     found: true,
     uploadedAt: result.blob.uploadedAt.toISOString(),
   };
 };
 
 /**
- * Write a Markdown document at its exact key. The store is provisioned public; unguessability
+ * Write a document at its exact key. The store is provisioned public; unguessability
  * comes from the hashed or suffixed keys the feature modules derive. Overwrite is the caller's
  * decision: singleton documents replace themselves, artifacts are write-once.
  * @param {string} key
  * @param {string} contents
- * @param {{ allowOverwrite: boolean }} options
+ * @param {{ allowOverwrite: boolean; contentType?: string; ifMatch?: string }} options
  */
 export const writeDocument = (key, contents, options) =>
   put(key, contents, {
     access: "public",
     addRandomSuffix: false,
     allowOverwrite: options.allowOverwrite,
-    contentType: "text/markdown",
+    contentType: options.contentType ?? "text/markdown",
+    ...(options.ifMatch !== undefined && { ifMatch: options.ifMatch }),
   });
 
 /**
