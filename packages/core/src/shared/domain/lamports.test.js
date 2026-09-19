@@ -4,6 +4,7 @@ import { lamportsToSol, solToLamports } from "./lamports.js";
 describe("lamports math", () => {
   test("converts whole SOL", () => {
     expect(solToLamports(2)).toBe(2_000_000_000n);
+    expect(solToLamports("1.")).toBe(1_000_000_000n);
     expect(lamportsToSol(2_000_000_000n)).toBe("2");
   });
 
@@ -31,5 +32,36 @@ describe("lamports math", () => {
     expect(solToLamports("-0.5")).toBe(-500_000_000n);
     expect(solToLamports("-1")).toBe(-1_000_000_000n);
     expect(solToLamports("-2e+21")).toBe(-2_000_000_000_000_000_000_000_000_000_000n);
+  });
+
+  test("rejects every malformed grammar before sign or magnitude arithmetic", () => {
+    const malformed = [
+      "--1",
+      "--1.1",
+      "++1",
+      "+-1",
+      "-+1",
+      "1-1",
+      "1.2.3",
+      "",
+      " ",
+      " 1",
+      "1 ",
+      ".",
+      ".5",
+      "-.",
+      "-",
+      "+",
+      "e9",
+      "1e",
+      "1e+",
+      "1e++5",
+      "1e7.5",
+      NaN,
+      Infinity,
+    ];
+    for (const sol of malformed) {
+      expect(() => solToLamports(sol), JSON.stringify(sol)).toThrow(RangeError);
+    }
   });
 });

@@ -1,5 +1,5 @@
 // @ts-check
-import { annotationsForTier, LoggerJsonStderr, requiresUserInteraction } from "@solos/core";
+import { annotationsForTier, requiresUserInteraction } from "@solos/core";
 import { Effect } from "effect";
 import { resultFromExit, thrownResult } from "./tool-result.js";
 
@@ -33,27 +33,15 @@ const observedRun = (tool, input) =>
   );
 
 /**
- * Preflight rejections keep ADR-0011's telemetry without the signer runtime: same span name and
- * `tool.failed` warning, through the stderr JSON logger only, so stdout stays JSON-RPC and no
- * Layer that could fail loading is ever built. Telemetry must never mask the structured error.
- * @param {string} toolName
- * @param {unknown} error
- */
-const observePreflightFailure = async (toolName, error) => {
-  const observed = Effect.logWarning("tool.failed").pipe(
-    Effect.annotateLogs({ tool: toolName, cause: String(error) }),
-    Effect.withSpan(`mcp.tool.${toolName}`),
-    Effect.provide(LoggerJsonStderr(process.env.SOLOS_LOG_LEVEL)),
-  );
-  await Effect.runPromise(observed).catch(() => undefined);
-};
-
-/**
  * @param {import("@modelcontextprotocol/server").McpServer} server
  * @param {ReadonlyArray<import("@solos/core").AnyToolDefinition>} tools
- * @param {import("effect").ManagedRuntime.ManagedRuntime<any, any>} runtime
+ * @param {{
+ *   runtime: import("effect").ManagedRuntime.ManagedRuntime<any, any>;
+ *   telemetry?: import("../runtime.js").PreflightTelemetry;
+ * }} runners
  */
-export const registerTools = (server, tools, runtime) => {
+export const registerTools = (server, tools, runners) => {
+  const { runtime, telemetry } = runners;
   for (const tool of tools) {
     server.registerTool(
       tool.name,
@@ -77,7 +65,7 @@ export const registerTools = (server, tools, runtime) => {
           try {
             tool.check(input);
           } catch (error) {
-            await observePreflightFailure(tool.name, error);
+            await telemetry?.observe(tool.name, error);
             return thrownResult(error);
           }
         }

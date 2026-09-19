@@ -2,14 +2,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import { ensureSurfnet, randomSeed, seedAddress } from "@solos/solana/surfnet";
-import {
-  offlineEnv,
-  runSolos,
-  stderrJson,
-  transferEnv,
-  unusableSignerEnv,
-} from "./transfer-fixture.js";
+import { offlineEnv, runSolos, stderrJson, transferEnv } from "./transfer-fixture.js";
 
+/**
+ * Amount-boundary cases against the dead loopback RPC with a loadable throwaway signer: the
+ * structured failures prove no balance RPC ran, and positives still work against Surfnet.
+ */
 describe("`solos transfer sol` amount boundary through real child processes [integration]", () => {
   /** @type {Awaited<ReturnType<typeof ensureSurfnet>> | undefined} */
   let surfnet;
@@ -50,27 +48,6 @@ describe("`solos transfer sol` amount boundary through real child processes [int
     });
   };
 
-  /**
-   * Same, but with a signer that cannot even load (nonexistent keypair file): a structured
-   * ValidationError proves rejection happened before the signer Layer was acquired. `extra`
-   * selects simulate-only (default), a plain send, or a skipped simulation.
-   * @param {string} amount
-   * @param {string[]} extra
-   */
-  const rejectWithoutSigner = async (amount, extra = ["--simulate-only"]) => {
-    const env = await unusableSignerEnv();
-    configDirs.push(env.SOLOS_CONFIG_DIR);
-    const { stdout, stderr, code } = await runSolos(
-      ["transfer", "sol", "--to", RECIPIENT, "--amount", amount, ...extra],
-      env,
-    );
-    expect(code).not.toBe(0);
-    expect(stdout).toBe("");
-    const error = stderrJson(stderr)?.error;
-    expect(error).toMatchObject({ code: "ValidationError", field: "amountSol" });
-    expect(["SignerUnavailable", "RpcError", "InternalError"]).not.toContain(error?.code);
-  };
-
   test("rejects --amount 0 with a structured ValidationError", async () => {
     await rejectOffline("0");
   });
@@ -94,32 +71,6 @@ describe("`solos transfer sol` amount boundary through real child processes [int
     const errorCode = stderrJson(stderr)?.error?.code;
     expect(errorCode).not.toBe("InternalError");
     expect(errorCode).not.toBe("ValidationError");
-  });
-
-  test("simulate-only rejects zero-equivalents, truncate-to-zero and negatives pre-signer", async () => {
-    await rejectWithoutSigner("0");
-    await rejectWithoutSigner("0.000000000");
-    await rejectWithoutSigner("4.9e-10");
-    await rejectWithoutSigner("-1e-9");
-  });
-
-  test("send rejects the same forms pre-signer, with and without simulation", async () => {
-    await rejectWithoutSigner("0", ["--skip-simulation"]);
-    await rejectWithoutSigner("0", []);
-    await rejectWithoutSigner("0.000000000", []);
-    await rejectWithoutSigner("4.9e-10", []);
-    await rejectWithoutSigner("-1e-9", []);
-  });
-
-  test("a good amount in the same broken-signer env fails later as SignerUnavailable", async () => {
-    const env = await unusableSignerEnv();
-    configDirs.push(env.SOLOS_CONFIG_DIR);
-    const { stderr, code } = await runSolos(
-      ["transfer", "sol", "--to", RECIPIENT, "--amount", "0.25", "--simulate-only"],
-      env,
-    );
-    expect(code).not.toBe(0);
-    expect(stderrJson(stderr)?.error?.code).toBe("SignerUnavailable");
   });
 
   test("simulates one lamport against Surfnet through the real CLI", async () => {

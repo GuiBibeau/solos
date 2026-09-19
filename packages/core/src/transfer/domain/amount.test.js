@@ -24,8 +24,8 @@ describe("transfer amount rule", () => {
     }
   });
 
-  test("rejects junk as input-validation errors", () => {
-    for (const amountSol of ["abc", ""]) {
+  test("rejects junk and malformed grammar as input-validation errors", () => {
+    for (const amountSol of ["abc", "", "--1", "--1.1", "1-1", "1.2.3", " 1", "1e", "e9"]) {
       expect(rejection(amountSol)).toBeInstanceOf(ValidationError);
       expect(rejection(amountSol)).toMatchObject({ field: "amountSol", value: amountSol });
     }

@@ -20,13 +20,20 @@ export const SolAmountSchema = z
   .union([z.number(), z.string().regex(/^\d+(\.\d{1,9})?$/)])
   .describe("Amount in SOL as a decimal, e.g. 0.25");
 
+/**
+ * The only accepted amount grammar, checked before any sign or magnitude arithmetic so
+ * malformed text ("--1", "1-1", " 1", "1e") can never decay into a valid amount: one optional
+ * sign, digits, an optional fraction ("1." stays valid whole SOL), and an optional exponent.
+ */
+const DECIMAL_SOL = /^[+-]?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?$/;
+
 const EXPONENT_NOTATION = /^\d+(?:\.\d*)?[eE][+-]?\d+$/;
 
 /**
  * Rewrite exponent notation ("1.5e-7", how JS prints tiny numbers) as positional digits
  * ("0.00000015") by moving the decimal point with string operations only, so the exact value
- * never passes through floating-point math. The input is signless: signs never travel through
- * the digit movement, the caller applies them to the parsed result.
+ * never passes through floating-point math. The input is signless and grammar-checked; signs
+ * never travel through the digit movement, the caller applies them to the parsed result.
  * @param {string} text
  * @returns {string}
  */
@@ -43,15 +50,19 @@ const expandExponent = (text) => {
 };
 
 /**
- * Exact lamports for a decimal SOL string or number, sign included: the magnitude is parsed
- * unsigned and the sign is applied to the result, so "-1e-9" is -1n and can never come out
- * positive through the whole-plus-fraction arithmetic. Beyond nine decimals truncates,
- * positives and negatives alike.
+ * Exact lamports for a decimal SOL string or number, sign included. The grammar is validated
+ * first, then the unsigned magnitude is parsed and the sign applied to the result, so
+ * "-1e-9" is exactly -1n and no partially-parsed malformed text can come out positive.
+ * Beyond nine decimals truncates, positives and negatives alike.
  * @param {string | number} sol
  * @returns {bigint}
+ * @throws {RangeError} when the text is not a decimal/exponent amount
  */
 export const solToLamports = (sol) => {
   const text = String(sol);
+  if (!DECIMAL_SOL.test(text)) {
+    throw new RangeError(`malformed SOL amount: ${JSON.stringify(text)}`);
+  }
   const sign = text.startsWith("-") ? -1n : 1n;
   const [whole = "0", fraction = ""] = expandExponent(text.replace(/^[+-]/, "")).split(".", 2);
   const padded = fraction.padEnd(SOL_DECIMALS, "0").slice(0, SOL_DECIMALS);

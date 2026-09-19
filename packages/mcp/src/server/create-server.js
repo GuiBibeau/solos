@@ -11,16 +11,23 @@ export const SERVER_NAME = "solos";
  * @param {{
  *   tools: ReadonlyArray<import("@solos/core").AnyToolDefinition>;
  *   runtime: import("effect").ManagedRuntime.ManagedRuntime<any, any>;
+ *   telemetry?: import("../runtime.js").PreflightTelemetry;
  *   version: string;
  *   tierCeiling?: "read" | "simulate" | "execute";
  * }} options
  */
-export const createSolosServer = ({ tools, runtime, version, tierCeiling = "execute" }) => {
+export const createSolosServer = ({
+  tools,
+  runtime,
+  telemetry,
+  version,
+  tierCeiling = "execute",
+}) => {
   const offered = filterByTier(tools, tierCeiling);
   const server = new McpServer(
     { name: SERVER_NAME, version },
     { instructions: buildInstructions(offered) },
   );
-  registerTools(server, offered, runtime);
+  registerTools(server, offered, { runtime, telemetry });
   return server;
 };

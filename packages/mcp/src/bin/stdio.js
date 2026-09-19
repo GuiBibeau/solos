@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { allTools } from "@solos/core";
 import { loadSolanaEnv, rpcOrigin } from "@solos/solana";
 import { z } from "zod";
-import { makeToolRuntime } from "../runtime.js";
+import { makePreflightTelemetry, makeToolRuntime } from "../runtime.js";
 import { createSolosServer } from "../server/create-server.js";
 
 const VERSION = "0.0.0";
@@ -17,15 +17,18 @@ const TierSchema = z.enum(["read", "simulate", "execute"]).default("execute");
 const main = async () => {
   const env = loadSolanaEnv(process.env);
   const runtime = makeToolRuntime(env, { logLevel: process.env.SOLOS_LOG_LEVEL });
+  const telemetry = makePreflightTelemetry({ logLevel: process.env.SOLOS_LOG_LEVEL });
   const server = createSolosServer({
     tools: allTools,
     runtime,
+    telemetry,
     version: VERSION,
     tierCeiling: TierSchema.parse(process.env.SOLOS_TOOL_TIER),
   });
   const shutdown = async () => {
     await server.close().catch(() => undefined);
     await runtime.dispose();
+    await telemetry.dispose();
     process.exit(0);
   };
   process.once("SIGINT", shutdown);
