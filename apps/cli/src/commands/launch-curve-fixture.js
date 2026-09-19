@@ -1,5 +1,5 @@
 // @ts-check
-import { launchFixtureAccounts, randomCurveMint } from "@solos/solana/launch/test-seeds";
+import { launchFixtureAccounts, randomCurveMint } from "@solos/solana/launch/fixture-accounts";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
 export { runSolos, stderrJson } from "./swap-quote-fixture.js";
 
@@ -10,7 +10,7 @@ export { runSolos, stderrJson } from "./swap-quote-fixture.js";
  * contacts a public endpoint, and independent of Surfnet so every case is deterministic.
  */
 
-export { USDC_QUOTE_MINT } from "@solos/solana/launch/test-seeds";
+export { USDC_QUOTE_MINT } from "@solos/solana/launch/fixture-accounts";
 
 export const FRESH_MINT = randomCurveMint();
 export const COMPLETED_MINT = randomCurveMint();

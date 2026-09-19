@@ -7,7 +7,7 @@
     ".": "./src/index.js",
     "./market/test-seeds": "./src/market/test-seeds.js",
     "./surfnet": "./src/surfnet/index.js",
-    "./launch/test-seeds": "./src/launch/test-seeds.js"
+    "./launch/fixture-accounts": "./src/launch/fixture-accounts.js"
   },
   "dependencies": {
     "@hpke/chacha20poly1305": "1.8.0",

@@ -32,6 +32,8 @@ export const zeros = (length) => new Uint8Array(length);
 /** The documented test-seed anchor for the Global config's initial real token reserves. */
 export const INITIAL_REAL_TOKEN_RESERVES = 793_100_000_000_000n;
 
+/** @typedef {Parameters<typeof bondingCurveBytes>[0]} CurveBytesOptions */
+
 /** Full-layout defaults: zero reserves, an open curve, absent creator, native-SOL quote mint. */
 const CURVE_DEFAULTS = {
   virtualTokenReserves: 0n,
@@ -107,6 +109,21 @@ export const globalConfigBytes = (options = {}) => {
   );
   return toLength(full, bytes);
 };
+
+/**
+ * The fresh-curve body every SOL-paired fixture shares: full real reserves against the Global
+ * anchor, open curve, native-SOL quote mint. Progress expectations derive from these numbers.
+ * @param {CurveBytesOptions} [overrides]
+ * @returns {Uint8Array}
+ */
+export const freshCurveBytes = (overrides = {}) =>
+  bondingCurveBytes({
+    virtualTokenReserves: 1_073_000_000_000_000n,
+    virtualQuoteReserves: 30_000_000_000n,
+    realTokenReserves: 793_100_000_000_000n,
+    realQuoteReserves: 1_000_000_000n,
+    ...overrides,
+  });
 
 /** @param {Uint8Array} bytes @returns {string} base16, for `surfnet_setAccount` fixtures */
 export const base16 = (bytes) => getBase16Decoder().decode(bytes);

@@ -16,10 +16,9 @@ import {
 } from "./launch-curve-fixture.js";
 
 /**
- * `solos launch curve` and `solos mcp call solana_launch_get_curve` through real child
- * processes against the loopback JSON-RPC fixture: JSON stdout, structured MCP results, and
- * non-zero exits with `{ code, ... }` JSON on every domain error. Each startup case is its
- * own independently named test.
+ * `solos launch curve` through real child processes against the loopback JSON-RPC fixture:
+ * JSON stdout with the full LaunchCurve on success, and non-zero exits with `{ code, ... }`
+ * JSON on every domain error. Each startup case is its own independently named test.
  */
 
 /** @type {Awaited<ReturnType<typeof startLaunchFixture>>} */
@@ -83,9 +82,7 @@ describe("`solos launch curve` through real child processes [integration]", () =
   test("a non-address mint exits 1 with CurveInputInvalid before any RPC", async () => {
     const { stdout, stderr, code } = await runSolos(
       ["launch", "curve", "--mint", "not-an-address"],
-      {
-        ...(await fixture.env()),
-      },
+      { ...(await fixture.env()) },
     );
     expect(code).toBe(1);
     expect(stdout).toBe("");
@@ -107,46 +104,5 @@ describe("`solos launch curve` through real child processes [integration]", () =
       reason: "the configured RPC endpoint failed the request",
     });
     expect(stderr).not.toContain(CREDENTIAL);
-  });
-});
-
-describe("`solos mcp call solana_launch_get_curve` through the real server child [integration]", () => {
-  test("the success mirror returns the matching structured result", async () => {
-    const { stdout, code } = await runSolos(
-      ["mcp", "call", "solana_launch_get_curve", "--args", JSON.stringify({ mint: FRESH_MINT })],
-      { ...(await fixture.env()) },
-    );
-    expect(code).toBe(0);
-    const result = JSON.parse(stdout);
-    expect(result.isError).toBeFalsy();
-    expect(result.structuredContent).toEqual(expectedFreshCurve());
-  });
-
-  test("the failure mirror carries isError with the tagged code", async () => {
-    const { stdout, code } = await runSolos(
-      ["mcp", "call", "solana_launch_get_curve", "--args", JSON.stringify({ mint: ABSENT_MINT })],
-      { ...(await fixture.env()) },
-    );
-    expect(code).toBe(1);
-    const result = JSON.parse(stdout);
-    expect(result.isError).toBe(true);
-    expect(result.structuredContent).toMatchObject({
-      code: "CurveUnavailable",
-      mint: ABSENT_MINT,
-    });
-  });
-
-  test("mcp list advertises the launch curve tool with forwarded env", async () => {
-    const { stdout, code } = await runSolos(["mcp", "list"], { ...(await fixture.env()) });
-    expect(code).toBe(0);
-    const tools = JSON.parse(stdout).tools;
-    const launch = tools.find(
-      (/** @type {{ name: string }} */ t) => t.name === "solana_launch_get_curve",
-    );
-    expect(launch).toMatchObject({
-      name: "solana_launch_get_curve",
-      annotations: { readOnlyHint: true },
-      meta: { "solos/group": "launch", "solos/tier": "read" },
-    });
   });
 });
