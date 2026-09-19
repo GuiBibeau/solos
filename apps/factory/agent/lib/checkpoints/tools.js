@@ -1,19 +1,11 @@
 // @ts-check
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { runtimeObserver } from "./runtime-observer.js";
 import { StationCheckpointSchema, StationSchema } from "./schema.js";
 import { blockerStatus, monitoringBackoffMs, stationView } from "./status.js";
 import { checkpointStore } from "./store.js";
 
-const ObservationSchema = z.object({
-  cursor: z.string().min(1).max(2000).optional(),
-  latestActivityAt: z.iso.datetime().optional(),
-  observationTimedOut: z.boolean().optional(),
-  replacementActive: z.boolean().optional(),
-  sessionStatus: z.string().max(100).optional(),
-  taskOutcome: z.enum(["active", "completed", "failed", "cancelled", "superseded"]).optional(),
-  unchangedObservations: z.number().int().nonnegative().optional(),
-});
 const BlockerStatusSchema = z.object({
   attemptedCorrection: z.string().optional(),
   attempts: z.number().int().positive().optional(),
@@ -36,9 +28,9 @@ const StatusViewSchema = z.object({
   ]),
 });
 const ReadInput = z.object({
-  observation: ObservationSchema.optional(),
   rootRunId: z.string().min(1).max(200),
   station: StationSchema,
+  unchangedObservations: z.number().int().nonnegative().optional(),
   workItem: z.string().min(1).max(200),
 });
 const ReadOutput = z.object({
@@ -50,19 +42,29 @@ const ReadOutput = z.object({
   view: StatusViewSchema.optional(),
 });
 
-/** @param {z.infer<typeof ReadInput>} input */
-const read = async ({ workItem, rootRunId, station, observation }) => {
-  const result = await checkpointStore.read({ rootRunId, station, workItem });
-  if (!result.found || result.checkpoint === undefined) return result;
-  return {
-    ...result,
-    blocker: blockerStatus(result.checkpoint),
-    ...(observation !== undefined && {
-      backoffMs: monitoringBackoffMs(observation.unchangedObservations ?? 0),
+/** @param {typeof checkpointStore} checkpoints @param {typeof runtimeObserver} observer */
+export const createCheckpointReader =
+  (checkpoints, observer) => async (/** @type {z.infer<typeof ReadInput>} */ input) => {
+    const { workItem, rootRunId, station, unchangedObservations } = input;
+    const result = await checkpoints.read({ rootRunId, station, workItem });
+    if (!result.found || result.checkpoint === undefined) return result;
+    const observed =
+      result.checkpoint.stationRunId === undefined
+        ? { found: false }
+        : await observer.read(result.checkpoint.stationRunId);
+    const observation =
+      observed.found && observed.observation !== undefined
+        ? observed.observation
+        : { observationTimedOut: /** @type {const} */ (true) };
+    return {
+      ...result,
+      blocker: blockerStatus(result.checkpoint),
+      backoffMs: monitoringBackoffMs(unchangedObservations ?? 0),
       view: stationView(result.checkpoint, observation),
-    }),
+    };
   };
-};
+
+export const readCheckpoint = createCheckpointReader(checkpointStore, runtimeObserver);
 
 /** @param {z.infer<typeof StationSchema>} station */
 export const saveCheckpointTool = (station) =>
@@ -82,9 +84,9 @@ export const saveCheckpointTool = (station) =>
 export const readCheckpointTool = () =>
   defineTool({
     description:
-      "Read the latest durable checkpoint for one work item and station. Use fresh task activity and its " +
-      "cursor with this record; never treat a stale session label as current progress.",
-    execute: read,
+      "Read a station checkpoint joined with runtime-owned activity for its stored station run id. " +
+      "A missing observation returns unknown and never authorizes redispatch.",
+    execute: readCheckpoint,
     inputSchema: ReadInput,
     outputSchema: ReadOutput,
   });

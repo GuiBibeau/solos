@@ -67,4 +67,31 @@ describe("[integration] durable checkpoint store", () => {
       found: false,
     });
   });
+
+  test("claims one blocker escalation across concurrent observers and restart", async () => {
+    const memory = createMemoryIo();
+    const firstProcess = createCheckpointStore(memory.io);
+    const initial = { ...issue18Checkpoint, revision: 1 };
+    expect(await firstProcess.save(initial)).toMatchObject({ saved: true });
+    const input = {
+      fingerprint: initial.blocker?.fingerprint ?? "missing",
+      rootRunId: initial.rootRunId,
+      station: initial.station,
+      workItem: initial.workItem,
+    };
+
+    const claims = await Promise.all([
+      firstProcess.claimEscalation(input),
+      createCheckpointStore(memory.io).claimEscalation(input),
+    ]);
+    expect(claims.filter((claim) => claim.claimed)).toHaveLength(1);
+    expect(await createCheckpointStore(memory.io).claimEscalation(input)).toEqual({
+      claimed: false,
+      reason: "already_claimed",
+    });
+    expect(await firstProcess.read(initial)).toMatchObject({
+      checkpoint: { blocker: { escalationEmittedAt: expect.any(String) }, revision: 2 },
+      found: true,
+    });
+  });
 });

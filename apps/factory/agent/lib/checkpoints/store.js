@@ -75,8 +75,59 @@ const read = async (io, { workItem, rootRunId, station }) => {
   }
 };
 
+/** @param {CheckpointIo} io @param {{fingerprint: string; rootRunId: string; station: string; workItem: string}} input */
+const claimEscalation = async (io, input) => {
+  const key = checkpointKey(input.workItem, input.rootRunId, input.station);
+  if (key === null) return { claimed: false, reason: "invalid_identity" };
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const document = await io.read(key);
+    if (!document.found) return { claimed: false, reason: "checkpoint_missing" };
+    const current = StationCheckpointSchema.parse(JSON.parse(document.content));
+    const ineligible = escalationIneligibleReason(current, input.fingerprint);
+    if (ineligible !== null) return { claimed: false, reason: ineligible };
+    const next = escalatedCheckpoint(current);
+    try {
+      await io.write(key, JSON.stringify(next), {
+        allowOverwrite: true,
+        contentType: "application/json",
+        ifMatch: document.etag,
+      });
+      return { claimed: true, revision: next.revision };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  return {
+    claimed: false,
+    reason: lastError instanceof Error ? lastError.message : "claim_conflict",
+  };
+};
+
+/** @param {StationCheckpoint} checkpoint @param {string} fingerprint */
+const escalationIneligibleReason = (checkpoint, fingerprint) => {
+  if (checkpoint.blocker?.fingerprint !== fingerprint) return "blocker_changed";
+  if (checkpoint.blocker.escalationEmittedAt !== undefined) return "already_claimed";
+  if (checkpoint.blocker.attempts < 2) return "correction_pending";
+  return null;
+};
+
+/** @param {StationCheckpoint} checkpoint */
+const escalatedCheckpoint = (checkpoint) => {
+  const updatedAt = new Date().toISOString();
+  return {
+    ...checkpoint,
+    blocker: { ...checkpoint.blocker, escalationEmittedAt: updatedAt },
+    revision: checkpoint.revision + 1,
+    updatedAt,
+  };
+};
+
 /** @param {CheckpointIo} io */
 export const createCheckpointStore = (io) => ({
+  claimEscalation: (
+    /** @type {{fingerprint: string; rootRunId: string; station: string; workItem: string}} */ input,
+  ) => claimEscalation(io, input),
   read: (/** @type {{rootRunId: string; station: string; workItem: string}} */ input) =>
     read(io, input),
   save: (/** @type {unknown} */ candidate) => save(io, candidate),

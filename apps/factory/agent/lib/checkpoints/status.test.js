@@ -19,8 +19,7 @@ describe("station lifecycle replay", () => {
 
   test("a superseded task with an active replacement remains active", () => {
     const view = stationView(withOutcome("superseded"), {
-      replacementActive: true,
-      taskOutcome: "superseded",
+      taskOutcome: "active",
     });
     expect(view.status).toBe("active");
     expect(view.redispatch).toBeFalse();
@@ -68,7 +67,7 @@ test("root aggregate usage is not double counted with children", () => {
   expect(reportUsage([root, { accountingScope: "station", inputTokens: 60 }])).toEqual(root);
 });
 
-test("station usage keeps unavailable fields unavailable", () => {
+test("station usage preserves one authoritative billed cost", () => {
   const usage = reportUsage([
     {
       accountingScope: "station",
@@ -79,6 +78,17 @@ test("station usage keeps unavailable fields unavailable", () => {
   ]);
   expect(usage).toEqual({
     accountingScope: "station",
+    billedCostSource: "provider invoice usage",
+    billedCostUsd: 1,
     inputTokens: 12,
   });
+});
+
+test("station cost stays unavailable when aggregation would be incomplete", () => {
+  expect(
+    reportUsage([
+      { accountingScope: "station", billedCostSource: "invoice", billedCostUsd: 1 },
+      { accountingScope: "station", inputTokens: 12 },
+    ]),
+  ).toEqual({ accountingScope: "station", inputTokens: 12 });
 });

@@ -22,6 +22,9 @@ export const ARTIFACTS_PREFIX = "artifacts/";
 /** Blob path prefix holding restart-safe station progress checkpoints. */
 export const STATION_CHECKPOINTS_PREFIX = "station-checkpoints/";
 
+/** Blob path prefix holding runtime-owned station lifecycle observations. */
+export const STATION_OBSERVATIONS_PREFIX = "station-observations/";
+
 /**
  * @typedef {object} ReservedNamespace
  * @property {string} label Human-readable description of what the namespace holds.
@@ -31,6 +34,11 @@ export const STATION_CHECKPOINTS_PREFIX = "station-checkpoints/";
 
 /** @type {Readonly<Record<string, ReservedNamespace>>} */
 const RESERVED_NAMESPACES = {
+  [STATION_OBSERVATIONS_PREFIX]: {
+    label: "runtime-owned station observations",
+    readTool: "read-station-checkpoint",
+    writeTool: "the station runtime hook",
+  },
   [STATION_CHECKPOINTS_PREFIX]: {
     label: "station progress checkpoints",
     readTool: "read-station-checkpoint",

@@ -1,6 +1,6 @@
 // @ts-check
 import { createHash } from "node:crypto";
-import { STATION_CHECKPOINTS_PREFIX } from "../blob.js";
+import { STATION_CHECKPOINTS_PREFIX, STATION_OBSERVATIONS_PREFIX } from "../blob.js";
 import { FACTORY_REPO } from "../constants.js";
 import { StationSchema } from "./schema.js";
 
@@ -21,4 +21,12 @@ export const checkpointKey = (workItem, rootRunId, station) => {
   const item = createHash("sha256").update(workItem).digest("hex").slice(0, 24);
   const root = createHash("sha256").update(rootRunId).digest("hex").slice(0, 24);
   return `${STATION_CHECKPOINTS_PREFIX}${repository}/${item}/${root}/${station}.json`;
+};
+
+/** @param {string} stationRunId */
+export const observationKey = (stationRunId) => {
+  if (!RUN_ID.test(stationRunId) || stationRunId.includes("..")) return null;
+  const repository = createHash("sha256").update(FACTORY_REPO).digest("hex").slice(0, 24);
+  const run = createHash("sha256").update(stationRunId).digest("hex").slice(0, 32);
+  return `${STATION_OBSERVATIONS_PREFIX}${repository}/${run}.json`;
 };
