@@ -5,6 +5,10 @@ import { unresolvedRows, validateReviews } from "./reviews.js";
 import { validateRows } from "./rows.js";
 import { ValidationSchema } from "./schema.js";
 
+/** @param {import("./schema.js").Validation} input */
+const reviewBaselineFindings = ({ phase, previous }) =>
+  phase === "review" && previous === null ? ["review: previous accepted matrix is required"] : [];
+
 /** Validate the source contract before accepting a station handoff. @param {unknown} input */
 export const validateAcceptance = (input) => {
   const parsed = ValidationSchema.safeParse(input);
@@ -18,6 +22,7 @@ export const validateAcceptance = (input) => {
       findings: parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`),
     };
   const findings = [
+    ...reviewBaselineFindings(parsed.data),
     ...validateContract(parsed.data),
     ...validateRows(parsed.data),
     ...validatePrerequisites(parsed.data),

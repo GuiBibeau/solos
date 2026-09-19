@@ -5,6 +5,7 @@ import { validateAcceptance } from "./validate.js";
 
 /** @param {import("./schema.js").Validation} input */
 const reviewed = (input) => {
+  input.previous = structuredClone(input.matrix);
   input.phase = "review";
   input.reviews = ["spec", "standards"].map((lane) => ({
     lane: lane === "spec" ? "spec" : "standards",

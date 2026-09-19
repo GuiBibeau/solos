@@ -7,6 +7,7 @@ import { validateAcceptance } from "./validate.js";
 
 const draftReview = () => {
   const input = profileReplay();
+  input.previous = structuredClone(input.matrix);
   input.phase = "review";
   const ci = replayRow(input, "ci");
   Object.assign(ci, { state: "pending", reason: "Hosted CI starts after PR creation", proofs: [] });
@@ -70,4 +71,19 @@ test("acceptance matrix draft approval cannot defer code failures or erase unres
     resolution: null,
   });
   expect(validateAcceptance(findings).draft_deliverable).toBe(false);
+});
+
+test("a passing matrix cannot use draft approval without deferred work", () => {
+  const input = draftReview();
+  for (const row of input.matrix.rows.filter(({ state }) => state === "pending")) {
+    row.state = "pass";
+    row.reason = null;
+    row.proofs = row.surfaces.map((surface) => proof(surface));
+  }
+  input.matrix.summary.pass += input.matrix.summary.pending;
+  input.matrix.summary.pending = 0;
+  for (const review of input.reviews) review.deferred_row_ids = [];
+  const result = validateAcceptance(input);
+  expect(result.valid).toBe(false);
+  expect(result.findings.join(" ")).toContain("draft approval requires an explicit deferred row");
 });

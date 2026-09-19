@@ -103,3 +103,11 @@ test("acceptance matrix rejects an analyst omitting a source-required surface be
   firstRow(input).surfaces = ["cli.simulate"];
   expect(validateAcceptance(input).findings.join(" ")).toContain("cli.send");
 });
+
+test("review requires the previously accepted matrix", () => {
+  const input = replay();
+  input.phase = "review";
+  expect(validateAcceptance(input).findings.join(" ")).toContain("previous accepted matrix");
+  input.previous = structuredClone(input.matrix);
+  expect(validateAcceptance(input).findings.join(" ")).not.toContain("previous accepted matrix");
+});
