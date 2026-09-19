@@ -52,14 +52,16 @@ describe("`solos transfer sol` amount boundary through real child processes [int
 
   /**
    * Same, but with a signer that cannot even load (nonexistent keypair file): a structured
-   * ValidationError proves rejection happened before the signer Layer was acquired.
+   * ValidationError proves rejection happened before the signer Layer was acquired. `extra`
+   * selects simulate-only (default), a plain send, or a skipped simulation.
    * @param {string} amount
+   * @param {string[]} extra
    */
-  const rejectWithoutSigner = async (amount) => {
+  const rejectWithoutSigner = async (amount, extra = ["--simulate-only"]) => {
     const env = await unusableSignerEnv();
     configDirs.push(env.SOLOS_CONFIG_DIR);
     const { stdout, stderr, code } = await runSolos(
-      ["transfer", "sol", "--to", RECIPIENT, "--amount", amount, "--simulate-only"],
+      ["transfer", "sol", "--to", RECIPIENT, "--amount", amount, ...extra],
       env,
     );
     expect(code).not.toBe(0);
@@ -94,10 +96,19 @@ describe("`solos transfer sol` amount boundary through real child processes [int
     expect(errorCode).not.toBe("ValidationError");
   });
 
-  test("rejects zero-equivalents and truncate-to-zero before the missing keypair is touched", async () => {
+  test("simulate-only rejects zero-equivalents, truncate-to-zero and negatives pre-signer", async () => {
     await rejectWithoutSigner("0");
     await rejectWithoutSigner("0.000000000");
     await rejectWithoutSigner("4.9e-10");
+    await rejectWithoutSigner("-1e-9");
+  });
+
+  test("send rejects the same forms pre-signer, with and without simulation", async () => {
+    await rejectWithoutSigner("0", ["--skip-simulation"]);
+    await rejectWithoutSigner("0", []);
+    await rejectWithoutSigner("0.000000000", []);
+    await rejectWithoutSigner("4.9e-10", []);
+    await rejectWithoutSigner("-1e-9", []);
   });
 
   test("a good amount in the same broken-signer env fails later as SignerUnavailable", async () => {

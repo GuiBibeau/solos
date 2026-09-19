@@ -24,10 +24,17 @@ describe("transfer amount rule", () => {
     }
   });
 
-  test("rejects junk and negative amounts as input-validation errors", () => {
-    for (const amountSol of ["abc", "", "-1"]) {
+  test("rejects junk as input-validation errors", () => {
+    for (const amountSol of ["abc", ""]) {
       expect(rejection(amountSol)).toBeInstanceOf(ValidationError);
-      expect(rejection(amountSol)).toMatchObject({ field: "amountSol" });
+      expect(rejection(amountSol)).toMatchObject({ field: "amountSol", value: amountSol });
+    }
+  });
+
+  test("rejects negative amounts, scientific and fractional alike", () => {
+    for (const amountSol of ["-1", "-0.5", "-1e-9", "-0.000000001", "-2e+21"]) {
+      expect(rejection(amountSol)).toBeInstanceOf(ValidationError);
+      expect(rejection(amountSol)).toMatchObject({ field: "amountSol", value: amountSol });
     }
   });
 

@@ -67,6 +67,15 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
   const simulate = (mcp, amountSol) =>
     mcp?.callTool("solana_transfer_simulate_sol", { to: RECIPIENT, amountSol });
 
+  /** The execute twin with simulation skipped: validation must still precede the executor. */
+  /** @param {Awaited<ReturnType<typeof connectMcp>> | undefined} mcp @param {string | number} amountSol */
+  const send = (mcp, amountSol) =>
+    mcp?.callTool("solana_transfer_send_sol", {
+      to: RECIPIENT,
+      amountSol,
+      skipSimulation: true,
+    });
+
   test('rejects amountSol "0" as a structured ValidationError with no usable provider', async () => {
     const result = await simulate(memorySigner, "0");
     expect(result?.isError).toBe(true);
@@ -103,13 +112,27 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
   });
 
   test("with a nonexistent keypair, zero-equivalents fail as ValidationError, pre-signer", async () => {
-    for (const amountSol of ["0", "0.000000000", 0, 4.9e-10]) {
+    for (const amountSol of ["0", "0.000000000", 0, 4.9e-10, -1e-9]) {
       const result = await simulate(brokenSigner, amountSol);
       expect(result?.isError).toBe(true);
       expect(result?.structuredContent).toMatchObject({
         code: "ValidationError",
         field: "amountSol",
       });
+    }
+  });
+
+  test("send rejects zero-equivalents, negatives and sub-lamport pre-signer, never as signer error", async () => {
+    for (const amountSol of ["0", 0, "0.000000000", 4.9e-10, -1e-9]) {
+      const result = await send(brokenSigner, amountSol);
+      expect(result?.isError).toBe(true);
+      expect(result?.structuredContent).toMatchObject({
+        code: "ValidationError",
+        field: "amountSol",
+      });
+      expect(["SignerUnavailable", "RpcError", "InternalError"]).not.toContain(
+        result?.structuredContent?.code,
+      );
     }
   });
 

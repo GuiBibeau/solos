@@ -24,4 +24,12 @@ describe("lamports math", () => {
     expect(solToLamports("4.9e-10")).toBe(0n);
     expect(solToLamports("2e+21")).toBe(2_000_000_000_000_000_000_000_000_000_000n);
   });
+
+  test("carries the sign through conversion, so negatives stay negative", () => {
+    expect(solToLamports("-1e-9")).toBe(-1n);
+    expect(solToLamports("-0.000000001")).toBe(-1n);
+    expect(solToLamports("-0.5")).toBe(-500_000_000n);
+    expect(solToLamports("-1")).toBe(-1_000_000_000n);
+    expect(solToLamports("-2e+21")).toBe(-2_000_000_000_000_000_000_000_000_000_000n);
+  });
 });
