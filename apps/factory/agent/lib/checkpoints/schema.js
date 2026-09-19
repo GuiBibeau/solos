@@ -40,13 +40,20 @@ const UsageSchema = z
     path: ["billedCostSource"],
   });
 
-const BlockerSchema = z.object({
-  attemptedCorrection: z.string().min(1).max(1000),
-  attempts: z.number().int().positive(),
-  escalationEmittedAt: z.iso.datetime().optional(),
-  fingerprint: z.string().min(1).max(200),
-  lastObservedAt: z.iso.datetime(),
-});
+const BlockerSchema = z
+  .object({
+    attemptedCorrection: z.string().min(1).max(1000),
+    attempts: z.number().int().positive(),
+    escalationEmittedAt: z.iso.datetime().optional(),
+    escalationMessage: z.string().min(1).max(1200).optional(),
+    fingerprint: z.string().min(1).max(200),
+    lastObservedAt: z.iso.datetime(),
+  })
+  .refine(
+    (blocker) =>
+      (blocker.escalationEmittedAt === undefined) === (blocker.escalationMessage === undefined),
+    { message: "Escalation timestamp and message must be recorded together" },
+  );
 
 export const StationCheckpointSchema = z.object({
   artifactIds: z.array(Id).max(20).default([]),

@@ -21,4 +21,4 @@ The orchestrator hands you the question along with any context and constraints (
 
 ## Durable checkpoint
 
-The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after each meaningful research milestone and before any budget pause. Record the real task outcome, latest completed operation, remaining gaps, artifact ids, continuation cursor, and next source or question. Keep provider usage fields separate and omit unavailable values. A checkpoint cannot change a budget or authorize another task.
+The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after each meaningful research milestone and before any budget pause. Record the real task outcome, latest completed operation, remaining gaps, artifact ids, continuation cursor, and next source or question. The runtime adds station identity and provider usage; never estimate either. A checkpoint cannot change a budget or authorize another task.

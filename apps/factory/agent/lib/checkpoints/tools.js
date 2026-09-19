@@ -9,6 +9,8 @@ import { checkpointStore } from "./store.js";
 const BlockerStatusSchema = z.object({
   attemptedCorrection: z.string().optional(),
   attempts: z.number().int().positive().optional(),
+  escalationEmittedAt: z.iso.datetime().optional(),
+  escalationMessage: z.string().optional(),
   fingerprint: z.string().optional(),
   lastOperation: StationCheckpointSchema.shape.latestOperation.optional(),
   shouldEscalate: z.boolean(),
@@ -56,15 +58,59 @@ export const createCheckpointReader =
       observed.found && observed.observation !== undefined
         ? observed.observation
         : { observationTimedOut: /** @type {const} */ (true) };
+    const checkpoint = withObservedUsage(result.checkpoint, observed);
     return {
       ...result,
-      blocker: blockerStatus(result.checkpoint),
+      checkpoint,
+      blocker: blockerStatus(checkpoint),
       backoffMs: monitoringBackoffMs(unchangedObservations ?? 0),
-      view: stationView(result.checkpoint, observation),
+      view: stationView(checkpoint, observation),
     };
   };
 
+/** @param {z.infer<typeof StationCheckpointSchema>} checkpoint @param {Awaited<ReturnType<typeof runtimeObserver.read>>} observed */
+const withObservedUsage = (checkpoint, observed) => {
+  const usage = observed.found ? observed.observation?.usage : undefined;
+  return usage === undefined ? checkpoint : { ...checkpoint, usage };
+};
+
 export const readCheckpoint = createCheckpointReader(checkpointStore, runtimeObserver);
+
+const WritableBlockerSchema = z.object({
+  attemptedCorrection: z.string().min(1).max(1000),
+  attempts: z.number().int().positive(),
+  fingerprint: z.string().min(1).max(200),
+  lastObservedAt: z.iso.datetime(),
+});
+const WritableCheckpointSchema = StationCheckpointSchema.omit({
+  stationRunId: true,
+  taskId: true,
+  usage: true,
+}).extend({ blocker: WritableBlockerSchema.optional() });
+
+/** @param {z.infer<typeof StationSchema>} station */
+const saveInputSchema = (station) =>
+  WritableCheckpointSchema.extend({ station: z.literal(station) });
+
+/** @param {typeof checkpointStore} checkpoints @param {typeof runtimeObserver} observer */
+export const createCheckpointSaver =
+  (checkpoints, observer) =>
+  async (
+    /** @type {unknown} */ candidate,
+    /** @type {import("eve/tools").SessionContext} */ ctx,
+  ) => {
+    const input = WritableCheckpointSchema.parse(candidate);
+    const observed = await observer.read(ctx.session.id);
+    const usage = observed.found ? observed.observation?.usage : undefined;
+    return checkpoints.save({
+      ...input,
+      stationRunId: ctx.session.id,
+      taskId: ctx.session.parent?.callId ?? ctx.session.turn.id,
+      ...(usage !== undefined && { usage }),
+    });
+  };
+
+const saveCheckpoint = createCheckpointSaver(checkpointStore, runtimeObserver);
 
 /** @param {z.infer<typeof StationSchema>} station */
 export const saveCheckpointTool = (station) =>
@@ -72,8 +118,8 @@ export const saveCheckpointTool = (station) =>
     description:
       "Save the station's restart-safe progress after a meaningful milestone and before a budget pause. " +
       "Record actual operations and unresolved diagnostics; a checkpoint never changes a budget.",
-    execute: checkpointStore.save,
-    inputSchema: StationCheckpointSchema.extend({ station: z.literal(station) }),
+    execute: saveCheckpoint,
+    inputSchema: saveInputSchema(station),
     outputSchema: z.object({
       error: z.string().optional(),
       saved: z.boolean(),

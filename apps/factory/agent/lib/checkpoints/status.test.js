@@ -49,9 +49,16 @@ test("unchanged blockers escalate once and monitoring backoff is bounded", () =>
   });
   const emitted = StationCheckpointSchema.parse({
     ...issue18Checkpoint,
-    blocker: { ...issue18Checkpoint.blocker, escalationEmittedAt: issue18Checkpoint.updatedAt },
+    blocker: {
+      ...issue18Checkpoint.blocker,
+      escalationEmittedAt: issue18Checkpoint.updatedAt,
+      escalationMessage: "Implementer remains blocked after the attempted static-check correction.",
+    },
   });
-  expect(blockerStatus(emitted).shouldEscalate).toBeFalse();
+  expect(blockerStatus(emitted)).toMatchObject({
+    escalationMessage: expect.stringContaining("remains blocked"),
+    shouldEscalate: false,
+  });
   expect(monitoringBackoffMs(0)).toBe(5000);
   expect(monitoringBackoffMs(100)).toBe(300_000);
 });

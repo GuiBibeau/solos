@@ -52,6 +52,8 @@ export const blockerStatus = (checkpoint) => {
   return {
     attemptedCorrection: blocker.attemptedCorrection,
     attempts: blocker.attempts,
+    escalationEmittedAt: blocker.escalationEmittedAt,
+    escalationMessage: blocker.escalationMessage,
     fingerprint: blocker.fingerprint,
     lastOperation: checkpoint.latestOperation,
     shouldEscalate: blocker.attempts > 1 && blocker.escalationEmittedAt === undefined,

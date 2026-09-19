@@ -6,9 +6,9 @@ import { checkpointStore } from "../lib/checkpoints/store.js";
 
 export default defineTool({
   description:
-    "Atomically claim the right to emit one escalation for a repeated station blocker. " +
-    "Only the caller receiving claimed true may emit it.",
-  execute: checkpointStore.claimEscalation,
+    "Atomically emit one durable, actionable escalation for a repeated station blocker. " +
+    "The recorded message survives restart and repeated calls do not emit it again.",
+  execute: checkpointStore.emitEscalation,
   inputSchema: z.object({
     fingerprint: z.string().min(1).max(200),
     rootRunId: z.string().min(1).max(200),
@@ -16,7 +16,8 @@ export default defineTool({
     workItem: z.string().min(1).max(200),
   }),
   outputSchema: z.object({
-    claimed: z.boolean(),
+    emitted: z.boolean(),
+    escalation: z.string().optional(),
     reason: z.string().optional(),
     revision: z.number().int().positive().optional(),
   }),

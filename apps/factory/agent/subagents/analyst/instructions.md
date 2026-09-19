@@ -48,4 +48,4 @@ When your analysis carries depth beyond the structured fields (file-level notes,
 
 ## Durable checkpoint
 
-The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after meaningful planning milestones and before any budget pause. Record the real task outcome, latest completed operation, remaining questions, artifact ids, verification stage, and next concrete milestone. Keep provider input, cached input, and output usage separate; omit unavailable values and never infer cost. A checkpoint does not change a budget or authorize a replacement task.
+The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after meaningful planning milestones and before any budget pause. Record the real task outcome, latest completed operation, remaining questions, artifact ids, verification stage, and next concrete milestone. The runtime adds station identity and provider usage; never estimate either. A checkpoint does not change a budget or authorize a replacement task.

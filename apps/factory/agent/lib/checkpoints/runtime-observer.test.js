@@ -46,16 +46,22 @@ const event = (type, sequence, data = {}) =>
   });
 
 describe("runtime-owned station observation replay", () => {
-  test("uses durable activity and returned continuation cursors", async () => {
+  test("replays a parked child completion and returned continuation cursor", async () => {
     const observer = createRuntimeObserver(memoryIo());
     await observer.observe(event("session.started", 1), "station-run");
+    await observer.observe(event("turn.completed", 2), "station-run");
     await observer.observe(
-      event("session.waiting", 2, { continuationToken: "resume-here", wait: "next-user-message" }),
+      event("session.waiting", 3, { continuationToken: "resume-here", wait: "next-user-message" }),
       "station-run",
     );
     expect(await observer.read("station-run")).toMatchObject({
       found: true,
-      observation: { cursor: "resume-here", sessionStatus: "waiting", taskOutcome: "active" },
+      observation: {
+        cursor: "resume-here",
+        revision: 3,
+        sessionStatus: "waiting",
+        taskOutcome: "completed",
+      },
     });
   });
 
@@ -75,7 +81,33 @@ describe("runtime-owned station observation replay", () => {
 
     expect(await read(checkpoint)).toMatchObject({
       found: true,
-      view: { cursor: "event-1", redispatch: false, status: "completed" },
+      view: { cursor: "trace-page-4", redispatch: false, status: "completed" },
+    });
+  });
+
+  test("uses ingestion revision and deduplicates provider usage", async () => {
+    const observer = createRuntimeObserver(memoryIo());
+    const started = event("turn.started", 1);
+    const usage = event("step.completed", 2, {
+      finishReason: "stop",
+      sequence: 2,
+      stepIndex: 0,
+      turnId: "turn-1",
+      usage: { cacheReadTokens: 3, costUsd: 0.01, inputTokens: 10, outputTokens: 2 },
+    });
+    const priorClock = "2026-09-18T23:59:59.000Z";
+    const completion = event("turn.completed", 3);
+    const completed = { ...completion, meta: { ...completion.meta, at: priorClock } };
+    await observer.observe(started, "station-run");
+    await observer.observe(usage, "station-run");
+    await observer.observe(usage, "station-run");
+    await observer.observe(completed, "station-run");
+    expect(await observer.read("station-run")).toMatchObject({
+      observation: {
+        revision: 3,
+        taskOutcome: "completed",
+        usage: { billedCostUsd: 0.01, cachedInputTokens: 3, inputTokens: 10, outputTokens: 2 },
+      },
     });
   });
 
@@ -91,6 +123,11 @@ describe("runtime-owned station observation replay", () => {
     for (const [type, expected] of cases) {
       const observer = createRuntimeObserver(memoryIo());
       await observer.observe(event(type, 1), `run-${type}`);
+      if (type === "turn.cancelled")
+        await observer.observe(
+          event("session.waiting", 2, { continuationToken: "resume", wait: "next-user-message" }),
+          `run-${type}`,
+        );
       const stored = await observer.read(`run-${type}`);
       if (!stored.found || stored.observation === undefined) throw new Error("observation missing");
       expect(

@@ -20,4 +20,4 @@ Be decisive. When information is thin but the intent is clear, classify with you
 
 ## Durable checkpoint
 
-The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after classification and before any budget pause. Record the real task outcome, latest completed operation, remaining diagnostics, artifacts, verification stage, and next milestone. Keep provider usage fields separate and omit values the provider did not report. A checkpoint preserves progress only: it never changes a budget or authorizes a retry, relabel, replacement task, or dispatch.
+The orchestrator supplies stable work-item and root-run ids. Call `save-station-checkpoint` after classification and before any budget pause. Record the real task outcome, latest completed operation, remaining diagnostics, artifacts, verification stage, and next milestone. The runtime adds station identity and provider usage; never estimate either. A checkpoint preserves progress only: it never changes a budget or authorizes a retry, relabel, replacement task, or dispatch.

@@ -68,7 +68,7 @@ describe("[integration] durable checkpoint store", () => {
     });
   });
 
-  test("claims one blocker escalation across concurrent observers and restart", async () => {
+  test("emits one durable blocker escalation across concurrency and restart", async () => {
     const memory = createMemoryIo();
     const firstProcess = createCheckpointStore(memory.io);
     const initial = { ...issue18Checkpoint, revision: 1 };
@@ -80,17 +80,24 @@ describe("[integration] durable checkpoint store", () => {
       workItem: initial.workItem,
     };
 
-    const claims = await Promise.all([
-      firstProcess.claimEscalation(input),
-      createCheckpointStore(memory.io).claimEscalation(input),
+    const emissions = await Promise.all([
+      firstProcess.emitEscalation(input),
+      createCheckpointStore(memory.io).emitEscalation(input),
     ]);
-    expect(claims.filter((claim) => claim.claimed)).toHaveLength(1);
-    expect(await createCheckpointStore(memory.io).claimEscalation(input)).toEqual({
-      claimed: false,
-      reason: "already_claimed",
+    expect(emissions.filter((emission) => emission.emitted)).toHaveLength(1);
+    expect(emissions.find((emission) => emission.emitted)?.escalation).toContain("remains blocked");
+    expect(await createCheckpointStore(memory.io).emitEscalation(input)).toEqual({
+      emitted: false,
+      reason: "already_emitted",
     });
     expect(await firstProcess.read(initial)).toMatchObject({
-      checkpoint: { blocker: { escalationEmittedAt: expect.any(String) }, revision: 2 },
+      checkpoint: {
+        blocker: {
+          escalationEmittedAt: expect.any(String),
+          escalationMessage: expect.stringContaining("remains blocked"),
+        },
+        revision: 2,
+      },
       found: true,
     });
   });
