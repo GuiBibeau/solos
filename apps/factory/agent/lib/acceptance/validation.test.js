@@ -54,6 +54,17 @@ test("acceptance matrix requires current behavioral proof for every applicable s
   expect(validateAcceptance(input).valid).toBe(false);
 });
 
+test("acceptance matrix cannot classify a runtime sentinel as inspection-only proof", () => {
+  const input = replay();
+  firstRow(input).proof_kind = "inspection";
+  firstRow(input).proofs = firstRow(input).surfaces.map((surface) => ({
+    ...proof(surface),
+    kind: "inspection",
+    observation: "The guard appears before signer in source",
+  }));
+  expect(validateAcceptance(input).valid).toBe(false);
+});
+
 test("acceptance matrix preserves row identities, responsibilities and surfaces across revisions", () => {
   const input = replay();
   input.previous = structuredClone(input.matrix);

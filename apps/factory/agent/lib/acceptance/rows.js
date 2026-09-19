@@ -21,14 +21,24 @@ const proofFindings = (row, revision) => {
   );
 };
 
-/** @param {import("./schema.js").Row} row @param {import("./schema.js").Validation} input */
-const rowFindings = (row, { matrix, revision }) => {
+/** @param {import("./schema.js").Row} row @param {string} revision */
+const validationMethodFindings = (row, revision) => {
   const findings = proofFindings(row, revision);
+  const requiresBehavior =
+    row.validator !== "review" || ["failure_timing", "observability"].includes(row.dimension);
+  if (requiresBehavior && row.proof_kind !== "behavioral")
+    findings.push(`${row.id}: runtime validation requires behavioral proof, not source inspection`);
   if (
     row.state === "pass" &&
     row.proofs.some((proof) => proof.revision === revision && proof.outcome === "fail")
   )
     findings.push(`${row.id}: pass contradicts observed failure`);
+  return findings;
+};
+
+/** @param {import("./schema.js").Row} row @param {import("./schema.js").Validation} input */
+const rowFindings = (row, { matrix, revision }) => {
+  const findings = validationMethodFindings(row, revision);
   if (matrix.criteria.every(({ id }) => id !== row.criterion_id))
     findings.push(`${row.id}: unknown criterion`);
   if (row.state !== "pass" && !row.reason)
