@@ -15,7 +15,4 @@ export const PositiveDecimalSchema = DecimalSchema.refine(
 );
 export const SlippageBpsSchema = z.number().int().min(0).max(9999);
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
-export const LiquidityUnitsSchema = AmountSchema.pipe(
-  z.string().refine((value) => BigInt(value) <= (1n << 128n) - 1n, "liquidity exceeds u128"),
-);
 export const TokenDecimalsSchema = z.number().int().min(0).max(255);

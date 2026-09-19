@@ -34,6 +34,9 @@ const lp = {
 describe("Position identities and valuation units", () => {
   test("wallet tokens retain their existing shape and exact quantities", () => {
     expect(PositionSchema.parse(token)).toEqual(token);
+    expect(PositionSchema.parse({ ...token, protocol: "spl-token" })).toMatchObject({
+      protocol: "spl-token",
+    });
     expect(PositionSchema.parse({ ...token, instrument: "SOL", decimals: 9 })).toMatchObject({
       instrument: "SOL",
     });
@@ -69,6 +72,12 @@ describe("Position identities and valuation units", () => {
 
   test("LP identity and underlying quantities cannot be replaced by scalar token size", () => {
     expect(PositionSchema.parse(lp)).toEqual(lp);
+    const aggregate = {
+      ...lp,
+      protocol: "meteora",
+      liquidity: "340282366920938463463374607431768211456",
+    };
+    expect(PositionSchema.parse(aggregate)).toEqual(aggregate);
     for (const change of [
       { position: undefined },
       { tokenA: undefined },

@@ -1,11 +1,7 @@
 // @ts-check
 import { z } from "zod";
 import { AddressSchema, AmountSchema, DecimalSchema } from "./primitives.js";
-import {
-  LiquidityProtocolSchema,
-  LiquidityUnitsSchema,
-  TokenDecimalsSchema,
-} from "./trading-primitives.js";
+import { LiquidityProtocolSchema, TokenDecimalsSchema } from "./trading-primitives.js";
 
 const holding = {
   instrument: z.string().min(1).describe("Mint identity, or SOL for native lamports"),
@@ -17,7 +13,7 @@ const holding = {
 export const TokenPositionSchema = z.object({
   kind: z.literal("token"),
   ...holding,
-  protocol: z.null(),
+  protocol: z.string().nullable(),
 });
 
 export const LendPositionSchema = z.object({
@@ -52,16 +48,25 @@ const underlying = z.object({
   amount: AmountSchema,
   decimals: TokenDecimalsSchema,
 });
-export const LpPositionSchema = z.object({
-  kind: z.literal("lp"),
-  protocol: LiquidityProtocolSchema,
-  position: AddressSchema,
-  instrument: AddressSchema.describe("Pool identity"),
-  liquidity: LiquidityUnitsSchema.describe("Protocol raw liquidity shares, never a token amount"),
-  tokenA: underlying,
-  tokenB: underlying,
-  valueUsd: DecimalSchema.nullable(),
-});
+export const LpPositionSchema = z
+  .object({
+    kind: z.literal("lp"),
+    protocol: LiquidityProtocolSchema,
+    position: AddressSchema,
+    instrument: AddressSchema.describe("Pool identity"),
+    liquidity: AmountSchema.describe("Protocol raw liquidity shares, never a token amount"),
+    tokenA: underlying,
+    tokenB: underlying,
+    valueUsd: DecimalSchema.nullable(),
+  })
+  .refine(
+    (value) =>
+      value.protocol === "meteora" ||
+      (/^\d+$/.test(value.liquidity) && BigInt(value.liquidity) <= (1n << 128n) - 1n),
+    {
+      message: "Orca/Raydium liquidity exceeds u128",
+    },
+  );
 
 export const PerpAccountSchema = z.object({
   protocol: z.literal("phoenix"),
