@@ -10,6 +10,7 @@ import { Effect } from "effect";
 import { agent } from "./commands/agent.js";
 import { daemon } from "./commands/daemon.js";
 import { dev } from "./commands/dev.js";
+import { launch } from "./commands/launch.js";
 import { login } from "./commands/login.js";
 import { market } from "./commands/market.js";
 import { mcp } from "./commands/mcp.js";
@@ -30,6 +31,7 @@ const root = Command.make("solos").pipe(
     transfer,
     market,
     swap,
+    launch,
     mcp,
     router,
     agent,

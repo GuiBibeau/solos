@@ -7,6 +7,7 @@
 import { Layer } from "effect";
 import { DEFAULT_ELFA_BASE_URL, DEFAULT_JUPITER_BASE_URL } from "./env.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
+import { LaunchVenueLive } from "./launch/launch-venue-live.js";
 import { JupiterPriceLive } from "./market/jupiter-price-live.js";
 import { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 import { TokenRegistryLive } from "./market/token-registry-live.js";
@@ -28,6 +29,7 @@ export {
 } from "./env.js";
 export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
+export { LaunchVenueLive } from "./launch/launch-venue-live.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
 export { TokenRegistryLive } from "./market/token-registry-live.js";
@@ -45,6 +47,7 @@ const adapters = Layer.mergeAll(
   SignerLive,
   BalanceReaderLive,
   TokenRegistryLive(),
+  LaunchVenueLive(),
   DirectSignerExecutor,
 );
 

@@ -63,6 +63,7 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_market_get_event_summary` | read |
 | `solana_market_get_price` | read |
 | `solana_market_get_token` | read |
+| `solana_launch_get_curve` | read |
 | `solana_swap_get_quote` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
@@ -70,7 +71,8 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
 `JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` has the
 Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes; execution
-arrives with Action-based build execution); `signals` has ports only.
+arrives with Action-based build execution); `launch` has the pump bonding-curve reader over the
+configured Solana RPC (no provider key at all); `signals` has ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -276,6 +278,56 @@ Inspect the answer's `routeSummary` hops, `minOutAmount` (worst case at 0.5% def
 and `priceImpactPct` (a decimal ratio: `"0.01"` means 1 percent). Both surfaces must return the
 same amounts for the same request, and the fixture-backed tests assert the request went to
 `/swap/v2/order` exactly once with no submit call.
+
+## Launch curve (Pump bonding curve)
+
+`solana_launch_get_curve` (MCP) and `solos launch curve --mint <address>` (CLI) read the current
+state of a pump.fun bonding curve for one launched token and return
+`{ mint, program, complete, progressBps, virtualSolReserves, virtualTokenReserves }`:
+
+- **Pinned program and IDL.** Reads target the official pump program
+  `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`, with byte layouts and discriminators verified
+  against the official IDL at pinned upstream commit `81091419e4457566469d4e2a27f64ed84d42419c`.
+  The curve account stores no mint of its own, so identity is established only by the derived
+  PDA (seeds `["bonding-curve", mint]`) plus the program owner plus the layout discriminator —
+  an impostor account at the PDA fails, it is never trusted.
+- **`complete` is the on-chain flag and nothing more.** It does **not** prove a PumpSwap
+  migration pool exists; migration tracking is out of scope, and solOS deliberately does not
+  emit any `graduated` field.
+- **`progressBps` is real, floored, and clamped.** Progress is computed from the curve's real
+  token reserves against the protocol's configured initial real token reserves, read live from
+  the Global config (so a protocol `set_params` update is honored, never a guessed constant),
+  as `floor((initial - real) x 10000 / initial)`, clamped to 0..10000. Floor rounding and the
+  clamp are solOS's documented convention; the protocol documents none. A fresh curve reads 0,
+  a completed curve reads exactly 10000, and a curve one base unit from completion reads 9999.
+- **Reserves are exact.** `virtualSolReserves` and `virtualTokenReserves` are u64 base-unit
+  integer strings decoded with BigInt end to end — never rounded through a JS Number.
+- **SOL-paired curves only (MVP).** A legacy account without a quote field, or one storing the
+  default pubkey (native SOL), reads normally. A curve trading against any other quote asset
+  fails `UnsupportedQuoteAsset` with the offending quote mint. There is no Jupiter fallback.
+- **Errors:** `CurveInputInvalid` (not a 32-byte base58 address, before any RPC),
+  `CurveUnavailable` (no account at the PDA), `CurveCorrupt` (wrong owner, wrong discriminator,
+  or truncated bytes — older shorter curves are valid layouts, decoded by threshold with
+  defaults, and longer accounts with trailing padding decode identically),
+  `CurveConfigUnavailable` (the Global config needed for progress is absent or unreadable), and
+  the shared `RpcError` for transport failures. A completed curve is a **successful** read.
+- **Reads are bounded.** At most two account reads per call (curve, then Global), each with an
+  aborting deadline covering headers and body, one attempt, no retries, no off-chain fetches.
+  Nothing is bought, sold, signed, or sent.
+- **No API key.** The only configuration is the standard `SOLANA_RPC_URL` (or an RPC URL in the
+  active profile), the same endpoint every other Solana tool uses. Endpoint credentials in the
+  URL are redacted to the origin in errors, exactly as in token metadata reads.
+
+```sh
+SOLANA_RPC_URL=... bun run solos launch curve --mint <mint>
+SOLANA_RPC_URL=... bun run solos mcp call solana_launch_get_curve --args '{"mint":"<mint>"}'
+```
+
+Operator QA (requires an RPC endpoint with the curve on chain; **blocked** in the factory —
+the factory never provisions RPC credentials, so live QA is reported blocked, never passed):
+read one active curve and one completed curve and compare the decoded flags and reserves with
+the chain accounts for the same addresses; both surfaces must return identical JSON for the
+same mint. No funded transaction is involved.
 
 ## License
 

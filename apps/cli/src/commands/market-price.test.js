@@ -18,9 +18,8 @@ const solanaEnv = async () => ({
 
 /**
  * Spawn the CLI entry directly — `bun --no-env-file run apps/cli/src/main.js`. The flag must
- * govern the one process that loads env files: going through the `solos` package script would
- * start a second Bun without the flag, which loads `.env`/`.env.local` again. Real users keep
- * normal env loading; only this harness opts out.
+ * govern the one process that loads env files: the `solos` package script would start a
+ * second Bun without it, loading `.env`/`.env.local` again.
  * @param {string[]} args
  * @param {Record<string, string>} env
  */
@@ -39,11 +38,7 @@ const runSolos = async (args, env) => {
   return { stdout, stderr, code };
 };
 
-/**
- * `bun run` wraps the CLI's stderr with its own lines; pick the JSON line the CLI printed.
- * @param {string} stderr
- * @returns {any} the parsed CLI output, or undefined when stderr has no JSON line
- */
+/** Pick and parse the JSON line the CLI printed on `bun run`-wrapped stderr. @param {string} stderr @returns {any} */
 const stderrJson = (stderr) => {
   const line = stderr.split("\n").find((candidate) => candidate.startsWith("{"));
   return line === undefined ? undefined : JSON.parse(line);
@@ -112,6 +107,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
     expect(code).toBe(0);
     const names = JSON.parse(stdout).tools.map((/** @type {{ name: string }} */ t) => t.name);
     expect(names).toEqual([
+      "solana_launch_get_curve",
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
       "solana_market_get_price",
