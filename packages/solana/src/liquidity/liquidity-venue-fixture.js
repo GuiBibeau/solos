@@ -42,8 +42,8 @@ const seedBelowPosition = async (rpcUrl, owner) => {
   });
 };
 
-/** Seed the corrupt-pool families: a wrong-discriminator pool and a pool without its mints. @param {string} rpcUrl @param {(overrides: Partial<Parameters<typeof seedWhirlpoolPosition>[1]>) => ReturnType<typeof seedWhirlpoolPosition>} position */
-const seedCorruptPools = async (rpcUrl, position) => {
+/** Seed the corrupt pool/mint families: wrong-discriminator pool, missing mints, a pool mint at a wrong owner program, and an undersized mint. @param {string} rpcUrl @param {(overrides: Partial<Parameters<typeof seedWhirlpoolPosition>[1]>) => ReturnType<typeof seedWhirlpoolPosition>} position */
+const seedCorruptFamilies = async (rpcUrl, position) => {
   const badDiscPool = await seedWhirlpool(rpcUrl, {
     discriminator: new Uint8Array(8).fill(255),
     mints: false,
@@ -51,7 +51,16 @@ const seedCorruptPools = async (rpcUrl, position) => {
   const againstBadDiscPool = await position({ pool: badDiscPool.pool });
   const noMintPool = await seedWhirlpool(rpcUrl, { mints: false });
   const againstNoMintPool = await position({ pool: noMintPool.pool });
-  return { againstBadDiscPool, againstNoMintPool };
+  const wrongOwnerMintPool = await seedWhirlpool(rpcUrl, { corruptMint: "wrong-owner" });
+  const againstWrongOwnerMint = await position({ pool: wrongOwnerMintPool.pool });
+  const shortMintPool = await seedWhirlpool(rpcUrl, { corruptMint: "short" });
+  const againstShortMint = await position({ pool: shortMintPool.pool });
+  return {
+    againstBadDiscPool,
+    againstNoMintPool,
+    againstWrongOwnerMint,
+    againstShortMint,
+  };
 };
 
 /** Seed one pool family, its positions with NFT custody, and every corrupt variant. @param {string} rpcUrl */
@@ -70,7 +79,7 @@ const seedFixtures = async (rpcUrl) => {
   const shortBytes = await position({ bytes: 100 });
   const impostor = await position({ accountOwner: SYSTEM_PROGRAM });
   const missingPool = await position({ pool: randomAddress() });
-  const corruptPools = await seedCorruptPools(rpcUrl, position);
+  const corruptFamilies = await seedCorruptFamilies(rpcUrl, position);
   return {
     owner,
     otherOwner,
@@ -83,7 +92,7 @@ const seedFixtures = async (rpcUrl) => {
     shortBytes,
     impostor,
     missingPool,
-    ...corruptPools,
+    ...corruptFamilies,
   };
 };
 

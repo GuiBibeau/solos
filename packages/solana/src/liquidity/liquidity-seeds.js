@@ -44,7 +44,7 @@ const POOL_DEFAULTS = { decimalsA: 6, decimalsB: 9, bytes: 0, mints: true };
  * Seed one Whirlpool pool with its two mints. `mints: false` skips the mint accounts — the
  * pool-mint-missing corrupt case; `discriminator`/`bytes` corrupt the pool account itself.
  * @param {string} rpcUrl
- * @param {{ sqrtPrice?: bigint; decimalsA?: number; decimalsB?: number; discriminator?: Uint8Array<ArrayBuffer>; bytes?: number; mints?: boolean }} [options]
+ * @param {{ sqrtPrice?: bigint; decimalsA?: number; decimalsB?: number; discriminator?: Uint8Array<ArrayBuffer>; bytes?: number; mints?: boolean; corruptMint?: "wrong-owner" | "short" }} [options]
  * @returns {Promise<{ pool: string; mintA: string; mintB: string }>}
  */
 export const seedWhirlpool = async (rpcUrl, options = {}) => {
@@ -54,9 +54,13 @@ export const seedWhirlpool = async (rpcUrl, options = {}) => {
   const mintB = randomAddress();
   const write = accountWriter(rpcUrl);
   if (o.mints) {
+    // corruptMint variants: a mint under the System Program, or an undersized mint body.
+    const mintOwner = o.corruptMint === "wrong-owner" ? SYSTEM_PROGRAM : TOKEN_PROGRAM;
+    const mintData = (/** @type {number} */ decimals) =>
+      o.corruptMint === "short" ? mintBytes(decimals).slice(0, 40) : mintBytes(decimals);
     await Promise.all([
-      write(mintA, TOKEN_PROGRAM, mintBytes(o.decimalsA)),
-      write(mintB, TOKEN_PROGRAM, mintBytes(o.decimalsB)),
+      write(mintA, mintOwner, mintData(o.decimalsA)),
+      write(mintB, mintOwner, mintData(o.decimalsB)),
     ]);
   }
   await write(

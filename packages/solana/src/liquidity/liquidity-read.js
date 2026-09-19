@@ -12,7 +12,8 @@ import {
 import { Effect } from "effect";
 import { fetchAccount } from "../market/account-read.js";
 import { base64AccountData } from "../market/mint-account.js";
-import { holdsPositionNft, mintDecimals } from "./liquidity-accounts.js";
+import { holdsPositionNft } from "./liquidity-accounts.js";
+import { mintDecimals, mintDecimalsOrUnavailable } from "./liquidity-mint-read.js";
 import { decodePosition, decodeWhirlpool } from "./whirlpool-decode.js";
 import { WHIRLPOOL_PROGRAM } from "./whirlpool-program.js";
 import { underlyingAmounts } from "./whirlpool-underlying.js";
@@ -133,12 +134,9 @@ export const getPositionLive = (read, request) =>
     const layout = yield* readPosition(read, request.position);
     yield* custodyProof(read, request, layout.positionMint);
     const pool = yield* readPool(read, request.position, layout.whirlpool);
-    const decimals = yield* mintDecimals(read, [pool.tokenMintA, pool.tokenMintB]);
-    const decimalsA = decimals.get(pool.tokenMintA);
-    const decimalsB = decimals.get(pool.tokenMintB);
-    if (decimalsA === undefined || decimalsB === undefined) {
-      return yield* unavailable(request.position, "pool mint is missing");
-    }
+    const reads = yield* mintDecimals(read, [pool.tokenMintA, pool.tokenMintB]);
+    const decimalsA = yield* mintDecimalsOrUnavailable(request.position, pool.tokenMintA, reads);
+    const decimalsB = yield* mintDecimalsOrUnavailable(request.position, pool.tokenMintB, reads);
     const found = { address: request.position, mint: layout.positionMint, layout };
     return yield* toLpPosition(found, pool, { decimalsA, decimalsB });
   });

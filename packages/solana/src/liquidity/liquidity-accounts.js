@@ -1,7 +1,6 @@
 // @ts-check
 /** @typedef {import("../market/account-read.js").AccountRead} AccountRead */
 import { address } from "@solana/kit";
-import { getMintDecoder } from "@solana-program/token";
 import { Effect } from "effect";
 import { base64AccountData } from "../market/mint-account.js";
 import { rpcCall } from "../rpc/rpc-call.js";
@@ -10,8 +9,6 @@ import {
   TOKEN_PROGRAM,
   decodeTokenAccounts,
 } from "../wallet/parse-token-accounts.js";
-
-const mintDecoder = getMintDecoder();
 
 /** One fetched program account: owning program plus raw bytes. @typedef {{ readonly owner: string; readonly bytes: Uint8Array }} FetchedAccount */
 
@@ -99,30 +96,3 @@ export const ownedTokenAccounts = (read, owner) =>
     ],
     { concurrency: 2 },
   ).pipe(Effect.map(([legacy, modern]) => [...legacy, ...modern]));
-
-/**
- * Decimals for a list of mints, fetched in bounded chunks (decimals live on the mint; the
- * Whirlpool account has no decimal fields).
- * @param {AccountRead} read
- * @param {readonly string[]} mints
- * @returns {Effect.Effect<Map<string, number>, import("@solos/core").RpcError>}
- */
-export const mintDecimals = (read, mints) =>
-  Effect.flatMap(
-    Effect.all(
-      chunksOf(mints, BATCH_CHUNK).map((chunk) =>
-        fetchAccounts(read, chunk).pipe(
-          Effect.map((rows) =>
-            rows.flatMap((row, i) => {
-              const mint = /** @type {string | undefined} */ (chunk[i]);
-              return row === null || mint === undefined
-                ? []
-                : [/** @type {const} */ ([mint, mintDecoder.decode(row.bytes).decimals])];
-            }),
-          ),
-        ),
-      ),
-      { concurrency: 2 },
-    ),
-    (maps) => Effect.succeed(new Map(maps.flat())),
-  );

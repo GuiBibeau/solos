@@ -9,9 +9,10 @@ import {
   LiquidityUnsupportedProtocol,
 } from "@solos/core";
 import { Effect } from "effect";
-import { mintDecimals, ownedTokenAccounts } from "./liquidity-accounts.js";
+import { ownedTokenAccounts } from "./liquidity-accounts.js";
 import { readCandidates, readPools } from "./liquidity-enumerate-accounts.js";
 import { selectPositionCandidates } from "./liquidity-enumerate-select.js";
+import { mintDecimals, usableMintPair } from "./liquidity-mint-read.js";
 import { toLpPosition } from "./liquidity-read.js";
 
 /** @param {string} position @param {string} reason @returns {LiquidityPositionUnavailable} */
@@ -23,7 +24,7 @@ const unavailable = (position, reason) => new LiquidityPositionUnavailable({ pos
  * exposure, and the receipt mints are the position NFTs themselves.
  * @param {FoundPosition[]} found
  * @param {Map<string, WhirlpoolLayout>} pools
- * @param {Map<string, number>} decimals
+ * @param {Map<string, import("./liquidity-mint-read.js").MintRead>} decimals
  * @returns {Effect.Effect<import("@solos/core").LiquidityEnumeration, LiquidityPositionUnavailable>}
  */
 const toEnumeration = (found, pools, decimals) =>
@@ -34,7 +35,9 @@ const toEnumeration = (found, pools, decimals) =>
     if (pool === undefined || decimalsA === undefined || decimalsB === undefined) {
       return Effect.fail(unavailable(item.address, "referenced pool mint is missing"));
     }
-    return toLpPosition(item, pool, { decimalsA, decimalsB });
+    return Effect.flatMap(usableMintPair(item.address, decimalsA, decimalsB), (decimals) =>
+      toLpPosition(item, pool, decimals),
+    );
   }).pipe(
     Effect.map((positions) => ({
       positions,
