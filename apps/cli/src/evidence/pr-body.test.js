@@ -9,6 +9,13 @@ const sampleEvidence = {
   versions: { bun: "1.3.14", surfpool: null },
   steps: [
     {
+      name: "line-limit",
+      command: "bun run check:lines",
+      ok: true,
+      ms: 50,
+      summary: "physical line gate passed",
+    },
+    {
       name: "format",
       command: "bun run format:check",
       ok: true,
@@ -97,7 +104,7 @@ describe("pr-body evidence check", () => {
     const skipped = checkPrBody(
       bodyWith({
         ...sampleEvidence,
-        steps: sampleEvidence.steps.map((step, i) => (i === 4 ? { ...step, ok: null } : step)),
+        steps: sampleEvidence.steps.map((step, i) => (i === 5 ? { ...step, ok: null } : step)),
       }),
       SHA,
     );

@@ -39,6 +39,7 @@ const policy = (type, allow) => ({ from: { element: { type } }, allow });
 const complexity = {
   complexity: ["error", 8],
   "max-depth": ["error", 3],
+  // ESLint bounds logical source lines; check:lines owns the 150 physical-line changed-file gate.
   "max-lines": ["error", { max: 150, skipBlankLines: true, skipComments: true }],
   "max-lines-per-function": ["error", { max: 40, skipBlankLines: true, skipComments: true }],
   "max-nested-callbacks": ["error", 3],
@@ -187,6 +188,7 @@ export default [
       "max-lines-per-function": "off",
       "max-statements": "off",
       "max-nested-callbacks": "off",
+      // Test readability may use 300 logical lines; check:lines still caps changed files at 150 physical lines.
       "max-lines": ["error", { max: 300 }],
     },
   },

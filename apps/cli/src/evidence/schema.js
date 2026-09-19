@@ -12,7 +12,7 @@ export const ScopeSchema = z
 
 /** @typedef {z.infer<typeof ScopeSchema>} Scope */
 
-const CHECK_STEP_NAMES = ["format", "lint", "depcruise", "typecheck"];
+const CHECK_STEP_NAMES = ["line-limit", "format", "lint", "depcruise", "typecheck"];
 
 /**
  * Step names each scope must show, in order. The runner emits exactly these; the PR check refuses

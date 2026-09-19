@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - name: solos dev verify --scope check
         run: bun run solos dev verify --scope check --json > "$RUNNER_TEMP/evidence-check.json"
@@ -37,6 +39,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - name: solos dev verify --scope unit
         run: bun run solos dev verify --scope unit --json > "$RUNNER_TEMP/evidence-unit.json"
@@ -53,6 +57,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
           surfpool: "true"
