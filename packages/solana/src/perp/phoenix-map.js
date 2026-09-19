@@ -42,8 +42,13 @@ const lotsOrCorrupt = (account, text) => {
 };
 
 /**
- * One row to the contract shape: side from the sign, absolute base lots as the amount, market
- * decimals, and valueUsd null (never leveraged notional). A zero-lots residual row is flat.
+ * One row to the contract shape: side from the sign, the amount as absolute base lots, market
+ * decimals, and valueUsd null (never leveraged notional). Base lots are the venue's smallest
+ * base units, so the integer amount carries the exact exposure and `decimals` scales it to
+ * whole tokens -- the same amount + decimals convention as the token/lend rows in the position
+ * union (`AmountSchema` is an integer count of base units; see the @solos/actions README
+ * example where the perp and wSOL rows share figures and decimals). A zero-lots residual row
+ * is flat.
  * @param {PositionRowWire} row
  * @param {number} decimals
  * @param {string} account

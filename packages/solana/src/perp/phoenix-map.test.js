@@ -66,6 +66,22 @@ describe("mapPointRead", () => {
     expect(position).toMatchObject({ side: "short", amount: "1500" });
   });
 
+  test("amount is the absolute exposure in base units; decimals scales it to tokens", () => {
+    const state = traderState(DEFAULT_AUTHORITY, [
+      subaccount(0, { positions: [positionRow("SOL", "1")] }),
+    ]);
+    const { position } = mapPointRead({ authority: DEFAULT_AUTHORITY, market: SOL, state });
+    expect(position).toMatchObject({ side: "long", amount: "1", decimals: 2 });
+  });
+
+  test("a short of -1500 lots at 2 decimals is amount 1500 base units, side short", () => {
+    const state = traderState(DEFAULT_AUTHORITY, [
+      subaccount(0, { positions: [positionRow("SOL", "-1500")] }),
+    ]);
+    const { position } = mapPointRead({ authority: DEFAULT_AUTHORITY, market: SOL, state });
+    expect(position).toMatchObject({ side: "short", amount: "1500", decimals: 2 });
+  });
+
   test("flat is exactly zero, and a flat account is worth its collateral", () => {
     const { position, account } = mapPointRead({
       authority: DEFAULT_AUTHORITY,
