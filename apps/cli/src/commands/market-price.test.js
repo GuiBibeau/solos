@@ -114,6 +114,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
       "solana_market_get_token",
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
+      "solana_perp_get_position",
       "solana_swap_get_quote",
       "solana_transfer_send_sol",
       "solana_transfer_simulate_sol",
