@@ -53,8 +53,14 @@ const changedFiles = async (base) => {
 };
 
 const trackedFiles = async () => {
-  const output = await git(["ls-files", "-z"]);
-  return output.split("\0").filter((path) => CODE_EXTENSIONS.has(nodePath.extname(path)));
+  const [output, deleted] = await Promise.all([
+    git(["ls-files", "-z"]),
+    git(["ls-files", "--deleted", "-z"]),
+  ]);
+  const missing = new Set(deleted.split("\0"));
+  return output
+    .split("\0")
+    .filter((path) => !missing.has(path) && CODE_EXTENSIONS.has(nodePath.extname(path)));
 };
 
 /** @param {string} text */

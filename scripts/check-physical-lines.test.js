@@ -83,4 +83,13 @@ describe("physical line gate [integration]", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("src/uncommitted.js: 151 physical lines");
   });
+
+  test("ignores an unstaged deletion when scanning untouched debt", async () => {
+    const cwd = await createRepo();
+    await addLegacyDebt(cwd, "src/legacy.js");
+    await Bun.file(nodePath.join(cwd, "src/legacy.js")).delete();
+    const result = await runCheck(cwd);
+    expect(result.code).toBe(0);
+    expect(result.stderr).not.toContain("ENOENT");
+  });
 });
