@@ -1,11 +1,9 @@
 // @ts-check
 /** Offline GitHub API fixture for the signed-webhook integration tests. */
-import { createHmac } from "node:crypto";
-import { githubChannel } from "eve/channels/github";
-import { githubConfig } from "../../channels/github.js";
+import { createGitHubChannel, githubConfig } from "../../channels/github.js";
 import { FACTORY_REPO } from "../constants.js";
+import { invokeWebhook, WEBHOOK_SECRET } from "./webhook-route-fixture.js";
 
-const SECRET = "offline-webhook-test-secret";
 export const REVIEW_SHA = "a".repeat(40);
 export const CODEX_USER = { id: 199_175_422, login: "chatgpt-codex-connector[bot]", type: "Bot" };
 
@@ -86,36 +84,6 @@ const apiResponse = (fixture, request) => {
   throw new Error(`Unexpected GitHub request: ${pathname}`);
 };
 
-/** @typedef {{message: unknown, options: import("eve/channels").ChannelSendOptions<import("eve/channels/github").GitHubChannelState>, address: string}} Delivery */
-const unexpected = () => {
-  throw new Error("Unexpected Eve operation");
-};
-
-/** @param {Delivery[]} deliveries @param {Promise<unknown>[]} pending
- * @returns {import("eve/channels").RouteHandlerArgs<import("eve/channels/github").GitHubChannelState>}
- */
-const routeArgs = (deliveries, pending) => ({
-  from: (address) => ({
-    send: async (message, options) => {
-      deliveries.push({ message, options, address });
-      return /** @type {import("eve/channels").Session} */ ({ id: "offline-session" });
-    },
-    respond: unexpected,
-    cancel: unexpected,
-    compact: unexpected,
-    clear: unexpected,
-    reset: unexpected,
-  }),
-  resolveSession: async () => undefined,
-  attachSession: unexpected,
-  to: unexpected,
-  params: {},
-  requestIp: null,
-  waitUntil: (task) => {
-    pending.push(task);
-  },
-});
-
 /** @param {Fixture} fixture @param {{event?: string, validSignature?: boolean, defaultHandler?: boolean}} [options] */
 export const deliverReview = async (fixture, options = {}) => {
   const server = Bun.serve({
@@ -124,39 +92,15 @@ export const deliverReview = async (fixture, options = {}) => {
     fetch: (request) => apiResponse(fixture, request),
   });
   try {
-    const channel = githubChannel({
+    const channel = createGitHubChannel({
       ...githubConfig,
       onComment: options.defaultHandler ? undefined : githubConfig.onComment,
       botName: "solos-factory",
-      credentials: { webhookSecret: SECRET, installationToken: "offline-test-token" },
+      credentials: { webhookSecret: WEBHOOK_SECRET, installationToken: "offline-test-token" },
       api: { apiBaseUrl: server.url.origin },
     });
-    return await invokeRoute(channel, fixture.payload, options);
+    return await invokeWebhook(channel, fixture.payload, options);
   } finally {
     await server.stop(true);
   }
-};
-
-/** @param {import("eve/channels/github").GitHubChannel} channel @param {Fixture["payload"]} payload
- * @param {{event?: string, validSignature?: boolean}} options */
-const invokeRoute = async (channel, payload, options) => {
-  const body = JSON.stringify(payload);
-  const digest = createHmac("sha256", SECRET).update(body).digest("hex");
-  const request = new Request("http://localhost/github", {
-    method: "POST",
-    body,
-    headers: {
-      "content-type": "application/json",
-      "x-github-event": options.event ?? "pull_request_review_comment",
-      "x-github-delivery": "offline-delivery",
-      "x-hub-signature-256": `sha256=${options.validSignature === false ? "0".repeat(64) : digest}`,
-    },
-  });
-  const route = channel.routes[0];
-  if (!route || route.transport === "websocket") throw new Error("Missing GitHub HTTP route");
-  const deliveries = /** @type {Delivery[]} */ ([]);
-  const pending = /** @type {Promise<unknown>[]} */ ([]);
-  const response = await route.handler(request, routeArgs(deliveries, pending));
-  await Promise.all(pending);
-  return { response, deliveries };
 };

@@ -6,6 +6,7 @@ import { resolveBotName } from "../lib/github/bot-name.js";
 import { rebaseApi } from "../lib/github/rebase-api.js";
 import { rebaseCandidates } from "../lib/github/rebase-sweep.js";
 import { rebaseTask } from "../lib/github/rebase-task.js";
+import { revisionOwnerReceipt } from "../lib/github/revision-owner.js";
 import { stampAutonomous } from "../lib/trust.js";
 
 /** Injectable HTTP boundary for offline schedule integration tests.
@@ -27,9 +28,16 @@ export const rebaseSchedule = (dependencies = {}) =>
           ...factoryRepo,
           pullRequestNumber: pr.pullNumber,
           repositoryId: pr.repositoryId,
-        }).send(rebaseTask(pr), {
-          auth: stampAutonomous(appAuth, pr.pullNumber),
-        });
+        }).send(
+          `${rebaseTask(pr)}\n\n${revisionOwnerReceipt({
+            deliveryId: `rebase:${pr.head}:${pr.base}`,
+            pullNumber: pr.pullNumber,
+            source: `scheduled-rebase:${pr.head}:${pr.base}`,
+          })}`,
+          {
+            auth: stampAutonomous(appAuth, pr.pullNumber),
+          },
+        );
         waitUntil(dispatch);
         // Eve settles waitUntil tasks without throwing. Await here so failed handoffs fail the cron.
         const session = await dispatch;

@@ -34,6 +34,7 @@ import {
 import { CI_FIX_TASK, FACTORY_INTAKE_TASK, PR_SUMMARY_TASK } from "../lib/github/channel-tasks.js";
 import { codexReviewDispatch, isCodex } from "../lib/github/codex-review.js";
 import { githubCredentials } from "../lib/github/credentials.js";
+import { revisionOwnerReceipt, withRevisionOwner } from "../lib/github/revision-owner.js";
 import { stampAutonomous, stampTrusted } from "../lib/trust.js";
 
 /** Exported for offline tests through the real signed-webhook route. */
@@ -53,7 +54,17 @@ export const githubConfig = {
       headBranch !== undefined &&
       headBranch.startsWith(FACTORY_BRANCH_PREFIX);
     return isFactoryFailure && pullNumber !== undefined
-      ? { auth: stampAutonomous(defaultGitHubAuth(ctx), pullNumber), context: [CI_FIX_TASK] }
+      ? {
+          auth: stampAutonomous(defaultGitHubAuth(ctx), pullNumber),
+          context: [
+            CI_FIX_TASK,
+            revisionOwnerReceipt({
+              deliveryId: ctx.delivery.id,
+              pullNumber,
+              source: `check-suite:${suite.checkSuiteId}`,
+            }),
+          ],
+        }
       : null;
   },
   onComment: async (ctx, comment) => {
@@ -65,7 +76,21 @@ export const githubConfig = {
       !isIgnoredComment(comment, botName) &&
       mentionPattern(botName).test(comment.body) &&
       isTrustedCommenter(comment);
-    return mentioned ? { auth: stampTrusted(defaultGitHubAuth(ctx)) } : null;
+    if (!mentioned) return null;
+    const pullNumber = ctx.conversation.pullRequestNumber;
+    return {
+      auth: stampTrusted(defaultGitHubAuth(ctx)),
+      context:
+        pullNumber === null
+          ? undefined
+          : [
+              revisionOwnerReceipt({
+                deliveryId: ctx.delivery.id,
+                pullNumber,
+                source: comment.htmlUrl ?? `comment:${comment.id}`,
+              }),
+            ],
+    };
   },
   onIssue: async (ctx, issue) => {
     if (issue.action !== "labeled" || !hasFactoryLabel(issue.raw) || ctx.sender.type === "Bot")
@@ -83,4 +108,7 @@ export const githubConfig = {
       : null,
 };
 
-export default githubChannel(githubConfig);
+export const createGitHubChannel = (config = githubConfig) =>
+  withRevisionOwner(githubChannel(config));
+
+export default createGitHubChannel();
