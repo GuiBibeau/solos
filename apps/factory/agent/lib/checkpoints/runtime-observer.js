@@ -4,6 +4,7 @@ import { observationKey } from "./config.js";
 import { mergeLifecycle } from "./runtime-lifecycle.js";
 import { observationFromEvent, RuntimeObservationSchema } from "./runtime-observation.js";
 import { addUsage } from "./runtime-usage.js";
+import { taskBindingStore } from "./task-binding.js";
 
 /** @typedef {import("./runtime-observation.js").RuntimeObservation} RuntimeObservation */
 /** @typedef {{
@@ -92,15 +93,17 @@ export const createRuntimeObserver = (io) => {
 
 export const runtimeObserver = createRuntimeObserver({ read: readDocument, write: writeDocument });
 
-/** @param {Pick<typeof runtimeObserver, "observe">} observer */
+/** @param {Pick<typeof runtimeObserver, "observe">} observer @param {Pick<typeof taskBindingStore, "observe">} [bindings] */
 export const createRuntimeEventHandler =
-  (observer) =>
+  (observer, bindings = taskBindingStore) =>
   /** @param {import("eve/hooks").HookEvent} event @param {import("eve/hooks").HookContext} ctx */
-  async (event, ctx) =>
-    observer.observe(
+  async (event, ctx) => {
+    await bindings.observe(event);
+    await observer.observe(
       event,
       ctx.session.id,
       ctx.session.parent === undefined ? "root_aggregate" : "station",
     );
+  };
 
 export const observeRuntimeEvent = createRuntimeEventHandler(runtimeObserver);

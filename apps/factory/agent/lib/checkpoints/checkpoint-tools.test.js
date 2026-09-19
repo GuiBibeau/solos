@@ -6,6 +6,7 @@ import { createCheckpointMemoryIo } from "./checkpoint-test-io.js";
 import { issue18Checkpoint } from "./fixtures.js";
 import { createRuntimeObserver } from "./runtime-observer.js";
 import { createCheckpointStore } from "./store.js";
+import { createTaskBindingStore } from "./task-binding.js";
 
 const usageEvent = (id, inputTokens = 10) =>
   /** @type {import("eve/hooks").HookEvent} */ ({
@@ -58,23 +59,45 @@ const childContext = () =>
 const writableCheckpoint = () => {
   const candidate = { ...issue18Checkpoint };
   Reflect.deleteProperty(candidate, "stationRunId");
+  Reflect.deleteProperty(candidate, "taskId");
   Reflect.deleteProperty(candidate, "usage");
   return candidate;
 };
 
-test("save preserves the current task identity and injects provider usage", async () => {
+const boundRuntime = async (memory, observer) => {
+  const bindings = createTaskBindingStore(memory.io);
+  await bindings.observe(
+    /** @type {import("eve/hooks").HookEvent} */ ({
+      data: {
+        callId: "runtime-call",
+        childSessionId: "runtime-session",
+        childStreamPath: "/stream/runtime-session",
+        name: "implementer",
+        sequence: 1,
+        sessionId: "parent-session",
+        toolName: "implementer",
+        turnId: "parent-turn",
+        workflowId: "workflow//eve//workflowEntry",
+      },
+      meta: { at: "2026-09-19T00:00:00Z", id: "binding-event-1" },
+      type: "subagent.called",
+    }),
+  );
+  return createCheckpointSaver(createCheckpointStore(memory.io), observer, bindings);
+};
+
+test("save injects the runtime-bound task identity and provider usage", async () => {
   const memory = createCheckpointMemoryIo();
   const checkpoints = createCheckpointStore(memory.io);
   const observer = createRuntimeObserver(memory.io);
   await observer.observe(usageEvent("event-0001"), "runtime-session");
-  const save = createCheckpointSaver(checkpoints, observer);
+  const save = await boundRuntime(memory, observer);
   const candidate = writableCheckpoint();
-  candidate.taskId = "task_aaaaaaaaaaaaaaaaaaaaaaaa";
   expect(await save({ ...candidate, revision: 1 }, childContext())).toMatchObject({ saved: true });
   expect(await checkpoints.read(candidate)).toMatchObject({
     checkpoint: {
       stationRunId: "runtime-session",
-      taskId: "task_aaaaaaaaaaaaaaaaaaaaaaaa",
+      taskId: "task_336135bd2632c09d3de51f9d",
       usage: {
         billedCostSource: "eve.runtime.provider-reported",
         billedCostUsd: 0.01,
@@ -91,7 +114,7 @@ test("reads refresh station usage from the runtime observation", async () => {
   const checkpoints = createCheckpointStore(memory.io);
   const observer = createRuntimeObserver(memory.io);
   const candidate = writableCheckpoint();
-  const save = createCheckpointSaver(checkpoints, observer);
+  const save = await boundRuntime(memory, observer);
   await observer.observe(usageEvent("event-0001"), "runtime-session");
   await save({ ...candidate, revision: 1 }, childContext());
   await observer.observe(usageEvent("event-0002", 5), "runtime-session");

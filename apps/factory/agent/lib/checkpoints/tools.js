@@ -6,6 +6,7 @@ import { createCheckpointSaver, saveInputSchema } from "./checkpoint-saver.js";
 import { runtimeObserver } from "./runtime-observer.js";
 import { StationCheckpointSchema, StationSchema, UsageSchema } from "./schema.js";
 import { checkpointStore } from "./store.js";
+import { taskBindingStore } from "./task-binding.js";
 
 const BlockerStatusSchema = z.object({
   attemptedCorrection: z.string().optional(),
@@ -47,16 +48,16 @@ const ReadOutput = z.object({
 
 export const readCheckpoint = createCheckpointReader(checkpointStore, runtimeObserver);
 
-const saveCheckpoint = createCheckpointSaver(checkpointStore, runtimeObserver);
+const saveCheckpoint = createCheckpointSaver(checkpointStore, runtimeObserver, taskBindingStore);
 
-/** @param {z.infer<typeof StationSchema>} station */
-export const saveCheckpointTool = (station) =>
+/** @param {z.infer<typeof StationSchema>} station @param {typeof saveCheckpoint} execute */
+export const createSaveCheckpointTool = (station, execute) =>
   defineTool({
     description:
       "Save the station's restart-safe progress after a meaningful milestone and before a budget pause. " +
-      "Use the current delivery's task id, actual operations, and unresolved diagnostics; " +
-      "a checkpoint never changes a budget.",
-    execute: saveCheckpoint,
+      "Record actual operations and unresolved diagnostics; the runtime binds the current task owner. " +
+      "A checkpoint never changes a budget.",
+    execute,
     inputSchema: saveInputSchema(station),
     outputSchema: z.object({
       error: z.string().optional(),
@@ -64,6 +65,9 @@ export const saveCheckpointTool = (station) =>
       updatedAt: z.string().optional(),
     }),
   });
+
+/** @param {z.infer<typeof StationSchema>} station */
+export const saveCheckpointTool = (station) => createSaveCheckpointTool(station, saveCheckpoint);
 
 export const readCheckpointTool = () =>
   defineTool({
