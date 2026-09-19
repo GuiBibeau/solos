@@ -61,9 +61,26 @@ export const SwapQuoteSchema = z.object({
 
 /** @typedef {z.infer<typeof SwapQuoteSchema>} SwapQuote */
 
-export const SwapReceiptSchema = z.object({
-  signature: SignatureSchema,
-  quote: SwapQuoteSchema,
+/** What a successful swap simulation reports: the intent echo plus the simulated cost and logs. */
+export const SwapSimulationSchema = z.object({
+  inputMint: AddressSchema,
+  outputMint: AddressSchema,
+  amount: z.string().describe("Requested input amount in base units, echoed exactly"),
+  maxSlippageBps: z.number().int().min(0).max(10_000),
+  unitsConsumed: z.string().describe("Compute units the swap transaction consumed"),
+  logs: z.array(z.string()),
 });
 
-/** @typedef {z.infer<typeof SwapReceiptSchema>} SwapReceipt */
+/** @typedef {z.infer<typeof SwapSimulationSchema>} SwapSimulation */
+
+/** What a confirmed swap reports: the intent echo plus the on-chain outcome. */
+export const SwapExecutionSchema = z.object({
+  signature: SignatureSchema,
+  simulated: z.boolean().describe("Whether the exact submitted transaction was simulated first"),
+  inputMint: AddressSchema,
+  outputMint: AddressSchema,
+  amount: z.string(),
+  maxSlippageBps: z.number().int().min(0).max(10_000),
+});
+
+/** @typedef {z.infer<typeof SwapExecutionSchema>} SwapExecution */

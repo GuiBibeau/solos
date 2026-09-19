@@ -1,15 +1,11 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
-import { SwapProvider } from "@solos/core";
-import { Cause, Effect, Exit, Option } from "effect";
-import { INPUT_MINT, KEY, OUTPUT_MINT, okBody } from "./jupiter-swap-bodies.js";
+import { INPUT_MINT, KEY, OUTPUT_MINT } from "./jupiter-swap-bodies.js";
 import { BODY_MARKER, quoteFailure, startFixture } from "./jupiter-swap-fixture.js";
-import { JupiterSwapLive } from "./jupiter-swap-live.js";
 
 /**
  * Error mapping at the HTTP boundary: documented statuses to distinct tagged errors, the
- * documented no-route 400 body to NoRouteFound, redaction of bodies and keys, and the
- * port-required execute failing fast without I/O.
+ * documented no-route 400 body to NoRouteFound, and redaction of bodies and keys.
  */
 
 describe("JupiterSwapLive error mapping [integration]", () => {
@@ -71,20 +67,5 @@ describe("JupiterSwapLive error mapping [integration]", () => {
     expect(rendered.includes(KEY)).toBe(false);
     expect(rendered.includes(BODY_MARKER)).toBe(false);
     expect(rendered.includes(fixture.url)).toBe(false);
-  });
-
-  test("the port-required execute fails fast with SwapFailed and performs no I/O", async () => {
-    fixture = startFixture([{ body: okBody() }]);
-    const exit = await Effect.runPromiseExit(
-      Effect.flatMap(SwapProvider, (provider) =>
-        provider.execute(/** @type {any} */ ({}), { skipSimulation: false }),
-      ).pipe(Effect.provide(JupiterSwapLive({ baseUrl: fixture.url, apiKey: KEY }))),
-    );
-    expect(Exit.isSuccess(exit)).toBe(false);
-    const failure = Cause.failureOption(exit.cause);
-    const swapFailed = Option.isSome(failure) ? failure.value : undefined;
-    expect(swapFailed).toMatchObject({ _tag: "SwapFailed", signature: null });
-    expect(/** @type {{reason: string}} */ (swapFailed).reason).toContain("#18");
-    expect(fixture.requests).toHaveLength(0);
   });
 });
