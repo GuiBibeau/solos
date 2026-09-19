@@ -6,10 +6,10 @@
  * retain the limits they were created with and need their pending continuation approved once.
  */
 import { defineAgent } from "eve";
-import { modelConfigFor } from "./lib/models.js";
+import { modelConfigFor, sessionLimitsFor } from "./lib/models.js";
 
 export default defineAgent({
   compaction: { thresholdPercent: 0.75 },
-  limits: { maxInputTokensPerSession: false },
+  limits: sessionLimitsFor("orchestrator"),
   ...modelConfigFor("orchestrator"),
 });

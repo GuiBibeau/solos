@@ -25,6 +25,15 @@ const DEFAULT_REVIEWER_MODEL = "openai/gpt-5.6-luna";
  */
 const DEFAULT_DEEPSEEK_PROVIDERS = ["deepseek", "fireworks", "deepinfra", "runware"];
 
+const OUTPUT_TOKEN_LIMITS = Object.freeze({
+  analyst: 80_000,
+  classifier: 40_000,
+  implementer: 200_000,
+  orchestrator: 2_000_000,
+  researcher: 80_000,
+  reviewer: 100_000,
+});
+
 /**
  * @param {string} name
  * @param {string} fallback
@@ -72,6 +81,8 @@ export const MODELS = assertIndependentReviewer(
 
 /** @typedef {keyof typeof MODELS} FactoryAgent */
 
+/** @typedef {import("eve").AgentLimitsDefinition} AgentLimitsDefinition */
+
 /** @typedef {import("eve").AgentModelOptionsDefinition} AgentModelOptionsDefinition */
 
 /**
@@ -94,6 +105,21 @@ export const modelOptionsFor = (model) => {
     .filter((slug) => slug !== "");
   return { providerOptions: { gateway: { only } } };
 };
+
+/**
+ * Z.ai Coding Plan usage is externally bounded, so cumulative Eve token budgets stay disabled.
+ * Other providers retain the factory's original station-local output guardrails.
+ * @param {FactoryAgent} station
+ * @param {string} [model]
+ * @returns {AgentLimitsDefinition}
+ */
+export const sessionLimitsFor = (station, model = MODELS[station]) =>
+  vendorOf(model) === "zai"
+    ? { maxInputTokensPerSession: false }
+    : {
+        maxInputTokensPerSession: 40_000_000,
+        maxOutputTokensPerSession: OUTPUT_TOKEN_LIMITS[station],
+      };
 
 /** @param {FactoryAgent} station */
 export const modelConfigFor = (station) => {
