@@ -8,6 +8,10 @@ const Id = z
   .regex(/^[a-zA-Z0-9._:/#-]+$/);
 const WorkItemId = Id.refine((value) => !value.includes(".."), "Invalid work item id");
 const Sha = z.string().regex(/^[a-f\d]{40}$/);
+const TaskId = z
+  .string()
+  .regex(/^task_[a-f\d]{24}$/)
+  .describe("Current Eve task id for this delivery");
 
 export const StationSchema = z.enum([
   "classifier",
@@ -81,8 +85,8 @@ export const StationCheckpointSchema = z.object({
   rootRunId: Id,
   station: StationSchema,
   stationRunId: Id.optional(),
-  supersededTaskIds: z.array(Id).max(20).default([]),
-  taskId: Id,
+  supersededTaskIds: z.array(TaskId).max(20).default([]),
+  taskId: TaskId,
   updatedAt: z.iso.datetime(),
   usage: UsageSchema.optional(),
   verification: z.object({

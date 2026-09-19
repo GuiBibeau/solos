@@ -54,7 +54,8 @@ export const saveCheckpointTool = (station) =>
   defineTool({
     description:
       "Save the station's restart-safe progress after a meaningful milestone and before a budget pause. " +
-      "Record actual operations and unresolved diagnostics; a checkpoint never changes a budget.",
+      "Use the current delivery's task id, actual operations, and unresolved diagnostics; " +
+      "a checkpoint never changes a budget.",
     execute: saveCheckpoint,
     inputSchema: saveInputSchema(station),
     outputSchema: z.object({

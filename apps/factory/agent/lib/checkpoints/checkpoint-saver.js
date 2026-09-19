@@ -1,6 +1,5 @@
 // @ts-check
 import { z } from "zod";
-import { runtimeTaskId } from "./runtime-task-id.js";
 import { StationCheckpointSchema, StationSchema } from "./schema.js";
 
 const WritableBlockerSchema = z.object({
@@ -12,7 +11,6 @@ const WritableBlockerSchema = z.object({
 
 const WritableCheckpointSchema = StationCheckpointSchema.omit({
   stationRunId: true,
-  taskId: true,
   usage: true,
 }).extend({ blocker: WritableBlockerSchema.optional() });
 
@@ -27,16 +25,12 @@ export const createCheckpointSaver =
     /** @type {unknown} */ candidate,
     /** @type {import("eve/tools").SessionContext} */ ctx,
   ) => {
-    const taskId = runtimeTaskId(ctx);
-    if (taskId === null)
-      return { error: "Station checkpoint requires a parent task.", saved: false };
     const input = WritableCheckpointSchema.parse(candidate);
     const observed = await observer.read(ctx.session.id);
     const usage = observed.found ? observed.observation?.usage : undefined;
     return checkpoints.save({
       ...input,
       stationRunId: ctx.session.id,
-      taskId,
       ...(usage !== undefined && { usage }),
     });
   };

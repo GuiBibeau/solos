@@ -36,7 +36,7 @@ export const issue18Checkpoint = StationCheckpointSchema.parse({
   rootRunId: "wrun_41M2VNKAF10GJ11XJF5TMXY2ZZ",
   station: "implementer",
   stationRunId: "wrun_41M2VQP9DY0GX9YZMXQ7XEKV1T",
-  taskId: "implement-issue-18",
+  taskId: "task_336135bd2632c09d3de51f9d",
   updatedAt: "2026-09-19T03:44:51.000Z",
   usage: { accountingScope: "station", inputTokens: 37_200_000 },
   verification: { stage: "static-check", status: "failed" },

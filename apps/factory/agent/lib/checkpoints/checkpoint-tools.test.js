@@ -58,23 +58,23 @@ const childContext = () =>
 const writableCheckpoint = () => {
   const candidate = { ...issue18Checkpoint };
   Reflect.deleteProperty(candidate, "stationRunId");
-  Reflect.deleteProperty(candidate, "taskId");
   Reflect.deleteProperty(candidate, "usage");
   return candidate;
 };
 
-test("save injects Eve's derived task identity and provider usage", async () => {
+test("save preserves the current task identity and injects provider usage", async () => {
   const memory = createCheckpointMemoryIo();
   const checkpoints = createCheckpointStore(memory.io);
   const observer = createRuntimeObserver(memory.io);
   await observer.observe(usageEvent("event-0001"), "runtime-session");
   const save = createCheckpointSaver(checkpoints, observer);
   const candidate = writableCheckpoint();
+  candidate.taskId = "task_aaaaaaaaaaaaaaaaaaaaaaaa";
   expect(await save({ ...candidate, revision: 1 }, childContext())).toMatchObject({ saved: true });
   expect(await checkpoints.read(candidate)).toMatchObject({
     checkpoint: {
       stationRunId: "runtime-session",
-      taskId: "task_336135bd2632c09d3de51f9d",
+      taskId: "task_aaaaaaaaaaaaaaaaaaaaaaaa",
       usage: {
         billedCostSource: "eve.runtime.provider-reported",
         billedCostUsd: 0.01,
