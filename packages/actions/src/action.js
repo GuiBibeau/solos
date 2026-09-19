@@ -32,6 +32,14 @@ export const SwapActionSchema = z
     maxSlippageBps: bps,
   })
   .refine(
+    (action) =>
+      action.venue !== "pump" || action.inputMint === "So11111111111111111111111111111111111111112",
+    {
+      path: ["inputMint"],
+      message: "Pump buys require wSOL input identity for native-lamport budgets",
+    },
+  )
+  .refine(
     (action) => action.venue !== "pump" || PositiveAmountSchema.safeParse(action.amount).success,
     {
       path: ["amount"],

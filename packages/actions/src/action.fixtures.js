@@ -9,6 +9,11 @@ export const SWAP = {
   amount: "5000000",
   maxSlippageBps: 50,
 };
+export const PUMP = {
+  ...SWAP,
+  venue: "pump",
+  inputMint: "So11111111111111111111111111111111111111112",
+};
 export const OPEN = {
   type: "open_perp",
   market: "SOL-PERP",

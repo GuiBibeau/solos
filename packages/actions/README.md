@@ -76,8 +76,8 @@ actions.forEach((action) => ActionSchema.parse(action));
 The LP forms also accept `meteora` and `raydium` with the same fields. A Phoenix short changes
 side to `short` and uses limitPriceUsd as the minimum sell price. A close derives direction from
 current exposure and is always reduce-only. Pump budgets include protocol trading fees, but
-network fees and rent are separate. Pump schema validation requires a positive u64 amount and
-slippage of 0..9999 bps. Ordinary swap validation remains compatible with 0.1;
+network fees and rent are separate. Pump schema validation requires wSOL as input identity,
+a positive u64 amount and slippage of 0..9999 bps. Ordinary swap validation remains compatible with 0.1;
 venue executors must reject unsupported, zero or unsafe amounts before submission.
 
 ## Exact Position and portfolio examples

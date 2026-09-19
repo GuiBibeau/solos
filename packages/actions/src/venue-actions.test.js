@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { ADD, CLOSE, LEND, OPEN, REMOVE, SWAP } from "./action.fixtures.js";
+import { ADD, CLOSE, LEND, OPEN, PUMP, REMOVE, SWAP } from "./action.fixtures.js";
 import { ActionSchema } from "./index.js";
 
 describe("Trading Action boundaries", () => {
   test("preserves legacy Jupiter intent and explicit Pump routing", () => {
     expect(ActionSchema.parse(SWAP)).toEqual(SWAP);
-    for (const venue of ["jupiter", "pump"]) {
-      expect(ActionSchema.parse({ ...SWAP, venue })).toEqual({ ...SWAP, venue });
-    }
+    expect(ActionSchema.parse({ ...SWAP, venue: "jupiter" })).toEqual({
+      ...SWAP,
+      venue: "jupiter",
+    });
+    expect(ActionSchema.parse(PUMP)).toEqual(PUMP);
+    expect(ActionSchema.safeParse({ ...SWAP, venue: "pump" }).success).toBe(false);
     expect(ActionSchema.safeParse({ ...SWAP, venue: "auto" }).success).toBe(false);
   });
 
@@ -20,13 +23,11 @@ describe("Trading Action boundaries", () => {
       const legacy = { ...SWAP, ...change };
       expect(ActionSchema.parse(legacy)).toEqual(legacy);
       expect(ActionSchema.parse({ ...legacy, venue: "jupiter" })).toMatchObject(legacy);
-      expect(ActionSchema.safeParse({ ...legacy, venue: "pump" }).success).toBe(false);
+      expect(ActionSchema.safeParse({ ...PUMP, ...change }).success).toBe(false);
     }
     for (const amount of ["1", "18446744073709551615"]) {
       for (const maxSlippageBps of [0, 9999]) {
-        expect(
-          ActionSchema.safeParse({ ...SWAP, venue: "pump", amount, maxSlippageBps }).success,
-        ).toBe(true);
+        expect(ActionSchema.safeParse({ ...PUMP, amount, maxSlippageBps }).success).toBe(true);
       }
     }
   });
