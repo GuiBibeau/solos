@@ -63,9 +63,9 @@ export const seedWhirlpool = async (rpcUrl, options = {}) => {
     pool,
     WHIRLPOOL_PROGRAM,
     whirlpoolBytes({
-      sqrtPrice: o.sqrtPrice,
       tokenMintA: addressBytes(mintA),
       tokenMintB: addressBytes(mintB),
+      ...(o.sqrtPrice !== undefined && { sqrtPrice: o.sqrtPrice }),
       ...corruptOverrides(o),
     }),
   );
@@ -125,3 +125,4 @@ export const seedWhirlpoolPosition = async (rpcUrl, options) => {
 export const resetAccount = (rpcUrl, account) => jsonRpc(rpcUrl, "surfnet_resetAccount", [account]);
 
 export { seedTokenAccounts, randomAddress } from "./liquidity-token-fixture.js";
+export { SQRT_PRICE_ONE } from "./whirlpool-fixture.js";

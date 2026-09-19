@@ -1,6 +1,7 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createSolanaRpc } from "@solana/kit";
+import { Cause, Effect, Option } from "effect";
 import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
 import { getPositionLive } from "./liquidity-read.js";
@@ -48,7 +49,7 @@ describe("liquidity owner enumeration over seeded Surfnet [integration]", () => 
     const bound = randomAddress();
     await seedTokenAccounts(fx.rpcUrl, bound, 257);
     const result = await fx.readEnumeration({ protocol: "orca", owner: bound });
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       _tag: "LiquidityEnumerationIncomplete",
       reason: "owner holds more than 256 candidate position mints",
     });
@@ -60,11 +61,21 @@ describe("liquidity owner enumeration over seeded Surfnet [integration]", () => 
       origin: rpcOrigin(fx.rpcUrl),
       timeoutMs: TOKEN_RPC_TIMEOUT_MS,
     };
-    const result = await getPositionLive(read, {
-      protocol: "meteora",
-      position: randomAddress(),
-      owner: randomAddress(),
-    });
-    expect(result).toMatchObject({ _tag: "LiquidityUnsupportedProtocol", protocol: "meteora" });
+    const exit = await Effect.runPromiseExit(
+      getPositionLive(read, {
+        protocol: "meteora",
+        position: randomAddress(),
+        owner: randomAddress(),
+      }),
+    );
+    expect(exit._tag).toBe("Failure");
+    const failure = Cause.failureOption(exit.cause);
+    expect(Option.isSome(failure)).toBe(true);
+    if (Option.isSome(failure)) {
+      expect(failure.value).toMatchObject({
+        _tag: "LiquidityUnsupportedProtocol",
+        protocol: "meteora",
+      });
+    }
   });
 });
