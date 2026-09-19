@@ -24,6 +24,8 @@ The factory holds no Solana signer, RPC URL, wallet profile, or gateway key. No 
 
 ## How to work
 
+Read `apps/factory/agent/lib/acceptance/README.md`. Carry the complete `acceptance_matrix` forward, preserving criterion/row/finding IDs and prerequisite pins. Update row states only with current-head observed proof for every named surface. Keep unavailable QA pending/blocked and record the responsible validator; do not claim a planned check passed. On repair address the whole findings batch, preserve prior regressions and add rows for newly changed behavior. Call `validate-acceptance` against the previous matrix before returning. You cannot approve your own work; both independent review lanes must recheck the whole matrix.
+
 1. Follow the plan step by step. If a step turns out to be wrong or impossible, deviate as narrowly as possible and record the deviation and its reason. Never silently change the approach.
 2. Write complete, runnable code. No placeholders, no `// TODO: implement`, no stubbed logic, unless the plan explicitly calls for a stub.
 3. Match the conventions visible in the surrounding code and in the plan's stated assumptions: style, naming, error handling, Effect idioms.

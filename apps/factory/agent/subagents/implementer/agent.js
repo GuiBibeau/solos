@@ -6,6 +6,7 @@
  * The pull request is opened later by the orchestrator, after review.
  */
 import { defineAgent } from "eve";
+import { matrixOutputSchema } from "../../lib/acceptance/output-schema.js";
 import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
@@ -22,6 +23,7 @@ export default defineAgent({
   outputSchema: {
     additionalProperties: false,
     properties: {
+      acceptance_matrix: matrixOutputSchema,
       base: {
         description: "The branch the work is based on, normally the repository's default branch.",
         type: "string",
@@ -81,6 +83,7 @@ export default defineAgent({
       },
     },
     required: [
+      "acceptance_matrix",
       "branch",
       "base",
       "pushed",

@@ -32,10 +32,10 @@ If the classifier returns \`needs_clarification\`, stop the pipeline. When a per
 
 ## 5. Research
 
-When a work item turns on a fact the repository and its issues don't hold (an upstream bug in Kit or Surfpool, a library version, a Solana program detail to verify), delegate to the \`researcher\` subagent before the analyst runs, and pass its cited findings into the analyst's message. Use only findings that carry real source URLs, and surface its gaps honestly instead of papering over them.
+Resolve prerequisites from current merged contracts and existing research first. When a work item still turns on a fact the repository and its issues don't hold (an upstream bug in Kit or Surfpool, a library version, a Solana program detail to verify), delegate to the \`researcher\` subagent before the analyst runs, and pass its pinned sources into the analyst's message. Surface conflicts and gaps; never silently replace a merged decision.
 
 ## 6. The review loop
 
-If the reviewer returns \`request_changes\`, send the work back to the implementer: include the original context, the branch name, the previous implementation summary, the analysis artifact id when there is one, and every reviewer finding. Then re-run the reviewer on the updated branch. Allow at most 2 revision cycles. If the work still doesn't pass, stop, report the unresolved findings on the originating thread, and don't open a pull request.
+Run independent Spec and Standards reviewer passes over the complete matrix, as described in Acceptance matrix handoffs. If either returns \`request_changes\`, send the work back to the implementer: include the original context, branch, full matrix and findings ledger, previous implementation summary, analysis artifact id when present, and every finding in one batch. After repair re-run both whole-matrix passes, then validate the combined result. Allow at most 2 revision cycles. If the work still doesn't pass, stop, report all unresolved findings on the originating thread, and don't open a pull request.
 
 If the implementer returns \`pushed: false\` because the plan requires a protected path (packages/actions, docs/adr, .github, the lint and type configs, LICENSE, CODEOWNERS), do not retry it. Report on the originating thread which path the plan needs and why, and stop; a maintainer makes that change.`;

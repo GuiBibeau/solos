@@ -7,6 +7,7 @@
  * cumulative token guardrail, so the default OpenAI reviewer retains independent safety caps.
  */
 import { defineAgent } from "eve";
+import { matrixOutputSchema, reviewOutputSchema } from "../../lib/acceptance/output-schema.js";
 import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
@@ -23,27 +24,12 @@ export default defineAgent({
   outputSchema: {
     additionalProperties: false,
     properties: {
+      acceptance_matrix: matrixOutputSchema,
+      review: reviewOutputSchema,
       blocking_findings: {
         description:
           "Problems that block shipping: each names where it is, what is wrong, and why it matters.",
         items: { type: "string" },
-        type: "array",
-      },
-      criteria_results: {
-        description: "One entry per acceptance criterion from the analysis, judged individually.",
-        items: {
-          additionalProperties: false,
-          properties: {
-            criterion: { description: "The acceptance criterion, verbatim.", type: "string" },
-            evidence: {
-              description: "What in the diff or verification output shows it passing or failing.",
-              type: "string",
-            },
-            pass: { type: "boolean" },
-          },
-          required: ["criterion", "pass", "evidence"],
-          type: "object",
-        },
         type: "array",
       },
       evidence_check: {
@@ -62,7 +48,8 @@ export default defineAgent({
     required: [
       "verdict",
       "evidence_check",
-      "criteria_results",
+      "acceptance_matrix",
+      "review",
       "blocking_findings",
       "suggestions",
       "summary",
