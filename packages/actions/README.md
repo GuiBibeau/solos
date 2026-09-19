@@ -26,6 +26,8 @@ rounding. Schemas encode intent; on-chain ownership, layout, price ticks, lots a
 are executor responsibilities. A confirmed IOC order may have zero or partial fills.
 
 Wallet token positions keep their old shape; native SOL uses instrument `SOL`, not wSOL's mint.
+Portfolio validation rejects duplicate identities across cash and positions: token by mint,
+lending by protocol/market/mint, perps by protocol/account/market, and LPs by protocol/position.
 Lend positions add market and contributing obligation addresses; nonzero supply requires at
 least one obligation. Perps add account and side;
 amount is absolute exposure, with zero exactly `flat`. Shared signed equity lives once in
