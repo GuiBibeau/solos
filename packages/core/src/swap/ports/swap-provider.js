@@ -2,18 +2,15 @@
 import { Context } from "effect";
 
 /**
- * An aggregator or DEX. The first adapter is Jupiter Swap API V2, quote-only.
+ * An aggregator or DEX quote source. The first adapter is Jupiter Swap API V2, quote-only.
+ * Execution never runs through this port: execute-tier use cases build an `Action` and call the
+ * shared `ActionExecutor`, which obtains a fresh build per call (ADR-0013).
  * @typedef {{
  *   readonly name: string;
  *   readonly quote: (request: import("../domain/types.js").SwapQuoteRequest) =>
  *     import("effect").Effect.Effect<
  *       import("../domain/types.js").SwapQuote,
  *       import("../domain/errors.js").SwapQuoteError
- *     >;
- *   readonly execute: (quote: import("../domain/types.js").SwapQuote, options: { skipSimulation: boolean }) =>
- *     import("effect").Effect.Effect<
- *       import("../domain/types.js").SwapReceipt,
- *       import("../domain/errors.js").SwapFailed | import("../domain/errors.js").QuoteExpired | import("../../shared/domain/errors.js").RpcError
  *     >;
  * }} SwapProviderShape
  */

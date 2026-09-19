@@ -5,14 +5,6 @@ import { taggedError } from "../../shared/domain/tagged-error.js";
 /** @typedef {{ readonly inputMint: string; readonly outputMint: string; readonly provider: string }} NoRouteFoundProps */
 export class NoRouteFound extends /** @type {NoRouteFoundClass} */ (taggedError("NoRouteFound")) {}
 
-/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteExpired", QuoteExpiredProps>} QuoteExpiredClass */
-/** @typedef {{ readonly expiresAt: number; readonly now: number }} QuoteExpiredProps */
-export class QuoteExpired extends /** @type {QuoteExpiredClass} */ (taggedError("QuoteExpired")) {}
-
-/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"SwapFailed", SwapFailedProps>} SwapFailedClass */
-/** @typedef {{ readonly signature: string | null; readonly reason: string }} SwapFailedProps */
-export class SwapFailed extends /** @type {SwapFailedClass} */ (taggedError("SwapFailed")) {}
-
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteInputInvalid", QuoteInputInvalidProps>} QuoteInputInvalidClass */
 /** @typedef {{ readonly reason: string }} QuoteInputInvalidProps */
 /** Raised before any provider access; carries no mint or amount text beyond the fixed reason. */
@@ -62,8 +54,8 @@ export class QuoteResponseInvalid extends /** @type {QuoteResponseInvalidClass} 
 ) {}
 
 /**
- * Everything the quote face of the swap provider port can fail with. Structured props only,
- * never a raw response body or the API key. The execute face keeps its own channel
- * (`SwapFailed | QuoteExpired | RpcError`) for build execution.
+ * Everything the swap provider's quote face can fail with. Structured props only, never a raw
+ * response body or the API key. Execution does not run through this port: execute-tier use cases
+ * build an Action and call the shared ActionExecutor (ADR-0013).
  * @typedef {NoRouteFound | QuoteInputInvalid | QuoteConfigMissing | QuoteAuthFailed | QuoteRateLimited | QuoteTimeout | QuoteHttpError | QuoteNetworkError | QuoteResponseInvalid} SwapQuoteError
  */
