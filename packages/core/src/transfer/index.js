@@ -4,6 +4,7 @@
 /** @typedef {import("./domain/types.js").TransferReceipt} TransferReceipt */
 /** @typedef {import("./domain/types.js").SimulationResult} SimulationResult */
 export { InsufficientFunds } from "./domain/errors.js";
+export { transferLamports } from "./domain/amount.js";
 export {
   SimulationResultSchema,
   TransferReceiptSchema,
