@@ -65,6 +65,7 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_market_get_token` | read |
 | `solana_launch_get_curve` | read |
 | `solana_swap_get_quote` | read |
+| `solana_liquidity_get_position` | read |
 | `solana_perp_get_position` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
@@ -75,7 +76,8 @@ Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative
 arrives with Action-based build execution); `launch` has the pump bonding-curve reader over the
 configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps position reader
 (no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
-`signals` has ports only.
+`liquidity` has the Orca Whirlpool position reader over the configured Solana RPC (no provider
+key at all); `signals` has ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -375,6 +377,59 @@ bun run solos mcp call solana_perp_get_position --args '{"market":"SOL-PERP"}'
 Orders, opens and closes are separate, later slices (#27/#28); nothing here signs or spends.
 Live QA against a registered, funded operator account is **blocked** until those prerequisites
 exist — see [perp QA](docs/perp-qa.md) and never report it as passed.
+
+## Orca Whirlpool LP positions (read-only today)
+
+`solana_liquidity_get_position` (MCP) and `solos liquidity position --protocol orca --position
+<position-account> [--owner <address>]` (CLI) read one existing Whirlpool LP position and
+return the shared `LpPosition` contract:
+
+- **`position` is the protocol position account** (the Whirlpool position PDA), never the
+  position NFT mint and never the pool (ADR-0022). There is no mint-based inference and no
+  fallback: meteora and raydium are enum-valid venues but have no adapter yet, and they fail
+  `LiquidityUnsupportedProtocol` before any network access, from the tool's pure check hook,
+  the use-case gate, and a defensive gate in the adapter. Unknown protocol values fail input
+  validation (`LiquidityInputInvalid`) even earlier.
+- **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
+  whoever holds the position NFT. solOS requires custody of the position NFT (one token
+  account, amount 1, either token program) for the requested owner — an omitted owner means
+  the configured signer. A transferred NFT therefore reads as `LiquidityPositionUnavailable`
+  ("owner does not hold the position NFT"), never as a zero holding.
+- **Exact units.** `liquidity` is the raw u128 share as a decimal string; `tokenA`/`tokenB`
+  amounts are the underlying principal in base units at the pool's current Q64.64 sqrt price,
+  computed with the pinned Orca math (`@orca-so/whirlpools-core` 3.1.1, zero dependencies),
+  floor-rounded, BigInt end to end — never a JS Number. Decimals come from the pool's mint
+  accounts (the Whirlpool account stores none). An owned zero-liquidity position is a
+  **successful zero read** ("0"/"0"). `valueUsd` is always null: ADR-0022 prices no LP
+  principal until both components are valued.
+- **Corrupt state is typed.** Account data is decoded from the pinned Orca IDL
+  (`@orca-so/whirlpools-sdk` 0.22.0 artifact, program metadata 0.9.0) only after three
+  guards: owner program `whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc`, exact size (Position
+  216, Whirlpool 653), and the 8-byte Anchor discriminators. Missing accounts, impostor
+  owners, wrong layouts, foreign-owned positions, and missing/corrupt referenced pools fail
+  `LiquidityPositionUnavailable` with a fixed reason — never silently decoded, never
+  fabricated zeros.
+- **Bounded owner enumeration.** The port also exposes `listPositions` for a later portfolio
+  slice (#34): the owner's token accounts across both token programs are the candidate
+  receipts, bounded at 4096 accounts and 256 candidates with 100-account batches; reaching a
+  bound fails `LiquidityEnumerationIncomplete` — complete or typed error, never a partial
+  array. The ADR-0018 envelope carries `positions`, `perpAccounts: []`, and `receiptMints`
+  (the position NFTs).
+- **Reads are bounded.** At most four account reads per point read (position, custody,
+  pool, mints), each with an aborting deadline, one attempt, no retries, no off-chain
+  fetches. Nothing is deposited, withdrawn, claimed, rebalanced, signed, or sent.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity position --protocol orca --position <position-account>
+SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '{"protocol":"orca","position":"<position-account>"}'
+```
+
+Operator QA (requires an RPC endpoint and an operator-owned Whirlpool position; **blocked**
+in the factory — the factory never provisions RPC credentials or holds positions, so live QA
+is reported blocked, never passed): read the operator position and compare `liquidity`,
+`tokenA`/`tokenB` amounts and decimals against the same pool state on a block explorer or a
+second client; both surfaces must return identical underlying quantities. See
+[liquidity QA](docs/liquidity-qa.md).
 
 ## License
 
