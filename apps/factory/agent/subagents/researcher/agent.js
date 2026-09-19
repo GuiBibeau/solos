@@ -24,7 +24,6 @@ export default defineAgent({
     "refined searches against reliable sources and returns cited findings with confidence levels, plus the gaps " +
     "it couldn't verify. May save a long research memo as an artifact and return its id for later stations. " +
     "The caller passes the question and any known context in the message.",
-  limits: { maxOutputTokensPerSession: 80_000 },
   ...modelConfigFor("researcher"),
   outputSchema: {
     additionalProperties: false,
