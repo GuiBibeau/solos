@@ -203,6 +203,16 @@ describe("mapEnumeration", () => {
     );
   });
 
+  test("the row bound counts zero-lot rows too: 257 rows with a residual zero row fail", () => {
+    const rows = Array.from({ length: 257 }, (_, index) => positionRow(`M${index}`, "1"));
+    rows[256] = positionRow("SOL", "0");
+    const state = traderState(DEFAULT_AUTHORITY, [subaccount(0, { positions: rows })]);
+    const markets = rows.map((row) => marketConfig(row.symbol, 2));
+    expect(() => mapEnumeration({ authority: DEFAULT_AUTHORITY, markets, state })).toThrow(
+      PerpEnumerationIncomplete,
+    );
+  });
+
   test("a snapshot position in an unknown market fails the whole enumeration", () => {
     const state = traderState(DEFAULT_AUTHORITY, [
       subaccount(0, { positions: [positionRow("DOGE", "5")] }),

@@ -103,19 +103,21 @@ export const mapPointRead = ({ authority, market, state }) => {
 
 /**
  * Complete enumeration (ADR-0018): every open position across markets plus the account equity
- * exactly once, even when flat. An unknown market inside the snapshot fails the whole read.
+ * exactly once, even when flat. The position bound applies to the raw wire rows before any
+ * zero-lot filtering, so a truncated snapshot — including one padded with residual rows — can
+ * never pass as a complete read. An unknown market inside the snapshot fails the whole read.
  * @param {{ readonly authority: string; readonly markets: MarketConfigWire[]; readonly state: TraderStateWire }} args
  * @returns {PerpEnumeration}
  */
 export const mapEnumeration = ({ authority, markets, state }) => {
   validateEcho(state, authority);
   const sub = selectSubaccountZero(state);
-  const open = sub.positions.filter((row) => lotsOrCorrupt(authority, row.basePositionLots) !== 0n);
-  if (open.length > MAX_ENUMERATION_POSITIONS) {
+  if (sub.positions.length > MAX_ENUMERATION_POSITIONS) {
     throw new PerpEnumerationIncomplete({
-      reason: `the account holds more than ${MAX_ENUMERATION_POSITIONS} open positions`,
+      reason: `the account holds more than ${MAX_ENUMERATION_POSITIONS} position rows`,
     });
   }
+  const open = sub.positions.filter((row) => lotsOrCorrupt(authority, row.basePositionLots) !== 0n);
   const bySymbol = new Map(markets.map((market) => [market.symbol, market]));
   const positions = open.map((row) => {
     const market = bySymbol.get(row.symbol);

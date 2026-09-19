@@ -109,4 +109,16 @@ describe("PerpVenueLive failure mapping through the loopback Phoenix fixture [in
       _tag: "PerpEnumerationIncomplete",
     });
   });
+
+  test("the row bound counts zero-lot rows too: 257 rows with a residual zero row fail", async () => {
+    const rows = Array.from({ length: 257 }, (_, index) => positionRow(`M${index}`, "1"));
+    rows[256] = positionRow("SOL", "0");
+    fixture = startPhoenixFixture({
+      markets: rows.map((row) => marketConfig(row.symbol, 2)),
+      trader: traderState(DEFAULT_AUTHORITY, [subaccount(0, { positions: rows })]),
+    });
+    expect(await listFailure(fixture, DEFAULT_AUTHORITY)).toMatchObject({
+      _tag: "PerpEnumerationIncomplete",
+    });
+  });
 });
