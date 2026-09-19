@@ -6,7 +6,9 @@ import {
   COMPLETED_MINT,
   expectedCompletedCurve,
   expectedFreshCurve,
+  expectedPartialCurve,
   FRESH_MINT,
+  PARTIAL_MINT,
   runSolos,
   startLaunchFixture,
   startLeakyServer,
@@ -43,6 +45,14 @@ describe("`solos launch curve` through real child processes [integration]", () =
     });
     expect(code).toBe(0);
     expect(JSON.parse(stdout)).toEqual(expectedFreshCurve());
+  });
+
+  test("a partially sold curve prints the 3500 bps LaunchCurve and exits 0", async () => {
+    const { stdout, code } = await runSolos(["launch", "curve", "--mint", PARTIAL_MINT], {
+      ...(await fixture.env()),
+    });
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toEqual(expectedPartialCurve());
   });
 
   test("a completed curve is a successful read with complete=true and 10000 bps", async () => {

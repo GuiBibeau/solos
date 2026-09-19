@@ -24,10 +24,10 @@ export const randomCurveMint = () =>
 const mintBytes = (mint) => new Uint8Array(addressBytes.encode(address(mint)));
 
 /**
- * Pure account map for a loopback JSON-RPC fixture: one fresh SOL-paired curve, one completed
- * curve, one USDC-paired curve — each at its own mint's derived PDA — plus the Global config
- * at its well-known address. Everything else reads as absent.
- * @param {{ readonly fresh: string; readonly completed: string; readonly unsupportedQuote: string }} mints
+ * Pure account map for a loopback JSON-RPC fixture: one fresh SOL-paired curve, one partially
+ * sold curve, one completed curve, one USDC-paired curve — each at its own mint's derived PDA
+ * — plus the Global config at its well-known address. Everything else reads as absent.
+ * @param {{ readonly fresh: string; readonly partial: string; readonly completed: string; readonly unsupportedQuote: string }} mints
  * @returns {Promise<Map<string, { owner: string; data: Uint8Array }>>}
  */
 export const launchFixtureAccounts = async (mints) => {
@@ -39,6 +39,10 @@ export const launchFixtureAccounts = async (mints) => {
   const put = async (mint, data) =>
     accounts.set(await bondingCurveAddress(mint), { owner: PUMP_PROGRAM, data });
   await put(mints.fresh, freshCurveBytes());
+  // The adapter suite's partial fixture derivation, byte for byte: the Surfnet family seeds
+  // `freshCurveBytes({ realTokenReserves: 515_515_000_000_000n })` for its `partial` mint, and
+  // the Global anchor turns those reserves into exactly 3500 bps of progress.
+  await put(mints.partial, freshCurveBytes({ realTokenReserves: 515_515_000_000_000n }));
   await put(
     mints.completed,
     freshCurveBytes({ realTokenReserves: 0n, realQuoteReserves: 0n, complete: true }),

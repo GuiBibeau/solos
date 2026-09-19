@@ -2,8 +2,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   ABSENT_MINT,
+  COMPLETED_MINT,
+  expectedCompletedCurve,
   expectedFreshCurve,
+  expectedPartialCurve,
   FRESH_MINT,
+  PARTIAL_MINT,
   runSolos,
   startLaunchFixture,
 } from "./launch-curve-fixture.js";
@@ -33,6 +37,34 @@ describe("`solos mcp call solana_launch_get_curve` [integration]", () => {
     const result = JSON.parse(stdout);
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual(expectedFreshCurve());
+  });
+
+  test("the partially sold curve mirrors the 3500 bps structured result", async () => {
+    const { stdout, code } = await runSolos(
+      ["mcp", "call", "solana_launch_get_curve", "--args", JSON.stringify({ mint: PARTIAL_MINT })],
+      { ...(await fixture.env()) },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(expectedPartialCurve());
+  });
+
+  test("the completed curve mirrors the 10000 bps structured result", async () => {
+    const { stdout, code } = await runSolos(
+      [
+        "mcp",
+        "call",
+        "solana_launch_get_curve",
+        "--args",
+        JSON.stringify({ mint: COMPLETED_MINT }),
+      ],
+      { ...(await fixture.env()) },
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(expectedCompletedCurve());
   });
 
   test("the failure mirror carries isError with the tagged code", async () => {

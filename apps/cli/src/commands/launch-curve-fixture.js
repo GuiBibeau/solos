@@ -5,14 +5,16 @@ export { runSolos, stderrJson } from "./swap-quote-fixture.js";
 
 /**
  * Shared harness for the `solos launch curve` command tests: a recording loopback JSON-RPC
- * server serving the bonding-curve fixture family (fresh, completed, unsupported-quote,
- * absent, plus the Global config), the child-process runner, and the child env. Never
- * contacts a public endpoint, and independent of Surfnet so every case is deterministic.
+ * server serving the bonding-curve fixture family (fresh, partial, completed,
+ * unsupported-quote, absent, plus the Global config), the child-process runner, and the child
+ * env. Never contacts a public endpoint, and independent of Surfnet so every case is
+ * deterministic.
  */
 
 export { USDC_QUOTE_MINT } from "@solos/solana/launch/fixture-accounts";
 
 export const FRESH_MINT = randomCurveMint();
+export const PARTIAL_MINT = randomCurveMint();
 export const COMPLETED_MINT = randomCurveMint();
 export const UNSUPPORTED_QUOTE_MINT = randomCurveMint();
 /** Never seeded anywhere: its PDA is absent, the CurveUnavailable case. */
@@ -29,6 +31,19 @@ export const expectedFreshCurve = () => ({
   program: PUMP_PROGRAM,
   complete: false,
   progressBps: 0,
+  virtualSolReserves: "30000000000",
+  virtualTokenReserves: "1073000000000000",
+});
+
+/**
+ * The expected LaunchCurve body for the partial fixture: the adapter suite's independently
+ * derived 3500 bps vector, mirrored here against the same account bytes.
+ */
+export const expectedPartialCurve = () => ({
+  mint: PARTIAL_MINT,
+  program: PUMP_PROGRAM,
+  complete: false,
+  progressBps: 3500,
   virtualSolReserves: "30000000000",
   virtualTokenReserves: "1073000000000000",
 });
@@ -97,6 +112,7 @@ export const startLaunchFixture = async () => {
   const server = startRpcServer(
     await launchFixtureAccounts({
       fresh: FRESH_MINT,
+      partial: PARTIAL_MINT,
       completed: COMPLETED_MINT,
       unsupportedQuote: UNSUPPORTED_QUOTE_MINT,
     }),
