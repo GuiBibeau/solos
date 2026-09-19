@@ -1,5 +1,6 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { codexReviewTask } from "./codex-review-task.js";
 import { deliverReview, reviewFixture } from "./review-webhook-fixture.js";
 import { revisionOwnerAddress, revisionOwnerReceipt } from "./revision-owner.js";
 
@@ -40,6 +41,15 @@ describe("PR revision owner", () => {
     expect(receipt).toContain("delivery_id: delivery-1");
     expect(receipt).toContain("only one branch-writing station");
     expect(receipt).toContain("expected remote head");
+    expect(receipt).toContain("station task/session ID");
+  });
+
+  test("queued findings survive a newer head until current-head evidence addresses them", () => {
+    const task = codexReviewTask({ reviewId: 700, sha: "a".repeat(40) });
+    expect(task).toContain("do not discard its findings");
+    expect(task).toContain("retain and repair every distinct finding");
+    expect(task).toContain("clean newer review does not erase an unresolved finding");
+    expect(task).toContain("current head");
   });
 
   test("signed review, maintainer amendment, and failed CI enter the same queued owner", async () => {
@@ -76,5 +86,27 @@ describe("PR revision owner", () => {
     const ciResult = await deliverReview(failure, { event: "check_suite" });
     expect(ciResult.deliveries[0]?.address).toBe("repo:123:pull:37");
     expect(ciResult.deliveries[0]?.options.context?.join("\n")).toContain("check-suite:800");
+  });
+
+  test("reordered signed reviews keep separate findings on one revision owner", async () => {
+    const first = reviewFixture();
+    const second = reviewFixture();
+    second.review.id = 701;
+    second.payload.comment.pull_request_review_id = 701;
+    second.comments = second.comments.map((comment) => ({
+      ...comment,
+      id: comment.id + 100,
+      pull_request_review_id: 701,
+      body: `${comment.body} from the later review`,
+    }));
+    second.payload.comment = second.comments[1];
+    const results = await Promise.all([deliverReview(second), deliverReview(first)]);
+    expect(results.map((result) => result.deliveries[0]?.address)).toEqual([
+      "repo:123:pull:37",
+      "repo:123:pull:37",
+    ]);
+    const contexts = results.map((result) => result.deliveries[0]?.options.context?.join("\n"));
+    expect(contexts[0]).toContain("later review");
+    expect(contexts[1]).toContain("First finding");
   });
 });

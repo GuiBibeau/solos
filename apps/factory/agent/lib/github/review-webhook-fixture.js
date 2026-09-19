@@ -73,11 +73,11 @@ const apiResponse = (fixture, request) => {
   const { pathname, searchParams } = new URL(request.url);
   fixture.requests.push(pathname);
   if (fixture.failApi) return new Response("unavailable", { status: 503 });
-  if (pathname.endsWith("/reviews/700/comments")) {
+  if (/\/reviews\/\d+\/comments$/u.test(pathname)) {
     const start = (Number(searchParams.get("page") ?? 1) - 1) * 100;
     return Response.json(fixture.comments.slice(start, start + 100));
   }
-  if (pathname.endsWith("/reviews/700")) return Response.json(fixture.review);
+  if (/\/reviews\/\d+$/u.test(pathname)) return Response.json(fixture.review);
   if (pathname.endsWith("/issues/37/comments")) return Response.json(fixture.history);
   if (pathname.endsWith("/pulls/37")) return Response.json(fixture.pr);
   if (pathname.endsWith("/pulls/37/files")) return Response.json([]);
