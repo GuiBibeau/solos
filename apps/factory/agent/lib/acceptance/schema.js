@@ -22,6 +22,7 @@ const ProofSchema = z.strictObject({
   surface: text,
   reference: text,
   observation: text,
+  source: z.strictObject({ url: z.url(), quote: text }).nullable(),
   outcome: z.enum(["pass", "fail", "pending"]),
 });
 const RowSchema = z.strictObject({
@@ -42,7 +43,7 @@ const RowSchema = z.strictObject({
   ]),
   surfaces: z.array(text).min(1),
   validator: z.enum(["pure", "integration", "native_cli", "mcp", "review"]),
-  responsibility: z.enum(["spec", "standards", "maintainer", "operator"]),
+  responsibility: z.enum(["spec", "standards", "maintainer", "operator", "ci"]),
   proof_kind: z.enum(["behavioral", "inspection"]),
   prerequisite_ids: z.array(text),
   state: z.enum(["pass", "fail", "pending", "blocked", "not_applicable"]),
@@ -71,7 +72,7 @@ const FindingSchema = z.strictObject({
   lane: z.enum(["spec", "standards"]),
   detail: text,
   state: z.enum(["open", "resolved"]),
-  resolution: ProofSchema.nullable(),
+  resolution: z.array(ProofSchema).nullable(),
 });
 export const MatrixSchema = z.strictObject({
   criteria: z.array(CriterionSchema),
@@ -90,7 +91,8 @@ export const ReviewSchema = z.strictObject({
   lane: z.enum(["spec", "standards"]),
   revision,
   reviewed_row_ids: z.array(text),
-  verdict: z.enum(["approve", "request_changes", "reject"]),
+  deferred_row_ids: z.array(text),
+  verdict: z.enum(["approve", "approve_draft", "request_changes", "reject"]),
 });
 export const ValidationSchema = z.strictObject({
   originals: z.array(CriterionSchema).min(1),
@@ -103,4 +105,5 @@ export const ValidationSchema = z.strictObject({
 /** @typedef {z.infer<typeof MatrixSchema>} Matrix */
 /** @typedef {z.infer<typeof RowSchema>} Row */
 /** @typedef {z.infer<typeof ProofSchema>} Proof */
+/** @typedef {z.infer<typeof FindingSchema>} Finding */
 /** @typedef {z.infer<typeof ValidationSchema>} Validation */

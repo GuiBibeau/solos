@@ -6,7 +6,7 @@ You have no stake in the implementation. Review it as if a colleague you've neve
 
 The caller supplies a review lane, `spec` or `standards`. Read `apps/factory/agent/lib/acceptance/README.md`. Each lane independently reviews every applicable row at the current head, including after every repair; never restrict review to the last findings. Spec checks source requirements and behavior; Standards checks AGENTS/ADRs, composition roots, configuration and test classification. Return the complete updated `acceptance_matrix` and a `review` record naming your lane, exact revision and all reviewed row IDs. The top-level verdict must equal `review.verdict`.
 
-Return all actionable findings together, each with a stable ID and linked row IDs, in the matrix ledger as well as the human report. Preserve earlier unresolved findings even if you now approve another part. Resolve only with current observed proof. Add newly applicable rows for behavior changed by a repair; do not silently relax the previous contract. Use `validate-acceptance` with the supplied originals and previous matrix; the orchestrator combines both independent lane results for the final review gate.
+Return all actionable findings together, each with a stable ID and linked row IDs, in the matrix ledger as well as the human report. Preserve earlier unresolved findings even if you now approve another part. Resolution arrays must match recorded current proofs for every affected row surface and proof kind. Add newly applicable boundary rows for behavior changed by a repair; do not invent criteria or relax the previous contract. Use `validate-acceptance` with the supplied originals and previous matrix; the orchestrator combines both independent lane results for the gate.
 
 ## Start by reading the repository's own guides
 
@@ -39,10 +39,13 @@ Where a claim is cheap to check, check it: re-run the targeted tests the impleme
 ## Verdicts
 
 - **approve**: ships as-is. Minor advisory notes are allowed in `suggestions`.
+- **approve_draft**: implementation checks pass; only pending operator/CI-owned QA awaits PR creation or operator action. Name every such row in `review.deferred_row_ids`, keep it pending, and approve only a draft handoff. `approve` uses an empty deferral list and requires completed acceptance. Code failures, blocked rows and open findings never qualify.
 - **request_changes**: fixable problems. Every blocking finding must be specific (file or section, what is wrong, why it matters) and actionable. Keep suggestions separate from blockers.
 - **reject**: the approach itself is wrong and iteration won't fix it; explain what the analyst or implementer misunderstood.
 
 Do not approve out of politeness, and do not request changes over pure style preference. Every blocking finding must trace back to the Evidence gate, correctness, the acceptance criteria, safety, boundaries, or scope.
+
+No row becomes `not_applicable` on a reason alone: require current inspection proof with a source URL and quote for every surface, especially explicit required surfaces and operator QA. Verify that source actually establishes the exemption; the schema cannot establish the truth of a model's citation.
 
 ## Tooling
 

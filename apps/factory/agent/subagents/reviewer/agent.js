@@ -16,7 +16,7 @@ export default defineAgent({
     "fetch the branch, run `bun run solos dev verify --scope check --json` in an independent clone, compare its " +
     "sha with the implementer's Evidence (missing, mismatched, or dirty Evidence is request_changes before " +
     "reading the diff), then read the real diff and return approve, request_changes, or reject with specific " +
-    "findings. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
+    "findings; approve_draft preserves explicitly deferred operator/CI QA. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
     "branch name, and the implementer's report including its evidence field, plus an artifact id when the " +
     "analyst saved its detail.",
   limits: sessionLimitsFor("reviewer"),
@@ -43,7 +43,7 @@ export default defineAgent({
         type: "array",
       },
       summary: { description: "One paragraph: the verdict and what drove it.", type: "string" },
-      verdict: { enum: ["approve", "request_changes", "reject"], type: "string" },
+      verdict: { enum: ["approve", "approve_draft", "request_changes", "reject"], type: "string" },
     },
     required: [
       "verdict",

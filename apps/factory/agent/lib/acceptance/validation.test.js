@@ -81,7 +81,7 @@ test("acceptance matrix rejects contradictory summaries and distinguishes unfini
   const input = replay();
   input.matrix.summary.pass = 2;
   expect(validateAcceptance(input).valid).toBe(false);
-  for (const state of ["pending", "blocked", "not_applicable"]) {
+  for (const state of ["pending", "blocked"]) {
     const candidate = replay();
     Object.assign(firstRow(candidate), { state, reason: "Requires operator QA", proofs: [] });
     candidate.matrix.summary = {

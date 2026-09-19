@@ -7,17 +7,21 @@ export const hasObservedProof = (proof, revision) =>
   !/^(?:will\b|plan(?:ned)?\b|pending\b|to be\b|not yet\b)/i.test(proof.observation);
 
 /** @param {import("./schema.js").Row} row @param {string} revision */
-const proofFindings = (row, revision) => {
-  if (row.state !== "pass") return [];
+export const proofFindings = (row, revision) => {
+  if (!["pass", "not_applicable"].includes(row.state)) return [];
+  const kind = row.state === "not_applicable" ? "inspection" : row.proof_kind;
   return row.surfaces.flatMap((surface) =>
     row.proofs.some(
       (proof) =>
         hasObservedProof(proof, revision) &&
         proof.surface === surface &&
-        proof.kind === row.proof_kind,
+        proof.kind === kind &&
+        (row.state !== "not_applicable" || proof.source !== null),
     )
       ? []
-      : [`${row.id}: ${surface} needs current ${row.proof_kind} proof; planned checks do not pass`],
+      : [
+          `${row.id}: ${surface} needs current ${kind} proof; exemptions also need a source URL and quote`,
+        ],
   );
 };
 

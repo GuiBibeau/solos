@@ -56,6 +56,9 @@ export const validateContract = (input) => {
   }
   return [
     ...findings,
+    ...matrix.criteria
+      .filter((criterion) => originals.every(({ id }) => id !== criterion.id))
+      .map(({ id }) => `${id}: criterion is not in originals; expand boundary rows instead`),
     ...rowChanges(input),
     ...surfaceFindings(matrix),
     ...[originals, matrix.criteria, matrix.rows, matrix.prerequisites, matrix.findings].flatMap(

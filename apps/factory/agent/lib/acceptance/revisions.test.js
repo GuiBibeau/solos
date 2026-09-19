@@ -10,6 +10,7 @@ const reviewed = (input) => {
     lane: lane === "spec" ? "spec" : "standards",
     revision: REVISION,
     reviewed_row_ids: input.matrix.rows.map(({ id }) => id),
+    deferred_row_ids: [],
     verdict: "approve",
   }));
   return input;
@@ -20,7 +21,15 @@ test("acceptance matrix requires independent whole-matrix Spec and Standards rev
   expect(validateAcceptance(input).ready).toBe(true);
   input.reviews.pop();
   expect(validateAcceptance(input).ready).toBe(false);
-  input.reviews = [{ lane: "spec", revision: REVISION, reviewed_row_ids: [], verdict: "approve" }];
+  input.reviews = [
+    {
+      lane: "spec",
+      revision: REVISION,
+      reviewed_row_ids: [],
+      deferred_row_ids: [],
+      verdict: "approve",
+    },
+  ];
   expect(validateAcceptance(input).findings.join(" ")).toContain("47-ac-1.ordering");
 });
 
@@ -53,7 +62,8 @@ test("acceptance matrix retains all unresolved findings even when a later review
   input.matrix = structuredClone(input.previous);
   for (const finding of input.matrix.findings) finding.state = "resolved";
   expect(validateAcceptance(input).ready).toBe(false);
-  for (const finding of input.matrix.findings) finding.resolution = proof("cli.send");
+  for (const finding of input.matrix.findings)
+    finding.resolution = [proof("cli.simulate"), proof("cli.send")];
   expect(validateAcceptance(input).ready).toBe(true);
 });
 

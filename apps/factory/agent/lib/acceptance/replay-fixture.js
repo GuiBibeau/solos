@@ -15,6 +15,7 @@ export const proof = (surface) => ({
   surface,
   reference: "bun run solos dev test --filter transfer",
   observation: "ValidationError returned with an unusable signer; signer was not acquired.",
+  source: null,
   outcome: "pass",
 });
 

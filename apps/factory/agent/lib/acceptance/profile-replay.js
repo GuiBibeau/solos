@@ -99,12 +99,20 @@ const contract = {
       id: "evidence",
       validator: "review",
       requirement: "Clean exact-head unit Evidence, full offline verification and CI pass.",
-      surfaces: ["evidence", "ci.full"],
+      surfaces: ["evidence"],
+    },
+    {
+      criterion: 8,
+      id: "ci",
+      validator: "review",
+      responsibility: "ci",
+      requirement: "Required full offline CI runs after draft PR creation.",
+      surfaces: ["ci.full"],
     },
     {
       criterion: 9,
       id: "operator",
-      validator: "review",
+      validator: "native_cli",
       responsibility: "operator",
       requirement:
         "Maintainer must verify native full with real default configured and unchanged credentials.",

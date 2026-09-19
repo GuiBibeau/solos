@@ -12,6 +12,7 @@ export const validateAcceptance = (input) => {
     return {
       valid: false,
       ready: false,
+      draft_deliverable: false,
       parked_row_ids: [],
       unresolved: [],
       findings: parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`),
@@ -37,5 +38,9 @@ export const validateAcceptance = (input) => {
     parsed.data.phase === "review" &&
     unresolved.length === 0 &&
     parsed.data.reviews.every(({ verdict }) => verdict === "approve");
-  return { valid: isValid, ready, parked_row_ids, unresolved, findings };
+  const draft_deliverable =
+    isValid &&
+    parsed.data.phase === "review" &&
+    parsed.data.reviews.every(({ verdict }) => ["approve", "approve_draft"].includes(verdict));
+  return { valid: isValid, ready, draft_deliverable, parked_row_ids, unresolved, findings };
 };

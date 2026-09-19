@@ -28,11 +28,17 @@ lane standards, passing the same full matrix, original issue, previous findings 
 Each independently reviews the WHOLE applicable matrix and newly changed behavior, not just fixes.
 Spec checks the source contract and behavior; Standards checks AGENTS/ADRs and architecture.
 Retain every finding from both lanes, with stable IDs and linked row IDs. Do not merge away a failure
-because the other lane approves. Resolution needs current behavioral/inspection proof, not a promise.
+because the other lane approves. Resolution arrays must match the affected rows' recorded current
+proofs in kind and observation and cover every required surface. An unrelated passing check cannot close a finding.
 Pass the combined matrix to validate-acceptance with phase review and both review records.
 Return findings and unresolved rows together to the implementer; preserve prior regression coverage.
-Only ready:true permits delivery. pending, blocked and justified not_applicable are distinct states;
-valid:true alone is not approval. Never turn unavailable operator QA into pass or request credentials.
+Only draft_deliverable:true permits opening/updating a draft. Both lanes may use approve_draft,
+explicitly naming deferred_row_ids for pending operator/CI-owned checks that run after PR creation.
+Code failures, blocked work, implementer checks and open findings cannot be deferred this way.
+Keep those external rows pending in the PR, then re-review after their actual results arrive.
+ready:true means final completion; valid:true alone permits neither delivery nor completion.
+not_applicable requires current inspection proof for every row surface with source URL and quote,
+including required/operator checks; a reason alone never waives them. Never request credentials.
 
 Persist originals, matrix, revision and both reviews as compact JSON in the PR Acceptance matrix section,
 alongside the human criterion table. The exact solos Evidence remains a separate unchanged section.

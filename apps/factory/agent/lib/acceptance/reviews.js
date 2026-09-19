@@ -1,8 +1,10 @@
 // @ts-check
-import { hasObservedProof } from "./rows.js";
+import { draftFindings } from "./draft-review.js";
+import { resolutionFindings } from "./finding-resolution.js";
 
 /** @param {import("./schema.js").Validation} input */
-const ledgerFindings = ({ matrix, previous, revision }) => {
+const ledgerFindings = (input) => {
+  const { matrix, previous } = input;
   const findings = (previous?.findings ?? []).flatMap((prior) => {
     const current = matrix.findings.find(({ id }) => id === prior.id);
     if (!current) return [`${prior.id}: earlier finding disappeared`];
@@ -16,11 +18,7 @@ const ledgerFindings = ({ matrix, previous, revision }) => {
   for (const finding of matrix.findings) {
     if (finding.row_ids.some((id) => matrix.rows.every((row) => row.id !== id)))
       findings.push(`${finding.id}: unknown row`);
-    if (
-      finding.state === "resolved" &&
-      !(finding.resolution && hasObservedProof(finding.resolution, revision))
-    )
-      findings.push(`${finding.id}: resolution needs current observed proof`);
+    findings.push(...resolutionFindings(finding, input));
   }
   return findings;
 };
@@ -45,7 +43,7 @@ const laneFindings = (input, lane) => {
     unresolvedRows(input).length > 0 || matrix.findings.some(({ state }) => state === "open");
   if (hasUnresolved && review.verdict === "approve")
     findings.push(`${lane}: approval contradicts unresolved rows/findings`);
-  return findings;
+  return [...findings, ...draftFindings(input, review)];
 };
 
 /** @param {import("./schema.js").Validation} input */
