@@ -3,10 +3,11 @@
  * Station 4: independent review. Runs on a different model vendor than the implementer on
  * purpose. It fetches the pushed branch into its own checkout, re-runs the `check` scope of the
  * lever, compares the resulting sha with the implementer's Evidence, and judges the real diff
- * against the acceptance criteria; it never modifies code.
+ * against the acceptance criteria; it never modifies code. Its configured provider controls the
+ * cumulative token guardrail, so the default OpenAI reviewer retains independent safety caps.
  */
 import { defineAgent } from "eve";
-import { modelConfigFor } from "../../lib/models.js";
+import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -17,7 +18,7 @@ export default defineAgent({
     "findings. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +
     "branch name, and the implementer's report including its evidence field, plus an artifact id when the " +
     "analyst saved its detail.",
-  limits: { maxOutputTokensPerSession: 100_000 },
+  limits: sessionLimitsFor("reviewer"),
   ...modelConfigFor("reviewer"),
   outputSchema: {
     additionalProperties: false,

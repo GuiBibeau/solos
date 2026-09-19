@@ -32,7 +32,7 @@ The factory never holds a Solana signer, RPC URL, wallet profile, or gateway key
 
 The reviewer must run on a different vendor than the implementer; `agent/lib/models.js` throws at module load otherwise, so discovery fails instead of shipping self-review. The orchestrator (`FACTORY_MODEL_ORCHESTRATOR`) never edits code: it routes, relays artifact ids, and assembles the PR body: problem statement, `## Plan`, `## Acceptance criteria` (the reviewer's table), `## Evidence` (the implementer's JSON in a ```json fence, untouched), deviations, `Closes #N`. CI parses the Evidence section (`solos dev evidence check`).
 
-Output-token limits are station-local: 40K for classification, 80K for analysis and research, 200K for implementation, and 100K for review. The root has a 2M aggregate cap because eve charges completed child usage back to the parent; this preserves every station's full window through the initial pass and both allowed revision cycles.
+Session token budgets follow the configured provider. Z.ai models set `maxInputTokensPerSession: false` and omit `maxOutputTokensPerSession`, so Eve does not pause newly created GLM sessions on a cumulative token budget. Non-Z.ai models retain a 40M cumulative input cap and the original output cap for their station (2M root, 40K classifier, 80K analyst/researcher, 200K implementer, 100K reviewer). Production therefore uncaps the five GLM-backed roles while the independent OpenAI reviewer keeps both safeguards. Model and provider limits on each response, the 1M-token GLM context window, and Eve's normal session lifetime still apply. Eve stores limits in each durable session, so a session parked before this configuration deploys retains its old window; approve that pending continuation once to resume it instead of redispatching the work.
 
 Every station starts by reading `AGENTS.md` and `CONTEXT.md` in `/workspace/repo`. The implementer never edits `packages/actions/**`, `docs/adr/**`, `.github/**`, `eslint.config.js`, `biome.json`, `.dependency-cruiser.cjs`, `tsconfig.json`, `LICENSE`, or `CODEOWNERS`; a plan that needs one stops with `pushed: false` and the orchestrator reports which path a maintainer has to change.
 
@@ -41,7 +41,7 @@ Every station starts by reading `AGENTS.md` and `CONTEXT.md` in `/workspace/repo
 ```text
 apps/factory/
   agent/
-    agent.js                 defineAgent: orchestrator model, compaction, session budget
+    agent.js                 defineAgent: orchestrator model and compaction
     instructions.js          defineInstructions from agent/lib/prompt/*.js (FACTORY_REPO injected at build)
     sandbox.js               root Vercel Sandbox; marks /workspace safe for git
     channels/github.js       mention gate (trusted stamp), agent-ready intake (autonomous principal), red-CI loop, PR summary

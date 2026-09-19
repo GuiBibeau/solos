@@ -6,7 +6,7 @@
  * The pull request is opened later by the orchestrator, after review.
  */
 import { defineAgent } from "eve";
-import { modelConfigFor } from "../../lib/models.js";
+import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -17,7 +17,7 @@ export default defineAgent({
     "when the plan needs a protected path. The caller passes the work item, classification, and full analysis in " +
     "the message, plus an artifact id when the analyst saved its detail; on a revision run it also passes the " +
     "existing branch and the reviewer's findings.",
-  limits: { maxOutputTokensPerSession: 200_000 },
+  limits: sessionLimitsFor("implementer"),
   ...modelConfigFor("implementer"),
   outputSchema: {
     additionalProperties: false,

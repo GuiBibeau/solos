@@ -1,15 +1,15 @@
 // @ts-check
 /**
- * Root agent runtime configuration: the model and the session budget for the solOS factory
- * orchestrator. The rest of the surface (channels, extension, tools, skills, subagents) is
- * discovered from the filesystem under `agent/`. Eve counts completed child usage against the
- * root, so this is an aggregate pipeline cap; each station declares its own tighter session cap.
+ * Root agent runtime configuration: the model and compaction for the solOS factory orchestrator.
+ * The GLM pipeline disables Eve's cumulative input-token budget and omits an output-token cap;
+ * context, provider response, and session-lifetime limits still apply. Existing durable sessions
+ * retain the limits they were created with and need their pending continuation approved once.
  */
 import { defineAgent } from "eve";
-import { modelConfigFor } from "./lib/models.js";
+import { modelConfigFor, sessionLimitsFor } from "./lib/models.js";
 
 export default defineAgent({
   compaction: { thresholdPercent: 0.75 },
-  limits: { maxOutputTokensPerSession: 2_000_000 },
+  limits: sessionLimitsFor("orchestrator"),
   ...modelConfigFor("orchestrator"),
 });

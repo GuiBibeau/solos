@@ -5,14 +5,14 @@
  * `needs_clarification` is the stop signal.
  */
 import { defineAgent } from "eve";
-import { modelConfigFor } from "../../lib/models.js";
+import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
   description:
     "Classify an incoming solOS work item: type (bug/feature/refactor/question/chore/security), priority, " +
     "complexity, the slice or package involved, and whether it is actionable or needs clarification. Fast " +
     "triage only; no analysis or implementation. The caller passes the work item verbatim in the message.",
-  limits: { maxOutputTokensPerSession: 40_000 },
+  limits: sessionLimitsFor("classifier"),
   ...modelConfigFor("classifier"),
   outputSchema: {
     additionalProperties: false,

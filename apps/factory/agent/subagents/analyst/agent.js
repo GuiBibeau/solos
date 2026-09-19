@@ -6,7 +6,7 @@
  * produces are the contract the reviewer later judges the implementation against, verbatim.
  */
 import { defineAgent } from "eve";
-import { modelConfigFor } from "../../lib/models.js";
+import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 
 export default defineAgent({
   description:
@@ -16,7 +16,7 @@ export default defineAgent({
     "form and only extended, and test strategy. Planning only; writes no code. The caller passes the work item, " +
     "its classification, and any research findings in the message, plus a research artifact id when the " +
     "researcher saved a full memo. May save its own deep supporting detail as an analysis artifact.",
-  limits: { maxOutputTokensPerSession: 80_000 },
+  limits: sessionLimitsFor("analyst"),
   ...modelConfigFor("analyst"),
   outputSchema: {
     additionalProperties: false,
