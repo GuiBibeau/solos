@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_ELFA_BASE_URL,
   DEFAULT_JUPITER_BASE_URL,
+  DEFAULT_PHOENIX_BASE_URL,
   deriveWsUrl,
   elfaBaseUrl,
   jupiterBaseUrl,
+  phoenixBaseUrl,
 } from "./env.js";
 
 // Pure URL parsing only: no fixture store, no lifecycle, no `loadSolanaEnv`, so unit scope never
@@ -28,6 +30,7 @@ describe("solana env url parsing", () => {
   test("provider base urls normalize a trailing slash", () => {
     expect(elfaBaseUrl("https://api.elfa.ai/")).toBe("https://api.elfa.ai");
     expect(jupiterBaseUrl("https://api.jup.ag/")).toBe("https://api.jup.ag");
+    expect(phoenixBaseUrl("https://perp-api.phoenix.trade/")).toBe(DEFAULT_PHOENIX_BASE_URL);
   });
 
   test("provider base urls allow plain http only on loopback hosts", () => {
@@ -41,5 +44,8 @@ describe("solana env url parsing", () => {
     const OFF_LOOPBACK_JUPITER = "api.jup.ag";
     expect(() => jupiterBaseUrl(`http://${OFF_LOOPBACK_JUPITER}`)).toThrow(/JUPITER_BASE_URL/);
     expect(() => jupiterBaseUrl("ftp://api.jup.ag")).toThrow(/JUPITER_BASE_URL/);
+    expect(phoenixBaseUrl("http://127.0.0.1:8999")).toBe("http://127.0.0.1:8999");
+    const OFF_LOOPBACK_PHOENIX = "perp-api.phoenix.trade";
+    expect(() => phoenixBaseUrl(`http://${OFF_LOOPBACK_PHOENIX}`)).toThrow(/PHOENIX_BASE_URL/);
   });
 });

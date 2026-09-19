@@ -1,71 +1,21 @@
 // @ts-check
 import { afterEach, describe, expect, test } from "bun:test";
 import { runIrisQa } from "./iris.js";
+import { QA_KEY, startMarketQaFixture } from "./market-cases.js";
 import { IrisQaSchema } from "./schema.js";
 
-const KEY = "offline-market-key";
 const LINK = "https://x.com/example/status/123";
-const page = { page: 1, pageSize: 5, total: 1 };
-const payloads = {
-  "/v2/aggregations/trending-tokens": {
-    success: true,
-    data: {
-      ...page,
-      data: [{ token: "SOL", current_count: 20, previous_count: 10, change_percent: 100 }],
-    },
-  },
-  "/v2/data/token-news": {
-    success: true,
-    metadata: page,
-    data: [
-      {
-        tweetId: "123",
-        link: LINK,
-        mentionedAt: "2026-09-17T00:00:00Z",
-        type: "post",
-        likeCount: 3,
-        repostCount: 2,
-        viewCount: null,
-        quoteCount: 0,
-        replyCount: 0,
-        bookmarkCount: null,
-        repostBreakdown: { ct: 1, smart: 1 },
-        privateProviderField: KEY,
-      },
-    ],
-  },
-  "/v2/data/event-summary": {
-    success: true,
-    data: [
-      {
-        summary: "Solana upgrade announced.",
-        sourceLinks: [LINK],
-        tweetIds: ["123"],
-      },
-    ],
-  },
-};
-let server;
-afterEach(() => server?.stop(true));
 
-const fixture = ({ status = 200, credits = true, malformed = false } = {}) => {
-  const requests = [];
-  server = Bun.serve({
-    hostname: "127.0.0.1",
-    port: 0,
-    fetch(request) {
-      const url = new URL(request.url);
-      requests.push({ url, method: request.method, key: request.headers.get("x-elfa-api-key") });
-      const cost = url.pathname.endsWith("event-summary") ? 5 : 1;
-      const body = status === 200 ? payloads[url.pathname] : { secret: KEY };
-      return Response.json(malformed ? { success: true, data: [] } : body, {
-        status,
-        headers: credits ? { "x-elfa-credits": String(cost) } : {},
-      });
-    },
-  });
-  return { baseUrl: `http://127.0.0.1:${server.port}`, requests };
+const running = /** @type {ReturnType<typeof startMarketQaFixture>[]} */ ([]);
+/** @param {{ status?: number; credits?: boolean; malformed?: boolean }} [options] */
+const fixture = (options) => {
+  const provider = startMarketQaFixture(options);
+  running.push(provider);
+  return provider;
 };
+afterEach(() => {
+  for (const provider of running.splice(0)) provider.stop();
+});
 
 // Six real Bun processes plus Surfpool startup can exceed Bun's default 5s on CI.
 const PROCESS_SUITE_TIMEOUT_MS = 30_000;
@@ -75,7 +25,7 @@ describe("Free-plan Elfa QA through real CLI and MCP [integration]", () => {
     "exercises all three GET endpoints on both surfaces and records the contract and billing",
     async () => {
       const provider = fixture();
-      const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
+      const result = await runIrisQa({ ...provider, apiKey: QA_KEY, suite: "elfa-market" });
       expect(result).toMatchObject({
         status: "passed",
         mode: "fixture",
@@ -86,7 +36,7 @@ describe("Free-plan Elfa QA through real CLI and MCP [integration]", () => {
       });
       expect(provider.requests).toHaveLength(6);
       for (const request of provider.requests) {
-        expect(request).toMatchObject({ method: "GET", key: KEY });
+        expect(request).toMatchObject({ method: "GET", key: QA_KEY });
         expect(request.url.searchParams.get("timeWindow")).toBe("24h");
       }
       for (const index of [0, 1]) {
@@ -114,7 +64,7 @@ describe("Free-plan Elfa QA through real CLI and MCP [integration]", () => {
         expect(provider.requests[index].url.searchParams.get("searchType")).toBe("or");
         expect(result.cases[index].answer.summaries[0].sourceLinks).toEqual([LINK]);
       }
-      expect(JSON.stringify(result)).not.toContain(KEY);
+      expect(JSON.stringify(result)).not.toContain(QA_KEY);
       expect(IrisQaSchema.safeParse({ ...result, cases: result.cases.slice(0, 2) }).success).toBe(
         false,
       );
@@ -128,7 +78,7 @@ describe("Free-plan Elfa QA through real CLI and MCP [integration]", () => {
     "missing billing stays unknown, while valid results still work",
     async () => {
       const provider = fixture({ credits: false });
-      const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
+      const result = await runIrisQa({ ...provider, apiKey: QA_KEY, suite: "elfa-market" });
       expect(result).toMatchObject({ status: "passed", reportedCredits: 0, usageComplete: false });
       expect(result.cases.every((c) => c.answer.creditsConsumed === null)).toBe(true);
     },
@@ -145,13 +95,13 @@ describe("Free-plan Elfa QA through real CLI and MCP [integration]", () => {
         [200, "IrisResponseInvalid"],
       ]) {
         const provider = fixture({ status, malformed: status === 200 });
-        const result = await runIrisQa({ ...provider, apiKey: KEY, suite: "elfa-market" });
+        const result = await runIrisQa({ ...provider, apiKey: QA_KEY, suite: "elfa-market" });
         expect(result.callsStarted).toBe(1);
         expect(result.cases[0].code).toBe(code);
         expect(result.cases.slice(1).every((c) => c.status === "skipped")).toBe(true);
         expect(provider.requests).toHaveLength(1);
-        expect(JSON.stringify(result)).not.toContain(KEY);
-        server.stop(true);
+        expect(JSON.stringify(result)).not.toContain(QA_KEY);
+        provider.stop();
       }
     },
     PROCESS_SUITE_TIMEOUT_MS,

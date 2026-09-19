@@ -1,8 +1,17 @@
 // @ts-check
 import { z } from "zod";
 import { selectProfile, sourceFromProfile } from "./credentials/resolve.js";
+import { deriveWsUrl, elfaBaseUrl, jupiterBaseUrl, phoenixBaseUrl } from "./env-url.js";
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"]);
+export {
+  DEFAULT_ELFA_BASE_URL,
+  DEFAULT_JUPITER_BASE_URL,
+  DEFAULT_PHOENIX_BASE_URL,
+  deriveWsUrl,
+  elfaBaseUrl,
+  jupiterBaseUrl,
+  phoenixBaseUrl,
+} from "./env-url.js";
 
 const EnvSchema = z.object({
   SOLANA_RPC_URL: z.string().url("SOLANA_RPC_URL must be a URL").optional(),
@@ -30,13 +39,12 @@ const EnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
   ),
+  // Phoenix Perps reads are public; only the endpoint is configurable (loopback fixtures).
+  PHOENIX_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
 });
-
-/** Elfa production endpoint; the only provider today, so the default lives beside its parsing. */
-export const DEFAULT_ELFA_BASE_URL = "https://api.elfa.ai";
-
-/** Jupiter production endpoint; lite-api hosts are deprecated and never a default. */
-export const DEFAULT_JUPITER_BASE_URL = "https://api.jup.ag";
 
 /**
  * @typedef {import("./credentials/resolve.js").SignerSource} SignerSource
@@ -48,49 +56,9 @@ export const DEFAULT_JUPITER_BASE_URL = "https://api.jup.ag";
  *   readonly profile: string | undefined;
  *   readonly elfa: { readonly apiKey: string | undefined; readonly baseUrl: string };
  *   readonly jupiter: { readonly apiKey: string | undefined; readonly baseUrl: string };
+ *   readonly phoenix: { readonly baseUrl: string };
  * }} SolanaEnv
  */
-
-/**
- * Local validators (Surfpool, test-validator) put WebSocket on RPC port + 1; providers share the host.
- * @param {string} rpcUrl
- */
-export const deriveWsUrl = (rpcUrl) => {
-  const url = new URL(rpcUrl);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  if (LOCAL_HOSTS.has(url.hostname) && url.port !== "") {
-    url.port = String(Number(url.port) + 1);
-  }
-  return url.href.replace(/\/$/, "");
-};
-
-/**
- * Provider API base URL. HTTPS everywhere except plain HTTP on loopback hosts, which exists for
- * local test fixtures only.
- * @param {string | undefined} raw
- * @param {string} defaultUrl
- * @param {string} envName
- */
-const providerBaseUrl = (raw, defaultUrl, envName) => {
-  const url = new URL(raw ?? defaultUrl);
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname))) {
-    throw new Error(`${envName} must use https (plain http only for loopback test fixtures)`);
-  }
-  return url.href.replace(/\/$/, "");
-};
-
-/**
- * Elfa API base URL.
- * @param {string | undefined} raw
- */
-export const elfaBaseUrl = (raw) => providerBaseUrl(raw, DEFAULT_ELFA_BASE_URL, "ELFA_BASE_URL");
-
-/**
- * Jupiter API base URL.
- * @param {string | undefined} raw
- */
-export const jupiterBaseUrl = (raw) =>
-  providerBaseUrl(raw, DEFAULT_JUPITER_BASE_URL, "JUPITER_BASE_URL");
 
 /**
  * Signer from explicit env vars, when present. Exactly one of the two may be set.
@@ -146,5 +114,6 @@ export const loadSolanaEnv = (env) => {
     profile: selected?.name,
     elfa: { apiKey: parsed.ELFA_API_KEY, baseUrl: elfaBaseUrl(parsed.ELFA_BASE_URL) },
     jupiter: { apiKey: parsed.JUPITER_API_KEY, baseUrl: jupiterBaseUrl(parsed.JUPITER_BASE_URL) },
+    phoenix: { baseUrl: phoenixBaseUrl(parsed.PHOENIX_BASE_URL) },
   };
 };

@@ -3,7 +3,7 @@ import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
 describe("tool registry", () => {
-  test("has at least the wallet, transfer, market, launch, and swap tools", () => {
+  test("has at least the wallet, transfer, market, launch, perp, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_launch_get_curve",
       "solana_market_ask_iris",
@@ -12,13 +12,14 @@ describe("tool registry", () => {
       "solana_market_get_token",
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
+      "solana_perp_get_position",
       "solana_swap_get_quote",
       "solana_transfer_send_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
       "solana_wallet_get_balance",
     ]);
-    expect(toolGroups).toEqual(["launch", "market", "swap", "transfer", "wallet"]);
+    expect(toolGroups).toEqual(["launch", "market", "perp", "swap", "transfer", "wallet"]);
   });
 
   test("every tool is discovery-friendly", () => {
@@ -77,5 +78,13 @@ describe("tool registry", () => {
     expect(tool?.group).toBe("launch");
     expect(tool?.tier).toBe("read");
     expect(tool?.input.shape.mint?.description).toBeTruthy();
+  });
+
+  test("the perp position tool is a read-tier perp tool with described arguments", () => {
+    const tool = allTools.find((t) => t.name === "solana_perp_get_position");
+    expect(tool?.group).toBe("perp");
+    expect(tool?.tier).toBe("read");
+    expect(tool?.input.shape.market?.description).toBeTruthy();
+    expect(tool?.input.shape.owner?.description).toBeTruthy();
   });
 });
