@@ -4,6 +4,7 @@
 /** @typedef {import("./shared/domain/event.js").SolosEvent} SolosEvent */
 /** @typedef {import("./shared/domain/address.js").Address} Address */
 import { launchTools } from "./launch/index.js";
+import { liquidityTools } from "./liquidity/index.js";
 import { marketTools } from "./market/index.js";
 import { perpTools } from "./perp/index.js";
 import { swapTools } from "./swap/index.js";
@@ -11,6 +12,7 @@ import { transferTools } from "./transfer/index.js";
 import { walletTools } from "./wallet/index.js";
 
 export * from "./launch/index.js";
+export * from "./liquidity/index.js";
 export * from "./market/index.js";
 export * from "./perp/index.js";
 export * from "./shared/index.js";
@@ -29,6 +31,7 @@ export const allTools = [
   ...swapTools,
   ...marketTools,
   ...launchTools,
+  ...liquidityTools,
   ...perpTools,
 ].toSorted((a, b) => a.name.localeCompare(b.name));
 
