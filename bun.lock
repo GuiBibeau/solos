@@ -113,6 +113,7 @@
       "dependencies": {
         "@hpke/chacha20poly1305": "1.8.0",
         "@hpke/core": "1.9.0",
+        "@orca-so/whirlpools-core": "3.1.1",
         "@solana-program/system": "0.14.1",
         "@solana-program/token": "0.16.1",
         "@solana/keychain": "1.4.0",
@@ -413,6 +414,8 @@
     "@opentelemetry/sdk-trace-web": ["@opentelemetry/sdk-trace-web@2.11.0", "", { "dependencies": { "@opentelemetry/core": "2.11.0", "@opentelemetry/sdk-trace-base": "2.11.0" }, "peerDependencies": { "@opentelemetry/api": ">=1.0.0 <1.10.0" } }, "sha512-8hgLI437x8VRKzgUr+WRcHFp9AeaHmveKRsPIMNele9tethgCKprakRRqZCWyt41ilALHATfspUMl1An0OTMUQ=="],
 
     "@opentelemetry/semantic-conventions": ["@opentelemetry/semantic-conventions@1.43.0", "", {}, "sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg=="],
+
+    "@orca-so/whirlpools-core": ["@orca-so/whirlpools-core@3.1.1", "", {}, "sha512-pZqemzQrtLW214yTpc117SNGMk3KIxVw9i77DT5235TUj+v+MkX0EZcriAkDfAeVMr0Il6XKS9hTz8ynZ8lXcA=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.149.0", "", {}, "sha512-Efcc+iF0j3Bf67YjEqIqWXbX5XddXoK/Mw4K1/JuXwRCZ8N16VR7iT23nlCc9XrveFVh/E5Rqs2StT0V8v9LdA=="],
 
