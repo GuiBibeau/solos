@@ -16,6 +16,13 @@ export const LEGACY_MIN_BYTES = 49;
 const QUOTE_MINT_START = 83;
 const QUOTE_MINT_END = 115;
 
+/** Lengths inside a window cut the named encoded field in half; the decoder refuses them. */
+const TRUNCATION_WINDOWS = [
+  { field: "creator", from: 50, to: 80 },
+  { field: "quote_mint", from: 84, to: 114 },
+  { field: "creator_fee_bps", from: 116, to: 122 },
+];
+
 /**
  * Decoded fields of one bonding curve. `quoteMint` is absent on legacy (shorter) accounts,
  * which are SOL-paired by construction.
@@ -52,11 +59,7 @@ export const bondingCurveAddress = (mint) =>
     seeds: [utf8.encode(BONDING_CURVE_SEED), new Uint8Array(addressBytes.encode(address(mint)))],
   }).then(([pda]) => pda);
 
-/**
- * @param {Uint8Array} bytes
- * @param {number} offset
- * @returns {bigint} u64 little-endian
- */
+/** @param {Uint8Array} bytes @param {number} offset @returns {bigint} u64 little-endian */
 const readU64 = (bytes, offset) =>
   new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getBigUint64(offset, true);
 
@@ -86,14 +89,22 @@ const invalidBooleanIn = (bytes) => {
   return undefined;
 };
 
+/** @param {number} length @returns {string | undefined} fixed reason when length cuts a field */
+const truncationReason = (length) => {
+  const cut = TRUNCATION_WINDOWS.find((w) => length >= w.from && length <= w.to);
+  return cut === undefined ? undefined : `curve account is truncated inside ${cut.field}`;
+};
+
 /**
  * Decode a bonding-curve account by length thresholds — never by equality, because the
  * protocol's history has valid legacy totals (49, 81, 82, 83, 115, 123, 124, 125) and live
- * accounts can carry trailing zero padding past the current 125-byte layout. Missing trailing
- * fields default: booleans false, integers zero, quote_mint absent. A missing quote_mint
- * means the account predates quote assets, so it is SOL-paired. Below the 49-byte legacy
- * minimum the account is truncated, not legacy; a wrong discriminator is not a curve at all;
- * a boolean byte outside 0 and 1 is malformed data.
+ * accounts can carry trailing zero padding past the current 125-byte layout. Only those
+ * totals plus padding are valid: a length between two of them cuts an encoded field in half
+ * and is refused, never defaulted — a partial quote_mint must not pass as legacy SOL-paired.
+ * At a documented total, missing trailing fields default: booleans false, integers zero,
+ * quote_mint absent (the account predates quote assets, so it is SOL-paired). Below the
+ * 49-byte legacy minimum the account is truncated, not legacy; a wrong discriminator is not
+ * a curve at all; a boolean byte outside 0 and 1 is malformed data.
  * @param {Uint8Array | null} bytes account data, or null when the account does not exist
  * @returns {BondingCurveRead}
  */
@@ -111,6 +122,8 @@ export const decodeBondingCurve = (bytes) => {
       reason: "curve data does not carry the BondingCurve discriminator",
     };
   }
+  const truncated = truncationReason(bytes.length);
+  if (truncated !== undefined) return { status: "corrupt", reason: truncated };
   const badBoolean = invalidBooleanIn(bytes);
   if (badBoolean !== undefined) return { status: "corrupt", reason: badBoolean };
   return {

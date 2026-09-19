@@ -45,6 +45,15 @@ describe("launch curve failure reads over seeded Surfnet [integration]", () => {
     expect(failure.reason).toBe("curve account is truncated below the legacy layout minimum");
   });
 
+  test("a curve truncated inside quote_mint fails CurveCorrupt, never a SOL-paired read", async () => {
+    const failure = /** @type {any} */ (await fx.readCurve(fx.mints.partialQuoteMint));
+    expect(failure).toMatchObject({
+      _tag: "CurveCorrupt",
+      mint: fx.mints.partialQuoteMint,
+      reason: "curve account is truncated inside quote_mint",
+    });
+  });
+
   test("a non-Borsh `complete` byte (0xff) fails CurveCorrupt, never a truthy read", async () => {
     const failure = /** @type {any} */ (await fx.readCurve(fx.mints.badCompleteByte));
     expect(failure._tag).toBe("CurveCorrupt");

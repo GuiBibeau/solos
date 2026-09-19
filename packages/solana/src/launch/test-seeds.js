@@ -41,7 +41,7 @@ const accountWriter =
       { lamports: RENT_LAMPORTS, data: base16(data), owner, executable: false },
     ]);
 
-/** @typedef {{ readonly fresh: string; readonly partial: string; readonly completed: string; readonly legacy49: string; readonly legacy83: string; readonly padded: string; readonly badCompleteByte: string; readonly badTrailingBool: string; readonly unsupportedQuote: string; readonly wrongOwner: string; readonly wrongDiscriminator: string; readonly truncated: string; readonly absent: string }} LaunchFixtureMints */
+/** @typedef {{ readonly fresh: string; readonly partial: string; readonly completed: string; readonly legacy49: string; readonly legacy83: string; readonly padded: string; readonly badCompleteByte: string; readonly badTrailingBool: string; readonly unsupportedQuote: string; readonly wrongOwner: string; readonly wrongDiscriminator: string; readonly truncated: string; readonly partialQuoteMint: string; readonly absent: string }} LaunchFixtureMints */
 
 /**
  * Malformed-boolean fixtures: a `complete` byte of 255 at the legacy minimum, and an
@@ -84,6 +84,8 @@ const seedCurveFixtures = (setCurve, mints) =>
       freshCurveBytes({ discriminator: new Uint8Array(8).fill(255) }),
     ),
     setCurve(mints.truncated, freshCurveBytes({ bytes: 40 })),
+    // 100 bytes: the 83-byte legacy prefix plus 17 of quote_mint's 32.
+    setCurve(mints.partialQuoteMint, freshCurveBytes({ bytes: 100 })),
   ]);
 
 /**
@@ -106,6 +108,7 @@ export const seedLaunchFixtures = async (rpcUrl) => {
     wrongOwner: randomAddress(),
     wrongDiscriminator: randomAddress(),
     truncated: randomAddress(),
+    partialQuoteMint: randomAddress(),
     absent: randomAddress(),
   };
   const setAccount = accountWriter(rpcUrl);
