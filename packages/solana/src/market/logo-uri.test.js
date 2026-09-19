@@ -1,8 +1,8 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { getAddressEncoder } from "@solana/kit";
-import { tlvRecord, tokenMetadataValue } from "./test-fixtures.js";
 import { MAX_LOGO_URI_BYTES, isHttpUrl, logoUriFromPairs } from "./logo-uri.js";
+import { tlvRecord, tokenMetadataValue } from "./test-fixtures.js";
 import { readTokenMetadataExtension } from "./token-2022-metadata.js";
 
 const MINT = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";

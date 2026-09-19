@@ -1,14 +1,10 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
-import { getAddressDecoder } from "@solana/kit";
 import { getToken } from "@solos/core";
 import { Effect } from "effect";
 import { SolanaTestLive } from "../index.js";
 import { ensureSurfnet, randomSeed, USDC_MINT } from "../surfnet/test-surfnet.js";
 import { seedTokenFixtures, WSOL_MINT } from "./test-seeds.js";
-
-/** A fresh, never-funded address; nothing on the Surfnet holds it. */
-const randomAddress = () => getAddressDecoder().decode(crypto.getRandomValues(new Uint8Array(32)));
 
 /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
 let surfnet;

@@ -9,7 +9,7 @@ import { getAddressDecoder } from "@solana/kit";
 import { jsonRpc } from "../surfnet/surfnet-cli.js";
 import { metadataPda } from "./metaplex-metadata.js";
 import { TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "./mint-account.js";
-import { base16, classicMintBytes, zeros } from "./test-fixtures.js";
+import { base16, classicMintBytes } from "./test-fixtures.js";
 import { WSOL_MINT, seedClassicFixtures, seedMetaplexFixtures } from "./test-seed-families.js";
 import { token2022SeedAccounts } from "./token-2022-seeds.js";
 
