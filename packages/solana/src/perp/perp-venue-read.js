@@ -12,6 +12,7 @@ import {
 } from "./phoenix-api.js";
 import { marketStatusError, statusError } from "./phoenix-errors.js";
 import { mapEnumeration, mapPointRead } from "./phoenix-map.js";
+import { absentTraderState } from "./phoenix-snapshot.js";
 import {
   MarketConfigSchema,
   MarketsListSchema,
@@ -68,14 +69,29 @@ const requestJson = (config, request) => {
  * @param {PhoenixConfig} config
  * @param {string} authority
  */
-const traderState = (config, authority) =>
-  requestJson(config, {
+const traderState = (config, authority) => {
+  const request = {
     path: `${TRADER_STATE_PATH}/${encodeURIComponent(authority)}`,
     query: { traderPdaIndex: String(TRADER_PDA_INDEX) },
     statusError,
     schema: TraderStateSchema,
     reason: "trader state did not match the documented wire contract",
-  });
+  };
+  const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  return Effect.tryPromise({
+    try: () => phoenixGet(config, request.path, request.query),
+    catch: (error) =>
+      isDeadlineAbort(error)
+        ? new PerpTimeout({ timeoutMs })
+        : new PerpNetworkError({ reason: "Phoenix perps request failed" }),
+  }).pipe(
+    Effect.flatMap((outcome) =>
+      outcome.status === 404
+        ? Effect.succeed(absentTraderState(authority))
+        : decode(outcome, request),
+    ),
+  );
+};
 
 /** Wraps pure snapshot mapping so a typed PerpError becomes the effect's error channel.
  * @template T @param {() => T} map @returns {import("effect").Effect.Effect<T, import("@solos/core").PerpError>}

@@ -5,6 +5,18 @@ import { TRADER_PDA_INDEX } from "./phoenix-api.js";
 /** @typedef {import("./phoenix-wire.js").TraderStateWire} TraderStateWire */
 /** @typedef {import("./phoenix-wire.js").SubaccountWire} SubaccountWire */
 
+/** Live Phoenix answers HTTP 404 for an unknown authority; that is a typed zero, not an error.
+ * @param {string} authority
+ * @returns {TraderStateWire}
+ */
+export const absentTraderState = (authority) => ({
+  authority,
+  traderPdaIndex: TRADER_PDA_INDEX,
+  snapshot: {
+    subaccounts: [{ subaccountIndex: TRADER_PDA_INDEX, collateral: "0", positions: [] }],
+  },
+});
+
 /**
  * The MVP account scope is traderPdaIndex=0. The snapshot must echo the requested authority
  * and that index, or the response describes someone else's account.

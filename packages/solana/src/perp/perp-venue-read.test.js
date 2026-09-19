@@ -60,6 +60,20 @@ describe("PerpVenueLive position reads through the loopback Phoenix fixture [int
     expect(result.account).toMatchObject({ account: OTHER_AUTHORITY, equityUsd: "0" });
   });
 
+  test("a live-style trader 404 is the same typed zero, not a provider error", async () => {
+    fixture = startPhoenixFixture({
+      traderStatus: 404,
+      rawTraderBody: '{"error":"Trader not found"}',
+    });
+    const result = await readThrough(fixture, { market: "SOL", owner: OTHER_AUTHORITY });
+    expect(result.position).toMatchObject({
+      account: OTHER_AUTHORITY,
+      side: "flat",
+      amount: "0",
+    });
+    expect(result.account).toMatchObject({ account: OTHER_AUTHORITY, equityUsd: "0" });
+  });
+
   test("the request shape pins the account scope: explicit index, encoded authority", async () => {
     fixture = startPhoenixFixture({ trader: (authority) => coldState(authority) });
     await readThrough(fixture, { market: "SOL", owner: OTHER_AUTHORITY });
