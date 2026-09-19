@@ -1,48 +1,12 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import path from "node:path";
-import { ensureSurfnet, randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import { ensureSurfnet } from "@solos/solana/surfnet";
+import { runSolos, solanaEnv, stderrJson } from "./cli-fixture.js";
 
-const ROOT = new URL("../../../..", import.meta.url).pathname;
-const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
 const KEY = "test-jupiter-key";
 const MINT = "So11111111111111111111111111111111111111112";
 const PRICE = 100.46852810203305;
 
-const solanaEnv = async () => ({
-  SOLANA_RPC_URL: surfnet.rpcUrl,
-  SOLANA_WS_URL: surfnet.wsUrl,
-  SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
-  SOLOS_LOG_LEVEL: "warn",
-});
-
-/**
- * Spawn the CLI entry directly — `bun --no-env-file run apps/cli/src/main.js`. The flag must
- * govern the one process that loads env files: the `solos` package script would start a
- * second Bun without it, loading `.env`/`.env.local` again.
- * @param {string[]} args
- * @param {Record<string, string>} env
- */
-const runSolos = async (args, env) => {
-  const proc = Bun.spawn([process.execPath, "--no-env-file", "run", CLI_ENTRY, ...args], {
-    cwd: ROOT,
-    env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-  return { stdout, stderr, code };
-};
-
-/** Pick and parse the JSON line the CLI printed on `bun run`-wrapped stderr. @param {string} stderr @returns {any} */
-const stderrJson = (stderr) => {
-  const line = stderr.split("\n").find((candidate) => candidate.startsWith("{"));
-  return line === undefined ? undefined : JSON.parse(line);
-};
 
 /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
 let surfnet;
@@ -71,7 +35,7 @@ afterAll(() => fixture?.stop());
 describe("`solos market price` and `solos mcp` through real child processes [integration]", () => {
   test("market price prints the contract JSON and reaches the loopback fixture", async () => {
     const { stdout, code } = await runSolos(["market", "price", "--mint", MINT], {
-      ...(await solanaEnv()),
+      ...(await solanaEnv(surfnet)),
       JUPITER_API_KEY: KEY,
       JUPITER_BASE_URL: fixture.url,
     });
@@ -89,7 +53,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
     const before = fixture.requests.length;
     const { stdout, code } = await runSolos(
       ["mcp", "call", "solana_market_get_price", "--args", JSON.stringify({ mint: MINT })],
-      { ...(await solanaEnv()), JUPITER_API_KEY: KEY, JUPITER_BASE_URL: fixture.url },
+      { ...(await solanaEnv(surfnet)), JUPITER_API_KEY: KEY, JUPITER_BASE_URL: fixture.url },
     );
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
@@ -103,7 +67,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
   });
 
   test("mcp list without a key still advertises every tool, price included", async () => {
-    const { stdout, code } = await runSolos(["mcp", "list"], await solanaEnv());
+    const { stdout, code } = await runSolos(["mcp", "list"], await solanaEnv(surfnet));
     expect(code).toBe(0);
     const names = JSON.parse(stdout).tools.map((/** @type {{ name: string }} */ t) => t.name);
     expect(names).toEqual([
@@ -126,7 +90,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
   test("market price without a key exits 1 with the tagged error, before provider access", async () => {
     const before = fixture.requests.length;
     const { stdout, stderr, code } = await runSolos(["market", "price", "--mint", MINT], {
-      ...(await solanaEnv()),
+      ...(await solanaEnv(surfnet)),
       JUPITER_BASE_URL: fixture.url,
     });
     expect(code).not.toBe(0);
@@ -139,7 +103,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
     const before = fixture.requests.length;
     const { stdout, code } = await runSolos(
       ["mcp", "call", "solana_market_get_price", "--args", JSON.stringify({ mint: MINT })],
-      { ...(await solanaEnv()), JUPITER_BASE_URL: fixture.url },
+      { ...(await solanaEnv(surfnet)), JUPITER_BASE_URL: fixture.url },
     );
     expect(code).not.toBe(0);
     const result = JSON.parse(stdout);
