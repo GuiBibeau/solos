@@ -87,3 +87,26 @@ commit under review and `dirty` is false.
 
 **Protected path** — a file or directory the Factory may not change: `packages/actions/`,
 `docs/adr/`, `.github/`, lint and type configuration, `LICENSE`. Enforced by CODEOWNERS and CI.
+
+
+**Position** — a discriminated wallet-token, Kamino supply, Phoenix exposure or LP principal
+record. Identity is per owner and mint, market/mint/obligations, trader/market, or LP account;
+see ADR-0018. Native SOL uses instrument `SOL`, distinct from the wSOL mint.
+
+**Perp account equity** — signed USD collateral plus PnL/funding under the pinned venue math,
+counted once per trader account in PortfolioState.perpAccounts. It is never leveraged notional.
+Per-market Position.valueUsd is null and its amount is absolute exposure with explicit side.
+
+**Price bound** — required limitPriceUsd on perp Actions: maximum buy or minimum sell USD per
+base token. IOC tick rounding tightens the bound and quote-lot caps constrain open notional.
+
+**LP position** — an existing protocol position account, never its NFT mint or its pool. Adds
+preserve its range and A/B maximum spends; removes take an explicit 1..10000 bps fraction of its
+liquidity, preserving account/NFT. Underlying principal is separate from shares and unclaimed fees.
+
+**Venue selector** — swap Action.venue; omission means Jupiter. Launch buys explicitly choose
+pump. No mint-based route inference, fallback, or public swap-tool venue argument.
+
+**Complete enumeration** — a bounded owner read that returns all supported positions and the
+receipt mints they represent, or fails explicitly. Missing optional coverage is distinct from a
+configured provider failure. Supported-assets valuation is not full net worth or debt accounting.

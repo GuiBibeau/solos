@@ -3,6 +3,8 @@
 /** @typedef {import("./action.js").ActionType} ActionType */
 /** @typedef {import("./action.js").TransferSolAction} TransferSolAction */
 /** @typedef {import("./action.js").SwapAction} SwapAction */
+/** @typedef {import("./venue-actions.js").AddLiquidityAction} AddLiquidityAction */
+/** @typedef {import("./venue-actions.js").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {import("./mandate.js").Mandate} Mandate */
 /** @typedef {import("./portfolio.js").PortfolioState} PortfolioState */
 /** @typedef {import("./portfolio.js").Position} Position */
@@ -16,9 +18,11 @@
 export {
   ACTION_TYPES,
   ActionSchema,
+  AddLiquidityActionSchema,
   ClosePerpActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
+  RemoveLiquidityActionSchema,
   SwapActionSchema,
   TransferSolActionSchema,
   WithdrawLendActionSchema,
@@ -34,3 +38,10 @@ export {
 } from "./primitives.js";
 export { ExecutionResultSchema, SimulationResultSchema, ViolationSchema } from "./results.js";
 export { VaultStateSchema } from "./vault.js";
+export {
+  LendPositionSchema,
+  LpPositionSchema,
+  PerpAccountSchema,
+  PerpPositionSchema,
+  TokenPositionSchema,
+} from "./positions.js";

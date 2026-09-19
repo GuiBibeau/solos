@@ -21,3 +21,8 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0014](0014-solos-is-finance-harness.md) | solOS is `finance-harness`; vaults are an optional executor |
 | [0015](0015-login-and-profiles.md) | `solos login --provider` and wallet profiles; env wins, then `SOLOS_PROFILE` |
 | [0016](0016-software-factory-and-evidence.md) | Software factory in `apps/factory` on eve; `solos dev verify` Evidence is the verification contract |
+| [0018](0018-portfolio-slice.md) | Portfolio identity, coverage and account equity |
+| [0019](0019-lend-slice.md) | Lending in one explicit Kamino market |
+| [0020](0020-launch-slice.md) | Explicit Jupiter or Pump swap execution |
+| [0021](0021-perp-slice.md) | Phoenix account scope and finite-price IOC bounds |
+| [0022](0022-liquidity-slice.md) | Identified LP positions and deterministic bin allocation |

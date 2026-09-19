@@ -16,7 +16,13 @@ describe("DirectSignerExecutor", () => {
     const program = Effect.gen(function* () {
       const executor = yield* ActionExecutor;
       const exit = yield* Effect.exit(
-        executor.simulate({ type: "close_perp", market: "SOL-PERP" }),
+        executor.simulate({
+          type: "close_perp",
+          market: "SOL-PERP",
+          traderPdaIndex: 0,
+          traderSubaccountIndex: 0,
+          limitPriceUsd: "100",
+        }),
       );
       return { name: executor.name, exit };
     }).pipe(Effect.provide(layer));
