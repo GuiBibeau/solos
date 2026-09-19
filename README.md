@@ -65,6 +65,7 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_market_get_token` | read |
 | `solana_launch_get_curve` | read |
 | `solana_swap_get_quote` | read |
+| `solana_perp_get_position` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
@@ -72,7 +73,9 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 `JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` has the
 Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes; execution
 arrives with Action-based build execution); `launch` has the pump bonding-curve reader over the
-configured Solana RPC (no provider key at all); `signals` has ports only.
+configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps position reader
+(no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
+`signals` has ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -328,6 +331,50 @@ the factory never provisions RPC credentials, so live QA is reported blocked, ne
 read one active curve and one completed curve and compare the decoded flags and reserves with
 the chain accounts for the same addresses; both surfaces must return identical JSON for the
 same mint. No funded transaction is involved.
+
+## Phoenix Perps positions (read-only today)
+
+`solana_perp_get_position` (MCP) and `solos perp position --market <symbol> [--owner <address>]`
+(CLI) read one position from Phoenix Perps and return `{ position, account }`:
+
+- **No credential exists.** Market and trader reads are public, so there is nothing to log in to
+  and nothing to store. The tool always lists; without any configuration it uses the production
+  endpoint.
+- **Account scope is fixed by the contract** (ADR-0021): traderPdaIndex 0, subaccount index 0.
+  `--owner` / `owner` is honored verbatim; omitted, it means the configured signer.
+- **Symbols normalize through exchange metadata.** `SOL-PERP` and `sol` both mean the wire
+  symbol `SOL`; a symbol the exchange does not list fails `PerpMarketUnknown` — never an
+  invented zero position.
+- **Direction and amounts stay exact.** The wire's signed base lots become `side`
+  (long/short/flat, flat is exactly zero) plus an absolute base-unit amount and the market's
+  `decimals`, computed with BigInt only. `valueUsd` is always null: it must never mean
+  leveraged notional.
+- **Equity is signed or null.** `account.equityUsd` is the shared trader-account equity,
+  counted once across markets. A cold or absent trader is a typed flat zero-position success
+  with confirmed-zero equity; an active flat account is worth exactly its collateral; any open
+  position or spot collateral makes equity null — unrealized PnL and spot valuation are
+  unknowable from the state snapshot, and solOS never guesses collateral or notional.
+- **Distinct failures.** Unknown market, provider unavailability (`PerpTimeout`,
+  `PerpNetworkError`, `PerpHttpError`, `PerpRateLimited`, `PerpAuthFailed`), a corrupt account
+  (`PerpAccountCorrupt`) and incomplete state (`PerpStateIncomplete`,
+  `PerpEnumerationIncomplete`) are separate tags. One attempt per read, no retries, raw
+  failure bodies never travel.
+- **Pins.** Production perps program `EtrnLzgbS7nMMy5fbD42kXiUzGg8XQzJ972Xtk1cjWih`, verified
+  in Ellipsis Labs' official Rise source at revision `4bd3c505f16f09fdbe9fb2eff035aeaef8b7b12d`
+  (SDK manifest 0.5.26); the adapter speaks that revision's documented wire contract. Any
+  replacement revision must be verified separately first.
+- **Endpoint.** `PHOENIX_BASE_URL` overrides `https://perp-api.phoenix.trade`; plain `http` is
+  accepted only for loopback hosts running local test fixtures.
+
+```sh
+bun run solos perp position --market SOL-PERP
+bun run solos perp position --market SOL --owner <trader-address>
+bun run solos mcp call solana_perp_get_position --args '{"market":"SOL-PERP"}'
+```
+
+Orders, opens and closes are separate, later slices (#27/#28); nothing here signs or spends.
+Live QA against a registered, funded operator account is **blocked** until those prerequisites
+exist — see [perp QA](docs/perp-qa.md) and never report it as passed.
 
 ## License
 
