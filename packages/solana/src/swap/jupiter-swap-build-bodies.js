@@ -1,5 +1,4 @@
 // @ts-check
-import { createHash } from "node:crypto";
 import {
   getBase58Decoder,
   getBase64Codec,
@@ -15,6 +14,7 @@ import {
   TOKEN_PROGRAM,
   WSOL_MINT,
 } from "./jupiter-swap-build-validate.js";
+import { ROUTE_DISCRIMINATOR } from "./jupiter-swap-build-swapdata.js";
 
 /**
  * Canned Jupiter V2 `/swap/v2/build` bodies for the executor fixtures, encoded with the
@@ -27,26 +27,23 @@ import {
  * 9), and the Jupiter v6 anchor `route` instruction whose 8-byte discriminator is
  * sha256("global:route") and whose args tail is the documented borsh
  * (routePlan, inAmount, quotedOutAmount, slippageBps, platformFeeBps, routePlanLen). The
- * fixture route plan is an empty vector: the executor never decodes route legs — it validates
- * the program, the accounts, and the envelope amounts, and the chain executes the real thing.
+ * fixture route plan is an empty vector, and the embedded u64 amounts echo the envelope
+ * exactly: the executor decodes this layout, binds the input to the Action and the quoted
+ * output to the envelope outAmount, and refuses anything it cannot decode this way.
  */
 
 export const KEY = "test-jupiter-key";
 /** The fixture pair: native SOL (wrapped by the setup transfer) into USDC. */
 export const INPUT_MINT = WSOL_MINT;
 export const OUTPUT_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-/** 20 digits: crosses into u64 instruction args exactly, never through a JS Number. */
+/** 20 digits: fits a u64 arg exactly, crosses into BigInt territory, never a JS Number. */
 export const AMOUNT = "10000000000000000000";
-/** Instruction-arg echo of the quoted output; the envelope outAmount stays 30 digits. */
-export const QUOTED_OUT_AMOUNT = "16900000000000000000";
-/** 30 digits: envelope amounts are BigInt territory only, never a JS Number. */
-export const OUT_AMOUNT = "169900000000000000000000000000";
+/** The quoted output: echoed exactly by the swap instruction's u64 arg. */
+export const OUT_AMOUNT = "16900000000000000000";
 export const COMPUTE_PRICE_MICRO_LAMPORTS = 100_000n;
 /** 32 arbitrary bytes standing in for the provider's fetched blockhash; wire form is base58. */
 export const BLOCKHASH_BYTES = Uint8Array.from({ length: 32 }, (_, i) => ((i * 7 + 3) % 255) + 1);
 export const LAST_VALID_BLOCK_HEIGHT = 4_294_967_296;
-/** Jupiter v6 anchor route discriminator: the first 8 bytes of sha256("global:route"). */
-export const ROUTE_DISCRIMINATOR = createHash("sha256").update("global:route").digest().slice(0, 8);
 
 /** Deterministic synthetic addresses with 32 meaningful bytes, valid base58 throughout. */
 /** @param {number} seed */
@@ -119,7 +116,7 @@ export const swapInstruction = (taker, sourceAta, destinationAta) => ({
       ...ROUTE_DISCRIMINATOR,
       ...getU32Codec().encode(0),
       ...getU64Codec().encode(BigInt(AMOUNT)),
-      ...getU64Codec().encode(BigInt(QUOTED_OUT_AMOUNT)),
+      ...getU64Codec().encode(BigInt(OUT_AMOUNT)),
       50,
       0,
       ...getU16Codec().encode(0),

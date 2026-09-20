@@ -14,6 +14,22 @@ import { assertV1WireForSubmission } from "./transaction-v1.js";
 const EXECUTOR = "direct-signer";
 
 /**
+ * Execution amounts are bounded to u64: the swap payload's embedded input amount is a u64 arg,
+ * so a larger Action amount could never be bound to the transaction and is refused before any
+ * build request. Quote-only reads keep unbounded decimal strings; only this branch bounds.
+ */
+export const SWAP_AMOUNT_U64_MAX = 18_446_744_073_709_551_615n;
+const AMOUNT_BOUND_REASON = "swap amount exceeded the u64 bound the executor can assemble";
+
+/** @param {import("@solos/actions").SwapAction} action */
+const amountBoundRejection = (action) => {
+  if (!/^\d+$/.test(action.amount) || BigInt(action.amount) > SWAP_AMOUNT_U64_MAX) {
+    return AMOUNT_BOUND_REASON;
+  }
+  return undefined;
+};
+
+/**
  * The executor's swap branch: one fresh Jupiter build for the configured signer's taker
  * address, validated against the exact Action, assembled into one message, signed once. The
  * identical signed transaction is what gets simulated and what gets sent. Nothing here touches
@@ -49,6 +65,8 @@ export const buildSignedSwap = ({ kit, build }, action) =>
     if (action.venue === "pump") {
       return yield* new UnsupportedAction({ actionType: "swap:pump", executor: EXECUTOR });
     }
+    const overBound = amountBoundRejection(action);
+    if (overBound) return yield* new BuildRejected({ reason: overBound });
     const taker = kit.signer.address;
     const envelope = yield* build.build({
       inputMint: action.inputMint,
