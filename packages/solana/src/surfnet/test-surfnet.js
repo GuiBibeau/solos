@@ -10,12 +10,13 @@ import { startSurfnet, surfnetCheatcodes } from "./surfnet-cli.js";
 
 /** @type {Promise<{ rpcUrl: string; wsUrl: string }> | undefined} */
 let shared;
+/** @type {Promise<{ rpcUrl: string; wsUrl: string }> | undefined} */
+let offlineShared;
 
-const attachOrStart = async () => {
-  const attached = process.env.SURFNET_RPC_URL;
-  if (attached) return { rpcUrl: attached, wsUrl: deriveWsUrl(attached) };
+/** @param {string | undefined} datasourceUrl */
+const startForTests = async (datasourceUrl) => {
   const handle = await startSurfnet({
-    datasourceUrl: process.env.SURFNET_DATASOURCE_RPC_URL,
+    datasourceUrl,
     // Used by nightly's verify command, which captures and redacts failed-step output.
     log: process.env.SURFNET_DIAGNOSTICS === "1",
   });
@@ -28,10 +29,26 @@ const attachOrStart = async () => {
   return { rpcUrl: handle.rpcUrl, wsUrl: handle.wsUrl };
 };
 
+const attachOrStart = async () => {
+  const attached = process.env.SURFNET_RPC_URL;
+  if (attached) return { rpcUrl: attached, wsUrl: deriveWsUrl(attached) };
+  return startForTests(process.env.SURFNET_DATASOURCE_RPC_URL);
+};
+
 /** @returns {Promise<{ rpcUrl: string; wsUrl: string; cheats: ReturnType<typeof surfnetCheatcodes> }>} */
 export const ensureSurfnet = async () => {
   shared ??= attachOrStart();
   const { rpcUrl, wsUrl } = await shared;
+  return { rpcUrl, wsUrl, cheats: surfnetCheatcodes(rpcUrl) };
+};
+
+/** Synthetic fixtures use an offline instance even when nightly also runs an online fork. */
+export const ensureOfflineSurfnet = async () => {
+  if (!process.env.SURFNET_RPC_URL && !process.env.SURFNET_DATASOURCE_RPC_URL) {
+    return ensureSurfnet();
+  }
+  offlineShared ??= startForTests(undefined);
+  const { rpcUrl, wsUrl } = await offlineShared;
   return { rpcUrl, wsUrl, cheats: surfnetCheatcodes(rpcUrl) };
 };
 

@@ -6,7 +6,7 @@ import {
   SQRT_PRICE_ONE,
 } from "@solos/solana/liquidity/whirlpool-fixture";
 import {
-  ensureSurfnet,
+  ensureOfflineSurfnet,
   randomSeed,
   seedAddress,
   seedToPrivateKeyString,
@@ -31,7 +31,7 @@ export const LIQUIDITY = 10n ** 12n;
  * }>}
  */
 export const seedLiquidityCliFixtures = async () => {
-  const surfnet = await ensureSurfnet();
+  const surfnet = await ensureOfflineSurfnet();
   const owner = randomAddress();
   const pool = await seedWhirlpool(surfnet.rpcUrl, { sqrtPrice: SQRT_PRICE_ONE });
   const funded = await seedWhirlpoolPosition(surfnet.rpcUrl, {

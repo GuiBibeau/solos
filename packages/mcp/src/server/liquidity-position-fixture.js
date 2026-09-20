@@ -5,7 +5,7 @@ import {
   seedWhirlpoolPosition,
   SQRT_PRICE_ONE,
 } from "@solos/solana/liquidity/whirlpool-fixture";
-import { ensureSurfnet, randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import { ensureOfflineSurfnet, randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
 import { connectMcp, solosServerCommand } from "../client/index.js";
 
 /**
@@ -29,7 +29,7 @@ export const LIQUIDITY = 10n ** 12n;
  * }>}
  */
 export const startLiquidityMcp = async (options = {}) => {
-  const surfnet = await ensureSurfnet();
+  const surfnet = await ensureOfflineSurfnet();
   const owner = randomAddress();
   const pool = await seedWhirlpool(surfnet.rpcUrl, { sqrtPrice: SQRT_PRICE_ONE });
   const funded = await seedWhirlpoolPosition(surfnet.rpcUrl, {
