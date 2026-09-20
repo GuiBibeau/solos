@@ -12,9 +12,11 @@ const WritableBlockerSchema = z.object({
 const WritableCheckpointSchema = StationCheckpointSchema.omit({
   cursor: true,
   outcome: true,
+  revision: true,
   stationRunId: true,
   supersededTaskIds: true,
   taskId: true,
+  updatedAt: true,
   usage: true,
 }).extend({ blocker: WritableBlockerSchema.optional() });
 
@@ -38,9 +40,11 @@ const hasCheckpointOwnership = (binding, input) =>
 const runtimeFields = (observation, previous) => {
   const cursor = observation?.cursor ?? previous?.cursor;
   return {
-    ...(cursor !== undefined && { cursor }),
+    cursor,
     outcome: checkpointOutcome(observation?.taskOutcome),
-    ...(observation?.usage !== undefined && { usage: observation.usage }),
+    revision: (previous?.revision ?? 0) + 1,
+    updatedAt: new Date().toISOString(),
+    usage: observation?.usage,
   };
 };
 

@@ -39,11 +39,17 @@ test("save takes continuation cursors only from runtime observation", async () =
   };
   const save = createCheckpointSaver(checkpoints, observer, bindings);
   await save(
-    { ...issue18Checkpoint, cursor: "model-invented", revision: 1 },
+    {
+      ...issue18Checkpoint,
+      cursor: "model-invented",
+      revision: 99,
+      updatedAt: "2099-01-01T00:00:00.000Z",
+    },
     /** @type {import("eve/tools").SessionContext} */ ({
       session: { id: "station-run", turn: { id: "turn-1", sequence: 1 } },
     }),
   );
   expect(writes).toHaveLength(1);
-  expect(writes[0]).toMatchObject({ cursor: "runtime-cursor" });
+  expect(writes[0]).toMatchObject({ cursor: "runtime-cursor", revision: 1 });
+  expect(writes[0]).not.toMatchObject({ updatedAt: "2099-01-01T00:00:00.000Z" });
 });
