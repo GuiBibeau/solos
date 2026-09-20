@@ -56,6 +56,11 @@ const workspaceDiagnostics = (facts) => {
       code: "dirty-checkout",
       message: "Uncommitted work was preserved; commit or preserve it, then retry verification.",
     });
+  if (facts.lockfileSkipped)
+    diagnostics.push({
+      code: "dependencies-not-prepared",
+      message: "Dependency preparation was skipped; verification requires a fresh trusted retry.",
+    });
   if (!facts.lockfileInstalled && !facts.lockfileSkipped)
     diagnostics.push({
       code: "lockfile-install-failed",

@@ -51,9 +51,7 @@ test("verification rejects abbreviated or incomplete Evidence", () => {
   expect(result.success).toBe(false);
 });
 
-test("verification remains blocked when the first remote inspection fails", async () => {
-  /** @type {string[]} */
-  const commands = [];
+test("verification remains blocked after an untrusted first remote inspection", async () => {
   const outputs = new Map([
     ["git rev-parse HEAD", SHA],
     ["git branch --show-current", "factory/test"],
@@ -66,31 +64,35 @@ test("verification remains blocked when the first remote inspection fails", asyn
     ["command -v surfpool", "/workspace/.local/bin/surfpool"],
     ["surfpool --version", "surfpool 1.5.0"],
   ]);
-  /** @type {import("eve/sandbox").SandboxSession} */
-  const sandbox = /** @type {import("eve/sandbox").SandboxSession} */ (
-    /** @type {unknown} */ ({
-      run: async ({ command }) => {
-        commands.push(command);
-        const entry = [...outputs].find(([needle]) => command.includes(needle));
-        const stdout = entry?.[1] ?? (command.includes("SURFPOOL_VERSION") ? "1.5.0" : "");
-        return { exitCode: 0, stderr: "", stdout };
-      },
-    })
-  );
-  /** @type {import("eve/tools").ToolContext} */
-  const context = /** @type {import("eve/tools").ToolContext} */ (
-    /** @type {unknown} */ ({ getSandbox: async () => sandbox })
-  );
-  const observations = [undefined, SHA];
-  const result = await verifyStation(
-    { branch: "factory/test", expectedHead: SHA, expectedRemoteHead: SHA, scope: "unit" },
-    context,
-    async () => observations.shift(),
-  );
-  expect(result.success).toBe(false);
-  expect(result.readiness.diagnostics.map((item) => item.code)).toContain(
-    "remote-inspection-failed",
-  );
-  expect(commands.some((command) => command.includes("bun install"))).toBe(false);
-  expect(commands.some((command) => command.includes("dev verify"))).toBe(false);
+  for (const first of [undefined, null, "b".repeat(40)]) {
+    /** @type {string[]} */
+    const commands = [];
+    /** @type {import("eve/sandbox").SandboxSession} */
+    const sandbox = /** @type {import("eve/sandbox").SandboxSession} */ (
+      /** @type {unknown} */ ({
+        run: async ({ command }) => {
+          commands.push(command);
+          const entry = [...outputs].find(([needle]) => command.includes(needle));
+          const stdout = entry?.[1] ?? (command.includes("SURFPOOL_VERSION") ? "1.5.0" : "");
+          return { exitCode: 0, stderr: "", stdout };
+        },
+      })
+    );
+    /** @type {import("eve/tools").ToolContext} */
+    const context = /** @type {import("eve/tools").ToolContext} */ (
+      /** @type {unknown} */ ({ getSandbox: async () => sandbox })
+    );
+    const observations = [first, SHA];
+    const result = await verifyStation(
+      { branch: "factory/test", expectedHead: SHA, expectedRemoteHead: SHA, scope: "unit" },
+      context,
+      async () => observations.shift(),
+    );
+    expect(result.success).toBe(false);
+    expect(result.readiness.diagnostics.map((item) => item.code)).toContain(
+      first === undefined ? "remote-inspection-failed" : "dependencies-not-prepared",
+    );
+    expect(commands.some((command) => command.includes("bun install"))).toBe(false);
+    expect(commands.some((command) => command.includes("dev verify"))).toBe(false);
+  }
 });
