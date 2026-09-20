@@ -9,7 +9,8 @@ import { Context } from "effect";
  *   | import("../domain/errors.js").SimulationFailed
  *   | import("../domain/errors.js").TransactionFailed
  *   | import("../domain/errors.js").UnsupportedAction
- *   | import("../domain/errors.js").BuildRejected} ExecutorError
+ *   | import("../domain/errors.js").BuildRejected
+ *   | import("../domain/errors.js").BuildUnavailable} ExecutorError
  */
 
 /**

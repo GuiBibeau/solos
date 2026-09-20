@@ -3,6 +3,8 @@
 /** @typedef {import("./ports/action-executor.js").ExecutorError} ExecutorError */
 export { AddressSchema, SignatureSchema } from "./domain/address.js";
 export {
+  BuildRejected,
+  BuildUnavailable,
   InternalError,
   RpcError,
   SimulationFailed,

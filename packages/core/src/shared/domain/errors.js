@@ -51,3 +51,14 @@ export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
 export class BuildRejected extends /** @type {BuildRejectedClass} */ (
   taggedError("BuildRejected")
 ) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildUnavailable", BuildUnavailableProps>} BuildUnavailableClass */
+/** @typedef {{ readonly reason: string }} BuildUnavailableProps */
+/**
+ * The executor could not obtain a provider build at all: credential missing or rejected, rate
+ * limited, timed out, unreachable, or a response outside the documented envelope. Nothing was
+ * signed or sent, and the failure is never retried.
+ */
+export class BuildUnavailable extends /** @type {BuildUnavailableClass} */ (
+  taggedError("BuildUnavailable")
+) {}
