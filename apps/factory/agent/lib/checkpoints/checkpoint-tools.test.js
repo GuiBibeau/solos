@@ -21,7 +21,6 @@ const usageEvent = (id, inputTokens = 10) =>
     meta: { at: "2026-09-19T00:00:01Z", id },
     type: "step.completed",
   });
-
 const childUsageEvent = () =>
   /** @type {import("eve/hooks").HookEvent} */ ({
     data: {
@@ -100,7 +99,7 @@ test("save injects the runtime-bound task identity and provider usage", async ()
   await observer.observe(usageEvent("event-0001"), "runtime-session");
   const save = await boundRuntime(memory, observer);
   const candidate = writableCheckpoint();
-  expect(await save({ ...candidate, revision: 1 }, childContext())).toMatchObject({ saved: true });
+  await save({ ...candidate, cursor: "model-invented", revision: 1 }, childContext());
   expect(await checkpoints.read(candidate)).toMatchObject({
     checkpoint: {
       stationRunId: "runtime-session",
@@ -114,6 +113,7 @@ test("save injects the runtime-bound task identity and provider usage", async ()
       },
     },
   });
+  expect((await checkpoints.read(candidate)).checkpoint).not.toHaveProperty("cursor");
 });
 
 test("reads refresh station usage from the runtime observation", async () => {

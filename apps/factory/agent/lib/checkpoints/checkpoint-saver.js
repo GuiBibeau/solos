@@ -10,16 +10,15 @@ const WritableBlockerSchema = z.object({
 });
 
 const WritableCheckpointSchema = StationCheckpointSchema.omit({
+  cursor: true,
   stationRunId: true,
   supersededTaskIds: true,
   taskId: true,
   usage: true,
 }).extend({ blocker: WritableBlockerSchema.optional() });
 
-/** @param {CheckpointStore} checkpoints @param {z.infer<typeof WritableCheckpointSchema>} input @param {string} taskId */
-const supersededOwners = async (checkpoints, input, taskId) => {
-  const stored = await checkpoints.read(input);
-  const checkpoint = stored.checkpoint;
+/** @param {import("./schema.js").StationCheckpoint | undefined} checkpoint @param {string} taskId */
+const supersededOwners = (checkpoint, taskId) => {
   if (checkpoint === undefined || checkpoint.taskId === taskId)
     return checkpoint?.supersededTaskIds ?? [];
   return [...checkpoint.supersededTaskIds, checkpoint.taskId].slice(-20);
@@ -50,9 +49,13 @@ export const createCheckpointSaver =
       return { error: "Current station task binding is unavailable.", saved: false };
     const observed = await observer.read(ctx.session.id);
     const usage = observed.found ? observed.observation?.usage : undefined;
-    const supersededTaskIds = await supersededOwners(checkpoints, input, ownership.binding.taskId);
+    const cursor = observed.found ? observed.observation?.cursor : undefined;
+    const stored = await checkpoints.read(input);
+    const previous = stored.checkpoint;
+    const supersededTaskIds = supersededOwners(previous, ownership.binding.taskId);
     return checkpoints.save({
       ...input,
+      ...((cursor ?? previous?.cursor) !== undefined && { cursor: cursor ?? previous?.cursor }),
       stationRunId: ctx.session.id,
       supersededTaskIds,
       taskId: ownership.binding.taskId,
