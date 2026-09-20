@@ -4,6 +4,7 @@ import { observationKey } from "./config.js";
 import { createPrePauseCheckpoint } from "./pre-pause-checkpoint.js";
 import { mergeLifecycle } from "./runtime-lifecycle.js";
 import { observationFromEvent, RuntimeObservationSchema } from "./runtime-observation.js";
+import { mergeRuntimeProgress } from "./runtime-progress.js";
 import { addUsage } from "./runtime-usage.js";
 import { checkpointStore } from "./store.js";
 import { taskBindingStore } from "./task-binding.js";
@@ -44,7 +45,7 @@ const persist = async (io, event) => {
 const mergeObservation = (prior, event) => {
   const previous =
     prior ??
-    /** @type {Pick<RuntimeObservation, "cursor" | "revision" | "seenEventIds" | "taskOutcome" | "usage">} */ ({
+    /** @type {Pick<RuntimeObservation, "cursor" | "progress" | "revision" | "seenEventIds" | "taskOutcome" | "usage">} */ ({
       revision: 0,
       seenEventIds: [],
     });
@@ -59,6 +60,7 @@ const mergeObservation = (prior, event) => {
     lastEventId: event.eventId,
     latestActivityAt: event.latestActivityAt,
     ...lifecycle,
+    progress: mergeRuntimeProgress(previous.progress, event.progressFact),
     revision: previous.revision + 1,
     seenEventIds: [...previous.seenEventIds, event.eventId].slice(-100),
     stationRunId: event.stationRunId,
@@ -106,12 +108,12 @@ export const createRuntimeEventHandler =
   /** @param {import("eve/hooks").HookEvent} event @param {import("eve/hooks").HookContext} ctx */
   async (event, ctx) => {
     await bindings.observe(event, ctx);
+    await prePause(event, ctx);
     await observer.observe(
       event,
       ctx.session.id,
       ctx.session.parent === undefined ? "root_aggregate" : "station",
     );
-    await prePause(event, ctx);
   };
 
 const prePauseCheckpoint = createPrePauseCheckpoint({

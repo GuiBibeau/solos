@@ -1,5 +1,6 @@
 // @ts-check
 import { inspectCheckpointInventory } from "./checkpoint-inventory.js";
+import { prePauseProgress } from "./pre-pause-progress.js";
 
 /** @typedef {import("./schema.js").StationCheckpoint} StationCheckpoint */
 
@@ -13,34 +14,6 @@ const supersededOwners = (previous, taskId) => {
   if (previous === undefined || previous.taskId === taskId)
     return previous?.supersededTaskIds ?? [];
   return [...previous.supersededTaskIds, previous.taskId].slice(-20);
-};
-
-/** @param {StationCheckpoint | undefined} previous @param {import("eve/hooks").HookEvent} event */
-const preservedProgress = (previous, event) => {
-  if (previous !== undefined) {
-    return {
-      artifactIds: previous.artifactIds,
-      diagnostics: previous.diagnostics,
-      latestOperation: previous.latestOperation,
-      nextMilestone: previous.nextMilestone,
-      verification: previous.verification,
-    };
-  }
-  return {
-    artifactIds: [],
-    diagnostics: ["Budget guardrail reached before a station milestone."],
-    latestOperation: {
-      at: event.meta.at,
-      name: "git checkout inventory",
-      status: /** @type {const} */ ("passed"),
-    },
-    nextMilestone:
-      "Resume the preserved checkout, inspect its dirty inventory, and continue the interrupted milestone.",
-    verification: {
-      stage: "pre-pause-checkpoint",
-      status: /** @type {const} */ ("blocked"),
-    },
-  };
 };
 
 /** @param {StationCheckpoint | undefined} previous */
@@ -66,7 +39,7 @@ const nextRevision = (previous) => (previous === undefined ? 1 : previous.revisi
 /** @param {BuildInput} input */
 export const buildPrePauseCheckpoint = ({ binding, event, inventory, observation, previous }) => {
   return {
-    ...preservedProgress(previous, event),
+    ...prePauseProgress(previous, event, observation),
     ...blockerField(previous),
     ...cursorField(previous, observation),
     ...usageField(observation),

@@ -75,6 +75,59 @@ test("ignored budget input stays pending until explicit continue", async () => {
   });
 });
 
+const rejectedContinuations = [
+  {
+    kind: "question",
+    outcome: "answered",
+    requestId: "question-1",
+    response: { optionId: "continue", requestId: "question-1" },
+  },
+  {
+    kind: "session-limit",
+    outcome: "answered",
+    requestId: "different-limit",
+    response: { optionId: "continue", requestId: "different-limit" },
+  },
+  {
+    kind: "session-limit",
+    outcome: "answered",
+    requestId: "limit-1",
+    response: { optionId: "continue", requestId: "different-limit" },
+  },
+  ...["denied", "ignored", "invalid"].map((outcome) => ({
+    kind: "session-limit",
+    outcome,
+    requestId: "limit-1",
+    response: { optionId: "continue", requestId: "limit-1" },
+  })),
+];
+
+test("unrelated, mismatched, and unsuccessful resolutions cannot continue a budget pause", async () => {
+  for (const [index, resolution] of rejectedContinuations.entries()) {
+    const observer = createRuntimeObserver(createCheckpointMemoryIo().io);
+    await observer.observe(
+      runtimeEvent("input.requested", 1, { requests: [sessionLimitRequest()] }),
+      `run-${index}`,
+    );
+    await observer.observe(
+      runtimeEvent("input.resolved", 2, {
+        resolutions: [
+          resolution,
+          { kind: "question", outcome: "answered", requestId: "other-question" },
+        ],
+      }),
+      `run-${index}`,
+    );
+    expect(await observer.read(`run-${index}`)).toMatchObject({
+      observation: {
+        pendingInput: "session_limit",
+        pendingSessionLimitRequests: ["limit-1"],
+        taskOutcome: "budget_paused",
+      },
+    });
+  }
+});
+
 test("ordinary completed turns retain Eve's continuation cursor", async () => {
   const observer = createRuntimeObserver(createCheckpointMemoryIo().io);
   await observer.observe(runtimeEvent("session.started", 1), "station-run");

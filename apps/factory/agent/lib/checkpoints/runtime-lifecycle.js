@@ -17,22 +17,22 @@ const requestedInput = (event) =>
     : /** @type {const} */ ("other");
 
 /** @param {Extract<import("eve/hooks").HookEvent, {type: "input.resolved"}>} event */
-const budgetResolution = (event) =>
-  event.data.resolutions.find((resolution) => resolution.kind === "session-limit");
-
-/** @param {Extract<import("eve/hooks").HookEvent, {type: "input.resolved"}>} event */
-const budgetDecision = (event) => {
-  const resolution = budgetResolution(event);
-  if (resolution === undefined) return "not_budget";
-  return resolution.response?.optionId === "continue" ? "continue" : "paused";
-};
+const continuedBudgetRequests = (event) =>
+  event.data.resolutions
+    .filter(
+      (resolution) =>
+        resolution.kind === "session-limit" &&
+        resolution.outcome === "answered" &&
+        resolution.response?.requestId === resolution.requestId &&
+        resolution.response?.optionId === "continue",
+    )
+    .map((resolution) => resolution.requestId);
 
 /** @param {import("eve/hooks").HookEvent} event */
 const taskOutcome = (event) => {
   if (event.type === "input.requested")
     return requestedInput(event) === "session_limit" ? "budget_paused" : "active";
-  if (event.type === "input.resolved")
-    return budgetDecision(event) === "paused" ? "budget_paused" : "active";
+  if (event.type === "input.resolved") return "active";
   const outcome = OUTCOMES[/** @type {keyof typeof OUTCOMES} */ (event.type)];
   if (outcome !== undefined || event.type === "session.waiting") return outcome;
   return "active";
@@ -49,19 +49,36 @@ const sessionStatus = (event) => {
 
 /** @param {import("eve/hooks").HookEvent} event */
 export const lifecycleDelta = (event) => ({
-  clearPendingInput: event.type === "input.resolved" && budgetDecision(event) !== "paused",
+  continuedBudgetRequests: event.type === "input.resolved" ? continuedBudgetRequests(event) : [],
   eventType: event.type,
   ...(event.type === "input.requested" && {
     pendingInput: requestedInput(event),
+    pendingSessionLimitRequests: event.data.requests
+      .filter((request) => request.kind === "session-limit")
+      .map((request) => request.requestId),
   }),
   sessionStatus: sessionStatus(event),
   taskOutcome: taskOutcome(event),
 });
 
 /** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event */
+const budgetContinued = (prior, event) => {
+  const pending = prior.pendingSessionLimitRequests ?? [];
+  return pending.some((requestId) => event.continuedBudgetRequests.includes(requestId));
+};
+
+/** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event */
 const nextPendingInput = (prior, event) => {
-  if (event.clearPendingInput) return undefined;
+  if (event.eventType === "input.resolved" && prior.pendingInput !== "session_limit")
+    return undefined;
+  if (event.eventType === "input.resolved" && budgetContinued(prior, event)) return undefined;
   return event.pendingInput ?? prior.pendingInput;
+};
+
+/** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event @param {RuntimeState["pendingInput"]} pendingInput */
+const pendingSessionLimitRequests = (prior, event, pendingInput) => {
+  if (pendingInput !== "session_limit") return undefined;
+  return event.pendingSessionLimitRequests ?? prior.pendingSessionLimitRequests;
 };
 
 /** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event @param {RuntimeState["pendingInput"]} pendingInput */
@@ -75,12 +92,15 @@ const mergedOutcome = (prior, event, pendingInput) => {
 export const mergeLifecycle = (prior, event) => {
   const pendingInput = nextPendingInput(prior, event);
   const taskOutcome = mergedOutcome(prior, event, pendingInput);
-  const isWaitingAfterTurn = pendingInput !== undefined && event.eventType === "turn.completed";
+  const isWaitingAfterTurn =
+    pendingInput === "session_limit" ||
+    (pendingInput !== undefined && event.eventType === "turn.completed");
   return {
     pendingInput,
+    pendingSessionLimitRequests: pendingSessionLimitRequests(prior, event, pendingInput),
     sessionStatus: isWaitingAfterTurn ? /** @type {const} */ ("waiting") : event.sessionStatus,
     taskOutcome,
   };
 };
 
-/** @typedef {{pendingInput?: "other" | "session_limit"; taskOutcome?: "active" | "budget_paused" | "cancelled" | "completed" | "failed"}} RuntimeState */
+/** @typedef {{pendingInput?: "other" | "session_limit"; pendingSessionLimitRequests?: string[]; taskOutcome?: "active" | "budget_paused" | "cancelled" | "completed" | "failed"}} RuntimeState */

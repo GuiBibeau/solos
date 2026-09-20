@@ -1,6 +1,7 @@
 // @ts-check
 import { z } from "zod";
 import { lifecycleDelta } from "./runtime-lifecycle.js";
+import { progressFromEvent, RuntimeProgressSchema } from "./runtime-progress.js";
 import { RuntimeUsageSchema, usageFromEvent } from "./runtime-usage.js";
 
 export const RuntimeObservationSchema = z.object({
@@ -8,7 +9,9 @@ export const RuntimeObservationSchema = z.object({
   lastEventId: z.string().min(1).max(200).optional(),
   latestActivityAt: z.iso.datetime(),
   pendingInput: z.enum(["other", "session_limit"]).optional(),
+  pendingSessionLimitRequests: z.array(z.string().min(1).max(200)).max(20).optional(),
   revision: z.number().int().positive(),
+  progress: RuntimeProgressSchema.optional(),
   seenEventIds: z.array(z.string().min(1).max(200)).max(100),
   sessionStatus: z.enum(["running", "waiting", "completed", "failed"]),
   stationRunId: z.string().min(1).max(200),
@@ -48,9 +51,11 @@ export const observationFromEvent = (event, stationRunId, accountingScope = "sta
     eventId: event.meta.id,
     latestActivityAt: event.meta.at,
     ...lifecycleDelta(event),
+    progressFact: progressFromEvent(event),
     stationRunId,
     usage: usageFromEvent(event, accountingScope),
   };
 };
 
 /** @typedef {z.infer<typeof RuntimeObservationSchema>} RuntimeObservation */
+/** @typedef {z.infer<typeof RuntimeProgressSchema>} RuntimeProgress */
