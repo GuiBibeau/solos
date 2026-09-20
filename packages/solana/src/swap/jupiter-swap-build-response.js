@@ -61,9 +61,18 @@ export const BuildEnvelopeSchema = z
       .object({
         blockhash: z.array(z.number().int().min(0).max(255)).length(32),
         lastValidBlockHeight: z.number().int().min(1),
-        fetchedAt: z.number().int().optional(),
+        fetchedAt: z
+          .object({
+            secs_since_epoch: z.number().int().min(0),
+            nanos_since_epoch: z.number().int().min(0),
+          })
+          .strip(),
       })
-      .strip(),
+      .strip()
+      .transform((meta) => ({
+        blockhash: meta.blockhash,
+        lastValidBlockHeight: meta.lastValidBlockHeight,
+      })),
   })
   .strip();
 
