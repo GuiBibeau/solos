@@ -85,6 +85,16 @@ export const withWrapForm = (bytes) => (envelope) => {
   };
 };
 
+/** Replace the swap payload's wire bytes with an arbitrary payload. */
+/** @param {number[]} bytes @returns {(envelope: Envelope) => Envelope} */
+export const withSwapData = (bytes) => (envelope) => ({
+  ...envelope,
+  swapInstruction: {
+    ...envelope.swapInstruction,
+    data: getBase64Codec().decode(Uint8Array.from(bytes)),
+  },
+});
+
 /** The canonical 12-byte System transfer carrying `lamports` instead of the requested amount. */
 /** @param {bigint} lamports */
 export const withWrapAmount = (lamports) =>

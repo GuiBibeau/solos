@@ -4,11 +4,16 @@ import { readFileSync } from "node:fs";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
 import {
   createTransactionMessage,
+  getU16Codec,
+  getU32Codec,
+  getU64Codec,
   setTransactionMessageFeePayerSigner,
   signTransactionMessageWithSigners,
 } from "@solana/kit";
 import { BuildRejected, RpcError, UnsupportedAction } from "@solos/core";
+import { AMOUNT, OUT_AMOUNT } from "../swap/jupiter-swap-build-bodies.js";
 import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
+import { ROUTE_DISCRIMINATOR } from "../swap/jupiter-swap-build-swapdata.js";
 import { TOKEN_2022_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
 import {
   attackerAddress,
@@ -16,6 +21,7 @@ import {
   rebindCleanup,
   rebindCreate,
   runBranch,
+  withSwapData,
   withWrapAmount,
   withWrapForm,
 } from "./swap-sol-driver.js";
@@ -29,6 +35,19 @@ import { assertSwapWireBeforeContact } from "./swap-sol.js";
  */
 
 const attacker = await attackerAddress();
+
+/** The supported route payload over the given u64 amounts, exactly as the fixture encodes it. */
+/** @param {bigint} inAmount @param {bigint} quotedOutAmount */
+const routeData = (inAmount, quotedOutAmount) =>
+  Uint8Array.of(
+    ...ROUTE_DISCRIMINATOR,
+    ...getU32Codec().encode(0),
+    ...getU64Codec().encode(inAmount),
+    ...getU64Codec().encode(quotedOutAmount),
+    50,
+    0,
+    ...getU16Codec().encode(0),
+  );
 
 describe("the executor swap branch refuses before any contact", () => {
   test("an explicit pump venue fails before any build request", async () => {
@@ -103,6 +122,50 @@ describe("the executor swap branch refuses before any contact", () => {
   test("cleanup with an attacker authority is refused by the signer allowlist", async () => {
     const { error } = await runBranch("execute", rebindCleanup(2, { pubkey: attacker }));
     expect(reasonOf(error)).toBe("an account outside the configured signer was required to sign");
+  });
+});
+
+describe("the swap payload is bound to the validated intent before signing", () => {
+  test("an embedded input amount other than the requested one is refused", async () => {
+    const { error, requests } = await runBranch(
+      "execute",
+      withSwapData([...routeData(BigInt(AMOUNT) + 1n, BigInt(OUT_AMOUNT))]),
+    );
+    expect(reasonOf(error)).toBe("swap instruction data did not carry the requested input amount");
+    expect(requests).toHaveLength(1);
+  });
+
+  test("an embedded quoted output other than the envelope's is refused", async () => {
+    const { error } = await runBranch(
+      "execute",
+      withSwapData([...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT) - 1n)]),
+    );
+    expect(reasonOf(error)).toBe("swap instruction data did not carry the quoted envelope output");
+  });
+
+  test("an unknown discriminator is refused as an unsupported layout", async () => {
+    const bytes = [...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT))];
+    bytes[0] = (bytes[0] + 1) % 256;
+    const { error } = await runBranch("execute", withSwapData(bytes));
+    expect(reasonOf(error)).toBe(
+      "swap instruction data was not the supported Jupiter route layout",
+    );
+  });
+
+  test("truncated swap data is refused as an unsupported layout", async () => {
+    const bytes = [...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT))].slice(0, 31);
+    const { error } = await runBranch("execute", withSwapData(bytes));
+    expect(reasonOf(error)).toBe(
+      "swap instruction data was not the supported Jupiter route layout",
+    );
+  });
+
+  test("an amount beyond u64 is refused before any build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, {
+      amount: "18446744073709551616",
+    });
+    expect(reasonOf(error)).toBe("swap amount exceeded the u64 bound the executor can assemble");
+    expect(requests).toHaveLength(0);
   });
 });
 
