@@ -6,6 +6,7 @@ import {
   getU32Codec,
   getU64Codec,
 } from "@solana/kit";
+import { ROUTE_DISCRIMINATOR } from "./jupiter-swap-build-swapdata.js";
 import {
   ATA_PROGRAM,
   COMPUTE_BUDGET_PROGRAM,
@@ -14,7 +15,6 @@ import {
   TOKEN_PROGRAM,
   WSOL_MINT,
 } from "./jupiter-swap-build-validate.js";
-import { ROUTE_DISCRIMINATOR } from "./jupiter-swap-build-swapdata.js";
 
 /**
  * Canned Jupiter V2 `/swap/v2/build` bodies for the executor fixtures, encoded with the

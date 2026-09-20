@@ -1,8 +1,8 @@
 // @ts-check
 import { SimulationFailed } from "@solos/core";
 import { Effect } from "effect";
-import { sendSigned, simulateSigned } from "./transfer-sol.js";
 import { gateSwapLifetime } from "./swap-sol.js";
+import { sendSigned, simulateSigned } from "./transfer-sol.js";
 
 /**
  * Simulation and submission for the swap branch. Unless simulation is explicitly skipped, the

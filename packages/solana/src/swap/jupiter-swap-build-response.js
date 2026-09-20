@@ -1,4 +1,5 @@
 // @ts-check
+import { getBase64Codec, isAddress } from "@solana/kit";
 import {
   QuoteAuthFailed,
   QuoteHttpError,
@@ -7,7 +8,6 @@ import {
   QuoteResponseInvalid,
   QuoteTimeout,
 } from "@solos/core";
-import { getBase64Codec, isAddress } from "@solana/kit";
 import { Effect } from "effect";
 import { z } from "zod";
 import { isDeadlineAbort } from "../market/elfa-api.js";
