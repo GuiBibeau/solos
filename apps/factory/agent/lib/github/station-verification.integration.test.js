@@ -19,6 +19,12 @@ const run = (cwd, args) => {
   return result.stdout.toString().trim();
 };
 
+/** @param {string} cwd @param {string[]} args */
+const tryRun = (cwd, args) => {
+  const result = Bun.spawnSync(args, { cwd, stderr: "pipe", stdout: "pipe" });
+  return result.exitCode === 0 ? result.stdout.toString().trim() : null;
+};
+
 /** @returns {Record<string, string|undefined>} */
 const cleanEnvironment = () => {
   const environment = { ...process.env };
@@ -31,8 +37,12 @@ const fixture = () => {
   const root = mkdtempSync(path.join(tmpdir(), "factory-station-"));
   roots.push(root);
   const station = path.join(root, "repo");
-  run(root, ["git", "clone", "--shared", path.resolve(import.meta.dir, "../../../../.."), station]);
+  const source = path.resolve(import.meta.dir, "../../../../..");
+  run(root, ["git", "clone", "--shared", source, station]);
   const head = run(station, ["git", "rev-parse", "HEAD"]);
+  const main = tryRun(source, ["git", "rev-parse", "refs/remotes/origin/main"]);
+  const comparisonBase = main ?? run(source, ["git", "rev-parse", "HEAD^1"]);
+  run(station, ["git", "update-ref", "refs/remotes/origin/main", comparisonBase]);
   /** @type {import("eve/sandbox").SandboxSession} */
   const sandbox = /** @type {import("eve/sandbox").SandboxSession} */ (
     /** @type {unknown} */ ({
@@ -62,6 +72,7 @@ describe("[integration] station verification lifecycle", () => {
       /** @type {unknown} */ ({ getSandbox: async () => sandbox })
     );
     const result = await verifyStation({ expectedHead: head, scope: "unit" }, context);
+    if (!result.success) throw new Error(`station verification failed: ${JSON.stringify(result)}`);
     expect(result.success).toBe(true);
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.evidence)).toMatchObject({ dirty: false, ok: true, sha: head });
