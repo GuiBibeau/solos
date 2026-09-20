@@ -47,8 +47,7 @@ Evidence. Normal CI never opts in to live QA.
 ## GitHub runner
 
 For GitHub runs, `ELFA_API_KEY` is stored in the repository's `iris-qa` environment. Local QA
-receives the existing key via the process environment. Factory implementation
-and review sandboxes do not receive it. The repository owner reviews the proposed head and adds
+receives the existing key via the process environment. The repository owner reviews the proposed head and adds
 the `qa:elfa-market` label for Free-plan data, or `qa:iris` for Chat, to opt in. Only the label event runs QA; keeping the label on subsequent pushes
 does not authorize more calls. Remove and re-add it after reviewing a new head. Fork PRs and
 events triggered or rerun by someone other than the owner are skipped.
@@ -62,11 +61,3 @@ This is an explicit opt-in workflow, not a credential isolation boundary against
 The secret-bearing step executes the reviewed checkout; review it before authorizing a run.
 GitHub's current repository plan does not support required environment reviewers. No branch
 protection or automatic merge policy is changed. Human merge approval remains required.
-
-## Next PR: credential intake
-
-Add a pre-implementation credential preflight to the factory. Report missing credential names
-and setup destinations on the originating issue before implementation starts; never ask for the
-value in a comment. Resume when configured. Mirror unresolved blockers onto a draft PR only if
-one already exists. Use GitHub notifications first; a separate email integration is unnecessary
-for the first version. This PR supplies the live runner and evidence, not that orchestration.

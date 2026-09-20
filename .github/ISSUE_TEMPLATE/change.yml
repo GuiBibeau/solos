@@ -1,5 +1,5 @@
 name: Change
-description: A well-specified change the factory can implement
+description: A well-specified change ready to implement
 labels: [enhancement]
 body:
   - type: textarea
@@ -14,8 +14,8 @@ body:
     attributes:
       label: Acceptance criteria
       description: >-
-        One per line, each checkable by a `solos` command or a test. The analyst copies these
-        verbatim and may only add to them.
+        One per line, each checkable by a `solos` command or a test. Keep these criteria verbatim
+        during implementation and review.
       placeholder: |
         - `solos mcp list` shows `solana_market_get_price` in group `market`, tier `read`
         - `bun run solos dev verify --scope full` is green

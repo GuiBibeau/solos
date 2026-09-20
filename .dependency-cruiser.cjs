@@ -50,13 +50,6 @@ module.exports = {
       to: { path: "^(packages|apps)/(?!actions/)" },
     },
     {
-      name: "factory-is-a-leaf",
-      comment: "the eve software factory imports nothing else in the monorepo",
-      severity: "error",
-      from: { path: "^apps/factory/" },
-      to: { path: "^(packages|apps)/(?!factory/)" },
-    },
-    {
       name: "only-cli-and-harness-import-mcp",
       severity: "error",
       from: { path: "^packages/(core|solana)/src" },
@@ -78,8 +71,7 @@ module.exports = {
   options: {
     doNotFollow: { path: "node_modules" },
     // node_modules stay in the graph as leaves so external-dependency rules can match them.
-    // eve compiles the factory into apps/factory/.eve at build time; that output is not source.
-    exclude: { path: [String.raw`\.test\.js$`, String.raw`/\.eve/`, String.raw`/\.output/`] },
+    exclude: { path: [String.raw`\.test\.js$`, String.raw`/\.output/`] },
     tsPreCompilationDeps: false,
     enhancedResolveOptions: {
       exportsFields: ["exports"],

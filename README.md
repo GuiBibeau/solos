@@ -35,7 +35,6 @@ packages/solana   Kit + keychain adapters, DirectSignerExecutor, Surfpool helper
 packages/mcp      stdio MCP server, the single MCP client
 apps/harness      daemon, router, agent loop, sqlite store, tracing
 apps/cli          `solos`: operator CLI and verification lever
-apps/factory      eve software factory: GitHub issue → stations → draft PR (Node 24 for the eve CLI only)
 docs/adr          why things are the way they are
 docs/clients      wiring snippets for Claude Code, Codex, Cursor
 ```
@@ -44,12 +43,9 @@ Read `AGENTS.md` before contributing (humans too) and `CONTEXT.md` for vocabular
 
 ## How work gets done
 
-Design is human: a grilling session ends in an ADR and issues with acceptance criteria. Labelling
-an issue `agent-ready` hands it to the factory (`apps/factory`), which plans, implements, and
-independently reviews the change in sandboxes and opens a **draft** pull request. Every pull
-request, from a person or an agent, carries the JSON printed by `solos dev verify` under
-`## Evidence`; CI checks it against the head commit and re-runs the same command. A person marks
-the draft ready and merges. See `docs/factory.md` for operating the factory and ADR-0016 for why.
+Design work ends in ADRs and issues with acceptance criteria. Every pull request carries the JSON
+printed by `solos dev verify` under `## Evidence`; CI checks it against the head commit and re-runs
+the same command. See ADR-0016 for the verification contract.
 
 ## Tools today
 
@@ -215,7 +211,7 @@ Token metadata reads go through the same configured Solana endpoint as every oth
   comments, or committed files.
 - Automated tests run offline on Surfnet. Live QA of real mints (compare a Token-2022 mint
   against its known name/symbol) requires an explicitly configured operator RPC and is
-  **blocked** without one — the factory never provisions RPC credentials.
+  **blocked** without one.
 
 ```sh
 SOLANA_RPC_URL=... bun run solos market token --mint So11111111111111111111111111111111111111112
@@ -331,8 +327,8 @@ SOLANA_RPC_URL=... bun run solos launch curve --mint <mint>
 SOLANA_RPC_URL=... bun run solos mcp call solana_launch_get_curve --args '{"mint":"<mint>"}'
 ```
 
-Operator QA (requires an RPC endpoint with the curve on chain; **blocked** in the factory —
-the factory never provisions RPC credentials, so live QA is reported blocked, never passed):
+Operator QA requires an RPC endpoint with the curve on chain; report it blocked until the
+operator provides that endpoint:
 read one active curve and one completed curve and compare the decoded flags and reserves with
 the chain accounts for the same addresses; both surfaces must return identical JSON for the
 same mint. No funded transaction is involved.
@@ -427,9 +423,8 @@ SOLANA_RPC_URL=... bun run solos liquidity position --protocol orca --position <
 SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '{"protocol":"orca","position":"<position-account>"}'
 ```
 
-Operator QA (requires an RPC endpoint and an operator-owned Whirlpool position; **blocked**
-in the factory — the factory never provisions RPC credentials or holds positions, so live QA
-is reported blocked, never passed): read the operator position and compare `liquidity`,
+Operator QA requires an RPC endpoint and an operator-owned Whirlpool position; report it blocked
+until those prerequisites exist. Read the operator position and compare `liquidity`,
 `tokenA`/`tokenB` amounts and decimals against the same pool state on a block explorer or a
 second client; both surfaces must return identical underlying quantities. See
 [liquidity QA](docs/liquidity-qa.md).
@@ -475,9 +470,8 @@ SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_reserve --args '{"mint
 `KAMINO_LENDING_MARKET` is optional everywhere and is forwarded to the MCP child like the other
 solOS keys; without it every tool still works against the default market.
 
-Operator QA (compare one USDC reserve snapshot with the same named Kamino market, recording
-time and units; **blocked** in the factory — the factory never provisions RPC endpoints, so
-live QA is reported blocked, never passed): see [lend QA](docs/lend-qa.md).
+Operator QA compares one USDC reserve snapshot with the same named Kamino market, recording
+time and units. Report it blocked until an operator RPC exists; see [lend QA](docs/lend-qa.md).
 
 ## License
 

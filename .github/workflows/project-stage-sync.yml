@@ -1,7 +1,6 @@
 name: project-stage-sync
 
-# Moves Project cards as issues and PRs change. `agent-ready` moves an issue to Ready; the same
-# label is what hands the issue to the factory (FACTORY_LABEL).
+# Moves Project cards as issues and PRs change.
 on:
   issues:
     types: [reopened, labeled, closed]
@@ -25,11 +24,6 @@ jobs:
       - name: Reopened issue → Inbox
         if: github.event_name == 'issues' && github.event.action == 'reopened'
         env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_INBOX_OPTION_ID }}" }
-        run: bash scripts/github/project-item.sh set-stage
-
-      - name: agent-ready → Ready
-        if: github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'agent-ready'
-        env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_READY_OPTION_ID }}" }
         run: bash scripts/github/project-item.sh set-stage
 
       - name: status:blocked → Blocked

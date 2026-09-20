@@ -7,8 +7,7 @@ cheatcode, decoded from the pinned Orca IDL. They prove the decode/guard/custody
 behavior, not what a live pool holds. Live QA compares solOS output with the same pool state
 seen through a second client.
 
-**Status: blocked.** A live read needs operator prerequisites that do not exist in the
-factory or CI sandboxes: an RPC endpoint (the factory holds none) and an existing
+**Status: blocked.** A live read needs operator prerequisites that CI does not have: an RPC endpoint and an existing
 operator-owned Whirlpool position with its NFT in the operator's wallet. solOS reads are
 public — no credential is provisioned anywhere; the only configuration is `SOLANA_RPC_URL`.
 Live credentials and wallets belong only in the operator or approved QA environment, never

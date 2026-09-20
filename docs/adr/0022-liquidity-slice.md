@@ -66,8 +66,8 @@ The pinned IDL's remove_liquidity variants encode bin IDs and bps, but no minimu
 Its explicit per-token add_liquidity distribution also lacks an active-bin slippage argument.
 An off-chain quote or successful simulation cannot enforce these bounds at execution. Therefore
 #32 remains blocked for funded execution until a separately reviewed atomic guard or verified
-instruction variant enforces the requested limits. The factory must report this exact gap;
-it must not ignore maxSlippageBps, silently relax the contract, or report simulated bounds as
+instruction variant enforces the requested limits. Implementations must report this exact gap;
+they must not ignore maxSlippageBps, silently relax the contract, or report simulated bounds as
 on-chain protection. Reads and the deterministic allocation rule above remain specified.
 
 ## Consequences

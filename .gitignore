@@ -9,7 +9,5 @@ dist/
 docs/dependency-graph.svg
 coverage/
 
-# factory (eve) and Vercel
-apps/factory/.eve/
-.vercel/
+# local environment overrides
 .env.local

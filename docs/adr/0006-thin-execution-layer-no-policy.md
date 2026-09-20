@@ -6,8 +6,8 @@ Status: accepted, 2026-09-15
 
 An autonomous agent with signing keys on mainnet is dangerous without limits. The obvious place
 for spend caps, allowlists, and kill switches is next to the tools. The team's stack, however,
-has a separate eve-style agentic application where policy, approval, and audit live for every
-capability, not only Solana.
+keeps policy, approval, and audit upstream in the calling agentic application for every capability,
+not only Solana.
 
 ## Decision
 
