@@ -87,6 +87,9 @@ describe("PR revision owner", () => {
     };
     const ciResult = await deliverReview(failure, { event: "check_suite" });
     expect(ciResult.deliveries[0]?.address).toBe("repo:123:pull:37");
-    expect(ciResult.deliveries[0]?.options.context?.join("\n")).toContain("check-suite:800");
+    const context = ciResult.deliveries[0]?.options.context?.join("\n") ?? "";
+    expect(context).toContain("check-suite:800");
+    expect(context).toContain("publish-revision-evidence with phase=reconcile");
+    expect(context).toContain("repairAllowed is false");
   });
 });

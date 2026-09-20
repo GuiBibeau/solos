@@ -44,5 +44,6 @@ export const revisionOwnerReceipt = (input) =>
     "Queue this amendment behind any active revision. Before delegating, fetch the current PR head, checks, review findings, and active station state. Drop only work proven stale or resolved against that head.",
     "There may be only one branch-writing station. Reconcile an existing or uncertain station before starting another. Record replacements as supersessions, preserve its work, and block when ownership cannot be established.",
     "Give the station the expected remote head. A stale station must not push or publish after the owner or head changes. After delegation, post a progress receipt linking the source, this revision owner, and the station task/session ID.",
+    "Publish a revision's clean full Evidence through publish-revision-evidence. Its recorded operation owns the push/body/check gap; reconcile that operation before reacting to an Evidence-only failure, and never start a second repair while repairAllowed is false.",
     "</revision_owner>",
   ].join("\n");

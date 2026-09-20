@@ -115,7 +115,8 @@ describe("[integration] scheduled factory rebases", () => {
       expect(delivery?.message).toContain("verify-station at full scope");
       expect(delivery?.message).toContain("expectedHead set to the new SHA");
       expect(delivery?.message).toContain("independent reviewer");
-      expect(delivery?.message).toContain("require it to equal the Evidence sha");
+      expect(delivery?.message).toContain("publish-revision-evidence");
+      expect(delivery?.message).toContain("confirmed remote head");
       expect(delivery?.message).toContain("Leave shipping to the maintainer");
     });
   });
