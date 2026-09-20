@@ -21,6 +21,7 @@ import {
   cuPriceInstruction,
   minOutFor,
   swapInstruction,
+  syncNativeInstruction,
   wsolFundingInstruction,
 } from "./jupiter-swap-build-bodies.js";
 import { JupiterSwapBuild } from "./jupiter-swap-build-live.js";
@@ -84,6 +85,7 @@ export const buildEnvelope = async ({ taker, slippageBps = 50, overrides = {} })
     setupInstructions: [
       destinationCreateInstruction(taker, destinationAta),
       wsolFundingInstruction(taker, sourceAta),
+      syncNativeInstruction(sourceAta),
     ],
     swapInstruction: swapInstruction(taker, sourceAta, destinationAta),
     cleanupInstruction: cleanupInstruction(taker, sourceAta),

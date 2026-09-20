@@ -20,6 +20,7 @@ import {
 const SYNC_NATIVE = 17;
 const WRAP_INPUT_REASON = "setup moved native SOL without a wSOL input";
 const SYNC_OUTSIDE_WRAP_REASON = "setup carried a SyncNative outside the documented wSOL wrap";
+const MISSING_SYNC_REASON = "setup wSOL funding transfer had no SyncNative behind it";
 
 /**
  * ATA derivation under a given token program.
@@ -76,40 +77,36 @@ const transferRejection = async ({ transfer, action, taker, tempWsol }) => {
 };
 
 /**
- * Every System transfer must fund the taker's temporary wSOL account with exactly the
- * requested input amount, and may exist only for native-SOL input.
- * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action @param {string} taker
- */
-const transfersRejection = async (envelope, action, taker) => {
-  const transfers = envelope.setupInstructions.filter((ix) => ix.programId === SYSTEM_PROGRAM);
-  if (transfers.length === 0) return undefined;
-  if (envelope.inputMint !== WSOL_MINT) return WRAP_INPUT_REASON;
-  const tempWsol = await derivedAta(taker, WSOL_MINT);
-  for (const transfer of transfers) {
-    const rejection = await transferRejection({ transfer, action, taker, tempWsol });
-    if (rejection) return rejection;
-  }
-  return undefined;
-};
-
-/**
- * The documented wSOL wrap binding: exact-amount transfer plus a SyncNative behind it.
+ * The documented wSOL wrap is an exact pair, in safe order before the route: one canonical
+ * System transfer of the requested amount into the taker's temporary account, then exactly one
+ * SyncNative on that account. A missing half, duplicates, a stray SyncNative, or any wrap
+ * instruction for a non-wSOL input is refused with a fixed reason.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("@solos/actions").SwapAction} action @param {string} taker
  */
 const wrapRejection = async (envelope, action, taker) => {
-  const transferRejection = await transfersRejection(envelope, action, taker);
-  if (transferRejection) return transferRejection;
-  const wrapped =
-    envelope.inputMint === WSOL_MINT &&
-    envelope.setupInstructions.some((ix) => ix.programId === SYSTEM_PROGRAM);
-  const syncs = envelope.setupInstructions.filter((ix) => dataBytes(ix.data)[0] === SYNC_NATIVE);
-  if (syncs.length === 0) return undefined;
-  if (!wrapped) return SYNC_OUTSIDE_WRAP_REASON;
+  const order = envelope.setupInstructions;
+  const transfers = order.filter((ix) => ix.programId === SYSTEM_PROGRAM);
+  const syncs = order.filter((ix) => dataBytes(ix.data)[0] === SYNC_NATIVE);
+  if (transfers.length === 0 && syncs.length === 0) return undefined;
+  if (envelope.inputMint !== WSOL_MINT) return WRAP_INPUT_REASON;
+  if (transfers.length === 0) return SYNC_OUTSIDE_WRAP_REASON;
+  if (transfers.length > 1) return "setup carried more than one wSOL funding transfer";
+  const [transfer] = transfers;
+  if (!transfer) return SYNC_OUTSIDE_WRAP_REASON;
   const tempWsol = await derivedAta(taker, WSOL_MINT);
-  const stray = syncs.find((sync) => sync.accounts[0]?.pubkey !== tempWsol);
-  return stray ? "setup SyncNative did not target the taker's temporary wSOL account" : undefined;
+  const rejection = await transferRejection({ transfer, action, taker, tempWsol });
+  if (rejection) return rejection;
+  if (syncs.length === 0) return MISSING_SYNC_REASON;
+  if (syncs.length > 1) return "setup carried more than one SyncNative";
+  const [sync] = syncs;
+  if (!sync || sync.accounts[0]?.pubkey !== tempWsol) {
+    return "setup SyncNative did not target the taker's temporary wSOL account";
+  }
+  if (order.indexOf(transfer) > order.indexOf(sync)) {
+    return "setup SyncNative did not follow the wSOL funding transfer";
+  }
+  return undefined;
 };
 
 /**
