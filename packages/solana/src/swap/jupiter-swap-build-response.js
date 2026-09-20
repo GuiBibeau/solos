@@ -7,6 +7,7 @@ import {
   QuoteResponseInvalid,
   QuoteTimeout,
 } from "@solos/core";
+import { getBase64Codec, isAddress } from "@solana/kit";
 import { Effect } from "effect";
 import { z } from "zod";
 import { isDeadlineAbort } from "../market/elfa-api.js";
@@ -20,19 +21,46 @@ import { jupiterSwapBuild } from "./jupiter-swap-build-api.js";
  * never break us, and never trusted: the semantic checks live in jupiter-swap-build-validate.js.
  */
 
-/** Instruction exactly as the provider documents it; data is base64. */
+/**
+ * A canonical base58 string that decodes to the 32 bytes of a Solana address. Anything else —
+ * wrong length, non-base58 characters — can never be an account and is refused here so no
+ * library text or defect can leak from a malformed artifact.
+ */
+/** The explicit boolean return keeps this a plain check, never a narrowing type predicate. */
+/** @param {string} value @returns {boolean} */
+const isCanonicalAddress = (value) => isAddress(value) === true;
+
+const AddressStringSchema = z.string().refine(isCanonicalAddress, {
+  message: "not a canonical 32-byte base58 Solana address",
+});
+
+/**
+ * Canonical base64: standard alphabet, padded, and byte-exact on the round trip, so the
+ * assembler decodes exactly the bytes the provider encoded.
+ */
+const CanonicalBase64Schema = z
+  .string()
+  .refine(
+    (value) =>
+      value.length % 4 === 0 &&
+      /^[A-Za-z0-9+/]*={0,2}$/.test(value) &&
+      getBase64Codec().decode(getBase64Codec().encode(value)) === value,
+    { message: "not canonical base64" },
+  );
+
+/** Instruction exactly as the provider documents it; data is canonical base64. */
 const RawInstructionSchema = z.object({
-  programId: z.string().min(1),
+  programId: AddressStringSchema,
   accounts: z.array(
     z
       .object({
-        pubkey: z.string().min(1),
+        pubkey: AddressStringSchema,
         isWritable: z.boolean(),
         isSigner: z.boolean(),
       })
       .strip(),
   ),
-  data: z.string(),
+  data: CanonicalBase64Schema,
 });
 
 const RouteLegSchema = z.object({ bps: z.number().int().min(1).max(10_000) }).strip();
@@ -40,8 +68,8 @@ const RouteLegSchema = z.object({ bps: z.number().int().min(1).max(10_000) }).st
 /** Documented 200 envelope. The blockhash is exactly 32 bytes of numbers, never a string. */
 export const BuildEnvelopeSchema = z
   .object({
-    inputMint: z.string(),
-    outputMint: z.string(),
+    inputMint: AddressStringSchema,
+    outputMint: AddressStringSchema,
     inAmount: z.string(),
     outAmount: z.string(),
     otherAmountThreshold: z.string().optional(),
@@ -55,7 +83,7 @@ export const BuildEnvelopeSchema = z
     otherInstructions: z.array(RawInstructionSchema),
     tipInstruction: RawInstructionSchema.nullable(),
     addressesByLookupTableAddress: z
-      .record(z.string().min(1), z.array(z.string().min(1)))
+      .record(AddressStringSchema, z.array(AddressStringSchema))
       .nullable(),
     blockhashWithMetadata: z
       .object({

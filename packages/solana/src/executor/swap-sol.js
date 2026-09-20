@@ -20,6 +20,9 @@ const EXECUTOR = "direct-signer";
  */
 export const SWAP_AMOUNT_U64_MAX = 18_446_744_073_709_551_615n;
 const AMOUNT_BOUND_REASON = "swap amount exceeded the u64 bound the executor can assemble";
+const VALIDATION_GUARD_REASON =
+  "build validation could not be completed; nothing was signed or sent";
+const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed or sent";
 
 /** @param {import("@solos/actions").SwapAction} action */
 const amountBoundRejection = (action) => {
@@ -75,9 +78,17 @@ export const buildSignedSwap = ({ kit, build }, action) =>
       slippageBps: action.maxSlippageBps,
       taker,
     });
-    const rejection = yield* Effect.promise(() => buildRejection(envelope, action, taker));
+    // Semantic validation runs as its own guarded step: even a validator crash on a malformed
+    // artifact is a fixed-reason rejection, never an Effect defect or raw library text.
+    const rejection = yield* Effect.tryPromise({
+      try: () => buildRejection(envelope, action, taker),
+      catch: () => new BuildRejected({ reason: VALIDATION_GUARD_REASON }),
+    });
     if (rejection) return yield* new BuildRejected({ reason: rejection });
-    const message = assembleSwapMessage(envelope, kit.signer);
+    const message = yield* Effect.try({
+      try: () => assembleSwapMessage(envelope, kit.signer),
+      catch: () => new BuildRejected({ reason: ASSEMBLY_GUARD_REASON }),
+    });
     // Pre-sign boundary: the message must be v1 and inside the fixed size bounds. A refusal
     // here happens before any signer is involved — no signature, no chain contact.
     yield* Effect.try({
