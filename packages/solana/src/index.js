@@ -47,7 +47,6 @@ export { LiquidityVenueLive } from "./liquidity/liquidity-venue-live.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
 export { TokenRegistryLive } from "./market/token-registry-live.js";
-export { JupiterSwapBuild, JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 export { PerpVenueLive } from "./perp/perp-venue-live.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
@@ -89,13 +88,8 @@ const prices = (jupiter) => JupiterPriceLive(jupiter ?? { baseUrl: DEFAULT_JUPIT
  * @param {SolanaEnv["jupiter"] | undefined} jupiter
  */
 const quotes = (jupiter) => JupiterSwapLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
-
-/**
- * Jupiter swap builds share the key and feed only the executor's swap branch: without
- * JUPITER_API_KEY the swap execute/simulate twins fail pre-HTTP with BuildUnavailable when
- * actually used, and every other tool keeps working.
- * @param {SolanaEnv["jupiter"] | undefined} jupiter
- */
+/** Executor swap builds: no JUPITER_API_KEY → swap twins fail pre-HTTP with BuildUnavailable.
+ * @param {SolanaEnv["jupiter"] | undefined} jupiter */
 const builds = (jupiter) => JupiterSwapBuildLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
 
 /**

@@ -88,8 +88,7 @@ describe("tool registry", () => {
 
   test("the swap simulate twin is simulate-tier with described arguments", () => {
     const tool = allTools.find((t) => t.name === "solana_swap_simulate_swap");
-    expect(tool?.group).toBe("swap");
-    expect(tool?.tier).toBe("simulate");
+    expect([tool?.group, tool?.tier]).toEqual(["swap", "simulate"]);
     expect(tool?.input.shape.inputMint?.description).toBeTruthy();
     expect(tool?.input.shape.outputMint?.description).toBeTruthy();
     expect(tool?.input.shape.amount?.description).toBeTruthy();
