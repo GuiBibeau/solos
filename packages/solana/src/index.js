@@ -22,6 +22,7 @@ import { PerpVenueLive } from "./perp/perp-venue-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
+import { JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 
@@ -46,6 +47,7 @@ export { LiquidityVenueLive } from "./liquidity/liquidity-venue-live.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
 export { TokenRegistryLive } from "./market/token-registry-live.js";
+export { JupiterSwapBuild, JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 export { PerpVenueLive } from "./perp/perp-venue-live.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
@@ -89,6 +91,14 @@ const prices = (jupiter) => JupiterPriceLive(jupiter ?? { baseUrl: DEFAULT_JUPIT
 const quotes = (jupiter) => JupiterSwapLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
 
 /**
+ * Jupiter swap builds share the key and feed only the executor's swap branch: without
+ * JUPITER_API_KEY the swap execute/simulate twins fail pre-HTTP with BuildUnavailable when
+ * actually used, and every other tool keeps working.
+ * @param {SolanaEnv["jupiter"] | undefined} jupiter
+ */
+const builds = (jupiter) => JupiterSwapBuildLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
+
+/**
  * Phoenix Perps reads need no credential at all, so the layer is always constructible: the
  * tool stays advertised and only an individual read can fail with a transport error.
  * @param {SolanaEnv["phoenix"] | undefined} phoenix
@@ -112,6 +122,7 @@ export const SolanaLive = (env) =>
     Layer.merge(lending(env.kamino)),
     Layer.provideMerge(KitSignerLive(env.signer)),
     Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
+    Layer.provideMerge(builds(env.jupiter)),
     Layer.merge(intelligence(env.elfa)),
     Layer.merge(prices(env.jupiter)),
     Layer.merge(quotes(env.jupiter)),
@@ -137,6 +148,7 @@ export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, ka
     Layer.merge(lending(kamino)),
     Layer.provideMerge(KitSignerFromBytes(seed)),
     Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
+    Layer.provideMerge(builds(jupiter)),
     Layer.merge(intelligence(elfa)),
     Layer.merge(prices(jupiter)),
     Layer.merge(quotes(jupiter)),
