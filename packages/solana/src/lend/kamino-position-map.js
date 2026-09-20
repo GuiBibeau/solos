@@ -13,7 +13,7 @@ const MAX_PAGES = 32;
 const ZERO_ADDRESS = "11111111111111111111111111111111";
 
 /** @typedef {{ readonly address: string; readonly market: string; readonly owner: string; readonly deposits: ReadonlyArray<{ readonly reserve: string; readonly collateral: string }> }} ObligationRow */
-/** @typedef {{ readonly address: string; readonly mint: string; readonly receiptMint: string; readonly decimals: number; readonly collateralPerLiquidity: string }} PositionReserve */
+/** @typedef {{ readonly address: string; readonly mint: string; readonly receiptMint: string; readonly decimals: number; readonly cTokenSupply: string; readonly totalSupply: string }} PositionReserve */
 
 /** @param {ReadonlyArray<ObligationRow>} rows */
 const uniqueObligations = (rows) => {
@@ -79,7 +79,11 @@ export const mapLendPosition = (reserve, rows, market) => {
     protocol: "kamino",
     instrument: reserve.mint,
     market,
-    amount: collateralToLiquidity(total.collateral, reserve.collateralPerLiquidity).toString(),
+    amount: collateralToLiquidity(
+      total.collateral,
+      reserve.cTokenSupply,
+      reserve.totalSupply,
+    ).toString(),
     decimals: reserve.decimals,
     valueUsd: null,
     positions: total.contributors,

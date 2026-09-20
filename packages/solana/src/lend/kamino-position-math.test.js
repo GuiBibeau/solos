@@ -1,19 +1,23 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { collateralToLiquidity, decimalRatio } from "./kamino-position-math.js";
+import { collateralToLiquidity } from "./kamino-position-math.js";
 
 describe("Kamino collateral conversion", () => {
-  test("parses plain and scientific rates as exact ratios", () => {
-    expect(decimalRatio("0.5")).toEqual({ numerator: 5n, denominator: 10n });
-    expect(decimalRatio("1.25e-2")).toEqual({ numerator: 125n, denominator: 10_000n });
-    expect(decimalRatio("2e3")).toEqual({ numerator: 2000n, denominator: 1n });
-  });
-
-  test("aggregated collateral divides once and floors the final remainder", () => {
-    expect(collateralToLiquidity(151n, "0.5")).toBe(302n);
-    expect(collateralToLiquidity(10n, "3")).toBe(3n);
-    expect(collateralToLiquidity(18_446_744_073_709_551_615n, "1.25")).toBe(
+  test("aggregated collateral multiplies by total supply, divides once, and floors", () => {
+    expect(collateralToLiquidity(151n, "500", "1000")).toBe(302n);
+    expect(collateralToLiquidity(10n, "3", "1")).toBe(3n);
+    expect(collateralToLiquidity(18_446_744_073_709_551_615n, "5", "4")).toBe(
       14_757_395_258_967_641_292n,
     );
+  });
+
+  test("keeps the exact floor at the u64 boundary without a rounded exchange rate", () => {
+    expect(
+      collateralToLiquidity(
+        13_389_617_171_941_807_350n,
+        "16255895523639956555",
+        "12663392048017480144",
+      ),
+    ).toBe(10_430_552_495_529_291_296n);
   });
 });

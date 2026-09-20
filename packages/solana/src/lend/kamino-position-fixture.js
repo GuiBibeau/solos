@@ -19,12 +19,18 @@ const putAddress = (bytes, offset, value) =>
 const putU64 = (bytes, offset, value) =>
   new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setBigUint64(offset, value, true);
 
+/** @param {Uint8Array} bytes @param {number} offset @param {number} value */
+const putU16 = (bytes, offset, value) =>
+  new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint16(offset, value, true);
+
 /** @param {Uint8Array} bytes */
 const accountData = (bytes) => Buffer.from(bytes).toString("hex");
 
-export const positionMarketBytes = () => {
+/** @param {{ referralFeeBps?: number }} [options] */
+export const positionMarketBytes = (options) => {
   const bytes = new Uint8Array(MARKET_SIZE);
   bytes.set(MARKET_DISCRIMINATOR);
+  putU16(bytes, 120, options?.referralFeeBps ?? 0);
   return bytes;
 };
 

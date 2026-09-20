@@ -121,13 +121,14 @@ const decodeReserve = (sdk, entry, context) => {
   }
 };
 
-/** @param {KaminoReserveInstance} reserve @param {LedgerInstant} instant */
-export const sdkPositionReserve = (reserve, instant) => ({
+/** @param {KaminoReserveInstance} reserve @param {LedgerInstant} instant @param {number} referralFeeBps */
+export const sdkPositionReserve = (reserve, instant, referralFeeBps) => ({
   address: reserve.address.toString(),
   mint: reserve.getLiquidityMint().toString(),
   receiptMint: reserve.getCTokenMint().toString(),
   decimals: reserve.getMintDecimals(),
-  collateralPerLiquidity: reserve
-    .getEstimatedCollateralExchangeRate(/** @type {any} */ (instant), 0)
+  cTokenSupply: reserve.state.collateral.mintTotalSupply.toString(),
+  totalSupply: reserve
+    .getEstimatedTotalSupply(/** @type {any} */ (instant), referralFeeBps)
     .toString(),
 });

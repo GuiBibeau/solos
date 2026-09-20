@@ -14,7 +14,8 @@ const reserve = {
   mint: MINT,
   receiptMint: RECEIPT,
   decimals: 6,
-  collateralPerLiquidity: "0.5",
+  cTokenSupply: "500",
+  totalSupply: "1000",
 };
 
 describe("Kamino supply position mapping", () => {

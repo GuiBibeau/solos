@@ -2,7 +2,11 @@
 /** @typedef {import("./kamino-rpc-seam.js").KaminoMarketInstance} KaminoMarketInstance */
 /** @typedef {import("./kamino-rpc-seam.js").KaminoReserveInstance} KaminoReserveInstance */
 /** @typedef {import("./kamino-rpc-seam.js").LedgerInstant} LedgerInstant */
-import { LendingEnumerationIncomplete, LendingObligationInvalid } from "@solos/core/lend";
+import {
+  LendingEnumerationIncomplete,
+  LendingLayoutUnsupported,
+  LendingObligationInvalid,
+} from "@solos/core/lend";
 import { RpcError } from "@solos/core/shared";
 import { Effect } from "effect";
 import {
@@ -44,14 +48,14 @@ export const ownerObligations = (rpc, input) =>
     },
   });
 
-/** @param {KaminoReserveInstance} reserve @param {LedgerInstant} instant */
-export const positionReserve = (reserve, instant) =>
+/** @param {KaminoReserveInstance} reserve @param {LedgerInstant} instant @param {number} referralFeeBps */
+export const positionReserve = (reserve, instant, referralFeeBps) =>
   Effect.try({
-    try: () => sdkPositionReserve(reserve, instant),
+    try: () => sdkPositionReserve(reserve, instant, referralFeeBps),
     catch: () =>
-      new LendingObligationInvalid({
-        obligation: reserve.address.toString(),
-        reason: "the reserve cannot produce an exact collateral exchange rate",
+      new LendingLayoutUnsupported({
+        reserve: reserve.address.toString(),
+        reason: "the reserve cannot produce exact collateral supply quantities",
       }),
   });
 
@@ -66,8 +70,8 @@ export const positionReserves = (input) =>
         });
       }
       return error instanceof KaminoPositionReserveError
-        ? new LendingObligationInvalid({
-            obligation: error.account,
+        ? new LendingLayoutUnsupported({
+            reserve: error.account,
             reason: "a reserve account has an unsupported layout",
           })
         : new RpcError({
@@ -78,8 +82,10 @@ export const positionReserves = (input) =>
     },
   }).pipe(
     Effect.flatMap((reserves) =>
-      Effect.forEach(reserves, (reserve) => positionReserve(reserve, input.instant), {
-        concurrency: 1,
-      }),
+      Effect.forEach(
+        reserves,
+        (reserve) => positionReserve(reserve, input.instant, input.market.state.referralFeeBps),
+        { concurrency: 1 },
+      ),
     ),
   );
