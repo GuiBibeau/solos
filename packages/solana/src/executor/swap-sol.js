@@ -53,9 +53,9 @@ const amountBoundRejection = (action) => {
  */
 
 /**
- * Fetch, validate, assemble, and sign one swap. A pump venue is refused before any build
- * request until that venue is supported (#25); an omitted or explicit `jupiter` venue takes the
- * Jupiter path.
+ * Fetch, validate, assemble, and sign one swap. An omitted or explicit `jupiter` venue takes
+ * the Jupiter path; any other venue is refused as unsupported before any build request — pump
+ * until that venue is supported (#25), and every other venue outright.
  * @param {{ kit: Kit; build: Build }} deps
  * @param {SwapAction} action
  * @returns {import("effect").Effect.Effect<
@@ -67,6 +67,12 @@ export const buildSignedSwap = ({ kit, build }, action) =>
   Effect.gen(function* () {
     if (action.venue === "pump") {
       return yield* new UnsupportedAction({ actionType: "swap:pump", executor: EXECUTOR });
+    }
+    if (action.venue !== undefined && action.venue !== "jupiter") {
+      return yield* new UnsupportedAction({
+        actionType: `swap:${action.venue}`,
+        executor: EXECUTOR,
+      });
     }
     const overBound = amountBoundRejection(action);
     if (overBound) return yield* new BuildRejected({ reason: overBound });
