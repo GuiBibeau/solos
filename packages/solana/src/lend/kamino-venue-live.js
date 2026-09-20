@@ -31,15 +31,20 @@ const READ_TIMEOUT_MS = 15_000;
  */
 
 /**
- * The whole read in protocol order: configured market, its float-rate reserve for the mint,
- * the ledger instant, the interest-only rates, then the pure snapshot mapping. One attempt,
- * bounded by the whole-read deadline; no retries, no fallback market, no off-chain fetch.
+ * The whole read in protocol order: reserve layout preflight before the SDK's filtered load,
+ * configured market, its float-rate reserve for the mint, ledger instant, interest-only rates,
+ * then pure snapshot mapping. One bounded attempt; no retries, fallback market or off-chain fetch.
  * @param {LendRead} deps
  * @param {string} mint
  * @returns {Effect.Effect<ReserveSnapshot, LendingError>}
  */
 const readReserve = (deps, mint) =>
   Effect.gen(function* () {
+    yield* validateReserveLayout(deps.rpc, {
+      market: deps.market,
+      mint,
+      origin: deps.origin,
+    });
     const market = yield* loadKaminoMarket(deps.rpc, deps.market, deps.origin);
     if (market === null) {
       return yield* new LendingMarketUnavailable({
@@ -47,11 +52,6 @@ const readReserve = (deps, mint) =>
         reason: "the configured lending market account is missing on the configured RPC",
       });
     }
-    yield* validateReserveLayout(deps.rpc, {
-      market: deps.market,
-      mint,
-      origin: deps.origin,
-    });
     const reserve = yield* floatRateReserve(market, deps.market, mint);
     const instant = yield* ledgerInstant(deps.rpc, deps.origin);
     const rates = yield* reserveRates(reserve, instant);
