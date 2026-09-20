@@ -3,6 +3,7 @@ export { jsonRpc, startSurfnet, surfnetCheatcodes } from "./surfnet-cli.js";
 export { Surfnet, SurfnetAttached, SurfnetCliLive } from "./surfnet.js";
 export {
   USDC_MINT,
+  ensureOfflineSurfnet,
   ensureSurfnet,
   randomSeed,
   seedAddress,

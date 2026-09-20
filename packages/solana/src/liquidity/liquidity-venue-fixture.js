@@ -5,7 +5,7 @@ import { tickIndexToSqrtPrice } from "@orca-so/whirlpools-core";
 import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
 import { getLpPosition, listLpPositions } from "@solos/core";
 import { Cause, Effect, Layer, Option } from "effect";
-import { ensureSurfnet, randomSeed } from "@solos/solana/surfnet";
+import { ensureOfflineSurfnet, randomSeed } from "@solos/solana/surfnet";
 import { LiquidityVenueLive } from "../index.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSignerFromBytes } from "../signer/kit-signer.js";
@@ -97,7 +97,7 @@ const seedFixtures = async (rpcUrl) => {
 };
 
 export const startLiquidityVenueFixture = async () => {
-  const surfnet = await ensureSurfnet();
+  const surfnet = await ensureOfflineSurfnet();
   const rpcUrl = surfnet.rpcUrl;
   const fixtures = await seedFixtures(rpcUrl);
   const layer = Layer.merge(
