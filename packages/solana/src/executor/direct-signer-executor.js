@@ -4,7 +4,7 @@ import { Clock, Effect, Layer } from "effect";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
-import { buildSignedSwap, gateSwapLifetime } from "./swap-sol.js";
+import { assertSwapWireBeforeContact, buildSignedSwap, gateSwapLifetime } from "./swap-sol.js";
 import { buildSignedTransfer, sendSigned, simulateSigned } from "./transfer-sol.js";
 
 export const EXECUTOR_NAME = "direct-signer";
@@ -40,6 +40,7 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
 const simulate = ({ ctx, kit, build: buildSwap }, action) =>
   Effect.gen(function* () {
     const signed = yield* build({ ctx, kit, build: buildSwap }, action);
+    if (action.type === "swap") yield* assertSwapWireBeforeContact(signed);
     const raw = yield* simulateSigned(ctx, signed);
     const isOk = raw.err === null;
     return {
@@ -64,6 +65,8 @@ const execute = ({ ctx, kit, build: buildSwap }, action, options) =>
       // The swap branch gates the build's own lifetime before any simulation or send.
       const swap = yield* buildSignedSwap({ kit, build: buildSwap }, action);
       yield* gateSwapLifetime(ctx, swap.envelope);
+      // Pre-submit boundary: the exact bytes are proven v1 before the first RPC contact.
+      yield* assertSwapWireBeforeContact(swap.signed);
       const signature = yield* submitSimulated(
         { ctx, signed: swap.signed },
         options.skipSimulation,

@@ -112,4 +112,39 @@ describe("recipient and market-account rejection before signing", () => {
     expect(envelope.cleanupInstruction.accounts[1].pubkey).toBe(taker);
     expect(await rejectionFor({})).toBeUndefined();
   });
+
+  test("cleanup closing a foreign account is rejected", async () => {
+    const cleanup = {
+      ...envelope.cleanupInstruction,
+      accounts: [
+        { ...envelope.cleanupInstruction.accounts[0], pubkey: atas.destinationAta },
+        ...envelope.cleanupInstruction.accounts.slice(1),
+      ],
+    };
+    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
+      "did not close the taker's temporary wSOL account",
+    );
+  });
+
+  test("cleanup with an attacker authority is rejected", async () => {
+    const [closed, , rent] = envelope.cleanupInstruction.accounts;
+    const cleanup = {
+      ...envelope.cleanupInstruction,
+      accounts: [closed, { ...closed, pubkey: POOL_AUTHORITY }, rent],
+    };
+    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
+      "authority was not the taker",
+    );
+  });
+
+  test("cleanup with an attacker rent destination is rejected", async () => {
+    const [closed, authority] = envelope.cleanupInstruction.accounts;
+    const cleanup = {
+      ...envelope.cleanupInstruction,
+      accounts: [closed, authority, { ...authority, pubkey: POOL_AUTHORITY }],
+    };
+    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
+      "rent destination was not the taker",
+    );
+  });
 });

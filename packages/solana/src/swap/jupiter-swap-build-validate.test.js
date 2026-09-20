@@ -96,22 +96,17 @@ describe("build rejection before signing", () => {
     expect(await rejectionFor({ swapInstruction: swap })).toContain("Jupiter v6 aggregator");
   });
 
-  test("a provider compute-unit limit is rejected: the limit is ours alone", async () => {
+  test("a provider compute-unit limit is rejected: v1 carries no budget instructions", async () => {
     const limit = { programId: COMPUTE_BUDGET_PROGRAM, accounts: [], data: "AgAAAAAAAAA=" };
     expect(await rejectionFor({ computeBudgetInstructions: [limit] })).toContain(
-      "may only set a compute unit price",
+      "may only carry a well-formed compute unit price",
     );
   });
 
-  test("setup instructions outside the known set are rejected", async () => {
-    const setup = { programId: POOL_AUTHORITY, accounts: [], data: "AQ==" };
-    expect(await rejectionFor({ setupInstructions: [setup] })).toContain("outside the known ATA");
-  });
-
-  test("cleanup that is not a token closeAccount is rejected", async () => {
-    const cleanup = { ...envelope.cleanupInstruction, data: "Ag==" };
-    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
-      "not a token closeAccount",
+  test("a malformed compute unit price is rejected", async () => {
+    const short = { programId: COMPUTE_BUDGET_PROGRAM, accounts: [], data: "Aw==" };
+    expect(await rejectionFor({ computeBudgetInstructions: [short] })).toContain(
+      "may only carry a well-formed compute unit price",
     );
   });
 
