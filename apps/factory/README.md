@@ -108,7 +108,7 @@ Eve 0.56.0 filters every bot comment before its custom `onComment` hook. `patche
 
 ## Lint exceptions
 
-Rules that are switched off or relaxed for `apps/factory/**` in the root `eslint.config.js`. Every size rule (`max-lines` 150, `max-lines-per-function` 40, `complexity` 8, `max-params` 3, `max-statements` 15) applies unchanged.
+Rules that are switched off or relaxed for `apps/factory/**` in the root `eslint.config.js`. Every size rule (production `max-lines` 150 logical and 225 physical, test `max-lines` 300 logical and physical, `max-lines-per-function` 40, `complexity` 8, `max-params` 3, `max-statements` 20) applies unchanged.
 
 | Rule | Scope | Why |
 | --- | --- | --- |

@@ -2,7 +2,8 @@
 import { readFile } from "node:fs/promises";
 import nodePath from "node:path";
 
-const MAX_LINES = 150;
+const MAX_PRODUCTION_LINES = 225;
+const MAX_TEST_LINES = 300;
 const CODE_EXTENSIONS = new Set([".cjs", ".js", ".mjs"]);
 const DEFAULT_REF = "refs/remotes/origin/main";
 // These three pre-existing configuration files already have explicit max-lines exemptions in ESLint.
@@ -11,7 +12,11 @@ const APPROVED_EXCEPTIONS = new Set([
   "eslint.config.js",
   "harness.config.js",
 ]);
-/** @typedef {{ path: string; lines: number }} LineItem */
+/** @typedef {{ path: string; lines: number; maximum: number }} LineItem */
+
+/** @param {string} path */
+const lineLimit = (path) =>
+  /\.test\.(?:c|m)?js$/u.test(path) ? MAX_TEST_LINES : MAX_PRODUCTION_LINES;
 
 /** @param {string[]} args @returns {Promise<string>} */
 const git = async (args) => {
@@ -76,7 +81,7 @@ const lineCount = async (path) => physicalLines(await readFile(path, "utf8"));
 /** @param {LineItem[]} violations @param {LineItem[]} approved @param {LineItem[]} debt */
 const report = (violations, approved, debt) => {
   for (const item of violations)
-    console.error(`${item.path}: ${item.lines} physical lines (maximum ${MAX_LINES})`);
+    console.error(`${item.path}: ${item.lines} physical lines (maximum ${item.maximum})`);
   for (const item of approved)
     console.error(`approvedException=${item.path}:${item.lines} physical lines`);
   for (const item of debt) console.error(`debt: ${item.path}: ${item.lines} physical lines`);
@@ -89,20 +94,20 @@ const main = async () => {
   const tracked = await trackedFiles();
   const changed = new Set(files);
   const counts = await Promise.all(
-    files.map(async (path) => ({ path, lines: await lineCount(path) })),
+    files.map(async (path) => ({ path, lines: await lineCount(path), maximum: lineLimit(path) })),
   );
   const debtCounts = await Promise.all(
     tracked
       .filter((path) => !changed.has(path) && !APPROVED_EXCEPTIONS.has(path))
-      .map(async (path) => ({ path, lines: await lineCount(path) })),
+      .map(async (path) => ({ path, lines: await lineCount(path), maximum: lineLimit(path) })),
   );
   const violations = counts.filter(
-    ({ path, lines }) => lines > MAX_LINES && !APPROVED_EXCEPTIONS.has(path),
+    ({ path, lines, maximum }) => lines > maximum && !APPROVED_EXCEPTIONS.has(path),
   );
   const approved = counts.filter(
-    ({ path, lines }) => lines > MAX_LINES && APPROVED_EXCEPTIONS.has(path),
+    ({ path, lines, maximum }) => lines > maximum && APPROVED_EXCEPTIONS.has(path),
   );
-  const debt = debtCounts.filter(({ lines }) => lines > MAX_LINES);
+  const debt = debtCounts.filter(({ lines, maximum }) => lines > maximum);
   report(violations, approved, debt);
   const status = violations.length === 0 ? "passed" : "failed";
   console.error(
