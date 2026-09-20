@@ -7,13 +7,6 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@solos/core",
-    "@solos/solana",
-    "@solos/mcp",
-    "@solos/harness",
-    "@solos/cli",
-    "@solos/factory"
-  ],
+  "ignore": ["@solos/core", "@solos/solana", "@solos/mcp", "@solos/harness", "@solos/cli"],
   "privatePackages": { "version": false, "tag": false }
 }

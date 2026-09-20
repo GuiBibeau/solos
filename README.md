@@ -43,9 +43,9 @@ Read `AGENTS.md` before contributing (humans too) and `CONTEXT.md` for vocabular
 
 ## How work gets done
 
-Design work ends in ADRs and issues with acceptance criteria. Every pull request carries the JSON
-printed by `solos dev verify` under `## Evidence`; CI checks it against the head commit and re-runs
-the same command. See ADR-0016 for the verification contract.
+Design work ends in ADRs and issues with acceptance criteria. Every authored pull request carries
+the JSON printed by `solos dev verify` under `## Evidence`; CI checks it against the head commit and
+re-runs the same command. See ADR-0016 for the verification contract.
 
 ## Tools today
 
