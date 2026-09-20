@@ -11,7 +11,12 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { BuildRejected, RpcError, TransactionFailed } from "@solos/core";
+import {
+  BuildRejected,
+  RpcError,
+  TransactionFailed,
+  TRANSFER_PRIORITY_FEE_LAMPORTS,
+} from "@solos/core";
 import { Effect } from "effect";
 import { describeError, rpcCall } from "../rpc/rpc-call.js";
 import { assertV1WireForSubmission, beginV1Message, signV1Message } from "./transaction-v1.js";
@@ -26,7 +31,7 @@ import { assertV1WireForSubmission, beginV1Message, signV1Message } from "./tran
 export const TRANSFER_V1_CONFIG = Object.freeze({
   computeUnitLimit: 50_000,
   loadedAccountsDataSizeLimit: 8_388_608,
-  priorityFeeLamports: 1000n,
+  priorityFeeLamports: TRANSFER_PRIORITY_FEE_LAMPORTS,
 });
 
 /**

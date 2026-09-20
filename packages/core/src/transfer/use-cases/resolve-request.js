@@ -3,9 +3,7 @@ import { Effect } from "effect";
 import { BalanceReader, Signer } from "../../wallet/index.js";
 import { transferLamports } from "../domain/amount.js";
 import { InsufficientFunds } from "../domain/errors.js";
-
-/** Base fee for a single-signature transaction. Priority fees are out of scope here. */
-const BASE_FEE_LAMPORTS = 5000n;
+import { TRANSFER_FEE_RESERVE_LAMPORTS } from "../domain/fees.js";
 
 /** @typedef {InsufficientFunds | import("../../shared/domain/errors.js").ValidationError | import("../../shared/domain/errors.js").RpcError | import("../../wallet/index.js").SignerUnavailable} ResolveError */
 /** @typedef {import("../../wallet/index.js").SignerShape | import("../../wallet/index.js").BalanceReaderShape} ResolveContext */
@@ -25,7 +23,7 @@ export const resolveRequest = (input) =>
     });
     const from = yield* (yield* Signer).address();
     const available = yield* (yield* BalanceReader).getLamports(from);
-    const required = lamports + BASE_FEE_LAMPORTS;
+    const required = lamports + TRANSFER_FEE_RESERVE_LAMPORTS;
     if (available < required) {
       return yield* new InsufficientFunds({
         owner: from,

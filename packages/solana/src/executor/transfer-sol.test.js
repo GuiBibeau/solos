@@ -69,4 +69,20 @@ describe("transfer through DirectSignerExecutor against Surfnet [integration]", 
     const error = Exit.isFailure(exit) ? exit.cause : null;
     expect(JSON.stringify(error)).toContain("InsufficientFunds");
   });
+
+  test("reserves the v1 priority fee before signing", async () => {
+    const seed = randomSeed();
+    const exactSender = await seedAddress(seed);
+    const surfnet = await ensureSurfnet();
+    await surfnet.cheats.fundSol(exactSender, 1);
+    const exactLayer = Layer.merge(SolanaTestLive({ ...surfnet, seed }), EventBusInMemory);
+    const exit = await Effect.runPromiseExit(
+      sendSol({ to: RECIPIENT, amountSol: "0.9999945", skipSimulation: true }).pipe(
+        Effect.provide(exactLayer),
+      ),
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(JSON.stringify(exit)).toContain("InsufficientFunds");
+    expect(JSON.stringify(exit)).toContain("1000000500");
+  });
 });
