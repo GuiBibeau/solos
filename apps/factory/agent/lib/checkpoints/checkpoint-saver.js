@@ -27,8 +27,16 @@ export const createCheckpointSaver =
     /** @type {import("eve/tools").SessionContext} */ ctx,
   ) => {
     const input = WritableCheckpointSchema.parse(candidate);
-    const ownership = await bindings.read(ctx.session.id);
-    if (!ownership.found)
+    const ownership = await bindings.read({
+      stationRunId: ctx.session.id,
+      turnId: ctx.session.turn.id,
+    });
+    if (
+      !ownership.found ||
+      ownership.binding.rootRunId !== input.rootRunId ||
+      ownership.binding.station !== input.station ||
+      ownership.binding.workItem !== input.workItem
+    )
       return { error: "Current station task binding is unavailable.", saved: false };
     const observed = await observer.read(ctx.session.id);
     const usage = observed.found ? observed.observation?.usage : undefined;
@@ -42,4 +50,4 @@ export const createCheckpointSaver =
 
 /** @typedef {{save: (candidate: unknown) => Promise<unknown>}} CheckpointStore */
 /** @typedef {{read: (id: string) => Promise<{found: boolean; observation?: import("./runtime-observation.js").RuntimeObservation}>}} RuntimeObserver */
-/** @typedef {{read: (id: string) => Promise<{found: false} | {binding: {taskId: string}; found: true}>}} TaskBindings */
+/** @typedef {{read: (identity: {stationRunId: string; turnId: string}) => Promise<{found: false} | {binding: {rootRunId: string; station: string; taskId: string; workItem: string}; found: true}>}} TaskBindings */

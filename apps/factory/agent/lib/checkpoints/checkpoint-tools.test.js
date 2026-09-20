@@ -5,6 +5,7 @@ import { createCheckpointSaver } from "./checkpoint-saver.js";
 import { createCheckpointMemoryIo } from "./checkpoint-test-io.js";
 import { issue18Checkpoint } from "./fixtures.js";
 import { createRuntimeObserver } from "./runtime-observer.js";
+import { stationDeliveryMessage } from "./station-delivery.js";
 import { createCheckpointStore } from "./store.js";
 import { createTaskBindingStore } from "./task-binding.js";
 
@@ -66,21 +67,26 @@ const writableCheckpoint = () => {
 
 const boundRuntime = async (memory, observer) => {
   const bindings = createTaskBindingStore(memory.io);
+  const identity = {
+    rootRunId: issue18Checkpoint.rootRunId,
+    station: "implementer",
+    workItem: issue18Checkpoint.workItem,
+  };
+  const taskId = "task_336135bd2632c09d3de51f9d";
   await bindings.observe(
     /** @type {import("eve/hooks").HookEvent} */ ({
       data: {
-        callId: "runtime-call",
-        childSessionId: "runtime-session",
-        childStreamPath: "/stream/runtime-session",
-        name: "implementer",
-        sequence: 1,
-        sessionId: "parent-session",
-        toolName: "implementer",
-        turnId: "parent-turn",
-        workflowId: "workflow//eve//workflowEntry",
+        message: stationDeliveryMessage({ ...identity, taskId }, "Continue implementation."),
+        sequence: 0,
+        turnId: "runtime-turn",
       },
-      meta: { at: "2026-09-19T00:00:00Z", id: "binding-event-1" },
-      type: "subagent.called",
+      meta: { at: "2026-09-19T00:00:00Z", id: "delivery-event" },
+      type: "message.received",
+    }),
+    /** @type {import("eve/hooks").HookContext} */ ({
+      ...childContext(),
+      agent: { name: "implementer" },
+      channel: {},
     }),
   );
   return createCheckpointSaver(createCheckpointStore(memory.io), observer, bindings);
@@ -129,11 +135,7 @@ test("root aggregate usage includes child usage exactly once", async () => {
   const memory = createCheckpointMemoryIo();
   const checkpoints = createCheckpointStore(memory.io);
   const observer = createRuntimeObserver(memory.io);
-  await checkpoints.save({
-    ...issue18Checkpoint,
-    revision: 1,
-    stationRunId: "runtime-session",
-  });
+  await checkpoints.save({ ...issue18Checkpoint, revision: 1, stationRunId: "runtime-session" });
   await observer.observe(usageEvent("root-event-0001", 20), "root-session", "root_aggregate");
   await observer.observe(childUsageEvent(), "root-session", "root_aggregate");
   await observer.observe(usageEvent("station-event-0001", 5), "runtime-session");

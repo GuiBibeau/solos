@@ -98,7 +98,7 @@ export const createRuntimeEventHandler =
   (observer, bindings = taskBindingStore) =>
   /** @param {import("eve/hooks").HookEvent} event @param {import("eve/hooks").HookContext} ctx */
   async (event, ctx) => {
-    await bindings.observe(event);
+    await bindings.observe(event, ctx);
     await observer.observe(
       event,
       ctx.session.id,

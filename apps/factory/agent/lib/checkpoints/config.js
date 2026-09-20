@@ -31,8 +31,10 @@ export const observationKey = (stationRunId) => {
   return `${STATION_OBSERVATIONS_PREFIX}${repository}/${run}.json`;
 };
 
-/** @param {string} stationRunId */
-export const taskBindingKey = (stationRunId) => {
+/** @param {string} stationRunId @param {string} turnId */
+export const taskBindingKey = (stationRunId, turnId) => {
   const observation = observationKey(stationRunId);
-  return observation === null ? null : observation.replace(/\.json$/, "/task.json");
+  if (observation === null || !RUN_ID.test(turnId) || turnId.includes("..")) return null;
+  const turn = createHash("sha256").update(turnId).digest("hex").slice(0, 24);
+  return observation.replace(/\.json$/, `/turns/${turn}/task.json`);
 };
