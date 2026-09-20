@@ -91,6 +91,9 @@ describe("the assembled swap wire", () => {
       priorityFeeLamports: SWAP_MAX_PRIORITY_FEE_LAMPORTS,
     });
     expect(compiled.staticAccounts).not.toContain(COMPUTE_BUDGET_PROGRAM);
+    // Pinned to the verified literal, not just the imported constant: the assembled wire must
+    // carry the 16 MiB bound the real Metis route simulation required.
+    expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(16_777_216);
   });
 
   test("orders setup, swap, cleanup after stripping the provider price instruction", () => {

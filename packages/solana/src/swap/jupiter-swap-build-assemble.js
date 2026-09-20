@@ -21,8 +21,13 @@ import { dataBytes } from "./jupiter-swap-build-validate.js";
 
 /** Explicit local compute-unit budget: never provider-chosen; tunable after funded QA. */
 export const SWAP_COMPUTE_UNIT_LIMIT = 400_000;
-/** Explicit local bound on loaded account data bytes; under-provisioning fails at simulation. */
-export const SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 8_388_608;
+/**
+ * Explicit local bound on loaded account data bytes: never provider-chosen, tunable after
+ * funded QA. 8 MiB failed a real 0.001 SOL -> USDC Metis route simulation with
+ * MaxLoadedAccountsDataSizeExceeded; 16 MiB passed the same real simulation (simulation only,
+ * nothing was sent). Verified 2026-09-20 against the live route.
+ */
+export const SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 16_777_216;
 /** Local total priority fee in lamports: the cap, paid as-is, never provider-derived. */
 export const SWAP_MAX_PRIORITY_FEE_LAMPORTS = 100_000n;
 /** Conservative pre-sign bounds, enforced with fixed reasons before any signer is involved. */
