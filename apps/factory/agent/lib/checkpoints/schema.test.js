@@ -10,6 +10,7 @@ test("the issue #18 handoff preserves work, diagnostics, and the static-check mi
   expect(issue18Checkpoint.diagnostics).toContain("oversized validator concern");
   expect(issue18Checkpoint.nextMilestone).toContain("static-check");
   expect(issue18Checkpoint.usage?.billedCostUsd).toBeUndefined();
+  expect(issue18Checkpoint.usage?.cachedInputTokens).toBeUndefined();
 });
 
 test("billed cost is accepted only with an authoritative source", () => {
