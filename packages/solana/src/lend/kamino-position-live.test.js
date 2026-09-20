@@ -4,17 +4,21 @@ import { getBase58Decoder } from "@solana/kit";
 import { getLendPosition, listLendPositions } from "@solos/core/lend";
 import { Effect } from "effect";
 import { SolanaTestLive } from "../index.js";
-import { ensureSurfnet, randomSeed, seedAddress, USDC_MINT } from "../surfnet/index.js";
+import {
+  ensureSurfnet,
+  jsonRpc,
+  randomSeed,
+  seedAddress,
+  surfnetCheatcodes,
+  USDC_MINT,
+} from "../surfnet/index.js";
 import {
   positionMarketBytes,
   positionObligationBytes,
   positionReserveBytes,
   seedKaminoAccount,
 } from "./kamino-position-fixture.js";
-import { sdkPositionReserve } from "./kamino-position-sdk.js";
-
-/** @typedef {"duplicate" | "fail-owner" | "corrupt-reserve"} ProxyMode */
-
+/** @typedef {"duplicate" | "fail-owner" | "corrupt-reserve" | "fixed-ledger"} ProxyMode */
 /** @param {unknown} request */
 const isOwnerScan = (request) => {
   const value = /** @type {{ method?: string; params?: any[] }} */ (request);
@@ -24,15 +28,17 @@ const isOwnerScan = (request) => {
     filters.some((filter) => Number(filter.memcmp?.offset) === 64)
   );
 };
-
-/** @param {string} target @param {ProxyMode} mode */
-const startRpcProxy = (target, mode) => {
+/** @param {string} target @param {ProxyMode} mode @param {number} [fixedSlot] */
+const startRpcProxy = (target, mode, fixedSlot) => {
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
       const body = await request.text();
       const payload = JSON.parse(body);
+      if (mode === "fixed-ledger" && payload.method === "getSlot") {
+        return Response.json({ jsonrpc: "2.0", id: payload.id, result: fixedSlot });
+      }
       if (mode === "fail-owner" && isOwnerScan(payload)) {
         return Response.json({
           jsonrpc: "2.0",
@@ -67,19 +73,22 @@ const startRpcProxy = (target, mode) => {
     stop: () => server.stop(true),
   };
 };
-
 /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */ let surfnet;
 /** @type {ReturnType<typeof startRpcProxy>} */ let duplicateRpc;
 /** @type {ReturnType<typeof startRpcProxy>} */ let failingRpc;
 /** @type {ReturnType<typeof startRpcProxy>} */ let corruptRpc;
+/** @type {ReturnType<typeof startRpcProxy>} */ let referralRpc;
 /** @type {Uint8Array} */ let signerSeed;
-/** @type {{ market: string; owner: string; emptyOwner: string; reserves: string[]; secondMint: string; receipts: string[] }} */
+/** @type {{ market: string; owner: string; emptyOwner: string; reserves: string[]; secondMint: string; receipts: string[]; referral: { market: string; reserve: string; receipt: string } }} */
 let fixture;
-
 beforeAll(async () => {
   surfnet = await ensureSurfnet();
+  const initialSlot = BigInt(
+    /** @type {string | number} */ (await jsonRpc(surfnet.rpcUrl, "getSlot")),
+  );
+  const targetSlot = initialSlot + 1000n;
   signerSeed = randomSeed();
-  const addresses = await Promise.all(Array.from({ length: 9 }, () => seedAddress(randomSeed())));
+  const addresses = await Promise.all(Array.from({ length: 13 }, () => seedAddress(randomSeed())));
   const [
     market,
     firstReserve,
@@ -89,6 +98,10 @@ beforeAll(async () => {
     first,
     second,
     emptyOwner,
+    referralMarket,
+    referralReserve,
+    referralReceipt,
+    referralObligation,
   ] = addresses;
   const owner = await seedAddress(signerSeed);
   const secondMint = getBase58Decoder().decode(new Uint8Array(32).fill(91));
@@ -105,6 +118,37 @@ beforeAll(async () => {
       decimals: 6,
     }),
   );
+  await seedKaminoAccount(
+    surfnet.rpcUrl,
+    referralMarket,
+    positionMarketBytes({ referralFeeBps: 37 }),
+  );
+  await seedKaminoAccount(
+    surfnet.rpcUrl,
+    referralReserve,
+    positionReserveBytes({
+      market: referralMarket,
+      mint: USDC_MINT,
+      receiptMint: referralReceipt,
+      available: 1_000_000n,
+      borrowed: 1_000_000_000_000_000_000n,
+      collateralSupply: 1_000_000_000_000_000_000n,
+      protocolTakeRatePct: 50,
+      borrowRateBps: 100,
+      lastUpdateSlot: targetSlot - 1n,
+      decimals: 6,
+    }),
+  );
+  await seedKaminoAccount(
+    surfnet.rpcUrl,
+    referralObligation,
+    positionObligationBytes({
+      market: referralMarket,
+      owner,
+      deposits: [{ reserve: referralReserve, amount: 1_000_000_000_000_000_000n }],
+    }),
+  );
+  await surfnetCheatcodes(surfnet.rpcUrl).timeTravelToSlot(Number(targetSlot));
   await seedKaminoAccount(
     surfnet.rpcUrl,
     secondReserve,
@@ -142,6 +186,7 @@ beforeAll(async () => {
   duplicateRpc = startRpcProxy(surfnet.rpcUrl, "duplicate");
   failingRpc = startRpcProxy(surfnet.rpcUrl, "fail-owner");
   corruptRpc = startRpcProxy(surfnet.rpcUrl, "corrupt-reserve");
+  referralRpc = startRpcProxy(surfnet.rpcUrl, "fixed-ledger", Number(targetSlot));
   fixture = {
     market,
     owner,
@@ -149,47 +194,50 @@ beforeAll(async () => {
     reserves: [firstReserve, secondReserve],
     secondMint,
     receipts: [firstReceipt, secondReceipt].toSorted((a, b) => a.localeCompare(b)),
+    referral: { market: referralMarket, reserve: referralReserve, receipt: referralReceipt },
   };
 });
-
 afterAll(() => {
   duplicateRpc?.stop();
   failingRpc?.stop();
   corruptRpc?.stop();
+  referralRpc?.stop();
 });
-
 /** @param {string} rpcUrl */
-const layer = (rpcUrl) =>
+const layer = (rpcUrl, market = fixture.market) =>
   SolanaTestLive({
     rpcUrl,
     wsUrl: surfnet.wsUrl,
     seed: signerSeed,
-    kamino: { market: fixture.market },
+    kamino: { market },
   });
-
 describe("Kamino owner position reads through the live adapter [integration]", () => {
-  test("passes the market referral fee while keeping both conversion quantities", () => {
-    let receivedFee = -1;
-    const instant = { slot: 7n, blockTime: 11n };
-    const reserve = /** @type {any} */ ({
-      address: "reserve",
-      state: { collateral: { mintTotalSupply: 500n } },
-      getLiquidityMint: () => "mint",
-      getCTokenMint: () => "receipt",
-      getMintDecimals: () => 6,
-      getEstimatedTotalSupply: (receivedInstant, fee) => {
-        expect(receivedInstant).toBe(instant);
-        receivedFee = fee;
-        return 1000n;
-      },
-    });
-    expect(sdkPositionReserve(reserve, instant, 37)).toMatchObject({
-      cTokenSupply: "500",
-      totalSupply: "1000",
-    });
-    expect(receivedFee).toBe(37);
+  test("uses the decoded market referral fee through get and list position reads", async () => {
+    const live = layer(referralRpc.url, fixture.referral.market);
+    const input = { mint: USDC_MINT, owner: fixture.owner };
+    const withFee = await Effect.runPromise(getLendPosition(input).pipe(Effect.provide(live)));
+    const listed = await Effect.runPromise(
+      listLendPositions({ owner: fixture.owner }).pipe(Effect.provide(live)),
+    );
+    expect(listed.positions).toEqual([withFee]);
+    expect(listed.receiptMints).toEqual([fixture.referral.receipt]);
+    expect(withFee.amount).toBe("1000000000080274479");
+    await seedKaminoAccount(surfnet.rpcUrl, fixture.referral.market, positionMarketBytes());
+    try {
+      const withoutFee = await Effect.runPromise(
+        getLendPosition(input).pipe(
+          Effect.provide(layer(referralRpc.url, fixture.referral.market)),
+        ),
+      );
+      expect(withoutFee.amount).toBe("1000000000080274480");
+    } finally {
+      await seedKaminoAccount(
+        surfnet.rpcUrl,
+        fixture.referral.market,
+        positionMarketBytes({ referralFeeBps: 37 }),
+      );
+    }
   });
-
   test("lists multiple positions, dedupes RPC records, and matches individual mint reads", async () => {
     const live = layer(duplicateRpc.url);
     const listed = await Effect.runPromise(listLendPositions({}).pipe(Effect.provide(live)));
@@ -210,7 +258,6 @@ describe("Kamino owner position reads through the live adapter [integration]", (
     expect(listed.receiptMints).toEqual(fixture.receipts);
     expect(listed.perpAccounts).toEqual([]);
   });
-
   test("returns a complete empty enumeration for an owner with no obligations", async () => {
     await expect(
       Effect.runPromise(
@@ -220,7 +267,6 @@ describe("Kamino owner position reads through the live adapter [integration]", (
       ),
     ).resolves.toEqual({ positions: [], perpAccounts: [], receiptMints: [] });
   });
-
   test("maps an obligation-scan RPC failure without exposing provider text", async () => {
     const error = await Effect.runPromise(
       listLendPositions({ owner: fixture.owner }).pipe(
@@ -235,7 +281,6 @@ describe("Kamino owner position reads through the live adapter [integration]", (
     });
     expect(JSON.stringify(error)).not.toContain("secret provider failure");
   });
-
   test("maps a reserve decode failure to the published layout error", async () => {
     const error = await Effect.runPromise(
       listLendPositions({ owner: fixture.owner }).pipe(
