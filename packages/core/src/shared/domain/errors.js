@@ -40,3 +40,17 @@ export class TransactionFailed extends /** @type {TransactionFailedClass} */ (
 export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
   taggedError("UnsupportedAction")
 ) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
+/** @typedef {{ readonly reason: string }} BuildRejectedProps */
+/** A transaction failed local policy before it reached a signer or RPC transport. */
+export class BuildRejected extends /** @type {BuildRejectedClass} */ (
+  taggedError("BuildRejected")
+) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildUnavailable", BuildUnavailableProps>} BuildUnavailableClass */
+/** @typedef {{ readonly reason: string }} BuildUnavailableProps */
+/** A provider build could not be obtained; no transaction was signed or sent. */
+export class BuildUnavailable extends /** @type {BuildUnavailableClass} */ (
+  taggedError("BuildUnavailable")
+) {}

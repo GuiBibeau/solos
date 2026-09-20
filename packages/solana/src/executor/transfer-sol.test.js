@@ -1,13 +1,23 @@
 import { beforeAll, describe, expect, test } from "bun:test";
+import {
+  decompileTransactionMessage,
+  getBase64Encoder,
+  getCompiledTransactionMessageDecoder,
+  getTransactionDecoder,
+} from "@solana/kit";
 import { EventBus, EventBusInMemory, getBalances, sendSol, simulateSol } from "@solos/core";
 import { Effect, Exit, Fiber, Layer, Option, Stream } from "effect";
 import { SolanaTestLive } from "../index.js";
 import { KitSigner } from "../signer/kit-signer.js";
+import { jsonRpc } from "../surfnet/surfnet-cli.js";
 import { ensureSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
+import { TRANSFER_V1_CONFIG } from "./transfer-sol.js";
 
 describe("transfer through DirectSignerExecutor against Surfnet [integration]", () => {
   /** @type {Layer.Layer<any>} */
   let layer;
+  /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
+  let surfnet;
   /** @type {string} */
   let sender;
   /** Fresh per run: the Surfnet is shared by every test file in the process. */
@@ -15,7 +25,7 @@ describe("transfer through DirectSignerExecutor against Surfnet [integration]", 
   let RECIPIENT;
 
   beforeAll(async () => {
-    const surfnet = await ensureSurfnet();
+    surfnet = await ensureSurfnet();
     RECIPIENT = await seedAddress(randomSeed());
     layer = Layer.merge(SolanaTestLive({ ...surfnet, seed: randomSeed() }), EventBusInMemory);
     sender = await Effect.runPromise(
@@ -59,6 +69,18 @@ describe("transfer through DirectSignerExecutor against Surfnet [integration]", 
 
     const after = await Effect.runPromise(getBalances(RECIPIENT).pipe(Effect.provide(layer)));
     expect(after.lamports).toBe("250000000");
+
+    const confirmed = await jsonRpc(surfnet.rpcUrl, "getTransaction", [
+      receipt.signature,
+      { commitment: "confirmed", encoding: "base64", maxSupportedTransactionVersion: 1 },
+    ]);
+    const wire = getBase64Encoder().encode(confirmed.transaction[0]);
+    const transaction = getTransactionDecoder().decode(wire);
+    expect(transaction.messageBytes[0]).toBe(0x81);
+    const compiled = getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
+    expect(compiled.version).toBe(1);
+    expect("addressTableLookups" in compiled).toBe(false);
+    expect(decompileTransactionMessage(compiled).config).toEqual(TRANSFER_V1_CONFIG);
   });
 
   test("refuses to send more than the wallet holds, before any RPC send", async () => {
@@ -68,5 +90,21 @@ describe("transfer through DirectSignerExecutor against Surfnet [integration]", 
     expect(Exit.isFailure(exit)).toBe(true);
     const error = Exit.isFailure(exit) ? exit.cause : null;
     expect(JSON.stringify(error)).toContain("InsufficientFunds");
+  });
+
+  test("reserves the v1 priority fee before signing", async () => {
+    const seed = randomSeed();
+    const exactSender = await seedAddress(seed);
+    const surfnet = await ensureSurfnet();
+    await surfnet.cheats.fundSol(exactSender, 1);
+    const exactLayer = Layer.merge(SolanaTestLive({ ...surfnet, seed }), EventBusInMemory);
+    const exit = await Effect.runPromiseExit(
+      sendSol({ to: RECIPIENT, amountSol: "0.9999945", skipSimulation: true }).pipe(
+        Effect.provide(exactLayer),
+      ),
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(JSON.stringify(exit)).toContain("InsufficientFunds");
+    expect(JSON.stringify(exit)).toContain("1000000500");
   });
 });

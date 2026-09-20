@@ -4,6 +4,8 @@
 export { AddressSchema, SignatureSchema } from "./domain/address.js";
 export { base58ByteLength } from "./domain/base58.js";
 export {
+  BuildRejected,
+  BuildUnavailable,
   InternalError,
   RpcError,
   SimulationFailed,

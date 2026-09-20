@@ -6,17 +6,17 @@ import {
   address,
   appendTransactionMessageInstructions,
   assertIsFullySignedTransaction,
-  createTransactionMessage,
   getBase64EncodedWireTransaction,
   getBase64Encoder,
+  getCompiledTransactionMessageDecoder,
   getTransactionDecoder,
   lamports,
-  partiallySignTransactionMessageWithSigners,
   pipe,
-  setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
+import { beginV1Message, signV1Message } from "../executor/transaction-v1.js";
+import { TRANSFER_V1_CONFIG } from "../executor/transfer-sol.js";
 import { randomSeed } from "../surfnet/test-surfnet.js";
 import { privyApi } from "./api.js";
 import { createPrivyOAuthSigner } from "./oauth-signer.js";
@@ -59,6 +59,7 @@ const fakePrivy = async () => {
   let rpcCalls = 0;
   const signForWallet = async (body) => {
     const tx = getTransactionDecoder().decode(getBase64Encoder().encode(body.params.transaction));
+    expect(getCompiledTransactionMessageDecoder().decode(tx.messageBytes).version).toBe(1);
     const [signatures] = await wallet.signTransactions([tx]);
     const signed = { ...tx, signatures: { ...tx.signatures, ...signatures } };
     return Response.json({
@@ -96,7 +97,7 @@ const fakePrivy = async () => {
   return { wallet, fetchImpl, calls };
 };
 
-describe("privy OAuth signer", () => {
+describe("privy OAuth signer [integration]", () => {
   test("signs through the RPC, recovers from a 401 by refreshing, and persists the new session", async () => {
     const { wallet, fetchImpl, calls } = await fakePrivy();
     const api = privyApi(
@@ -117,10 +118,8 @@ describe("privy OAuth signer", () => {
         authorizationKeyExpiresAt: Date.now() + 10 * 60_000,
       },
     });
-
     const message = pipe(
-      createTransactionMessage({ version: 0 }),
-      (m) => setTransactionMessageFeePayerSigner(signer, m),
+      beginV1Message({ feePayerSigner: signer, config: TRANSFER_V1_CONFIG }),
       (m) =>
         setTransactionMessageLifetimeUsingBlockhash(
           { blockhash: address("11111111111111111111111111111111"), lastValidBlockHeight: 1n },
@@ -138,10 +137,10 @@ describe("privy OAuth signer", () => {
           m,
         ),
     );
-    const signed = await partiallySignTransactionMessageWithSigners(message);
+    const signed = await signV1Message(message);
     assertIsFullySignedTransaction(signed);
-
     expect(Object.keys(signed.signatures)).toEqual([wallet.address]);
+    expect(getCompiledTransactionMessageDecoder().decode(signed.messageBytes).version).toBe(1);
     expect(persisted).toHaveLength(1);
     expect(persisted[0].refreshToken).toMatch(/^rt-/);
     expect(calls.filter((u) => u.endsWith("/rpc"))).toHaveLength(2);
