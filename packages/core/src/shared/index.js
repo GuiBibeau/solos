@@ -2,6 +2,7 @@
 /** @typedef {import("./ports/action-executor.js").ActionExecutorShape} ActionExecutorShape */
 /** @typedef {import("./ports/action-executor.js").ExecutorError} ExecutorError */
 export { AddressSchema, SignatureSchema } from "./domain/address.js";
+export { base58ByteLength } from "./domain/base58.js";
 export {
   InternalError,
   RpcError,

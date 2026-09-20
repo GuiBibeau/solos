@@ -12,6 +12,8 @@ import {
 } from "./env.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
 import { LaunchVenueLive } from "./launch/launch-venue-live.js";
+import { KAMINO_MAIN_MARKET } from "./lend/kamino-addresses.js";
+import { KaminoVenueLive } from "./lend/kamino-venue-live.js";
 import { LiquidityVenueLive } from "./liquidity/liquidity-venue-live.js";
 import { JupiterPriceLive } from "./market/jupiter-price-live.js";
 import { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
@@ -35,9 +37,11 @@ export {
   loadSolanaEnv,
   phoenixBaseUrl,
 } from "./env.js";
+export { KAMINO_MAIN_MARKET, KLEND_PROGRAM_ID } from "./lend/kamino-addresses.js";
 export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { LaunchVenueLive } from "./launch/launch-venue-live.js";
+export { KaminoVenueLive } from "./lend/kamino-venue-live.js";
 export { LiquidityVenueLive } from "./liquidity/liquidity-venue-live.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
@@ -58,6 +62,7 @@ const adapters = Layer.mergeAll(
   BalanceReaderLive,
   TokenRegistryLive(),
   LaunchVenueLive(),
+  KaminoVenueLive(),
   LiquidityVenueLive,
   DirectSignerExecutor,
 );
@@ -91,12 +96,20 @@ const quotes = (jupiter) => JupiterSwapLive(jupiter ?? { baseUrl: DEFAULT_JUPITE
 const perp = (phoenix) => PerpVenueLive(phoenix ?? { baseUrl: DEFAULT_PHOENIX_BASE_URL });
 
 /**
+ * Kamino lend reads need no credential either: the tool stays advertised and the one
+ * configured market is the default Main Market unless `KAMINO_LENDING_MARKET` selects another.
+ * @param {SolanaEnv["kamino"] | undefined} kamino
+ */
+const lending = (kamino) => KaminoVenueLive(kamino ?? { market: KAMINO_MAIN_MARKET });
+
+/**
  * Production wiring from validated env: RPC + keychain signer + all adapters.
  * `provideMerge` keeps the internal tags visible for the CLI and tests.
  * @param {SolanaEnv} env
  */
 export const SolanaLive = (env) =>
   adapters.pipe(
+    Layer.merge(lending(env.kamino)),
     Layer.provideMerge(KitSignerLive(env.signer)),
     Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
     Layer.merge(intelligence(env.elfa)),
@@ -116,10 +129,12 @@ export const SolanaLive = (env) =>
  *   elfa?: SolanaEnv["elfa"];
  *   jupiter?: SolanaEnv["jupiter"];
  *   phoenix?: SolanaEnv["phoenix"];
+ *   kamino?: SolanaEnv["kamino"];
  * }} options
  */
-export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix }) =>
+export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, kamino }) =>
   adapters.pipe(
+    Layer.merge(lending(kamino)),
     Layer.provideMerge(KitSignerFromBytes(seed)),
     Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
     Layer.merge(intelligence(elfa)),
