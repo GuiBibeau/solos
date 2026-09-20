@@ -30,6 +30,33 @@ const kaminoSdk = () => {
 /** @typedef {{ readonly slot: bigint; readonly blockTime: bigint }} LedgerInstant */
 /** The exact base-unit availability, BN in the SDK's state, mapped by `toString` only. */
 /** @typedef {{ readonly toString: () => string }} ExactAmount */
+const KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
+
+/** Internal sentinels let the adapter classify account failures without parsing SDK text. */
+export class KaminoMarketOwnerError extends Error {}
+export class KaminoAccountLayoutError extends Error {}
+
+/**
+ * Fetch and decode the configured market explicitly before the SDK loads its reserves. The
+ * SDK's reserve query filters by exact size and discriminator, so malformed reserve layouts
+ * are excluded server-side; this check covers the unfiltered market account.
+ * @param {import("@solana/kit").Rpc<import("@solana/kit").SolanaRpcApi>} rpc
+ * @param {string} marketAddress
+ * @param {typeof import("@kamino-finance/klend-sdk")} sdk
+ */
+const validateMarketAccount = async (rpc, marketAddress, sdk) => {
+  const response = await rpc
+    .getAccountInfo(/** @type {any} */ (marketAddress), { encoding: "base64" })
+    .send();
+  if (response.value === null) return false;
+  if (response.value.owner !== KLEND_PROGRAM) throw new KaminoMarketOwnerError();
+  try {
+    sdk.LendingMarket.decode(Buffer.from(response.value.data[0], "base64"));
+  } catch {
+    throw new KaminoAccountLayoutError();
+  }
+  return true;
+};
 
 /**
  * Pass this package's kit-8 RPC to klend-sdk code typed against its own kit major, and load
@@ -39,12 +66,14 @@ const kaminoSdk = () => {
  * @returns {Promise<KaminoMarketInstance | null>} null when the market account is missing
  */
 export const sdkLoadMarket = async (rpc, marketAddress) => {
-  const { DEFAULT_RECENT_SLOT_DURATION_MS, KaminoMarket } = await kaminoSdk();
+  const sdk = await kaminoSdk();
+  if (!(await validateMarketAccount(rpc, marketAddress, sdk))) return null;
+  const { DEFAULT_RECENT_SLOT_DURATION_MS, KaminoMarket } = sdk;
   return KaminoMarket.load(
     /** @type {any} */ (rpc),
     /** @type {any} */ (marketAddress),
     DEFAULT_RECENT_SLOT_DURATION_MS,
-    /** @type {any} */ ("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"),
+    /** @type {any} */ (KLEND_PROGRAM),
   );
 };
 

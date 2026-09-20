@@ -1,16 +1,24 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
-import { ensureSurfnet, randomSeed, seedAddress, USDC_MINT } from "@solos/solana/surfnet";
+import { KLEND_PROGRAM_ID } from "@solos/solana";
+import { ensureSurfnet, jsonRpc, randomSeed, seedAddress, USDC_MINT } from "@solos/solana/surfnet";
 import { runSolos, solanaEnv, stderrJson } from "./cli-fixture.js";
 
 /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
 let surfnet;
 /** @type {string} */
 let absentMarket;
+/** @type {string} */
+let malformedMarket;
 
 beforeAll(async () => {
   surfnet = await ensureSurfnet();
   absentMarket = await seedAddress(randomSeed());
+  malformedMarket = await seedAddress(randomSeed());
+  await jsonRpc(surfnet.rpcUrl, "surfnet_setAccount", [
+    malformedMarket,
+    { lamports: 1_000_000, data: "00", owner: KLEND_PROGRAM_ID, executable: false },
+  ]);
 });
 
 describe("`solos lend reserve` and MCP configuration [integration]", () => {
@@ -35,6 +43,18 @@ describe("`solos lend reserve` and MCP configuration [integration]", () => {
     expect(stderrJson(result.stderr)?.error).toMatchObject({
       code: "LendingMarketUnavailable",
       market: absentMarket,
+    });
+  });
+
+  test("CLI classifies malformed market bytes as an unsupported layout", async () => {
+    const result = await runSolos(["lend", "reserve", "--mint", USDC_MINT], {
+      ...(await solanaEnv(surfnet)),
+      KAMINO_LENDING_MARKET: malformedMarket,
+    });
+    expect(result.code).not.toBe(0);
+    expect(stderrJson(result.stderr)?.error).toMatchObject({
+      code: "LendingLayoutUnsupported",
+      reserve: malformedMarket,
     });
   });
 

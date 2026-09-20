@@ -12,6 +12,8 @@ import {
 import { RpcError } from "@solos/core/shared";
 import { Effect } from "effect";
 import {
+  KaminoAccountLayoutError,
+  KaminoMarketOwnerError,
   sdkLedgerInstant,
   sdkLoadMarket,
   sdkReserveForMint,
@@ -34,14 +36,13 @@ export const loadKaminoMarket = (rpc, marketAddress, origin) =>
   Effect.tryPromise({
     try: () => sdkLoadMarket(rpc, marketAddress),
     catch: (error) => {
-      const message = error instanceof Error ? error.message : "";
-      if (/belongs to wrong program/.test(message)) {
+      if (error instanceof KaminoMarketOwnerError) {
         return new LendingMarketUnavailable({
           market: marketAddress,
           reason: "the configured market account is not owned by the pinned lending program",
         });
       }
-      if (/discriminator|could not (parse|decode)|decoding|out of range/i.test(message)) {
+      if (error instanceof KaminoAccountLayoutError) {
         return new LendingLayoutUnsupported({
           reserve: marketAddress,
           reason: "the configured market account could not be decoded under the pinned program",
