@@ -18,6 +18,7 @@ import {
   sdkLoadMarket,
   sdkReserveForMint,
   sdkReserveRates,
+  sdkValidateReserveCandidates,
 } from "./kamino-rpc-seam.js";
 
 const TRANSPORT_REASON = "the configured RPC endpoint failed the request";
@@ -73,6 +74,30 @@ export const floatRateReserve = (market, marketAddress, mint) =>
       );
     }
     return Effect.succeed(reserve);
+  });
+
+/**
+ * Inspect reserve candidates before the SDK's filtered lookup can turn an incompatible
+ * layout into an apparent absence.
+ * @param {SolanaKitRpc} rpc
+ * @param {{ readonly market: string; readonly mint: string; readonly origin: string }} target
+ */
+export const validateReserveLayout = (rpc, target) =>
+  Effect.tryPromise({
+    try: () => sdkValidateReserveCandidates(rpc, target.market, target.mint),
+    catch: (error) => {
+      if (error instanceof KaminoAccountLayoutError) {
+        return new LendingLayoutUnsupported({
+          reserve: error.account,
+          reason: "a matching reserve account could not be decoded under the pinned program",
+        });
+      }
+      return new RpcError({
+        method: "getProgramAccounts",
+        url: target.origin,
+        reason: TRANSPORT_REASON,
+      });
+    },
   });
 
 /**

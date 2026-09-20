@@ -11,6 +11,7 @@ import {
   ledgerInstant,
   loadKaminoMarket,
   reserveRates,
+  validateReserveLayout,
 } from "./kamino-market-reader.js";
 import { reserveSnapshot } from "./kamino-reserve-snapshot.js";
 import { sdkReserveParts } from "./kamino-rpc-seam.js";
@@ -46,6 +47,11 @@ const readReserve = (deps, mint) =>
         reason: "the configured lending market account is missing on the configured RPC",
       });
     }
+    yield* validateReserveLayout(deps.rpc, {
+      market: deps.market,
+      mint,
+      origin: deps.origin,
+    });
     const reserve = yield* floatRateReserve(market, deps.market, mint);
     const instant = yield* ledgerInstant(deps.rpc, deps.origin);
     const rates = yield* reserveRates(reserve, instant);

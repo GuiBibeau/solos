@@ -31,32 +31,11 @@ const kaminoSdk = () => {
 /** The exact base-unit availability, BN in the SDK's state, mapped by `toString` only. */
 /** @typedef {{ readonly toString: () => string }} ExactAmount */
 const KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
-
-/** Internal sentinels let the adapter classify account failures without parsing SDK text. */
-export class KaminoMarketOwnerError extends Error {}
-export class KaminoAccountLayoutError extends Error {}
-
-/**
- * Fetch and decode the configured market explicitly before the SDK loads its reserves. The
- * SDK's reserve query filters by exact size and discriminator, so malformed reserve layouts
- * are excluded server-side; this check covers the unfiltered market account.
- * @param {import("@solana/kit").Rpc<import("@solana/kit").SolanaRpcApi>} rpc
- * @param {string} marketAddress
- * @param {typeof import("@kamino-finance/klend-sdk")} sdk
- */
-const validateMarketAccount = async (rpc, marketAddress, sdk) => {
-  const response = await rpc
-    .getAccountInfo(/** @type {any} */ (marketAddress), { encoding: "base64" })
-    .send();
-  if (response.value === null) return false;
-  if (response.value.owner !== KLEND_PROGRAM) throw new KaminoMarketOwnerError();
-  try {
-    sdk.LendingMarket.decode(Buffer.from(response.value.data[0], "base64"));
-  } catch {
-    throw new KaminoAccountLayoutError();
-  }
-  return true;
-};
+import { validateMarketAccount, validateReserveCandidates } from "./kamino-account-validation.js";
+export {
+  KaminoAccountLayoutError,
+  KaminoMarketOwnerError,
+} from "./kamino-account-validation.js";
 
 /**
  * Pass this package's kit-8 RPC to klend-sdk code typed against its own kit major, and load
@@ -75,6 +54,17 @@ export const sdkLoadMarket = async (rpc, marketAddress) => {
     DEFAULT_RECENT_SLOT_DURATION_MS,
     /** @type {any} */ (KLEND_PROGRAM),
   );
+};
+
+/**
+ * Inspect candidate reserve bytes without the SDK's size and discriminator filters.
+ * @param {import("@solana/kit").Rpc<import("@solana/kit").SolanaRpcApi>} rpc
+ * @param {string} market
+ * @param {string} mint
+ */
+export const sdkValidateReserveCandidates = async (rpc, market, mint) => {
+  const sdk = await kaminoSdk();
+  await validateReserveCandidates(rpc, { market, mint }, sdk);
 };
 
 /**
