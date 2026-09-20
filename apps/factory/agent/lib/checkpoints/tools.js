@@ -73,7 +73,8 @@ export const readCheckpointTool = () =>
   defineTool({
     description:
       "Read a station checkpoint joined with runtime-owned activity for its stored station run id. " +
-      "A missing observation returns unknown and never authorizes redispatch.",
+      "A missing observation returns unknown and never authorizes redispatch. Token usage is a " +
+      "guardrail counter, not an invoice; billed cost appears only from the runtime provider.",
     execute: readCheckpoint,
     inputSchema: ReadInput,
     outputSchema: ReadOutput,
