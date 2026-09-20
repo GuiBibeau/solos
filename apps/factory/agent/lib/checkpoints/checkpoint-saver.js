@@ -18,7 +18,13 @@ const WritableCheckpointSchema = StationCheckpointSchema.omit({
   taskId: true,
   updatedAt: true,
   usage: true,
-}).extend({ blocked: z.boolean().default(false), blocker: WritableBlockerSchema.optional() });
+}).extend({
+  blocked: z
+    .boolean()
+    .default(false)
+    .describe("True only when the recorded blocker currently prevents the next milestone"),
+  blocker: WritableBlockerSchema.optional(),
+});
 
 /** @param {import("./schema.js").StationCheckpoint | undefined} checkpoint @param {string} taskId */
 const supersededOwners = (checkpoint, taskId) => {
