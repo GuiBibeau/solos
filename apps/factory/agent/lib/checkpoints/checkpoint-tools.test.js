@@ -60,6 +60,7 @@ const childContext = () =>
 const writableCheckpoint = () => {
   const candidate = { ...issue18Checkpoint };
   Reflect.deleteProperty(candidate, "stationRunId");
+  Reflect.deleteProperty(candidate, "supersededTaskIds");
   Reflect.deleteProperty(candidate, "taskId");
   Reflect.deleteProperty(candidate, "usage");
   return candidate;

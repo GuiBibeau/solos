@@ -62,6 +62,7 @@ test("real dispatch tools transfer reused-session checkpoint ownership", async (
   const secondTaskId = "task_222222222222222222222222";
   const first = { ...issue18Checkpoint, revision: 1 };
   Reflect.deleteProperty(first, "stationRunId");
+  Reflect.deleteProperty(first, "supersededTaskIds");
   Reflect.deleteProperty(first, "taskId");
   Reflect.deleteProperty(first, "usage");
 
@@ -126,17 +127,18 @@ test("real dispatch tools transfer reused-session checkpoint ownership", async (
     },
   );
   const replacement = { ...first, revision: 2 };
-  expect(await tool.execute(replacement, stationContext("station-turn-2"))).toMatchObject({
-    saved: false,
-  });
   expect(
     await tool.execute(
-      { ...replacement, supersededTaskIds: [firstTaskId] },
+      { ...replacement, supersededTaskIds: ["task_aaaaaaaaaaaaaaaaaaaaaaaa"] },
       stationContext("station-turn-2"),
     ),
   ).toMatchObject({ saved: true });
   expect(await checkpoints.read(first)).toMatchObject({
-    checkpoint: { stationRunId: "reused-station-session", taskId: secondTaskId },
+    checkpoint: {
+      stationRunId: "reused-station-session",
+      supersededTaskIds: [firstTaskId],
+      taskId: secondTaskId,
+    },
     found: true,
   });
 });
