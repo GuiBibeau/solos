@@ -83,11 +83,10 @@ export const SURFPOOL_BIN = "/workspace/.local/bin";
 
 /**
  * Session-scoped setup: fix git's ownership check (the template snapshot is owned by the builder
- * uid), write the commit identity where the session user reads it, move the checkout to the
- * repository's current default branch (read from `origin/HEAD` rather than assumed), and
- * reinstall from that revision's lockfile so a dependency change merged after the template build
- * never leaves a station verifying against stale packages. Bun's cache makes this a no-op when
- * nothing changed.
+ * uid), write the commit identity where the session user reads it, and safely refresh only a clean
+ * default branch. Feature branches, dirt and diverged local commits are retained for amendment.
+ * Clean checkouts reinstall from their own frozen lockfile; dirty work defers that install to the
+ * readiness gate, which reports the preservation blocker without rewriting files.
  * @param {SandboxSessionContext} input
  */
 export const factoryOnSession = async ({ use }) => {

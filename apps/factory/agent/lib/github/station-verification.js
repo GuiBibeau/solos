@@ -12,6 +12,31 @@ import { evaluateReadiness } from "./station-readiness.js";
 /** @typedef {"check" | "unit" | "full"} Scope */
 /** @typedef {{branch?: string, expectedHead?: string, scope: Scope}} VerificationInput */
 
+const STEPS = {
+  check: ["line-limit", "format", "lint", "depcruise", "typecheck"],
+  full: ["line-limit", "format", "lint", "depcruise", "typecheck", "test:unit", "test:integration"],
+  unit: ["line-limit", "format", "lint", "depcruise", "typecheck", "test:unit"],
+};
+
+const EvidenceShape = z.object({
+  dirty: z.boolean(),
+  durationMs: z.number().int().nonnegative(),
+  ok: z.boolean(),
+  scope: z.enum(["check", "unit", "full"]),
+  sha: z.string().regex(/^[0-9a-f]{40}$/u),
+  startedAt: z.iso.datetime(),
+  steps: z.array(
+    z.object({
+      command: z.string().min(1),
+      ms: z.number().int().nonnegative(),
+      name: z.string().min(1),
+      ok: z.literal(true),
+      summary: z.string(),
+    }),
+  ),
+  versions: z.object({ bun: z.string().min(1), surfpool: z.string().nullable() }),
+});
+
 /** @param {ToolContext} ctx @param {string | undefined} branch */
 const remoteHead = async (ctx, branch) => {
   if (!branch) return null;
@@ -27,12 +52,15 @@ const remoteHead = async (ctx, branch) => {
 /** @param {string} raw @param {{actualHead: string}} facts @param {Scope} scope */
 const validEvidence = (raw, facts, scope) => {
   try {
-    const evidence = JSON.parse(raw);
+    const parsed = EvidenceShape.safeParse(JSON.parse(raw));
+    if (!parsed.success) return false;
+    const evidence = parsed.data;
     return (
       evidence.sha === facts.actualHead &&
       evidence.scope === scope &&
       evidence.dirty === false &&
-      evidence.ok === true
+      evidence.ok === true &&
+      evidence.steps.map((step) => step.name).join(",") === STEPS[scope].join(",")
     );
   } catch {
     return false;
