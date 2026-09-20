@@ -126,25 +126,25 @@ describe("recipient and market-account rejection before signing", () => {
     );
   });
 
-  test("cleanup with an attacker authority is rejected", async () => {
-    const [closed, , rent] = envelope.cleanupInstruction.accounts;
-    const cleanup = {
-      ...envelope.cleanupInstruction,
-      accounts: [closed, { ...closed, pubkey: POOL_AUTHORITY }, rent],
-    };
-    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
-      "authority was not the taker",
-    );
-  });
-
   test("cleanup with an attacker rent destination is rejected", async () => {
-    const [closed, authority] = envelope.cleanupInstruction.accounts;
+    const [closed, destination, authority] = envelope.cleanupInstruction.accounts;
     const cleanup = {
       ...envelope.cleanupInstruction,
-      accounts: [closed, authority, { ...authority, pubkey: POOL_AUTHORITY }],
+      accounts: [closed, { ...destination, pubkey: POOL_AUTHORITY }, authority],
     };
     expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
       "rent destination was not the taker",
+    );
+  });
+
+  test("cleanup with an attacker authority is refused by the signer allowlist", async () => {
+    const accounts = envelope.cleanupInstruction.accounts;
+    const cleanup = {
+      ...envelope.cleanupInstruction,
+      accounts: [accounts[0], accounts[1], { ...accounts[2], pubkey: POOL_AUTHORITY }],
+    };
+    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
+      "an account outside the configured signer was required to sign",
     );
   });
 });
