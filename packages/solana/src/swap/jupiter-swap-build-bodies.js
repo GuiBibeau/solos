@@ -95,6 +95,14 @@ export const wsolFundingInstruction = (taker, sourceAta) => ({
   data: toBase64(Uint8Array.of(2, ...getU64Codec().encode(BigInt(AMOUNT)))),
 });
 
+/** The wrap's second half: SyncNative turns the transferred lamports into spendable wSOL. */
+/** @param {string} sourceAta */
+export const syncNativeInstruction = (sourceAta) => ({
+  programId: TOKEN_PROGRAM,
+  accounts: [meta(sourceAta, true, false)],
+  data: toBase64(Uint8Array.of(17)),
+});
+
 /** Jupiter v6 `route` over the taker's derived ATAs; pool accounts ride the lookup table. */
 /** @param {string} taker @param {string} sourceAta @param {string} destinationAta */
 export const swapInstruction = (taker, sourceAta, destinationAta) => ({

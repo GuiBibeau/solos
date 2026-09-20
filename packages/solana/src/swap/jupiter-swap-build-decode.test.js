@@ -95,9 +95,15 @@ describe("the assembled swap wire", () => {
     expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(16_777_216);
   });
 
-  test("orders setup, swap, cleanup after stripping the provider price instruction", () => {
+  test("orders the wrap pair, swap, cleanup after stripping the provider price instruction", () => {
     const programs = decompiled.instructions.map((ix) => ix.programAddress);
-    expect(programs).toEqual([ATA_PROGRAM, SYSTEM_PROGRAM, JUP6_PROGRAM, TOKEN_PROGRAM]);
+    expect(programs).toEqual([
+      ATA_PROGRAM,
+      SYSTEM_PROGRAM,
+      TOKEN_PROGRAM,
+      JUP6_PROGRAM,
+      TOKEN_PROGRAM,
+    ]);
   });
 
   test("signs once, for the taker alone, as fee payer", () => {
@@ -108,8 +114,11 @@ describe("the assembled swap wire", () => {
 
   test("carries the intended accounts, amounts, and minimum output inline", () => {
     const transfer = decompiled.instructions[1];
-    const route = decompiled.instructions[2];
-    expect(getU64Codec().decode(transfer.data, 1)).toBe(BigInt(AMOUNT));
+    const sync = decompiled.instructions[2];
+    const route = decompiled.instructions[3];
+    expect(sync.programAddress).toBe(TOKEN_PROGRAM);
+    expect(sync.data).toHaveLength(1);
+    expect(getU64Codec().decode(transfer.data, 4)).toBe(BigInt(AMOUNT));
     expect(getU64Codec().decode(route.data, 12)).toBe(BigInt(AMOUNT));
     expect(getU64Codec().decode(route.data, 20)).toBe(BigInt(OUT_AMOUNT));
     expect(route.accounts.map((a) => a.address)).toContain(atas.destinationAta);

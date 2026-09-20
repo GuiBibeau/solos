@@ -113,13 +113,42 @@ describe("setup and cleanup ownership bindings before signing", () => {
   });
 
   test("a SyncNative on a foreign account is rejected", async () => {
-    const sync = {
-      programId: TOKEN_PROGRAM,
-      accounts: [meta(atas.destinationAta, true, false)],
-      data: b64(17),
-    };
+    const setup = envelope.setupInstructions.map((ix) =>
+      ix.accounts.length === 1 ? { ...ix, accounts: [meta(atas.destinationAta, true, false)] } : ix,
+    );
+    expect(await rejectionFor({ setupInstructions: setup })).toContain("temporary wSOL account");
+  });
+
+  test("a wSOL funding transfer with no SyncNative behind it is rejected", async () => {
+    const setup = envelope.setupInstructions.filter((ix) => ix.accounts.length !== 1);
+    expect(await rejectionFor({ setupInstructions: setup })).toContain("no SyncNative behind it");
+  });
+
+  test("a duplicate wSOL funding transfer is rejected", async () => {
+    const [create, transfer, sync] = envelope.setupInstructions;
+    expect(await rejectionFor({ setupInstructions: [create, transfer, transfer, sync] })).toContain(
+      "more than one wSOL funding transfer",
+    );
+  });
+
+  test("a duplicate SyncNative is rejected", async () => {
+    const [create, transfer, sync] = envelope.setupInstructions;
+    expect(await rejectionFor({ setupInstructions: [create, transfer, sync, sync] })).toContain(
+      "more than one SyncNative",
+    );
+  });
+
+  test("a SyncNative preceding its funding transfer is rejected", async () => {
+    const [create, transfer, sync] = envelope.setupInstructions;
+    expect(await rejectionFor({ setupInstructions: [create, sync, transfer] })).toContain(
+      "did not follow the wSOL funding transfer",
+    );
+  });
+
+  test("wrap instructions for a non-wSOL input are rejected", async () => {
+    const inverted = { inputMint: OUTPUT_MINT, outputMint: INPUT_MINT };
     expect(
-      await rejectionFor({ setupInstructions: [...envelope.setupInstructions, sync] }),
-    ).toContain("temporary wSOL account");
+      await buildRejection({ ...envelope, ...inverted }, { ...action, ...inverted }, taker),
+    ).toContain("moved native SOL without a wSOL input");
   });
 });
