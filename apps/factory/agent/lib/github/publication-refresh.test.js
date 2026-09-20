@@ -3,7 +3,8 @@ import { describe, expect, test } from "bun:test";
 import { evidenceRaw } from "./publication-evidence.js";
 import { fullEvidence, publicationFixture, TARGET_SHA } from "./publication-fixture.js";
 import { publishRevisionEvidence, reconcileEvidencePublication } from "./publication-operation.js";
-import { publicationRefreshAt } from "./publication-refresh.js";
+import { parsePublicationComment } from "./publication-record.js";
+import { hasPublicationRefresh } from "./publication-refresh.js";
 
 const OPERATION_ID = `evidence:37:${TARGET_SHA}`;
 const staleCheck = {
@@ -36,8 +37,10 @@ describe("Evidence refresh marker", () => {
     expect(refreshing).toMatchObject({ status: "active", repairAllowed: false });
     expect(fixture.state.body).not.toBe(body);
     expect(evidenceRaw(fixture.state.body)).toBe(evidence);
-    expect(publicationRefreshAt(fixture.state.body, OPERATION_ID)).toBe(fixture.state.now);
+    expect(hasPublicationRefresh(fixture.state.body, OPERATION_ID)).toBe(true);
     expect(fixture.state.bodyWrites).toBe(1);
+    const record = parsePublicationComment(String(fixture.state.comments[0]?.body));
+    expect(record?.mutationAt).toBe(fixture.state.updatedAt);
     await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
     expect(fixture.state.bodyWrites).toBe(1);
   });
@@ -64,9 +67,12 @@ describe("Evidence refresh marker", () => {
       ),
     ).rejects.toThrow("crash before refresh record save");
     expect(fixture.state.bodyWrites).toBe(1);
-    expect(publicationRefreshAt(fixture.state.body, OPERATION_ID)).toBe(fixture.state.now);
+    expect(hasPublicationRefresh(fixture.state.body, OPERATION_ID)).toBe(true);
     const recovered = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
     expect(recovered).toMatchObject({ status: "active", repairAllowed: false });
     expect(fixture.state.bodyWrites).toBe(1);
+    const record = parsePublicationComment(String(fixture.state.comments[0]?.body));
+    expect(record?.stage).toBe("refresh-requested");
+    expect(record?.mutationAt).toBe(fixture.state.updatedAt);
   });
 });

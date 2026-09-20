@@ -30,7 +30,12 @@ export const PUBLICATION_WINDOW_MS = 10 * 60 * 1000;
 /** @param {PublicationRecord} value */
 export const publicationComment = (value) =>
   `${OPEN}${Buffer.from(JSON.stringify(value)).toString("base64")}${CLOSE}\n` +
-  `Evidence publication \`${value.operationId}\`: **${value.outcome}** for \`${value.targetSha.slice(0, 12)}\`. Deadline: ${value.deadlineAt}.`;
+  `Evidence publication \`${value.operationId}\`: **${value.outcome}** for \`${value.targetSha.slice(0, 12)}\`. Deadline: ${value.deadlineAt}.` +
+  visibleFailure(value);
+
+/** @param {PublicationRecord} value */
+const visibleFailure = (value) =>
+  value.outcome === "failed" && value.detail ? `\n\nAction required: ${value.detail}` : "";
 
 /** @param {string} body @returns {PublicationRecord | null} */
 export const parsePublicationComment = (body) => {

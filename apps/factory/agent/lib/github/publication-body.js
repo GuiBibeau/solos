@@ -1,10 +1,7 @@
 // @ts-check
+import { readEvidenceCheck } from "./publication-check.js";
 import { hasValidTargetEvidence, publicationHash, withEvidence } from "./publication-evidence.js";
-import {
-  readEvidenceCheck,
-  readPublicationPull,
-  writePublicationBody,
-} from "./publication-github.js";
+import { readPublicationPull } from "./publication-github.js";
 import {
   failPublication,
   publicationResult,
@@ -12,7 +9,8 @@ import {
   stalePublication,
 } from "./publication-outcome.js";
 import { updatePublicationRecord } from "./publication-record.js";
-import { publicationRefreshAt, withPublicationRefresh } from "./publication-refresh.js";
+import { hasPublicationRefresh, withPublicationRefresh } from "./publication-refresh.js";
+import { writePublicationMutation } from "./publication-write.js";
 
 /** @typedef {import("./publication-outcome.js").PublicationState} PublicationState */
 /** @typedef {import("./publication-outcome.js").PublicationResult} PublicationResult */
@@ -24,33 +22,32 @@ export const publishEvidenceBody = async (state) => {
   if (pull.head !== state.record.targetSha) return stalePublication(state, pull.head);
   if (hasValidTargetEvidence(pull.body, state.record.targetSha))
     return confirmEvidenceCheck(state, {
-      body: pull.body,
+      pull,
       check: await readEvidenceCheck(state.context.api, state.record.targetSha),
     });
-  let body = withEvidence(pull.body, state.record.evidence);
-  let record = updatePublicationRecord(state.record, {
+  const body = withEvidence(pull.body, state.record.evidence);
+  const record = updatePublicationRecord(state.record, {
     stage: "write-planned",
     plannedBodyHash: publicationHash(body),
   });
   await savePublication(state, record);
   pull = await readPublicationPull(state.context.api, state.record.pullNumber);
-  if (pull.head !== state.record.targetSha)
-    return stalePublication({ ...state, record }, pull.head);
-  body = withEvidence(pull.body, state.record.evidence);
-  if (publicationHash(body) !== record.plannedBodyHash) {
-    record = updatePublicationRecord(record, { plannedBodyHash: publicationHash(body) });
-    await savePublication(state, record);
-  }
-  await writePublicationBody(state.context.api, state.record.pullNumber, body);
-  const written = await readPublicationPull(state.context.api, state.record.pullNumber);
-  if (written.head !== state.record.targetSha)
-    return stalePublication({ ...state, record }, written.head);
-  if (!hasValidTargetEvidence(written.body, state.record.targetSha))
-    return failPublication(
-      { ...state, record },
-      "GitHub did not retain the exact Evidence body write.",
-    );
-  const active = updatePublicationRecord(record, { stage: "body-written", mutationAt: state.now });
+  const written = await writePublicationMutation({
+    api: state.context.api,
+    pullNumber: state.record.pullNumber,
+    targetSha: state.record.targetSha,
+    initial: pull,
+    mutate: (latest) => withEvidence(latest, state.record.evidence),
+    accepts: (latest) => hasValidTargetEvidence(latest, state.record.targetSha),
+  });
+  if (written.status === "stale") return stalePublication({ ...state, record }, written.pull.head);
+  if (written.status !== "written")
+    return failPublication({ ...state, record }, "Evidence body changed repeatedly during write.");
+  const active = updatePublicationRecord(record, {
+    stage: "body-written",
+    mutationAt: written.mutationAt,
+    plannedBodyHash: publicationHash(written.pull.body),
+  });
   await savePublication(state, active);
   return publicationResult(active, {
     reason: "Exact-head Evidence was published; check confirmation is pending.",
@@ -58,11 +55,12 @@ export const publishEvidenceBody = async (state) => {
   });
 };
 
-/** @param {PublicationState} state @param {{body: string, check: EvidenceCheck}} input
+/** @param {PublicationState} state
+ * @param {{pull: Awaited<ReturnType<typeof readPublicationPull>>, check: EvidenceCheck}} input
  * @returns {Promise<PublicationResult>}
  */
 export const confirmEvidenceCheck = async (state, input) => {
-  const active = await recoverRefreshMarker(state, input.body);
+  const active = await recoverBodyMutation(state, input.pull);
   const checkState = evidenceCheckState(active, input.check);
   if (checkState === "failed")
     return failPublication(active, "The refreshed current-head Evidence check genuinely failed.");
@@ -76,15 +74,20 @@ export const confirmEvidenceCheck = async (state, input) => {
       reason: "The relevant Evidence refresh is pending.",
       repairAllowed: false,
     });
-  const body = withPublicationRefresh(input.body, active.record.operationId, active.now);
-  await writePublicationBody(active.context.api, active.record.pullNumber, body);
-  const written = await readPublicationPull(active.context.api, active.record.pullNumber);
-  if (written.head !== active.record.targetSha) return stalePublication(active, written.head);
-  if (publicationRefreshAt(written.body, active.record.operationId) !== active.now)
-    return failPublication(active, "GitHub did not retain the Evidence refresh marker.");
+  const written = await writePublicationMutation({
+    api: active.context.api,
+    pullNumber: active.record.pullNumber,
+    targetSha: active.record.targetSha,
+    initial: input.pull,
+    mutate: (latest) => withPublicationRefresh(latest, active.record.operationId),
+    accepts: (latest) => hasPublicationRefresh(latest, active.record.operationId),
+  });
+  if (written.status === "stale") return stalePublication(active, written.pull.head);
+  if (written.status !== "written")
+    return failPublication(active, "Evidence refresh conflicted with repeated PR body edits.");
   const record = updatePublicationRecord(active.record, {
     stage: "refresh-requested",
-    mutationAt: active.now,
+    mutationAt: written.mutationAt,
   });
   await savePublication(active, record);
   return publicationResult(record, {
@@ -93,11 +96,14 @@ export const confirmEvidenceCheck = async (state, input) => {
   });
 };
 
-/** @param {PublicationState} state @param {string} body */
-const recoverRefreshMarker = async (state, body) => {
-  const mutationAt = publicationRefreshAt(body, state.record.operationId);
-  if (!mutationAt || state.record.mutationAt === mutationAt) return state;
-  const record = updatePublicationRecord(state.record, { stage: "refresh-requested", mutationAt });
+/** @param {PublicationState} state @param {Awaited<ReturnType<typeof readPublicationPull>>} pull */
+const recoverBodyMutation = async (state, pull) => {
+  const marker = hasPublicationRefresh(pull.body, state.record.operationId);
+  const isEvidenceWrite = state.record.stage === "write-planned";
+  if (!marker && !isEvidenceWrite) return state;
+  if (state.record.mutationAt === pull.updatedAt) return state;
+  const stage = marker ? "refresh-requested" : "body-written";
+  const record = updatePublicationRecord(state.record, { stage, mutationAt: pull.updatedAt });
   await savePublication(state, record);
   return { ...state, record };
 };

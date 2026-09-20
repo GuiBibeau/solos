@@ -4,18 +4,13 @@ const PREFIX = "<!-- solos-factory:evidence-refresh:";
 const CLOSE = " -->";
 
 /** @param {string} body @param {string} operationId */
-export const publicationRefreshAt = (body, operationId) => {
-  const prefix = `${PREFIX}${operationId}:`;
-  const line = body.split(/\r?\n/u).find((item) => item.startsWith(prefix) && item.endsWith(CLOSE));
-  if (!line) return undefined;
-  const value = line.slice(prefix.length, -CLOSE.length);
-  return Number.isFinite(Date.parse(value)) ? value : undefined;
-};
+export const hasPublicationRefresh = (body, operationId) =>
+  body.split(/\r?\n/u).includes(`${PREFIX}${operationId}${CLOSE}`);
 
 /** Add one operation-specific body mutation outside the Evidence section.
- * @param {string} body @param {string} operationId @param {string} mutationAt
+ * @param {string} body @param {string} operationId
  */
-export const withPublicationRefresh = (body, operationId, mutationAt) => {
-  if (publicationRefreshAt(body, operationId)) return body;
-  return `${PREFIX}${operationId}:${mutationAt}${CLOSE}\n${body}`;
+export const withPublicationRefresh = (body, operationId) => {
+  if (hasPublicationRefresh(body, operationId)) return body;
+  return `${PREFIX}${operationId}${CLOSE}\n${body}`;
 };

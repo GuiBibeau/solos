@@ -16,12 +16,15 @@ const parsePublicationPull = (value) => {
   if (typeof value.body !== "string")
     throw new Error("GitHub returned an invalid pull request for Evidence publication");
   const { branch, sha } = parsePublicationHead(asRecord(value.head));
+  const updatedAt = stringField(value, "updated_at") ?? "";
+  if (!Number.isFinite(Date.parse(updatedAt)))
+    throw new Error("GitHub returned an invalid pull request update time");
   return {
     body: value.body,
     branch,
     head: sha,
     state: stringField(value, "state") ?? "",
-    updatedAt: stringField(value, "updated_at") ?? "",
+    updatedAt,
   };
 };
 
@@ -100,9 +103,24 @@ const committedAt = (events, targetSha) =>
     })
     .at(-1);
 
-/** @param {Api} api @param {number} pullNumber @param {string} body */
-export const writePublicationBody = (api, pullNumber, body) =>
-  api(`${REPO_PATH}/pulls/${pullNumber}`, { method: "PATCH", body: { body } });
+/** @param {Api} api @param {number} pullNumber
+ * @param {{body: string, expected: Awaited<ReturnType<typeof readPublicationPull>>}} input */
+export const writePublicationBody = async (api, pullNumber, input) => {
+  const current = await readPublicationPull(api, pullNumber);
+  if (!isSamePublicationPull(current, input.expected)) return { status: "conflict", pull: current };
+  const value = asRecord(
+    await api(`${REPO_PATH}/pulls/${pullNumber}`, {
+      method: "PATCH",
+      body: { body: input.body },
+    }),
+  );
+  return { status: "written", pull: parsePublicationPull(value) };
+};
+
+/** @param {Awaited<ReturnType<typeof readPublicationPull>>} left
+ * @param {Awaited<ReturnType<typeof readPublicationPull>>} right */
+const isSamePublicationPull = (left, right) =>
+  left.head === right.head && left.updatedAt === right.updatedAt && left.body === right.body;
 
 /** @param {Api} api @param {number} pullNumber @param {string} body */
 export const createPublicationComment = async (api, pullNumber, body) => {
@@ -117,28 +135,3 @@ export const createPublicationComment = async (api, pullNumber, body) => {
 /** @param {Api} api @param {number} commentId @param {string} body */
 export const writePublicationComment = (api, commentId, body) =>
   api(`${REPO_PATH}/issues/comments/${commentId}`, { method: "PATCH", body: { body } });
-
-/** @param {Api} api @param {string} sha */
-export const readEvidenceCheck = async (api, sha) => {
-  const value = asRecord(
-    await api(
-      `${REPO_PATH}/commits/${sha}/check-runs?check_name=evidence&filter=latest&per_page=20`,
-    ),
-  );
-  const runs = Array.isArray(value?.check_runs) ? value.check_runs : [];
-  const parsed = runs.flatMap((entry) => {
-    const run = asRecord(entry);
-    const startedAt = stringField(run, "started_at") ?? "";
-    return stringField(run, "name") === "evidence"
-      ? [
-          {
-            status: stringField(run, "status") ?? "",
-            conclusion: stringField(run, "conclusion") ?? "",
-            startedAt,
-            completedAt: stringField(run, "completed_at") ?? "",
-          },
-        ]
-      : [];
-  });
-  return parsed.toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null;
-};

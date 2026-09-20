@@ -33,7 +33,8 @@ export const publicationAuth = /** @type {import("eve/context").SessionAuthConte
   attributes: { trusted: "true" },
 });
 
-/** @param {{body?: string, head?: string, now?: string, check?: Record<string, unknown> | null}} [input] */
+/** @param {{body?: string, head?: string, now?: string, updatedAt?: string,
+ * check?: Record<string, unknown> | null}} [input] */
 export const publicationFixture = (input = {}) => {
   const state = newFixtureState(input);
   const api = fixtureApi(state);
@@ -49,11 +50,13 @@ export const publicationFixture = (input = {}) => {
   };
 };
 
-/** @param {{body?: string, head?: string, now?: string, check?: Record<string, unknown> | null}} input */
+/** @param {{body?: string, head?: string, now?: string, updatedAt?: string,
+ * check?: Record<string, unknown> | null}} input */
 const newFixtureState = (input) => ({
   body: input.body ?? "Intro\n\n## Notes\n\nHuman note.\n",
   head: input.head ?? TARGET_SHA,
   now: input.now ?? "2026-09-20T10:01:00.000Z",
+  updatedAt: input.updatedAt ?? START,
   comments: /** @type {Record<string, unknown>[]} */ ([]),
   timeline: /** @type {Record<string, unknown>[]} */ ([
     { event: "synchronize", after_commit_id: input.head ?? TARGET_SHA, created_at: START },
@@ -65,13 +68,16 @@ const newFixtureState = (input) => ({
       payload: { ref: "refs/heads/factory/test", head: input.head ?? TARGET_SHA },
     },
   ]),
-  check:
-    input.check === undefined
-      ? { name: "evidence", status: "queued", conclusion: null, started_at: input.now ?? START }
-      : input.check,
+  check: fixtureCheck(input),
   bodyWrites: 0,
   nextCommentId: 10,
 });
+
+/** @param {{check?: Record<string, unknown> | null, now?: string}} input */
+const fixtureCheck = (input) =>
+  input.check === undefined
+    ? { name: "evidence", status: "queued", conclusion: null, started_at: input.now ?? START }
+    : input.check;
 
 /** @typedef {ReturnType<typeof newFixtureState>} FixtureState */
 /** @param {FixtureState} state */
@@ -106,6 +112,7 @@ const writeFixture = (state, path, init) => {
   if (path === `/repos/${FACTORY_REPO}/pulls/37` && init.method === "PATCH") {
     state.body = String(/** @type {Record<string, unknown>} */ (init.body).body);
     state.bodyWrites += 1;
+    state.updatedAt = new Date(Date.parse(state.now) + state.bodyWrites).toISOString();
     return pull(state);
   }
   if (path === `/repos/${FACTORY_REPO}/issues/37/comments` && init.method === "POST")
@@ -129,11 +136,11 @@ const createFixtureComment = (state, body) => {
   return comment;
 };
 
-/** @param {{body: string, head: string, now: string}} state */
+/** @param {{body: string, head: string, updatedAt: string}} state */
 const pull = (state) => ({
   number: 37,
   state: "open",
   body: state.body,
-  updated_at: state.now,
+  updated_at: state.updatedAt,
   head: { sha: state.head, ref: "factory/test" },
 });

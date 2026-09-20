@@ -69,10 +69,35 @@ test("a stale check completing after refresh remains publication delay", async (
     name: "evidence",
     status: "completed",
     conclusion: "failure",
-    started_at: "2026-09-20T10:00:59.000Z",
+    started_at: "2026-09-20T10:01:00.000Z",
     completed_at: "2026-09-20T10:02:00.000Z",
   };
   const waiting = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
   expect(waiting).toMatchObject({ status: "active", repairAllowed: false });
   expect(waiting.reason).toContain("refresh is pending");
+});
+
+test("a check started before the successful Evidence write is stale", async () => {
+  const fixture = publicationFixture();
+  const published = await publishRevisionEvidence(
+    {
+      pullNumber: 37,
+      targetSha: TARGET_SHA,
+      expectedRemoteHead: TARGET_SHA,
+      remoteResult: "pushed",
+      evidence: fullEvidence(),
+    },
+    fixture.context,
+  );
+  expect(published).toMatchObject({ status: "active", repairAllowed: false });
+  fixture.state.check = {
+    name: "evidence",
+    status: "completed",
+    conclusion: "failure",
+    started_at: "2026-09-20T10:01:00.000Z",
+    completed_at: "2026-09-20T10:02:00.000Z",
+  };
+  const waiting = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
+  expect(waiting).toMatchObject({ status: "active", repairAllowed: false });
+  expect(fixture.state.bodyWrites).toBe(2);
 });

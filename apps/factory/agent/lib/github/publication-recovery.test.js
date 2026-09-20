@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { fullEvidence, OTHER_SHA, publicationFixture, TARGET_SHA } from "./publication-fixture.js";
 import { publishRevisionEvidence, reconcileEvidencePublication } from "./publication-operation.js";
+import { parsePublicationComment } from "./publication-record.js";
 
 /** @param {ReturnType<typeof publicationFixture>} fixture */
 const publish = (fixture) =>
@@ -59,6 +60,9 @@ describe("Evidence publication recovery", () => {
     const recovered = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
     expect(recovered).toMatchObject({ status: "active", repairAllowed: false });
     expect(fixture.state.bodyWrites).toBe(1);
+    const record = parsePublicationComment(String(fixture.state.comments[0]?.body));
+    expect(record?.stage).toBe("body-written");
+    expect(record?.mutationAt).toBe(fixture.state.updatedAt);
   });
 
   test("stops stale publication when the head changes before its body write", async () => {

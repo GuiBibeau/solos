@@ -26,6 +26,9 @@ describe("Evidence publication lifecycle", () => {
     expect(fixture.state.comments).toHaveLength(1);
     expect(fixture.state.body).toContain("Human note.");
     expect(hasValidTargetEvidence(fixture.state.body, TARGET_SHA)).toBe(true);
+    const published = parsePublicationComment(String(fixture.state.comments[0]?.body));
+    expect(published?.mutationAt).toBe(fixture.state.updatedAt);
+    expect(Date.parse(published?.mutationAt ?? "")).toBeGreaterThan(Date.parse(fixture.state.now));
 
     fixture.state.check = {
       name: "evidence",
