@@ -1,6 +1,9 @@
 // @ts-check
 import { REPO_DIR } from "../github/git-remote.js";
 
+const REPOSITORY_STATIONS = new Set(["analyst", "implementer", "reviewer"]);
+const NO_REPOSITORY_STATIONS = new Set(["classifier", "researcher"]);
+
 /** @param {import("eve/sandbox").SandboxSession} sandbox @param {string} command */
 const read = async (sandbox, command) => {
   const result = await sandbox.run({
@@ -21,6 +24,9 @@ const dirtyFiles = (status) =>
 /** Inspect only Git metadata in the station's preserved checkout. */
 /** @param {import("eve/hooks").HookContext} ctx */
 export const inspectCheckpointInventory = async (ctx) => {
+  if (NO_REPOSITORY_STATIONS.has(ctx.agent.name)) return { dirty: false, dirtyFiles: [] };
+  if (!REPOSITORY_STATIONS.has(ctx.agent.name))
+    throw new Error("Unknown station inventory policy.");
   const sandbox = await ctx.getSandbox();
   const [name, head, status] = await Promise.all([
     read(sandbox, "branch --show-current"),

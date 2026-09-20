@@ -36,15 +36,15 @@ const inspect = async () => ({
   name: "codex/factory-station-checkpoints",
 });
 
-/** @param {number} sequence @param {string} name @param {"completed" | "failed"} status */
-const actionResult = (sequence, name, status) =>
+/** @param {{message?: string; name: string; output?: Record<string, unknown>; sequence: number; status: "completed" | "failed"}} details */
+const actionResult = ({ message = "check failed", name, output = {}, sequence, status }) =>
   runtimeEvent("action.result", sequence, {
-    ...(status === "failed" && { error: { code: "CHECK_FAILED", message: "check failed" } }),
+    ...(status === "failed" && { error: { code: "CHECK_FAILED", message } }),
     result: {
       callId: `call-${sequence}`,
       isError: status === "failed",
       kind: "tool-result",
-      output: {},
+      output,
       toolName: name,
     },
     sequence,
@@ -52,6 +52,41 @@ const actionResult = (sequence, name, status) =>
     stepIndex: sequence,
     turnId: "station-turn",
   });
+
+/** @param {(event: import("eve/hooks").HookEvent, ctx: import("eve/hooks").HookContext) => Promise<void>} handle */
+const replayActions = (handle) => ({
+  operate: (
+    /** @type {number} */ sequence,
+    /** @type {string} */ name,
+    /** @type {"completed" | "failed"} */ status,
+  ) => handle(actionResult({ name, sequence, status }), context),
+  saveArtifact: (/** @type {number} */ sequence, /** @type {string} */ id) =>
+    handle(
+      actionResult({
+        name: "save-artifact",
+        output: { id, saved: true },
+        sequence,
+        status: "completed",
+      }),
+      context,
+    ),
+  verify: (/** @type {number} */ sequence, /** @type {"completed" | "failed"} */ status) =>
+    handle(
+      actionResult({
+        message: "Verifier exited 1; token=https://secret.invalid/?key=hidden",
+        name: "verify-station",
+        output: { success: status === "completed" },
+        sequence,
+        status,
+      }),
+      context,
+    ),
+  pause: (/** @type {number} */ sequence) =>
+    handle(
+      runtimeEvent("input.requested", sequence, { requests: [sessionLimitRequest()] }),
+      context,
+    ),
+});
 
 export const createPrePauseReplay = () => {
   const memory = createCheckpointMemoryIo();
@@ -61,25 +96,18 @@ export const createPrePauseReplay = () => {
   const prePause = createPrePauseCheckpoint({ bindings, checkpoints, inspect, observer });
   const handle = createRuntimeEventHandler(observer, bindings, prePause);
   return {
+    ...replayActions(handle),
     checkpoints,
-    deliver: () =>
-      handle(
+    deliver: async () => {
+      await bindings.authorizations.authorize(checkpointIdentity);
+      return handle(
         runtimeEvent("message.received", 1, {
           message: stationDeliveryMessage(checkpointIdentity, "Continue issue #55."),
           sequence: 1,
           turnId: "station-turn",
         }),
         context,
-      ),
-    operate: (
-      /** @type {number} */ sequence,
-      /** @type {string} */ name,
-      /** @type {"completed" | "failed"} */ status,
-    ) => handle(actionResult(sequence, name, status), context),
-    pause: (/** @type {number} */ sequence) =>
-      handle(
-        runtimeEvent("input.requested", sequence, { requests: [sessionLimitRequest()] }),
-        context,
-      ),
+      );
+    },
   };
 };

@@ -5,7 +5,7 @@ import { checkpointIdentity, createPrePauseReplay } from "./pre-pause-replay-fix
 test("a session guardrail durably checkpoints the preserved checkout before pausing", async () => {
   const replay = createPrePauseReplay();
   await replay.deliver();
-  await replay.operate(2, "solos-dev-check", "failed");
+  await replay.verify(2, "failed");
   await replay.pause(3);
 
   expect(await replay.checkpoints.read(checkpointIdentity)).toMatchObject({
@@ -16,13 +16,15 @@ test("a session guardrail durably checkpoints the preserved checkout before paus
         head: "b".repeat(40),
         name: "codex/factory-station-checkpoints",
       },
-      diagnostics: ["solos-dev-check failed (CHECK_FAILED) at 2026-09-19T00:00:02.000Z"],
-      latestOperation: { name: "solos-dev-check", status: "failed" },
-      nextMilestone: "Correct solos-dev-check, then rerun it on the preserved checkout.",
+      diagnostics: [
+        "verify-station failed (CHECK_FAILED): Verifier exited 1; token=[redacted] at 2026-09-19T00:00:02.000Z",
+      ],
+      latestOperation: { name: "verify-station", status: "failed" },
+      nextMilestone: "Correct verify-station, then rerun it on the preserved checkout.",
       outcome: "budget_paused",
       stationRunId: "station-run",
       taskId: checkpointIdentity.taskId,
-      verification: { stage: "solos-dev-check", status: "failed" },
+      verification: { stage: "verify-station", status: "failed" },
     },
     found: true,
   });

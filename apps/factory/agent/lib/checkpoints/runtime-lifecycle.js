@@ -18,15 +18,16 @@ const requestedInput = (event) =>
 
 /** @param {Extract<import("eve/hooks").HookEvent, {type: "input.resolved"}>} event */
 const continuedBudgetRequests = (event) =>
-  event.data.resolutions
-    .filter(
-      (resolution) =>
-        resolution.kind === "session-limit" &&
-        resolution.outcome === "answered" &&
-        resolution.response?.requestId === resolution.requestId &&
-        resolution.response?.optionId === "continue",
-    )
-    .map((resolution) => resolution.requestId);
+  event.data.resolutions.length > 0 &&
+  event.data.resolutions.every(
+    (resolution) =>
+      resolution.kind === "session-limit" &&
+      resolution.outcome === "answered" &&
+      resolution.response?.requestId === resolution.requestId &&
+      resolution.response?.optionId === "continue",
+  )
+    ? event.data.resolutions.map((resolution) => resolution.requestId)
+    : [];
 
 /** @param {import("eve/hooks").HookEvent} event */
 const taskOutcome = (event) => {
@@ -64,7 +65,12 @@ export const lifecycleDelta = (event) => ({
 /** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event */
 const budgetContinued = (prior, event) => {
   const pending = prior.pendingSessionLimitRequests ?? [];
-  return pending.some((requestId) => event.continuedBudgetRequests.includes(requestId));
+  const continued = new Set(event.continuedBudgetRequests);
+  return (
+    pending.length > 0 &&
+    continued.size === pending.length &&
+    pending.every((id) => continued.has(id))
+  );
 };
 
 /** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event */

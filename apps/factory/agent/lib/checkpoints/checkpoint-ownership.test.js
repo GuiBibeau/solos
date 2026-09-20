@@ -109,6 +109,7 @@ test("real dispatch tools transfer reused-session checkpoint ownership", async (
     {
       ctx: dispatchContext(1, deliver(firstTaskId, "station-turn-1", 1)),
       task: taskContext(firstTaskId),
+      authorizations: bindings.authorizations,
     },
   );
   expect(await tool.execute(first, stationContext("station-turn-1"))).toMatchObject({
@@ -127,6 +128,7 @@ test("real dispatch tools transfer reused-session checkpoint ownership", async (
     {
       ctx: dispatchContext(2, deliver(secondTaskId, "station-turn-2", 2)),
       task: taskContext(secondTaskId),
+      authorizations: bindings.authorizations,
     },
   );
   expect(await bindings.readCurrent({ ...dispatchInput, station: "implementer" })).toMatchObject({

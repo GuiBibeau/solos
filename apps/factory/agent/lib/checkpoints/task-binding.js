@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readDocument, writeDocument } from "../blob.js";
 import { taskBindingKey } from "./config.js";
 import { createCurrentTaskBindingStore } from "./current-task-binding.js";
+import { createDispatchAuthorizationStore } from "./dispatch-authorization.js";
 import { StationSchema } from "./schema.js";
 import { stationDeliveryFromMessage } from "./station-delivery.js";
 
@@ -42,9 +43,9 @@ const persist = async (io, { incoming, key, schema }) => {
   throw lastError;
 };
 
-/** @param {TaskBindingIo} io @param {ReturnType<typeof createCurrentTaskBindingStore>} current */
+/** @param {TaskBindingIo} io @param {ReturnType<typeof createCurrentTaskBindingStore>} current @param {ReturnType<typeof createDispatchAuthorizationStore>} authorizations */
 const observeTask =
-  (io, current) =>
+  (io, current, authorizations) =>
   async (
     /** @type {import("eve/hooks").HookEvent} */ event,
     /** @type {import("eve/hooks").HookContext} */ ctx,
@@ -55,6 +56,11 @@ const observeTask =
     if (event.data.turnId !== ctx.session.turn.id) throw new Error("Delivery turn mismatch.");
     if (delivery.station !== ctx.agent.name) throw new Error("Station delivery target mismatch.");
     const binding = DeliveryBindingSchema.parse(delivery);
+    await authorizations.claim({
+      ...binding,
+      stationRunId: ctx.session.id,
+      turnId: event.data.turnId,
+    });
     const key = taskBindingKey(ctx.session.id, event.data.turnId);
     if (key === null) throw new Error("Invalid active task binding identity.");
     await persist(io, {
@@ -87,8 +93,10 @@ const readTask = async (io, identity) => {
 /** @param {TaskBindingIo} io */
 export const createTaskBindingStore = (io) => {
   const current = createCurrentTaskBindingStore(io);
+  const authorizations = createDispatchAuthorizationStore(io);
   return {
-    observe: observeTask(io, current),
+    authorizations,
+    observe: observeTask(io, current, authorizations),
     read: (/** @type {{stationRunId: string; turnId: string}} */ identity) =>
       readTask(io, identity),
     readCurrent: current.read,

@@ -39,6 +39,14 @@ export const taskBindingKey = (stationRunId, turnId) => {
   return observation.replace(/\.json$/, `/turns/${turn}/task.json`);
 };
 
+/** @param {string} taskId */
+export const dispatchAuthorizationKey = (taskId) => {
+  if (!/^task_[a-f\d]{24}$/.test(taskId)) return null;
+  const repository = createHash("sha256").update(FACTORY_REPO).digest("hex").slice(0, 24);
+  const task = createHash("sha256").update(taskId).digest("hex").slice(0, 32);
+  return `${STATION_OBSERVATIONS_PREFIX}${repository}/dispatch/${task}.json`;
+};
+
 /** @param {string} workItem @param {string} rootRunId @param {string} station */
 export const currentTaskKey = (workItem, rootRunId, station) => {
   const checkpoint = checkpointKey(workItem, rootRunId, station);

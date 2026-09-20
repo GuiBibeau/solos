@@ -22,7 +22,8 @@ const noPriorProgress = (event) => ({
 /** @param {import("./runtime-observation.js").RuntimeProgress} progress */
 const progressDiagnostics = (progress) =>
   progress.failures.map(
-    (failure) => `${failure.name} ${failure.status} (${failure.code}) at ${failure.at}`,
+    (failure) =>
+      `${failure.name} ${failure.status} (${failure.code})${failure.detail === undefined ? "" : `: ${failure.detail}`} at ${failure.at}`,
   );
 
 /** @param {import("./schema.js").StationCheckpoint["latestOperation"]} operation */
@@ -45,16 +46,37 @@ const verification = (previous, progress) => {
   );
 };
 
-/** @param {StationCheckpoint | undefined} previous @param {import("./runtime-observation.js").RuntimeProgress} progress */
-const currentProgress = (previous, progress) => ({
-  artifactIds: previous?.artifactIds ?? [],
-  diagnostics: [
-    ...new Set([...(previous?.diagnostics ?? []), ...progressDiagnostics(progress)]),
-  ].slice(-20),
-  latestOperation: progress.latestOperation,
-  nextMilestone: nextMilestone(progress.latestOperation),
-  verification: verification(previous, progress),
-});
+/** @param {StationCheckpoint | undefined} previous @param {import("./runtime-observation.js").RuntimeProgress} progress @param {ReturnType<typeof noPriorProgress>} fallback */
+const selectedOperation = (previous, progress, fallback) => {
+  const runtimeOperation = progress.latestOperation;
+  const isRuntimeNewer =
+    runtimeOperation !== undefined &&
+    (previous === undefined || runtimeOperation.at > previous.updatedAt);
+  return {
+    isRuntimeNewer,
+    operation: isRuntimeNewer
+      ? runtimeOperation
+      : (previous?.latestOperation ?? fallback.latestOperation),
+  };
+};
+
+/** @param {StationCheckpoint | undefined} previous @param {import("./runtime-observation.js").RuntimeProgress} progress @param {ReturnType<typeof noPriorProgress>} fallback */
+const currentProgress = (previous, progress, fallback) => {
+  const selected = selectedOperation(previous, progress, fallback);
+  return {
+    artifactIds: [...new Set([...(previous?.artifactIds ?? []), ...progress.artifactIds])].slice(
+      -20,
+    ),
+    diagnostics: [
+      ...new Set([...(previous?.diagnostics ?? []), ...progressDiagnostics(progress)]),
+    ].slice(-20),
+    latestOperation: selected.operation,
+    nextMilestone: selected.isRuntimeNewer
+      ? nextMilestone(selected.operation)
+      : (previous?.nextMilestone ?? fallback.nextMilestone),
+    verification: verification(previous, progress),
+  };
+};
 
 /** @param {StationCheckpoint} previous */
 const priorProgress = (previous) => ({
@@ -65,14 +87,19 @@ const priorProgress = (previous) => ({
   verification: previous.verification,
 });
 
+/** @param {StationCheckpoint | undefined} previous @param {import("./runtime-observation.js").RuntimeProgress | undefined} runtime */
+const hasNewRuntimeProgress = (previous, runtime) => {
+  if (runtime === undefined) return false;
+  if (previous === undefined) return true;
+  const updatedAt = runtime.updatedAt ?? runtime.latestOperation?.at;
+  return updatedAt !== undefined && updatedAt > previous.updatedAt;
+};
+
 /** @param {StationCheckpoint | undefined} previous @param {import("eve/hooks").HookEvent} event @param {import("./runtime-observation.js").RuntimeObservation | undefined} observation */
 export const prePauseProgress = (previous, event, observation) => {
   const runtime = observation?.progress;
-  if (
-    runtime !== undefined &&
-    (previous === undefined || runtime.latestOperation.at > previous.updatedAt)
-  )
-    return currentProgress(previous, runtime);
+  if (runtime !== undefined && hasNewRuntimeProgress(previous, runtime))
+    return currentProgress(previous, runtime, noPriorProgress(event));
   if (previous === undefined) return noPriorProgress(event);
   return priorProgress(previous);
 };

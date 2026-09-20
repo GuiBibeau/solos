@@ -1,5 +1,7 @@
 // @ts-check
 import { z } from "zod";
+import { dispatchAuthorizationStore } from "./dispatch-authorization.js";
+import { StationSchema } from "./schema.js";
 import { stationDeliveryMessage } from "./station-delivery.js";
 
 const DispatchId = z
@@ -16,15 +18,20 @@ export const StationDispatchInput = z.object({
   workItem: DispatchId,
 });
 
-/** @param {{input: z.infer<typeof StationDispatchInput>; station: string}} details @param {{ctx: import("eve/tools").WorkflowToolContext; task: import("eve/tools").TaskExec}} runtime */
-export const bindAndDispatchStation = async ({ input, station }, { ctx, task }) => {
+/** @param {{input: z.infer<typeof StationDispatchInput>; station: z.infer<typeof StationSchema>}} details @param {{authorizations?: typeof dispatchAuthorizationStore; ctx: import("eve/tools").WorkflowToolContext; task: import("eve/tools").TaskExec}} runtime */
+export const bindAndDispatchStation = async (
+  { input, station },
+  { ctx, task, authorizations = dispatchAuthorizationStore },
+) => {
+  const target = StationSchema.parse(station);
   const identity = {
     rootRunId: input.rootRunId,
-    station,
+    station: target,
     taskId: task.taskId,
     workItem: input.workItem,
   };
-  return ctx.agent(station, {
+  await authorizations.authorize(identity);
+  return ctx.agent(target, {
     ...(input.agentId !== undefined && { agentId: input.agentId }),
     message: stationDeliveryMessage(identity, input.message),
   });

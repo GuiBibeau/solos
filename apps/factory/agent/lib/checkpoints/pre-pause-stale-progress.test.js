@@ -23,7 +23,7 @@ test("a newer runtime operation replaces stale progress without losing handoff f
   };
   expect(await replay.checkpoints.save(stale)).toMatchObject({ saved: true });
   await replay.deliver();
-  await replay.operate(2, "solos-dev-verify", "completed");
+  await replay.verify(2, "completed");
   await replay.pause(3);
 
   expect(await replay.checkpoints.read(checkpointIdentity)).toMatchObject({
@@ -37,10 +37,10 @@ test("a newer runtime operation replaces stale progress without losing handoff f
         name: "codex/factory-station-checkpoints",
       },
       diagnostics: stale.diagnostics,
-      latestOperation: { name: "solos-dev-verify", status: "passed" },
-      nextMilestone: "Continue from completed solos-dev-verify on the preserved checkout.",
+      latestOperation: { name: "verify-station", status: "passed" },
+      nextMilestone: "Continue from completed verify-station on the preserved checkout.",
       revision: 2,
-      verification: { stage: "solos-dev-verify", status: "passed" },
+      verification: { stage: "verify-station", status: "passed" },
     },
     found: true,
   });

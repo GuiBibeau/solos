@@ -73,6 +73,7 @@ const boundRuntime = async (memory, observer) => {
     workItem: issue18Checkpoint.workItem,
   };
   const taskId = "task_336135bd2632c09d3de51f9d";
+  await bindings.authorizations.authorize({ ...identity, taskId });
   await bindings.observe(
     /** @type {import("eve/hooks").HookEvent} */ ({
       data: {
