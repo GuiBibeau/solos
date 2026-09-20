@@ -43,9 +43,23 @@ export class LendingTimeout extends /** @type {LendingTimeoutClass} */ (
   taggedError("LendingTimeout")
 ) {}
 
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LendingObligationInvalid", LendingObligationInvalidProps>} LendingObligationInvalidClass */
+/** @typedef {{ readonly obligation: string; readonly reason: string }} LendingObligationInvalidProps */
+/** A returned obligation cannot be trusted as one complete owner supply record. */
+export class LendingObligationInvalid extends /** @type {LendingObligationInvalidClass} */ (
+  taggedError("LendingObligationInvalid")
+) {}
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LendingEnumerationIncomplete", LendingEnumerationIncompleteProps>} LendingEnumerationIncompleteClass */
+/** @typedef {{ readonly reason: string }} LendingEnumerationIncompleteProps */
+/** A complete owner enumeration exceeded a protocol bound; partial results are discarded. */
+export class LendingEnumerationIncomplete extends /** @type {LendingEnumerationIncompleteClass} */ (
+  taggedError("LendingEnumerationIncomplete")
+) {}
+
 /**
  * Everything the lend reserve read can fail with. `RpcError` is the shared transport error,
  * exactly as in the other slices. Structured props only — never raw account bytes or
  * provider failure bodies.
- * @typedef {LendingInputInvalid | LendingMarketUnavailable | ReserveUnavailable | LendingLayoutUnsupported | LendingResponseInvalid | LendingTimeout | import("../../shared/domain/errors.js").RpcError} LendingError
+ * @typedef {LendingInputInvalid | LendingMarketUnavailable | ReserveUnavailable | LendingLayoutUnsupported | LendingResponseInvalid | LendingTimeout | LendingObligationInvalid | LendingEnumerationIncomplete | import("../../shared/domain/errors.js").RpcError} LendingError
  */

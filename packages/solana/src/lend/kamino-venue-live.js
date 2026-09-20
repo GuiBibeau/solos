@@ -13,6 +13,7 @@ import {
   reserveRates,
   validateReserveLayout,
 } from "./kamino-market-reader.js";
+import { makePositionReads } from "./kamino-position-live.js";
 import { reserveSnapshot } from "./kamino-reserve-snapshot.js";
 import { sdkReserveParts } from "./kamino-rpc-seam.js";
 
@@ -91,6 +92,6 @@ export const KaminoVenueLive = (config) =>
         market: config?.market ?? KAMINO_MAIN_MARKET,
         timeoutMs: config?.timeoutMs ?? READ_TIMEOUT_MS,
       };
-      return { getReserve: (mint) => readReserve(deps, mint) };
+      return { getReserve: (mint) => readReserve(deps, mint), ...makePositionReads(deps) };
     }),
   );

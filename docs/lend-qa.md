@@ -1,11 +1,12 @@
-# Kamino Lend reserve reads live QA
+# Kamino Lend reserve and supply reads live QA
 
 Offline tests exercise the real adapter, CLI, and MCP server against a seeded offline Surfnet:
 synthetic Kamino Market and Reserve accounts encoded from the klend-sdk's own bundled IDL and
 written under the pinned program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` with the
 `surfnet_setAccount` cheatcode. They prove the market selection, mapping, decode/guard, and
-units behavior, not what a live market holds. Live QA compares one solOS reserve snapshot with
-the same named Kamino market seen through a second client.
+units behavior, not what a live market holds. The owner-position fixture covers zero, one and
+multiple decoded obligations through the native CLI and a real stdio MCP child. Live QA compares
+one solOS reserve and owner supply snapshot with the same named Kamino market in a second client.
 
 **Status: blocked.** A live read needs an operator RPC endpoint with the Kamino lending program
 in its history; reusable tests and CI do not receive one. solOS lend reads are public — no
@@ -21,6 +22,8 @@ and endpoints belong only in the operator or approved QA environment.
    ```sh
    SOLANA_RPC_URL=... bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
    SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_reserve --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}'
+   SOLANA_RPC_URL=... bun run solos lend position --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --owner <owner>
+   SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_position --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","owner":"<owner>"}'
    ```
 
 2. Compare against the same market on a block explorer or the Kamino UI, at the recorded time:
@@ -35,6 +38,9 @@ and endpoints belong only in the operator or approved QA environment.
      rewards; they are observations that move every slot, so only same-slot comparisons are
      meaningful. Record time and units with the numbers.
    - The CLI and MCP surfaces must return identical JSON for the same mint and slot.
+   - The position amount equals the floor of total supplied collateral units divided by the
+     current collateral-per-liquidity exchange rate. `positions` contains each contributing
+     obligation once, and outstanding borrows do not reduce this supply amount.
    - A mint with no reserve in the configured market must exit non-zero with
      `ReserveUnavailable`; an existing reserve with zero available liquidity must succeed with
      `liquidity: "0"`.

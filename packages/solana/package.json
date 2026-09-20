@@ -10,7 +10,8 @@
     "./launch/fixture-accounts": "./src/launch/fixture-accounts.js",
     "./perp/phoenix-fixture": "./src/perp/phoenix-fixture.js",
     "./perp/phoenix-scenarios": "./src/perp/phoenix-scenarios.js",
-    "./liquidity/whirlpool-fixture": "./src/liquidity/liquidity-seeds.js"
+    "./liquidity/whirlpool-fixture": "./src/liquidity/liquidity-seeds.js",
+    "./lend/position-fixture": "./src/lend/kamino-position-fixture.js"
   },
   "dependencies": {
     "@hpke/chacha20poly1305": "1.8.0",
