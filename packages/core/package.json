@@ -10,6 +10,7 @@
     "./swap": "./src/swap/index.js",
     "./market": "./src/market/index.js",
     "./launch": "./src/launch/index.js",
+    "./lend": "./src/lend/index.js",
     "./liquidity": "./src/liquidity/index.js",
     "./perp": "./src/perp/index.js",
     "./signals": "./src/signals/index.js",

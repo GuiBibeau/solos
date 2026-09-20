@@ -6,6 +6,7 @@ describe("tool registry", () => {
   test("has at least the wallet, transfer, market, launch, liquidity, perp, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_launch_get_curve",
+      "solana_lend_get_reserve",
       "solana_liquidity_get_position",
       "solana_market_ask_iris",
       "solana_market_get_event_summary",
@@ -22,6 +23,7 @@ describe("tool registry", () => {
     ]);
     expect(toolGroups).toEqual([
       "launch",
+      "lend",
       "liquidity",
       "market",
       "perp",
@@ -87,6 +89,22 @@ describe("tool registry", () => {
     expect(tool?.group).toBe("launch");
     expect(tool?.tier).toBe("read");
     expect(tool?.input.shape.mint?.description).toBeTruthy();
+  });
+
+  test("the lend reserve tool is a read-tier lend tool with a described mint input", () => {
+    const tool = allTools.find((t) => t.name === "solana_lend_get_reserve");
+    expect(tool?.group).toBe("lend");
+    expect(tool?.tier).toBe("read");
+    expect(tool?.input.shape.mint?.description).toBeTruthy();
+  });
+
+  test("the lend slice advertises no deposit or withdraw tools yet", () => {
+    const names = allTools.map((t) => t.name);
+    expect(names.some((n) => n.startsWith("solana_lend_") && n !== "solana_lend_get_reserve")).toBe(
+      false,
+    );
+    expect(names).not.toContain("solana_lend_deposit");
+    expect(names).not.toContain("solana_lend_withdraw");
   });
 
   test("the liquidity position tool is a read-tier liquidity tool with described arguments", () => {

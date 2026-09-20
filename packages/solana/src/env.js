@@ -1,7 +1,9 @@
 // @ts-check
+import { base58ByteLength } from "@solos/core/shared";
 import { z } from "zod";
 import { selectProfile, sourceFromProfile } from "./credentials/resolve.js";
 import { deriveWsUrl, elfaBaseUrl, jupiterBaseUrl, phoenixBaseUrl } from "./env-url.js";
+import { KAMINO_MAIN_MARKET } from "./lend/kamino-addresses.js";
 
 export {
   DEFAULT_ELFA_BASE_URL,
@@ -44,6 +46,17 @@ const EnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
   ),
+  // Kamino lend reads are public; only the configured market is selectable (ADR-0019).
+  KAMINO_LENDING_MARKET: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .refine(
+        (value) => base58ByteLength(value) === 32,
+        "KAMINO_LENDING_MARKET must be a base58 address that decodes to 32 bytes",
+      )
+      .optional(),
+  ),
 });
 
 /**
@@ -57,6 +70,7 @@ const EnvSchema = z.object({
  *   readonly elfa: { readonly apiKey: string | undefined; readonly baseUrl: string };
  *   readonly jupiter: { readonly apiKey: string | undefined; readonly baseUrl: string };
  *   readonly phoenix: { readonly baseUrl: string };
+ *   readonly kamino: { readonly market: string };
  * }} SolanaEnv
  */
 
@@ -115,5 +129,6 @@ export const loadSolanaEnv = (env) => {
     elfa: { apiKey: parsed.ELFA_API_KEY, baseUrl: elfaBaseUrl(parsed.ELFA_BASE_URL) },
     jupiter: { apiKey: parsed.JUPITER_API_KEY, baseUrl: jupiterBaseUrl(parsed.JUPITER_BASE_URL) },
     phoenix: { baseUrl: phoenixBaseUrl(parsed.PHOENIX_BASE_URL) },
+    kamino: { market: parsed.KAMINO_LENDING_MARKET ?? KAMINO_MAIN_MARKET },
   };
 };

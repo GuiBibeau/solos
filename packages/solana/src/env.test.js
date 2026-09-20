@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { loadSolanaEnv } from "./env.js";
+import { KAMINO_MAIN_MARKET } from "./lend/kamino-addresses.js";
 
 const MAIN_RPC = "http://127.0.0.1:8899";
 
@@ -47,6 +48,7 @@ describe("solana env resolution [integration]", () => {
       elfa: { apiKey: undefined, baseUrl: "https://api.elfa.ai" },
       jupiter: { apiKey: undefined, baseUrl: "https://api.jup.ag" },
       phoenix: { baseUrl: "https://perp-api.phoenix.trade" },
+      kamino: { market: KAMINO_MAIN_MARKET },
     });
   });
 
