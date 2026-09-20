@@ -86,6 +86,9 @@ describe("station readiness", () => {
   });
 
   test("blocks incomplete revision ownership inputs", () => {
+    expect(
+      evaluateReadiness(facts({ expectedHead: null })).diagnostics.map((item) => item.code),
+    ).toContain("expected-head-required");
     for (const override of [{ expectedRemoteHead: null }, { expectedBranch: null }])
       expect(evaluateReadiness(facts(override)).diagnostics.map((item) => item.code)).toContain(
         "revision-ownership-incomplete",

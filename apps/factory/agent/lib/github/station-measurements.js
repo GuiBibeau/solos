@@ -76,7 +76,8 @@ const measureRuntime = async (sandbox) => {
 };
 
 /** @param {VerificationInput} input */
-const hasRevisionPair = (input) =>
+const hasVerificationContract = (input) =>
+  input.expectedHead !== undefined &&
   (input.branch === undefined) === (input.expectedRemoteHead === undefined);
 
 /** @param {{actualHead: string|null, branch: string|null}} checkout @param {VerificationInput} input @param {string|null|undefined} observedRemote */
@@ -87,7 +88,7 @@ const hasMatchingRevision = (checkout, input, observedRemote) =>
 
 /** @param {{actualHead: string|null, branch: string|null, status: string|null}} checkout @param {VerificationInput} input @param {string|null|undefined} observedRemote */
 const canPrepare = (checkout, input, observedRemote) =>
-  hasRevisionPair(input) &&
+  hasVerificationContract(input) &&
   checkout.status === "" &&
   hasMatchingRevision(checkout, input, observedRemote);
 

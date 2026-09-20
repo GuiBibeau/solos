@@ -11,7 +11,12 @@ const isVersionExact = (actual, expected, prefix = "") => actual === `${prefix}$
 const headDiagnostics = (facts) => {
   /** @type {Diagnostic[]} */
   const diagnostics = [];
-  if (facts.expectedHead && facts.actualHead !== facts.expectedHead)
+  if (!facts.expectedHead)
+    diagnostics.push({
+      code: "expected-head-required",
+      message: "Verification requires an immutable expected local head.",
+    });
+  else if (facts.actualHead !== facts.expectedHead)
     diagnostics.push({
       code: "wrong-head",
       message: `Expected ${facts.expectedHead}, found ${facts.actualHead}.`,
@@ -28,10 +33,7 @@ const headDiagnostics = (facts) => {
 const remoteDiagnostics = (facts) => {
   if ((facts.expectedBranch === null) !== (facts.expectedRemoteHead === null))
     return [
-      {
-        code: "revision-ownership-incomplete",
-        message: "Revision verification requires both branch and expected remote head.",
-      },
+      { code: "revision-ownership-incomplete", message: "Branch and remote head are required." },
     ];
   if (facts.remoteLookupFailed)
     return [

@@ -22,7 +22,7 @@ const Sha = z.string().regex(/^[0-9a-f]{40}$/u);
 export const stationVerificationInputSchema = z
   .object({
     branch: z.string().min(1).optional().describe("Remote branch to recheck before verification."),
-    expectedHead: Sha.optional().describe("Immutable commit SHA expected locally."),
+    expectedHead: Sha.describe("Immutable commit SHA expected locally."),
     expectedRemoteHead: Sha.optional().describe("Remote baseline SHA that must remain unchanged."),
     scope: z.enum(["check", "unit", "full"]),
   })

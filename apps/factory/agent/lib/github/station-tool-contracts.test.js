@@ -15,9 +15,13 @@ test("revision checkout requires its immutable remote head", () => {
 });
 
 test("station verification pairs revision branch and remote ownership head", () => {
+  expect(parseVerification({ scope: "unit" })).toBe(false);
   expect(parseVerification({ expectedHead: SHA, scope: "unit" })).toBe(true);
   expect(parseVerification({ branch: "factory/test", scope: "unit" })).toBe(false);
   expect(parseVerification({ expectedRemoteHead: SHA, scope: "unit" })).toBe(false);
+  expect(
+    parseVerification({ branch: "factory/test", expectedRemoteHead: SHA, scope: "unit" }),
+  ).toBe(false);
   expect(
     parseVerification({
       branch: "factory/test",
