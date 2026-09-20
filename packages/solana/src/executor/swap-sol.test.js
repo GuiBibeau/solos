@@ -57,6 +57,21 @@ describe("the executor swap branch refuses before any contact", () => {
     expect(requests).toHaveLength(0);
   });
 
+  test("any other explicit venue is unsupported and never reaches a build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, {
+      venue: /** @type {"jupiter"} */ ("raydium"),
+    });
+    expect(error).toBeInstanceOf(UnsupportedAction);
+    expect(/** @type {UnsupportedAction} */ (error)?.actionType).toBe("swap:raydium");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("an explicit jupiter venue takes the Jupiter path", async () => {
+    const { error, requests } = await runBranch("execute", undefined, { venue: "jupiter" });
+    expect(error).toBeInstanceOf(RpcError);
+    expect(requests).toHaveLength(1);
+  });
+
   test("an ATA create paid by a signing attacker is refused by the signer allowlist", async () => {
     const { error, requests } = await runBranch("execute", rebindCreate(0, { pubkey: attacker }));
     expect(reasonOf(error)).toBe("an account outside the configured signer was required to sign");
