@@ -61,18 +61,30 @@ const sharedDecoys = (envelope) => {
 /** @param {number} index @param {Partial<Envelope["swapInstruction"]["accounts"][number]>} patch */
 const sharedRebind = (index, patch) => (envelope) => rebind(index, patch)(sharedEnvelope(envelope));
 
+const directDestinationOptional = withAccounts((accounts) =>
+  accounts.map((meta, index) =>
+    index === 7 ? { ...accounts[2], isWritable: true, isSigner: false } : meta,
+  ),
+);
+
 describe("Jupiter V2 fixed account slots before signer or RPC contact", () => {
   test("the current shared-accounts prefix reaches the first RPC gate", async () => {
     const { error } = await runBranch("execute", sharedEnvelope);
     expect(error).toBeInstanceOf(RpcError);
   });
 
-  test("direct route accepts the fixed pair when its optional account is omitted", async () => {
+  test("direct route rejects physical omission of its optional account slot", async () => {
     const withoutOptional = withAccounts((accounts) => [
       ...accounts.slice(0, 7),
       ...accounts.slice(8),
     ]);
-    const { error } = await runBranch("execute", withoutOptional);
+    const { error, requests } = await runBranch("execute", withoutOptional);
+    expect(reasonOf(error)).toContain("optional destination");
+    expect(requests).toHaveLength(1);
+  });
+
+  test("direct route accepts Some as the exact writable taker destination ATA", async () => {
+    const { error } = await runBranch("execute", directDestinationOptional);
     expect(error).toBeInstanceOf(RpcError);
   });
 
@@ -94,6 +106,12 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact", () => {
       rebind(3, { pubkey: OUTPUT_MINT }),
       rebind(4, { pubkey: INPUT_MINT }),
       rebind(5, { pubkey: attacker }),
+      rebind(7, { pubkey: attacker }),
+      rebind(7, { isWritable: true }),
+      rebind(7, { isSigner: true }),
+      withAccounts((accounts) =>
+        accounts.map((meta, at) => (at === 7 ? { ...accounts[2], isWritable: false } : meta)),
+      ),
       rebind(8, { pubkey: attacker }),
       rebind(9, { pubkey: EVENT_AUTHORITY }),
     ];

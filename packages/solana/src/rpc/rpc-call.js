@@ -1,6 +1,9 @@
 // @ts-check
 import { RpcError } from "@solos/core";
 import { Effect } from "effect";
+import { rpcOrigin } from "./rpc-origin.js";
+
+export const RPC_REQUEST_FAILED = "the configured RPC endpoint failed the request";
 
 /** @param {unknown} error */
 export const describeError = (error) => {
@@ -20,5 +23,5 @@ export const describeError = (error) => {
 export const rpcCall = (method, url, call) =>
   Effect.tryPromise({
     try: call,
-    catch: (error) => new RpcError({ method, url, reason: describeError(error) }),
+    catch: () => new RpcError({ method, url: rpcOrigin(url), reason: RPC_REQUEST_FAILED }),
   }).pipe(Effect.withSpan(`rpc.${method}`));

@@ -103,7 +103,7 @@ export const withWrapAmount = (lamports) =>
 /**
  * Run one executor call and return its tagged failure with the recorded stub requests.
  * @param {"execute" | "simulate"} face
- * @param {(envelope: Envelope) => Envelope} [mutate]
+ * @param {(envelope: Envelope) => Envelope | Promise<Envelope>} [mutate]
  * @param {Partial<import("@solos/actions").SwapAction>} [actionOverrides]
  */
 export const runBranch = async (face, mutate, actionOverrides = {}) => {

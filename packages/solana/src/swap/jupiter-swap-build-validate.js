@@ -60,10 +60,12 @@ const UNKNOWN_SETUP_REASON =
   "setup instructions are outside the known ATA, token, and wSOL-funding set";
 
 /** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
-const ataFormRejection = (ix) =>
-  dataBytes(ix.data)[0] === ATA_CREATE_IDEMPOTENT
+const ataFormRejection = (ix) => {
+  const bytes = dataBytes(ix.data);
+  return bytes.length === 1 && bytes[0] === ATA_CREATE_IDEMPOTENT
     ? undefined
     : "setup carried an unknown ATA instruction";
+};
 
 /** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
 const tokenSetupFormRejection = (ix) =>

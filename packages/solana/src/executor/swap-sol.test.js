@@ -61,7 +61,7 @@ describe("the executor swap branch refuses before any contact", () => {
     expect(reasonOf(error)).toBe("setup ATA create mint was not one of the requested swap mints");
   });
 
-  test("an ATA create under an attacker token program is refused", async () => {
+  test("a Token-2022 program paired with a classic-token ATA is refused", async () => {
     const { error } = await runBranch("execute", rebindCreate(5, { pubkey: TOKEN_2022_PROGRAM }));
     expect(reasonOf(error)).toBe(
       "setup ATA create did not target the taker's derived associated token account",

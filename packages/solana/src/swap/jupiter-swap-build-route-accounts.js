@@ -11,6 +11,7 @@ const OUTPUT_MINT_REASON = "swap instruction did not carry the output mint's mar
 const AUTHORITY_REASON = "swap instruction did not bind the configured taker at its fixed account";
 const PROGRAM_REASON = "swap instruction carried an invalid fixed token or Jupiter program account";
 const ROLE_REASON = "swap instruction fixed accounts carried invalid signer or writable roles";
+const OPTIONAL_REASON = "swap instruction carried an invalid optional destination token account";
 
 /** @typedef {import("./jupiter-swap-build-response.js").RawInstruction["accounts"][number]} Meta */
 /** @typedef {{pubkey: string, writable: boolean, signer: boolean}} ExpectedMeta */
@@ -36,15 +37,18 @@ const fixedRejection = (checks) =>
 /** @param {Meta | undefined} meta @param {boolean} writable */
 const selfExpected = (meta, writable) => expected(meta?.pubkey || "", writable, false);
 
-/** Anchor may omit the optional direct destination account or encode its program placeholder.
- * @param {Meta[]} accounts */
-const directProgramRejection = (accounts) => {
+/** Anchor encodes None as the Jupiter placeholder and Some as the writable destination ATA.
+ * @param {Meta[]} accounts @param {string} destination */
+const directProgramRejection = (accounts, destination) => {
   const event = expected(JUPITER_EVENT_AUTHORITY, false, false);
-  const eventIndex = isMeta(accounts[7], event) ? 7 : 8;
+  const optional = accounts[7];
+  const isPlaceholder = isMeta(optional, expected(JUP6_PROGRAM, false, false));
+  const isDestination = isMeta(optional, expected(destination, true, false));
+  if (!isPlaceholder && !isDestination) return OPTIONAL_REASON;
   return fixedRejection([
-    { meta: accounts[eventIndex], wanted: event, reason: PROGRAM_REASON },
+    { meta: accounts[8], wanted: event, reason: PROGRAM_REASON },
     {
-      meta: accounts[eventIndex + 1],
+      meta: accounts[9],
       wanted: expected(JUP6_PROGRAM, false, false),
       reason: PROGRAM_REASON,
     },
@@ -74,7 +78,7 @@ const directRejection = async (accounts, action, taker) => {
         wanted: expected(action.outputMint, false, false),
         reason: OUTPUT_MINT_REASON,
       },
-    ]) ?? directProgramRejection(accounts)
+    ]) ?? directProgramRejection(accounts, destination)
   );
 };
 

@@ -18,7 +18,7 @@ import {
   TRANSFER_PRIORITY_FEE_LAMPORTS,
 } from "@solos/core";
 import { Effect } from "effect";
-import { describeError, rpcCall } from "../rpc/rpc-call.js";
+import { rpcCall } from "../rpc/rpc-call.js";
 import { assertV1WireForSubmission, beginV1Message, signV1Message } from "./transaction-v1.js";
 
 /**
@@ -33,6 +33,8 @@ export const TRANSFER_V1_CONFIG = Object.freeze({
   loadedAccountsDataSizeLimit: 8_388_608,
   priorityFeeLamports: TRANSFER_PRIORITY_FEE_LAMPORTS,
 });
+
+export const RPC_SUBMISSION_FAILED = "the configured RPC endpoint failed transaction submission";
 
 /**
  * Fetch a blockhash, build a policy-configured v1 SOL transfer, and sign it.
@@ -111,7 +113,7 @@ export const sendSigned = (ctx, signed) => {
     });
     return Effect.tryPromise({
       try: () => confirm(signed, { commitment: "confirmed" }),
-      catch: (error) => new TransactionFailed({ signature, reason: describeError(error) }),
+      catch: () => new TransactionFailed({ signature, reason: RPC_SUBMISSION_FAILED }),
     });
   }).pipe(Effect.as(signature), Effect.withSpan("rpc.sendAndConfirmTransaction"));
 };
