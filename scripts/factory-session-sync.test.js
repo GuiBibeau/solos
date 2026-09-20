@@ -48,7 +48,7 @@ const fixture = () => {
 const sync = (station, remote) =>
   run(station, ["bash", path.join(import.meta.dir, "factory-session-sync.sh"), remote]);
 
-test("session sync fast-forwards a clean default branch", () => {
+test("[integration] session sync fast-forwards a clean default branch", () => {
   const { remote, seed, station } = fixture();
   const remoteHead = commit(seed, "second");
   run(seed, ["git", "push", "origin", "main"]);
@@ -56,7 +56,7 @@ test("session sync fast-forwards a clean default branch", () => {
   expect(run(station, ["git", "rev-parse", "HEAD"])).toBe(remoteHead);
 });
 
-test("session sync preserves feature branch bytes and dirty status", () => {
+test("[integration] session sync preserves feature branch bytes and dirty status", () => {
   const { remote, station } = fixture();
   run(station, ["git", "switch", "-c", "factory/test"]);
   writeFileSync(path.join(station, "tracked.txt"), "unsaved\n");
@@ -67,7 +67,7 @@ test("session sync preserves feature branch bytes and dirty status", () => {
   expect(run(station, ["git", "status", "--porcelain"])).not.toBe("");
 });
 
-test("session sync preserves unpushed commits when main diverges", () => {
+test("[integration] session sync preserves unpushed commits when main diverges", () => {
   const { remote, seed, station } = fixture();
   commit(seed, "remote-second");
   run(seed, ["git", "push", "origin", "main"]);
