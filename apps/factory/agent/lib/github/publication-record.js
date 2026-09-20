@@ -7,14 +7,14 @@ const SHA = /^[a-f\d]{40}$/u;
 export const PUBLICATION_WINDOW_MS = 10 * 60 * 1000;
 
 /** @typedef {"active" | "confirmed" | "failed" | "stale"} PublicationOutcome */
-/** @typedef {"created" | "write-planned" | "body-written" | "refresh-requested"} PublicationStage */
+/** @typedef {"awaiting-evidence" | "created" | "write-planned" | "body-written" | "refresh-requested"} PublicationStage */
 /** @typedef {object} PublicationRecord
  * @property {number} version
  * @property {string} operationId
  * @property {number} pullNumber
  * @property {string} targetSha
  * @property {string} expectedRemoteHead
- * @property {"pushed" | "rebased" | "already-remote"} remoteResult
+ * @property {"pushed" | "rebased" | "already-remote" | "observed"} remoteResult
  * @property {string} startedAt
  * @property {string} remoteHeadChangedAt
  * @property {string} deadlineAt
@@ -69,9 +69,13 @@ const hasPublicationTarget = (value) =>
 /** @param {Record<string, unknown>} value */
 const hasPublicationState = (value) => {
   const hasOutcome = ["active", "confirmed", "failed", "stale"].includes(String(value.outcome));
-  const hasStage = ["created", "write-planned", "body-written", "refresh-requested"].includes(
-    String(value.stage),
-  );
+  const hasStage = [
+    "awaiting-evidence",
+    "created",
+    "write-planned",
+    "body-written",
+    "refresh-requested",
+  ].includes(String(value.stage));
   return hasOutcome && hasStage;
 };
 

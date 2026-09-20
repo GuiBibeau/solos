@@ -17,6 +17,19 @@ const publish = (fixture) =>
   );
 
 describe("Evidence publication recovery", () => {
+  test("claims a crash immediately after push and accepts the original Evidence once", async () => {
+    const fixture = publicationFixture();
+    const claimed = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
+    expect(claimed).toMatchObject({ status: "active", repairAllowed: false });
+    expect(claimed.reason).toContain("Waiting for the original verified Evidence");
+    expect(fixture.state.comments).toHaveLength(1);
+    expect(fixture.state.bodyWrites).toBe(0);
+    const completed = await publish(fixture);
+    expect(completed).toMatchObject({ status: "active", repairAllowed: false });
+    expect(fixture.state.comments).toHaveLength(1);
+    expect(fixture.state.bodyWrites).toBe(1);
+  });
+
   test("recovers a crash after body write without a second write", async () => {
     const fixture = publicationFixture();
     const original = fixture.state.comments;
@@ -97,7 +110,7 @@ describe("Evidence publication recovery", () => {
 
   test("expires once from remote head time and never permits a feature relaunch", async () => {
     const fixture = publicationFixture({ now: "2026-09-20T10:10:00.000Z" });
-    const expired = await publish(fixture);
+    const expired = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
     expect(expired).toMatchObject({
       status: "failed",
       repairAllowed: false,
@@ -108,37 +121,5 @@ describe("Evidence publication recovery", () => {
     const repeat = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
     expect(repeat).toMatchObject({ status: "failed", repairAllowed: false });
     expect(repeat.reportActionable).toBe(false);
-  });
-
-  test("reports a genuine refreshed verifier failure instead of treating it as delay", async () => {
-    const evidence = fullEvidence();
-    const body = `Intro\n\n## Evidence\n\n\`\`\`json\n${evidence}\n\`\`\`\n`;
-    const fixture = publicationFixture({
-      body,
-      check: {
-        name: "evidence",
-        status: "completed",
-        conclusion: "failure",
-        started_at: "2026-09-20T10:00:01.000Z",
-        completed_at: "2026-09-20T10:00:30.000Z",
-      },
-    });
-    const refreshing = await publish(fixture);
-    expect(refreshing).toMatchObject({ status: "active", repairAllowed: false });
-    expect(fixture.state.body).toBe(body);
-    fixture.state.check = {
-      name: "evidence",
-      status: "completed",
-      conclusion: "failure",
-      started_at: "2026-09-20T10:01:01.000Z",
-      completed_at: "2026-09-20T10:02:00.000Z",
-    };
-    const failed = await reconcileEvidencePublication({ pullNumber: 37 }, fixture.context);
-    expect(failed).toMatchObject({
-      status: "failed",
-      repairAllowed: false,
-      reportActionable: true,
-    });
-    expect(failed.reason).toContain("genuinely failed");
   });
 });

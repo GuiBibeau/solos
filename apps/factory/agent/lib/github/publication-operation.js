@@ -6,9 +6,6 @@ import {
   createPublicationComment,
   readPublicationComments,
   readPublicationPull,
-  readPublicationTimeline,
-  readRepositoryEvents,
-  remoteHeadChangedAt,
   writePublicationComment,
 } from "./publication-github.js";
 import {
@@ -17,6 +14,11 @@ import {
   publicationEntries,
   updatePublicationRecord,
 } from "./publication-record.js";
+import {
+  publicationChangedAt,
+  startObservedPublication,
+  supplyPublicationEvidence,
+} from "./publication-recovery.js";
 
 /** @typedef {import("./rebase-api.js").RebaseApi} Api */
 /** @typedef {import("./publication-record.js").PublicationRecord} PublicationRecord */
@@ -39,8 +41,7 @@ export const reconcileEvidencePublication = async (input, context) => {
   const entries = publicationEntries(comments, context.botName);
   const current = await readPublicationPull(context.api, input.pullNumber);
   const entry = entries.findLast(({ record }) => record.targetSha === current.head);
-  if (!entry)
-    return { status: "none", reason: "No publication owns the current head.", repairAllowed: true };
+  if (!entry) return startObservedPublication(context, input.pullNumber, current);
   return advanceEvidencePublication(context, entry.id, entry.record);
 };
 
@@ -62,11 +63,9 @@ export const publishRevisionEvidence = async (input, context) => {
   const entries = publicationEntries(comments, context.botName);
   await retireSupersededPublications(context, entries, input.targetSha);
   const existing = entries.findLast(({ record }) => record.targetSha === input.targetSha);
-  if (existing) return advanceEvidencePublication(context, existing.id, existing.record);
+  if (existing) return supplyPublicationEvidence(context, existing, input);
   const now = (context.now ?? (() => new Date()))().toISOString();
-  const events = await readRepositoryEvents(context.api);
-  const timeline = await readPublicationTimeline(context.api, input.pullNumber);
-  const changedAt = remoteHeadChangedAt([...events, ...timeline], input.targetSha, current.branch);
+  const changedAt = await publicationChangedAt(context, input.pullNumber, current);
   if (!changedAt)
     return {
       status: "blocked",

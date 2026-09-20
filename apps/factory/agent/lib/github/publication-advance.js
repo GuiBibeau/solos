@@ -29,13 +29,19 @@ export const advanceEvidencePublication = async (context, id, record) => {
 };
 
 /** @param {import("./publication-outcome.js").PublicationState} state */
-const advanceMissingEvidence = (state) =>
-  hasPublicationExpired(state)
-    ? failPublication(
-        state,
-        "Matching exact-head Evidence was still missing at the publication deadline.",
-      )
-    : publishEvidenceBody(state);
+const advanceMissingEvidence = (state) => {
+  if (hasPublicationExpired(state))
+    return failPublication(
+      state,
+      "Matching exact-head Evidence was still missing at the publication deadline.",
+    );
+  if (state.record.stage === "awaiting-evidence")
+    return publicationResult(state.record, {
+      reason: "Waiting for the original verified Evidence; do not launch a repair.",
+      repairAllowed: false,
+    });
+  return publishEvidenceBody(state);
+};
 
 /** @param {import("./publication-outcome.js").PublicationState} state @param {string} body */
 const advancePresentEvidence = async (state, body) => {
