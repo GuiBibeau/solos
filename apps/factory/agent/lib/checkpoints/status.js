@@ -26,11 +26,16 @@ const OBSERVED_STATUS = /** @type {const} */ ({
 });
 
 /** @param {StationCheckpoint} checkpoint @param {Observation} observation */
+const hasFreshActivity = (checkpoint, observation) =>
+  observation.latestActivityAt !== undefined && observation.latestActivityAt > checkpoint.updatedAt;
+
+/** @param {StationCheckpoint} checkpoint @param {Observation} observation */
 export const stationStatus = (checkpoint, observation) => {
-  if (checkpoint.outcome === "budget_paused") return "budget_paused";
+  if (hasFreshActivity(checkpoint, observation) && observation.taskOutcome !== undefined)
+    return OBSERVED_STATUS[observation.taskOutcome];
+  if (checkpoint.outcome !== "active") return checkpoint.outcome;
   if (observation.taskOutcome !== undefined) return OBSERVED_STATUS[observation.taskOutcome];
   if (observation.observationTimedOut && checkpoint.outcome === "active") return "unknown";
-  if (checkpoint.outcome !== "active") return checkpoint.outcome;
   return "unknown";
 };
 

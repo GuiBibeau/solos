@@ -19,6 +19,7 @@ describe("station lifecycle replay", () => {
 
   test("a superseded task with an active replacement remains active", () => {
     const view = stationView(withOutcome("superseded"), {
+      latestActivityAt: "2026-09-19T05:00:00.000Z",
       taskOutcome: "active",
     });
     expect(view.status).toBe("active");
@@ -35,10 +36,20 @@ describe("station lifecycle replay", () => {
 
   test("a budget pause wins over stale activity without changing the budget", () => {
     const view = stationView(issue18Checkpoint, {
+      latestActivityAt: "2026-09-19T03:00:00.000Z",
       sessionStatus: "running",
       taskOutcome: "active",
     });
     expect(view.status).toBe("budget_paused");
+  });
+
+  test("an approved continuation after a budget pause becomes active", () => {
+    const view = stationView(issue18Checkpoint, {
+      latestActivityAt: "2026-09-19T05:00:00.000Z",
+      sessionStatus: "running",
+      taskOutcome: "active",
+    });
+    expect(view.status).toBe("active");
   });
 });
 

@@ -84,6 +84,7 @@ test("terminal, replacement, slow, cancelled, and timeout states remain determin
     const checkpoint = {
       ...issue18Checkpoint,
       outcome: type === "turn.started" ? "superseded" : "active",
+      updatedAt: "2026-09-18T23:59:59.000Z",
     };
     expect(stationView(checkpoint, stored.observation).status).toBe(expected);
   }
