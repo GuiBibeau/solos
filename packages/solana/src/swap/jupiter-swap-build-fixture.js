@@ -60,11 +60,14 @@ export const fixtureAtas = async (taker) => ({
 });
 
 /**
- * The documented 200 envelope for the fixture pair: exact request echo, tolerance-floor minimum
- * output, real instructions in the documented buckets, resolved lookup tables, and a 32-byte
- * blockhash. `overrides` mutates one field at a time for rejection tests.
+ * The documented 200 body for the fixture pair: exact request echo, tolerance-floor minimum
+ * output, real instructions in the documented buckets, resolved lookup tables, a 32-byte
+ * blockhash, and the official fetchedAt object exactly as the provider sends it (the response
+ * schema validates and strips it). `overrides` mutates one field at a time for rejection tests.
  * @param {{ taker: string; slippageBps?: number; overrides?: Record<string, unknown> }} options
- * @returns {Promise<import("./jupiter-swap-build-response.js").JupiterBuildEnvelope>}
+ * @returns {Promise<import("./jupiter-swap-build-response.js").JupiterBuildEnvelope & {
+ *   blockhashWithMetadata: { fetchedAt: { secs_since_epoch: number; nanos_since_epoch: number } };
+ * }>}
  */
 export const buildEnvelope = async ({ taker, slippageBps = 50, overrides = {} }) => {
   const { sourceAta, destinationAta } = await fixtureAtas(taker);
@@ -90,7 +93,7 @@ export const buildEnvelope = async ({ taker, slippageBps = 50, overrides = {} })
     blockhashWithMetadata: {
       blockhash: [...BLOCKHASH_BYTES],
       lastValidBlockHeight: LAST_VALID_BLOCK_HEIGHT,
-      fetchedAt: 1_700_000_000_000,
+      fetchedAt: { secs_since_epoch: 1_700_000_000, nanos_since_epoch: 500_000_000 },
     },
     ...overrides,
   };
