@@ -14,24 +14,36 @@ import {
 afterEach(cleanupRepos);
 
 describe("physical line gate [integration]", () => {
-  test("accepts 150 physical comment lines and rejects 151", async () => {
+  test("accepts 225 production lines and rejects 226", async () => {
     const passing = await createRepo();
-    await addLines(passing, "src/exact.test.js", 150);
+    await addLines(passing, "src/exact.js", 225);
     expect((await runCheck(passing)).code).toBe(0);
 
     const failing = await createRepo();
-    await addLines(failing, "src/too-long.test.js", 151);
+    await addLines(failing, "src/too-long.js", 226);
     const result = await runCheck(failing);
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("src/too-long.test.js: 151 physical lines (maximum 150)");
+    expect(result.stderr).toContain("src/too-long.js: 226 physical lines (maximum 225)");
+  });
+
+  test("accepts 300 test lines and rejects 301", async () => {
+    const passing = await createRepo();
+    await addLines(passing, "src/exact.test.js", 300);
+    expect((await runCheck(passing)).code).toBe(0);
+
+    const failing = await createRepo();
+    await addLines(failing, "src/too-long.test.js", 301);
+    const result = await runCheck(failing);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("src/too-long.test.js: 301 physical lines (maximum 300)");
   });
 
   test("counts CRLF and a missing terminal newline for paths with spaces", async () => {
     const cwd = await createRepo();
-    await addLines(cwd, "src/path with spaces.js", { count: 151, newline: "\r\n" });
+    await addLines(cwd, "src/path with spaces.js", { count: 226, newline: "\r\n" });
     const result = await runCheck(cwd);
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("src/path with spaces.js: 151 physical lines");
+    expect(result.stderr).toContain("src/path with spaces.js: 226 physical lines");
   });
 
   test("reports untouched legacy debt without blocking the change", async () => {
@@ -40,14 +52,14 @@ describe("physical line gate [integration]", () => {
     await addLines(cwd, "src/small.js", 2);
     const result = await runCheck(cwd);
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain("debt: src/legacy.js: 151 physical lines");
+    expect(result.stderr).toContain("debt: src/legacy.js: 226 physical lines");
     expect(result.stderr).toContain("untouchedDebt=1");
   });
 
   test("blocks touched and renamed legacy violations", async () => {
     const modified = await createRepo();
     await addLegacyDebt(modified, "src/legacy.js");
-    await writeFile(nodePath.join(modified, "src/legacy.js"), "// changed\n".repeat(151));
+    await writeFile(nodePath.join(modified, "src/legacy.js"), "// changed\n".repeat(226));
     await git(modified, "add", ".");
     await git(modified, "commit", "-m", "touch legacy");
     expect((await runCheck(modified)).code).toBe(1);
@@ -61,10 +73,10 @@ describe("physical line gate [integration]", () => {
 
   test("reports a touched approved exception", async () => {
     const cwd = await createRepo();
-    await addLines(cwd, "eslint.config.js", 151);
+    await addLines(cwd, "eslint.config.js", 226);
     const result = await runCheck(cwd);
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain("approvedException=eslint.config.js:151");
+    expect(result.stderr).toContain("approvedException=eslint.config.js:226");
   });
 
   test("fails clearly when the comparison base is unavailable", async () => {
@@ -78,10 +90,10 @@ describe("physical line gate [integration]", () => {
   test("includes uncommitted added files", async () => {
     const cwd = await createRepo();
     await addLines(cwd, "src/small.js", 2);
-    await writeFile(nodePath.join(cwd, "src/uncommitted.js"), "// line\n".repeat(151));
+    await writeFile(nodePath.join(cwd, "src/uncommitted.js"), "// line\n".repeat(226));
     const result = await runCheck(cwd);
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("src/uncommitted.js: 151 physical lines");
+    expect(result.stderr).toContain("src/uncommitted.js: 226 physical lines");
   });
 
   test("ignores an unstaged deletion when scanning untouched debt", async () => {

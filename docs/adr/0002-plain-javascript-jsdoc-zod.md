@@ -16,8 +16,11 @@ architecture are exactly where type mismatches hurt. Effect and the MCP SDK also
 - Types that must cross a package boundary are re-exported as `@typedef` lines in the package's
   `index.js`, because `export { X } from` only carries values.
 - Formatting: Biome. Linting: ESLint 10 with `eslint-plugin-boundaries`, `import-x`, `unicorn`,
-  and hard limits (`complexity` 8, `max-lines` 150, `max-lines-per-function` 40, `max-depth` 3,
-  `max-params` 3, `max-statements` 15). Architecture also enforced by dependency-cruiser.
+  and hard limits (`complexity` 8, production `max-lines` 150 excluding comments and blanks,
+  test `max-lines` 300, `max-lines-per-function` 40, `max-depth` 3, `max-params` 3,
+  `max-statements` 20). A separate changed-file gate caps production files at 225 physical lines
+  and tests at 300, leaving room for useful JSDoc while preventing unbounded modules. Architecture
+  is also enforced by dependency-cruiser.
 
 ## Consequences
 

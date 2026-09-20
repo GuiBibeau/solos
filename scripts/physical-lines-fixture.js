@@ -64,7 +64,7 @@ export const runCheck = async (cwd) => {
 /** @param {string} cwd @param {string} path */
 export const addLegacyDebt = async (cwd, path) => {
   await git(cwd, "switch", "main");
-  await addLines(cwd, path, 151);
+  await addLines(cwd, path, 226);
   await git(cwd, "update-ref", "refs/remotes/origin/main", "HEAD");
   await git(cwd, "switch", "feature");
   await git(cwd, "rebase", "main");
