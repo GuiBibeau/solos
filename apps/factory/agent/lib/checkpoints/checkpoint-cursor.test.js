@@ -41,6 +41,7 @@ test("save takes continuation cursors only from runtime observation", async () =
   await save(
     {
       ...issue18Checkpoint,
+      blocked: true,
       cursor: "model-invented",
       revision: 99,
       updatedAt: "2099-01-01T00:00:00.000Z",
@@ -50,6 +51,6 @@ test("save takes continuation cursors only from runtime observation", async () =
     }),
   );
   expect(writes).toHaveLength(1);
-  expect(writes[0]).toMatchObject({ cursor: "runtime-cursor", revision: 1 });
+  expect(writes[0]).toMatchObject({ cursor: "runtime-cursor", outcome: "blocked", revision: 1 });
   expect(writes[0]).not.toMatchObject({ updatedAt: "2099-01-01T00:00:00.000Z" });
 });

@@ -18,7 +18,7 @@ const WritableCheckpointSchema = StationCheckpointSchema.omit({
   taskId: true,
   updatedAt: true,
   usage: true,
-}).extend({ blocker: WritableBlockerSchema.optional() });
+}).extend({ blocked: z.boolean().default(false), blocker: WritableBlockerSchema.optional() });
 
 /** @param {import("./schema.js").StationCheckpoint | undefined} checkpoint @param {string} taskId */
 const supersededOwners = (checkpoint, taskId) => {
@@ -27,8 +27,12 @@ const supersededOwners = (checkpoint, taskId) => {
   return [...checkpoint.supersededTaskIds, checkpoint.taskId].slice(-20);
 };
 
-/** @param {import("./runtime-observation.js").RuntimeObservation["taskOutcome"]} outcome */
-const checkpointOutcome = (outcome) => (outcome === "cancelled" ? "failed" : (outcome ?? "active"));
+/** @param {import("./runtime-observation.js").RuntimeObservation["taskOutcome"]} outcome @param {boolean} blocked */
+const checkpointOutcome = (outcome, blocked) => {
+  if (outcome === "cancelled") return "failed";
+  if (outcome !== undefined && outcome !== "active") return outcome;
+  return blocked ? "blocked" : (outcome ?? "active");
+};
 
 /** @param {{rootRunId: string; station: string; workItem: string}} binding @param {z.infer<typeof WritableCheckpointSchema>} input */
 const hasCheckpointOwnership = (binding, input) =>
@@ -36,12 +40,12 @@ const hasCheckpointOwnership = (binding, input) =>
   binding.station === input.station &&
   binding.workItem === input.workItem;
 
-/** @param {import("./runtime-observation.js").RuntimeObservation | undefined} observation @param {import("./schema.js").StationCheckpoint | undefined} previous */
-const runtimeFields = (observation, previous) => {
+/** @param {import("./runtime-observation.js").RuntimeObservation | undefined} observation @param {import("./schema.js").StationCheckpoint | undefined} previous @param {boolean} blocked */
+const runtimeFields = (observation, previous, blocked) => {
   const cursor = observation?.cursor ?? previous?.cursor;
   return {
     cursor,
-    outcome: checkpointOutcome(observation?.taskOutcome),
+    outcome: checkpointOutcome(observation?.taskOutcome, blocked),
     revision: (previous?.revision ?? 0) + 1,
     updatedAt: new Date().toISOString(),
     usage: observation?.usage,
@@ -72,9 +76,10 @@ export const createCheckpointSaver =
     const stored = await checkpoints.read(input);
     const previous = stored.checkpoint;
     const supersededTaskIds = supersededOwners(previous, ownership.binding.taskId);
+    const blocked = input.blocked && input.blocker !== undefined;
     return checkpoints.save({
       ...input,
-      ...runtimeFields(observed.observation, previous),
+      ...runtimeFields(observed.observation, previous, blocked),
       stationRunId: ctx.session.id,
       supersededTaskIds,
       taskId: ownership.binding.taskId,
