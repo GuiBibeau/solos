@@ -81,11 +81,12 @@ metadata implemented), `swap` (ports + use cases, no adapters), `signals` (ports
   `read | simulate | execute`, every argument `.describe()`d, description written the way a user
   would ask. Every `execute` tool has a `simulate` twin. `packages/core/src/tools-registry.test.js`
   enforces all of this.
-- Changed code and test files are capped at 150 physical lines by `solos dev check`; comments and
-  blanks count, touched legacy debt must be split, and untouched debt is reported without blocking.
-  The comparison is `HEAD` against its merge-base with `origin/main` (or `HEAD^` on `main`) and
-  fails if that Git base is unavailable. ESLint separately bounds logical lines. Functions ≤40
-  lines, complexity ≤8, ≤3 params, kebab-case names, named exports.
+- Production files are capped at 150 logical lines (comments and blanks excluded) and 225 physical
+  lines; test files are capped at 300 logical and physical lines. `solos dev check` blocks changed
+  files over those physical limits, requires touched legacy debt to be split, and reports untouched
+  debt without blocking. The comparison is `HEAD` against its merge-base with `origin/main` (or
+  `HEAD^` on `main`) and fails if that Git base is unavailable. Functions ≤40 lines, complexity ≤8,
+  ≤20 statements, ≤3 params, kebab-case names, named exports.
 - Tests: unit only for pure domain logic; everything else is an integration test through real
   adapters against Surfpool, colocated as `*.test.js`, suite names tagged `[integration]`.
 - Logs are JSON on stderr. stdout is reserved for JSON-RPC (MCP) and JSON results (CLI).
