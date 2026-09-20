@@ -91,7 +91,7 @@ describe("setup and cleanup ownership bindings before signing", () => {
     const wrong = {
       programId: SYSTEM_PROGRAM,
       accounts: [meta(taker, true, true), meta(atas.sourceAta, true, false)],
-      data: b64(2, ...getU64Codec().encode(BigInt(AMOUNT) + 1n)),
+      data: b64(2, 0, 0, 0, ...getU64Codec().encode(BigInt(AMOUNT) + 1n)),
     };
     const setup = envelope.setupInstructions.map((ix) =>
       ix.programId === SYSTEM_PROGRAM ? wrong : ix,

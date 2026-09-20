@@ -1,9 +1,10 @@
 // @ts-check
-import { address, getU64Codec } from "@solana/kit";
+import { address, getU32Codec, getU64Codec } from "@solana/kit";
 import { findAssociatedTokenPda } from "@solana-program/token";
 import {
   ATA_PROGRAM,
   SYSTEM_PROGRAM,
+  SYSTEM_TRANSFER,
   TOKEN_PROGRAM,
   WSOL_MINT,
   dataBytes,
@@ -38,9 +39,7 @@ export const derivedAta = async (owner, mint, tokenProgram = TOKEN_PROGRAM) => {
  * An idempotent ATA create must be paid and owned by the taker, target one of the requested
  * swap mints, and derive under the token program the instruction itself names.
  * @param {import("./jupiter-swap-build-response.js").RawInstruction} ix
- * @param {import("@solos/actions").SwapAction} action
- * @param {string} taker
- * @returns {Promise<string | undefined>}
+ * @param {import("@solos/actions").SwapAction} action @param {string} taker
  */
 const ataCreateRejection = async (ix, action, taker) => {
   const [payer, account, owner, mint, , tokenProgram] = ix.accounts.map((a) => a.pubkey);
@@ -56,17 +55,21 @@ const ataCreateRejection = async (ix, action, taker) => {
 };
 
 /**
- * One System transfer against the exact-amount temporary-wSOL binding.
+ * One System transfer against the exact-amount temporary-wSOL binding, in the canonical
+ * 12-byte wire form: little-endian u32 discriminator, then the u64 lamport amount.
  * @param {{ transfer: import("./jupiter-swap-build-response.js").RawInstruction;
  *   action: import("@solos/actions").SwapAction; taker: string; tempWsol: string }} bound
- * @returns {Promise<string | undefined>}
  */
 const transferRejection = async ({ transfer, action, taker, tempWsol }) => {
   if (transfer.accounts[0]?.pubkey !== taker) return "setup transfer source was not the taker";
   if (transfer.accounts[1]?.pubkey !== tempWsol) {
     return "setup transfer did not fund the taker's own wSOL account";
   }
-  if (getU64Codec().decode(dataBytes(transfer.data), 1) !== BigInt(action.amount)) {
+  const bytes = dataBytes(transfer.data);
+  if (bytes.length !== 12 || getU32Codec().decode(bytes, 0) !== SYSTEM_TRANSFER) {
+    return "setup transfer was not the canonical 12-byte System transfer";
+  }
+  if (getU64Codec().decode(bytes, 4) !== BigInt(action.amount)) {
     return "setup transfer did not carry the exact requested input amount";
   }
   return undefined;
@@ -77,7 +80,6 @@ const transferRejection = async ({ transfer, action, taker, tempWsol }) => {
  * requested input amount, and may exist only for native-SOL input.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("@solos/actions").SwapAction} action @param {string} taker
- * @returns {Promise<string | undefined>}
  */
 const transfersRejection = async (envelope, action, taker) => {
   const transfers = envelope.setupInstructions.filter((ix) => ix.programId === SYSTEM_PROGRAM);
@@ -95,7 +97,6 @@ const transfersRejection = async (envelope, action, taker) => {
  * The documented wSOL wrap binding: exact-amount transfer plus a SyncNative behind it.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("@solos/actions").SwapAction} action @param {string} taker
- * @returns {Promise<string | undefined>}
  */
 const wrapRejection = async (envelope, action, taker) => {
   const transferRejection = await transfersRejection(envelope, action, taker);
@@ -112,8 +113,8 @@ const wrapRejection = async (envelope, action, taker) => {
 };
 
 /**
- * The cleanup closeAccount is limited to the legitimate temporary-wSOL form: it closes the
- * taker's derived temporary wSOL account, with the taker as authority and rent destination.
+ * The cleanup closeAccount is limited to the legitimate temporary-wSOL form: [account,
+ * destination, authority], destination and authority both the taker.
  * @param {NonNullable<import("./jupiter-swap-build-response.js").JupiterBuildEnvelope["cleanupInstruction"]>} cleanup
  * @param {string} taker
  */
@@ -122,17 +123,17 @@ const cleanupBindingRejection = async (cleanup, taker) => {
   if (cleanup.accounts[0]?.pubkey !== tempWsol) {
     return "cleanup did not close the taker's temporary wSOL account";
   }
-  if (cleanup.accounts[1]?.pubkey !== taker) return "cleanup authority was not the taker";
-  if (cleanup.accounts[2]?.pubkey !== taker) return "cleanup rent destination was not the taker";
+  if (cleanup.accounts[1]?.pubkey !== taker) {
+    return "cleanup rent destination was not the taker";
+  }
+  if (cleanup.accounts[2]?.pubkey !== taker) return "cleanup authority was not the taker";
   return undefined;
 };
 
 /**
  * The full ownership-binding rejection for setup and cleanup. Undefined means acceptable.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action
- * @param {string} taker
- * @returns {Promise<string | undefined>}
+ * @param {import("@solos/actions").SwapAction} action @param {string} taker
  */
 export const setupBindingRejection = async (envelope, action, taker) => {
   for (const ix of envelope.setupInstructions) {

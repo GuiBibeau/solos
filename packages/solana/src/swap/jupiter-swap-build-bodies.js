@@ -95,7 +95,7 @@ export const destinationCreateInstruction = (taker, destinationAta) => ({
 export const wsolFundingInstruction = (taker, sourceAta) => ({
   programId: SYSTEM_PROGRAM,
   accounts: [meta(taker, true, true), meta(sourceAta, true, false)],
-  data: toBase64(Uint8Array.of(2, ...getU64Codec().encode(BigInt(AMOUNT)))),
+  data: toBase64(Uint8Array.of(2, 0, 0, 0, ...getU64Codec().encode(BigInt(AMOUNT)))),
 });
 
 /** Jupiter v6 `route` over the taker's derived ATAs; pool accounts ride the lookup table. */
@@ -106,8 +106,8 @@ export const swapInstruction = (taker, sourceAta, destinationAta) => ({
     meta(taker, true, true),
     meta(sourceAta, true, false),
     meta(destinationAta, true, false),
-    meta(INPUT_MINT, true, false),
-    meta(OUTPUT_MINT, true, false),
+    meta(INPUT_MINT, false, false),
+    meta(OUTPUT_MINT, false, false),
     meta(POOL_AUTHORITY, true, false),
     meta(INPUT_VAULT, true, false),
     meta(OUTPUT_VAULT, false, false),

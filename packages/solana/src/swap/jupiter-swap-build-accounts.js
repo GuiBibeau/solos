@@ -27,10 +27,10 @@ const accountsRejection = async (envelope, action, taker) => {
   if (accounts.every((a) => !(a.pubkey === destinationAta && a.isWritable))) {
     return "swap instruction did not credit the taker's destination token account";
   }
-  if (accounts.every((a) => !(a.pubkey === action.inputMint && a.isWritable))) {
+  if (accounts.every((a) => a.pubkey !== action.inputMint)) {
     return "swap instruction did not carry the input mint's market account";
   }
-  if (accounts.every((a) => !(a.pubkey === action.outputMint && a.isWritable))) {
+  if (accounts.every((a) => a.pubkey !== action.outputMint)) {
     return "swap instruction did not carry the output mint's market account";
   }
   return undefined;

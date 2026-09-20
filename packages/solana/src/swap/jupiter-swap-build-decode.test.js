@@ -107,7 +107,7 @@ describe("the assembled swap wire", () => {
   test("carries the intended accounts, amounts, and minimum output inline", () => {
     const transfer = decompiled.instructions[1];
     const route = decompiled.instructions[2];
-    expect(getU64Codec().decode(transfer.data, 1)).toBe(BigInt(AMOUNT));
+    expect(getU64Codec().decode(transfer.data, 4)).toBe(BigInt(AMOUNT));
     expect(getU64Codec().decode(route.data, 12)).toBe(BigInt(AMOUNT));
     expect(getU64Codec().decode(route.data, 20)).toBe(BigInt(QUOTED_OUT_AMOUNT));
     expect(route.accounts.map((a) => a.address)).toContain(atas.destinationAta);

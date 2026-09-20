@@ -62,11 +62,11 @@ const simulate = ({ ctx, kit, build: buildSwap }, action) =>
 const execute = ({ ctx, kit, build: buildSwap }, action, options) =>
   Effect.gen(function* () {
     if (action.type === "swap") {
-      // The swap branch gates the build's own lifetime before any simulation or send.
       const swap = yield* buildSignedSwap({ kit, build: buildSwap }, action);
-      yield* gateSwapLifetime(ctx, swap.envelope);
-      // Pre-submit boundary: the exact bytes are proven v1 before the first RPC contact.
+      // Pre-submit boundary first: the exact bytes are proven v1 before ANY RPC call.
       yield* assertSwapWireBeforeContact(swap.signed);
+      // Only then is the build's own lifetime gated on chain, before simulation or send.
+      yield* gateSwapLifetime(ctx, swap.envelope);
       const signature = yield* submitSimulated(
         { ctx, signed: swap.signed },
         options.skipSimulation,
