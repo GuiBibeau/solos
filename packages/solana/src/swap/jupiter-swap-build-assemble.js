@@ -2,29 +2,32 @@
 import {
   AccountRole,
   appendTransactionMessageInstructions,
-  compressTransactionMessageUsingAddressLookupTables,
-  createTransactionMessage,
   getBase58Decoder,
-  setTransactionMessageComputeUnitLimit,
-  setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
+import { BuildRejected } from "@solos/core";
+import { assertV1MessageForSigning, beginV1Message } from "../executor/transaction-v1.js";
 import { dataBytes } from "./jupiter-swap-build-validate.js";
 
 /**
- * Assembly of one Jupiter V2 build into exactly one Kit v0 transaction message, in the order
- * the provider documents: our own compute-unit limit first, then the provider's compute budget
- * price, setup, swap, and cleanup instructions. `tipInstruction` never assembles — validation
- * has already rejected it. The message is compressed with the provider-resolved lookup tables
- * (no RPC table fetch), and the taker's signer-role accounts are attached as the keychain
- * signer object so `signTransactionMessageWithSigners` signs them.
+ * Assembly of one Jupiter V2 build into exactly one Kit v1 transaction message. The provider's
+ * complete account list rides inline: v1 messages carry no lookup tables, and the resolved
+ * `addressesByLookupTableAddress` needed no RPC fetch to begin with. Provider compute-budget
+ * instructions are stripped — they are no-ops in v1, and resource policy is explicit local
+ * config instead. The order stays the documented one: setup, swap, cleanup. `tipInstruction`
+ * never assembles — validation has already rejected it. The taker's signer-role accounts are
+ * attached as the keychain signer object so `signTransactionMessageWithSigners` signs them.
  */
 
-/**
- * Our own fixed limit: set locally so a provider-controlled limit can never inflate it.
- * Tunable after funded QA; under-provisioning fails honestly at simulation, before any send.
- */
+/** Explicit local compute-unit budget: never provider-chosen; tunable after funded QA. */
 export const SWAP_COMPUTE_UNIT_LIMIT = 400_000;
+/** Explicit local bound on loaded account data bytes; under-provisioning fails at simulation. */
+export const SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 8_388_608;
+/** Local total priority fee in lamports: the cap, paid as-is, never provider-derived. */
+export const SWAP_MAX_PRIORITY_FEE_LAMPORTS = 100_000n;
+/** Conservative pre-sign bounds, enforced with fixed reasons before any signer is involved. */
+const MAX_UNIQUE_ADDRESSES = 64;
+const MAX_SERIALIZED_BYTES = 4096;
 
 /** @typedef {import("./jupiter-swap-build-response.js").RawInstruction} RawInstruction */
 
@@ -59,26 +62,29 @@ const roleFor = (account, taker) => {
 };
 
 /**
- * Assemble the validated envelope into one compressed v0 message. The taker address belongs to
- * the provided signer; the lookup-table map comes verbatim from the build envelope.
+ * Assemble the validated envelope into one inline v1 message with the local resource config
+ * and the provider's blockhash lifetime.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("../signer/kit-signer.js").KitCompatibleSigner} takerSigner
  */
 export const assembleSwapMessage = (envelope, takerSigner) => {
   const ordered = [
-    ...envelope.computeBudgetInstructions,
     ...envelope.setupInstructions,
     envelope.swapInstruction,
     ...(envelope.cleanupInstruction ? [envelope.cleanupInstruction] : []),
   ];
   const message = appendTransactionMessageInstructions(
     ordered.map((ix) => toKitInstruction(ix, takerSigner)),
-    setTransactionMessageComputeUnitLimit(
-      SWAP_COMPUTE_UNIT_LIMIT,
-      setTransactionMessageFeePayerSigner(takerSigner, createTransactionMessage({ version: 0 })),
-    ),
+    beginV1Message({
+      feePayerSigner: takerSigner,
+      config: {
+        computeUnitLimit: SWAP_COMPUTE_UNIT_LIMIT,
+        loadedAccountsDataSizeLimit: SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
+        priorityFeeLamports: SWAP_MAX_PRIORITY_FEE_LAMPORTS,
+      },
+    }),
   );
-  const lifetime = setTransactionMessageLifetimeUsingBlockhash(
+  return setTransactionMessageLifetimeUsingBlockhash(
     {
       blockhash: /** @type {import("@solana/kit").Blockhash} */ (
         /** @type {unknown} */ (
@@ -89,19 +95,19 @@ export const assembleSwapMessage = (envelope, takerSigner) => {
     },
     message,
   );
-  return compressTransactionMessageUsingAddressLookupTables(
-    lifetime,
-    altMap(envelope.addressesByLookupTableAddress),
-  );
 };
 
 /**
- * Provider-resolved lookup tables, normalized: null becomes no tables; every resolved key list
- * travels untouched so decompilation and simulation see the same accounts the chain will.
- * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope["addressesByLookupTableAddress"]} addresses
- * @returns {Record<string, import("@solana/kit").Address[]>}
+ * Pre-sign enforcement: the message must be v1 and keep within the fixed unique-address and
+ * serialized-byte bounds. Every violation is a fixed-reason `BuildRejected` thrown before a
+ * signer is involved. Returns the asserted compiled message.
+ * @param {Parameters<typeof assertV1MessageForSigning>[0]} message
  */
-const altMap = (addresses) =>
-  /** @type {Record<string, import("@solana/kit").Address[]>} */ (
-    /** @type {unknown} */ (Object.fromEntries(Object.entries(addresses ?? {})))
-  );
+export const assertSwapMessageBounds = (message) => {
+  const { compiled, bytes } = assertV1MessageForSigning(message);
+  if (compiled.staticAccounts.length > MAX_UNIQUE_ADDRESSES)
+    throw new BuildRejected({ reason: "build exceeded 64 unique addresses" });
+  if (bytes.length > MAX_SERIALIZED_BYTES)
+    throw new BuildRejected({ reason: "build exceeded 4096 serialized bytes" });
+  return compiled;
+};
