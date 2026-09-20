@@ -13,7 +13,7 @@ export default defineAgent({
   description:
     "Execute an approved implementation plan in a checkout of the solOS repository: write the code on a " +
     "factory/<type>-<slug> branch with conventional commits, add a changeset when packages/actions changes, run " +
-    "`bun run solos dev verify --scope unit --json`, commit, and push the branch. Returns the branch name, the " +
+    "the station verification tool on a clean exact head, commit, and push the branch. Returns the branch name, the " +
     "verification JSON verbatim as evidence, per-file change summary, and deviations. Stops with pushed: false " +
     "when the plan needs a protected path. The caller passes the work item, classification, and full analysis in " +
     "the message, plus an artifact id when the analyst saved its detail; on a revision run it also passes the " +

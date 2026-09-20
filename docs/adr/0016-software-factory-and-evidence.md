@@ -37,11 +37,14 @@ which commit, not what an agent says it ran.
    Hand-edited, incomplete, or stale Evidence fails the check. Pull requests opened by Renovate or
    the changesets bot carry no author Evidence; for them the CI re-run alone is the proof.
 
-3. **Stations verify with the lever.** The implementer runs `verify --scope unit` in its sandbox
-   after committing and pastes the JSON verbatim. The reviewer re-runs `verify --scope check` in
-   its own clone before reading the diff and returns `request_changes` on missing, stale, or dirty
-   Evidence. Surfpool integration tests (`scope full`) run in GitHub Actions, not in sandboxes,
-   so CI stays the single source of integration results and sandboxes stay fast.
+3. **Stations verify with the lever.** The implementer runs `verify --scope unit` through the
+   station verification gate after committing and pastes the JSON verbatim. The reviewer re-runs
+   `verify --scope check` through the same gate in its own clone before reading the diff and
+   returns `request_changes` on missing, stale, or dirty Evidence. The gate records the expected
+   and actual head, clean state, frozen-lockfile install and measured Bun/Surfpool/platform/PATH
+   capabilities, then waits for the verifier's actual process result. Rebase revisions run
+   `scope full` with the repository-pinned offline Surfpool in the sandbox; ordinary integration
+   remains in GitHub Actions, so check-only work never starts Surfpool unnecessarily.
 
 4. **Protected paths** need a human: `packages/actions/`, `docs/adr/`, `.github/`, lint and type
    configuration, `LICENSE`. CODEOWNERS requires the owner's review; a workflow fails

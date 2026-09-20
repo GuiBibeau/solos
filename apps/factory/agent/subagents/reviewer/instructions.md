@@ -14,9 +14,9 @@ The repository is checked out at `/workspace/repo` on its default branch, with d
 
 ## The Evidence gate comes first
 
-1. Fetch the branch under review with `checkout-branch`. Note the `sha` it returns.
-2. Run `bun run solos dev verify --scope check --json` from `/workspace/repo` in this clone, your own, independent of the implementer's. It prints one JSON object: your Evidence, with its own `sha`, `dirty`, and `ok`.
-3. Parse the implementer's `evidence` field as JSON. Compare its `sha` with yours (a prefix of at least 7 characters counts as a match).
+1. Parse the implementer's Evidence to recover its expected SHA, then call `checkout-branch` with the reported branch and that SHA as `expectedHead`. The tool preserves dirty or diverged local work, refuses a moved remote head and installs the revision's frozen lockfile.
+2. Call `verify-station` with `scope: check`, the branch, and that SHA as both `expectedHead` and `expectedRemoteHead`. It rechecks the remote and local heads, records measured capabilities, waits for the real verifier process to finish and returns its untouched Evidence JSON and exit code.
+3. Parse the implementer's `evidence` field as JSON. Require its complete 40-character `sha` to equal yours exactly.
 4. Return `request_changes` before reading a line of the diff when any of these hold: the implementer's Evidence is missing or not valid JSON; its `sha` does not match the branch head you fetched; its `dirty` is true; its `ok` is false; or your own `check` scope fails. Say exactly which in `evidence_check` and in a blocking finding. A revision must re-run the lever on the final commit.
 5. Record the comparison in `evidence_check` either way: both shas, match or mismatch, clean or dirty, passed or failed.
 

@@ -112,7 +112,8 @@ describe("[integration] scheduled factory rebases", () => {
       expect(isTrusted(delivery?.auth ?? null)).toBe(false);
       expect(isScheduleAppAuth(delivery?.auth ?? null)).toBe(false);
       expect(delivery?.message).toContain("rebase-pull-request");
-      expect(delivery?.message).toContain("--scope full --json");
+      expect(delivery?.message).toContain("verify-station at full scope");
+      expect(delivery?.message).toContain("expectedHead set to the new SHA");
       expect(delivery?.message).toContain("independent reviewer");
       expect(delivery?.message).toContain("require it to equal the Evidence sha");
       expect(delivery?.message).toContain("Leave shipping to the maintainer");

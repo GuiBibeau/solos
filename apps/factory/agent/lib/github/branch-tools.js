@@ -8,37 +8,14 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { FACTORY_BRANCH_PREFIX } from "../constants.js";
+import { checkoutBranch } from "./branch-checkout.js";
 import { authorizeBranchPush } from "./branch-owner.js";
 import { ancestryCommand, guardedPushCommand } from "./branch-push-protection.js";
-import { githubCredentials } from "./credentials.js";
-import {
-  brokerPolicy,
-  mintInstallationToken,
-  REMOTE_URL,
-  REPO_DIR,
-  validateBranch,
-} from "./git-remote.js";
+import { runBrokered } from "./brokered-git.js";
+import { REMOTE_URL, REPO_DIR, validateBranch } from "./git-remote.js";
 
 /** @typedef {import("eve/tools").ToolContext} ToolContext */
 /** @typedef {{ error: string; success: false } | { branch: string; sha: string; success: true }} BranchResult */
-
-/**
- * Run one git command in the station sandbox with the installation token brokered at the firewall.
- * @param {ToolContext} ctx
- * @param {string} command
- * @returns {Promise<{ exitCode: number; detail: string }>}
- */
-const runBrokered = async (ctx, command) => {
-  const sandbox = await ctx.getSandbox();
-  const token = await mintInstallationToken(githubCredentials);
-  await sandbox.setNetworkPolicy(brokerPolicy(token));
-  try {
-    const result = await sandbox.run({ command });
-    return { exitCode: result.exitCode, detail: String(result.stderr || result.stdout).trim() };
-  } finally {
-    await sandbox.setNetworkPolicy("allow-all");
-  }
-};
 
 /**
  * @param {ToolContext} ctx
@@ -56,22 +33,6 @@ const revParse = async (ctx, ref) => {
  * @param {ToolContext} ctx
  * @returns {Promise<BranchResult>}
  */
-const checkoutBranch = async ({ branch }, ctx) => {
-  const refusal = validateBranch(branch);
-  if (refusal !== null) return { error: refusal, success: false };
-  const fetch = await runBrokered(
-    ctx,
-    `git -C ${REPO_DIR} fetch ${REMOTE_URL} '${branch}' && git -C ${REPO_DIR} checkout -B '${branch}' FETCH_HEAD`,
-  );
-  if (fetch.exitCode !== 0) {
-    return {
-      error: `git fetch/checkout exited ${fetch.exitCode}: ${fetch.detail}`,
-      success: false,
-    };
-  }
-  return { branch, sha: await revParse(ctx, "HEAD"), success: true };
-};
-
 /**
  * Push a committed local branch to the factory repository.
  * @param {{ branch: string, expectedHead?: string }} input
@@ -110,6 +71,16 @@ const pushBranch = async ({ branch, expectedHead }, ctx) => {
   return { branch, sha: await revParse(ctx, branch), success: true };
 };
 
+/** @param {string} [branchDescription] */
+export const checkoutBranchInputSchema = (branchDescription = "Existing revision branch.") =>
+  z.object({
+    branch: z.string().min(1).describe(branchDescription),
+    expectedHead: z
+      .string()
+      .regex(/^[0-9a-f]{40}$/u)
+      .describe("Required remote SHA; checkout refuses a moved revision head."),
+  });
+
 /**
  * The `checkout-branch` tool, described for the station that mounts it.
  * @param {{ description: string; branchDescription: string }} text
@@ -118,7 +89,7 @@ export const checkoutBranchTool = (text) =>
   defineTool({
     description: text.description,
     execute: checkoutBranch,
-    inputSchema: z.object({ branch: z.string().min(1).describe(text.branchDescription) }),
+    inputSchema: checkoutBranchInputSchema(text.branchDescription),
   });
 
 /** The `push-branch` tool: the implementer's only side effect. */
