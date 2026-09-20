@@ -1,6 +1,7 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
+import { buildRejection } from "./jupiter-swap-build-accounts.js";
 import {
   AMOUNT,
   INPUT_MINT,
@@ -10,7 +11,6 @@ import {
   POOL_AUTHORITY,
 } from "./jupiter-swap-build-bodies.js";
 import { buildEnvelope, fixtureAtas } from "./jupiter-swap-build-fixture.js";
-import { buildRejection } from "./jupiter-swap-build-accounts.js";
 
 /**
  * Recipient and market-account rejection: the swap must move the taker's own derived token
@@ -25,7 +25,13 @@ let envelope;
 let taker;
 /** @type {{ sourceAta: string; destinationAta: string }} */
 let atas;
-const action = { type: "swap", inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, maxSlippageBps: 50 };
+const action = {
+  type: "swap",
+  inputMint: INPUT_MINT,
+  outputMint: OUTPUT_MINT,
+  amount: AMOUNT,
+  maxSlippageBps: 50,
+};
 
 beforeAll(async () => {
   const signer = await createMemorySignerFromBytes(new Uint8Array(32).fill(42));
@@ -35,7 +41,8 @@ beforeAll(async () => {
 });
 
 /** @param {Record<string, unknown>} overrides */
-const rejectionFor = async (overrides) => buildRejection({ ...envelope, ...overrides }, action, taker);
+const rejectionFor = async (overrides) =>
+  buildRejection({ ...envelope, ...overrides }, action, taker);
 
 /** Rewrite one swap-instruction account by role-matched position in the fixture layout. */
 const withSwapAccounts = (rewrite) => ({
@@ -67,7 +74,9 @@ describe("recipient and market-account rejection before signing", () => {
   });
 
   test("a swap without the input mint's market account is rejected", async () => {
-    const swap = withSwapAccounts((a) => (a.pubkey === INPUT_MINT ? { ...a, pubkey: INPUT_VAULT } : a));
+    const swap = withSwapAccounts((a) =>
+      a.pubkey === INPUT_MINT ? { ...a, pubkey: INPUT_VAULT } : a,
+    );
     expect(await rejectionFor({ swapInstruction: swap })).toContain("input mint's market account");
   });
 
