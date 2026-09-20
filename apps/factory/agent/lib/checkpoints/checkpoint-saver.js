@@ -11,6 +11,7 @@ const WritableBlockerSchema = z.object({
 
 const WritableCheckpointSchema = StationCheckpointSchema.omit({
   cursor: true,
+  outcome: true,
   stationRunId: true,
   supersededTaskIds: true,
   taskId: true,
@@ -23,6 +24,9 @@ const supersededOwners = (checkpoint, taskId) => {
     return checkpoint?.supersededTaskIds ?? [];
   return [...checkpoint.supersededTaskIds, checkpoint.taskId].slice(-20);
 };
+
+/** @param {import("./runtime-observation.js").RuntimeObservation["taskOutcome"]} outcome */
+const checkpointOutcome = (outcome) => (outcome === "cancelled" ? "failed" : (outcome ?? "active"));
 
 /** @param {z.infer<typeof StationSchema>} station */
 export const saveInputSchema = (station) =>
@@ -50,12 +54,16 @@ export const createCheckpointSaver =
     const observed = await observer.read(ctx.session.id);
     const usage = observed.found ? observed.observation?.usage : undefined;
     const cursor = observed.found ? observed.observation?.cursor : undefined;
+    const outcome = checkpointOutcome(
+      observed.found ? observed.observation?.taskOutcome : undefined,
+    );
     const stored = await checkpoints.read(input);
     const previous = stored.checkpoint;
     const supersededTaskIds = supersededOwners(previous, ownership.binding.taskId);
     return checkpoints.save({
       ...input,
       ...((cursor ?? previous?.cursor) !== undefined && { cursor: cursor ?? previous?.cursor }),
+      outcome,
       stationRunId: ctx.session.id,
       supersededTaskIds,
       taskId: ownership.binding.taskId,

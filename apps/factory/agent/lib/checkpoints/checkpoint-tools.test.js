@@ -99,9 +99,10 @@ test("save injects the runtime-bound task identity and provider usage", async ()
   await observer.observe(usageEvent("event-0001"), "runtime-session");
   const save = await boundRuntime(memory, observer);
   const candidate = writableCheckpoint();
-  await save({ ...candidate, cursor: "model-invented", revision: 1 }, childContext());
+  await save({ ...candidate, outcome: "completed", revision: 1 }, childContext());
   expect(await checkpoints.read(candidate)).toMatchObject({
     checkpoint: {
+      outcome: "active",
       stationRunId: "runtime-session",
       taskId: "task_336135bd2632c09d3de51f9d",
       usage: {
