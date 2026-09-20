@@ -100,6 +100,6 @@ export const syncNativeInstruction = (sourceAta) => ({
 /** @param {string} taker @param {string} sourceAta */
 export const cleanupInstruction = (taker, sourceAta) => ({
   programId: TOKEN_PROGRAM,
-  accounts: [meta(sourceAta, true, false), meta(taker, true, false), meta(taker, true, true)],
+  accounts: [meta(sourceAta, true, false), meta(taker, true, false), meta(taker, false, true)],
   data: toBase64(Uint8Array.of(9)),
 });

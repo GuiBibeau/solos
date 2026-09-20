@@ -1,4 +1,5 @@
 // @ts-check
+import { boundedResponseText } from "./jupiter-swap-body.js";
 
 /** @typedef {(input: string, init?: RequestInit) => Promise<Response>} Fetch */
 
@@ -113,7 +114,7 @@ export const jupiterGet = async (
     }
     const response = await fetchHop({ fetchImpl, apiKey, signal }, destination);
     if (!REDIRECT_STATUSES.has(response.status)) {
-      return { status: response.status, body: await response.text() };
+      return { status: response.status, body: await boundedResponseText(response) };
     }
     destination = redirectTarget(destination, response);
   }

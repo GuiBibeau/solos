@@ -77,18 +77,47 @@ export const ataCreateRejection = async (ix, action, taker) => {
   return ataRoleRejection(ix);
 };
 
-/**
- * Bind cleanup to the taker's temporary wSOL account, rent destination, and authority.
- * @param {RawInstruction} cleanup @param {string} taker
- */
-export const cleanupBindingRejection = async (cleanup, taker) => {
-  const tempWsol = await derivedAta(taker, WSOL_MINT);
+/** @param {RawInstruction} cleanup */
+const cleanupRoleRejection = (cleanup) => {
+  const roles = [
+    [true, false],
+    [true, false],
+    [false, true],
+  ];
+  return cleanup.accounts.some(
+    (meta, index) => meta.isWritable !== roles[index]?.[0] || meta.isSigner !== roles[index]?.[1],
+  )
+    ? "cleanup accounts carried invalid signer or writable roles"
+    : undefined;
+};
+
+/** @param {import("@solos/actions").SwapAction} action */
+const cleanupActionRejection = (action) =>
+  action.inputMint === WSOL_MINT || action.outputMint === WSOL_MINT
+    ? undefined
+    : "cleanup was present for a swap that did not involve wSOL";
+
+/** @param {RawInstruction} cleanup @param {string} taker @param {string} tempWsol */
+const cleanupIdentityRejection = (cleanup, taker, tempWsol) => {
   if (cleanup.accounts[0]?.pubkey !== tempWsol) {
     return "cleanup did not close the taker's temporary wSOL account";
   }
   if (cleanup.accounts[1]?.pubkey !== taker) {
     return "cleanup rent destination was not the taker";
   }
-  if (cleanup.accounts[2]?.pubkey !== taker) return "cleanup authority was not the taker";
-  return undefined;
+  return cleanup.accounts[2]?.pubkey === taker ? undefined : "cleanup authority was not the taker";
+};
+
+/**
+ * Bind cleanup to a wSOL action and the taker's temporary account, rent destination, and authority.
+ * @param {RawInstruction} cleanup @param {import("@solos/actions").SwapAction} action
+ * @param {string} taker
+ */
+export const cleanupBindingRejection = async (cleanup, action, taker) => {
+  const actionRejection = cleanupActionRejection(action);
+  if (actionRejection) return actionRejection;
+  const roleRejection = cleanupRoleRejection(cleanup);
+  if (roleRejection) return roleRejection;
+  const tempWsol = await derivedAta(taker, WSOL_MINT);
+  return cleanupIdentityRejection(cleanup, taker, tempWsol);
 };
