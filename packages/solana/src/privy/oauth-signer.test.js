@@ -97,7 +97,7 @@ const fakePrivy = async () => {
   return { wallet, fetchImpl, calls };
 };
 
-describe("privy OAuth signer", () => {
+describe("privy OAuth signer [integration]", () => {
   test("signs through the RPC, recovers from a 401 by refreshing, and persists the new session", async () => {
     const { wallet, fetchImpl, calls } = await fakePrivy();
     const api = privyApi(

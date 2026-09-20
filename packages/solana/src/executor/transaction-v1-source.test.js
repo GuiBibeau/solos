@@ -5,7 +5,7 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dir, "../../../..");
 
-test("production transaction construction stays inside the v1 policy boundary", () => {
+test("production transaction construction stays inside the v1 policy boundary [integration]", () => {
   const glob = new Bun.Glob("{apps,packages}/**/*.js");
   const offenders = [...glob.scanSync({ cwd: root })]
     .filter((file) => !file.endsWith(".test.js"))

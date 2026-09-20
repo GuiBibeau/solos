@@ -37,7 +37,7 @@ const guardedContext = (contacts) => ({
   },
 });
 
-describe("transaction v1 RPC boundary", () => {
+describe("transaction v1 RPC boundary [integration]", () => {
   test("legacy and v0 wire mutations reach neither simulation nor submission RPC", async () => {
     for (const version of /** @type {const} */ (["legacy", 0])) {
       const signed = await signedOld(version);

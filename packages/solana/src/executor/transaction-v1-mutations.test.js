@@ -52,7 +52,7 @@ const v1MessageFor = (signer) =>
     beginV1Message({ feePayerSigner: signer, config: V1_CONFIG }),
   );
 
-describe("transaction v1 mutation guards", () => {
+describe("transaction v1 mutation guards [integration]", () => {
   for (const version of /** @type {const} */ ([0, "legacy"])) {
     test(`refuses ${version} before invoking its signer`, async () => {
       const { signer, calls } = await countingSigner();

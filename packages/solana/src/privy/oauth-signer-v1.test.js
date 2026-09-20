@@ -24,7 +24,7 @@ const freshSession = () => ({
   authorizationKeyExpiresAt: Date.now() + 600_000,
 });
 
-test("Privy can return only a signature and cannot replace the original v1 message", async () => {
+test("Privy can return only a signature and cannot replace the original v1 message [integration]", async () => {
   const wallet = await createMemorySignerFromBytes(randomSeed());
   /** @type {Uint8Array | undefined} */
   let backendMessage;

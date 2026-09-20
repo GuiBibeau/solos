@@ -31,7 +31,7 @@ const v1MessageFor = (signer) =>
     beginV1Message({ feePayerSigner: signer, config: V1_CONFIG }),
   );
 
-describe("transaction v1 policy", () => {
+describe("transaction v1 policy [integration]", () => {
   test("encodes v1, explicit resources, inline accounts and the 0x81 message prefix", async () => {
     const signer = await createMemorySignerFromBytes(randomSeed());
     const message = v1MessageFor(signer);
