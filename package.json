@@ -39,8 +39,5 @@
     "globals": "latest",
     "typescript": "7.0.2",
     "@changesets/cli": "3.0.3"
-  },
-  "patchedDependencies": {
-    "eve@0.56.0": "patches/eve@0.56.0.patch"
   }
 }

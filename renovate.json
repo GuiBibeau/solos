@@ -11,7 +11,6 @@
     { "groupName": "effect", "matchPackagePatterns": ["^effect$", "^@effect/"] },
     { "groupName": "ai-sdk", "matchPackagePatterns": ["^ai$", "^@ai-sdk/"] },
     { "groupName": "mcp", "matchPackagePatterns": ["^@modelcontextprotocol/"] },
-    { "groupName": "eve", "matchPackagePatterns": ["^eve$", "^@vercel/", "^@github-tools/"] },
     {
       "groupName": "lint",
       "matchPackagePatterns": [
@@ -43,7 +42,7 @@
     },
     {
       "customType": "regex",
-      "description": "Bun version file shared by CI and the factory sandbox",
+      "description": "Bun version pinned for repository tooling",
       "fileMatch": ["^\\.bun-version$"],
       "matchStrings": ["^(?<currentValue>[0-9.]+)\\s*$"],
       "depNameTemplate": "oven-sh/bun",

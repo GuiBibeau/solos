@@ -1,5 +1,5 @@
 name: Slice
-description: A grilled slice, ready for the factory to implement
+description: A grilled slice, ready to implement
 labels: [slice, enhancement]
 body:
   - type: input
@@ -35,6 +35,6 @@ body:
     id: criteria
     attributes:
       label: Acceptance criteria
-      description: Checkable by `solos` commands or tests. Copied verbatim by the analyst.
+      description: Checkable by `solos` commands or tests. Preserve these criteria verbatim.
     validations:
       required: true

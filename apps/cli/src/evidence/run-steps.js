@@ -12,8 +12,8 @@ import { redactDiagnostics, reportStepFailure } from "./diagnostics.js";
 const SUMMARY_MAX = 200;
 
 /**
- * `eslint .` over the whole repo peaks above Node's default heap; the factory sandboxes and CI
- * would otherwise fail on memory rather than on code. Callers can still override the value.
+ * `eslint .` over the whole repo peaks above Node's default heap; constrained CI runners would
+ * otherwise fail on memory rather than on code. Callers can still override the value.
  */
 const DEFAULT_NODE_OPTIONS = "--max-old-space-size=6144";
 

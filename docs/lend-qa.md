@@ -7,9 +7,9 @@ written under the pinned program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` w
 units behavior, not what a live market holds. Live QA compares one solOS reserve snapshot with
 the same named Kamino market seen through a second client.
 
-**Status: blocked.** A live read needs operator prerequisites that do not exist in the factory
-or CI sandboxes: an RPC endpoint with the Kamino lending program in its history (the factory
-holds none). solOS lend reads are public — no credential is provisioned anywhere; the only
+**Status: blocked.** A live read needs an operator RPC endpoint with the Kamino lending program
+in its history; reusable tests and CI do not receive one. solOS lend reads are public — no
+credential is provisioned anywhere; the only
 configuration is `SOLANA_RPC_URL` plus the optional `KAMINO_LENDING_MARKET`. Live credentials
 and endpoints belong only in the operator or approved QA environment.
 

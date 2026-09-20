@@ -1,9 +1,0 @@
-# Protected paths (ADR-0016): the factory may not change these without a human review.
-/packages/actions/        @GuiBibeau
-/docs/adr/                @GuiBibeau
-/.github/                 @GuiBibeau
-/eslint.config.js         @GuiBibeau
-/biome.json               @GuiBibeau
-/.dependency-cruiser.cjs  @GuiBibeau
-/tsconfig.json            @GuiBibeau
-/LICENSE                  @GuiBibeau

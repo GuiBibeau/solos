@@ -30,7 +30,7 @@ or explicit residual exposure. Do not claim a token balance increase proves a ro
 
 ## Consequences
 
-Public swap Actions are backward compatible. Factory #18 must reject explicit pump until #25
-implements it; the same mint in swap and launch remains intentionally routed differently.
+Public swap Actions are backward compatible. Explicit Pump routing must be rejected until the
+Pump executor implements it; the same mint in swap and launch remains intentionally routed differently.
 The official Pump program and current exact-input IDL must be pinned in the adapter. The earlier
 local draft's abbreviated program string is not authoritative; #24's verified issue pin applies.

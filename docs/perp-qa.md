@@ -4,8 +4,8 @@ Offline tests exercise the real adapter, CLI, and MCP server against loopback HT
 `PHOENIX_BASE_URL`. They cannot establish what a live registered account holds. Live QA
 compares solOS output with the Phoenix UI for an operator account.
 
-**Status: blocked.** A funded, registered read needs operator prerequisites that do not exist
-in the factory or CI sandboxes: a Phoenix Perps account registered for the operator's signer
+**Status: blocked.** A funded, registered read needs operator prerequisites that CI does not have:
+a Phoenix Perps account registered for the operator's signer
 (traderPdaIndex 0, activated), collateral deposited, and — before the later funded open/close
 QA (#27/#28) — enough equity to hold a position. Reads themselves are public, so no credential
 is provisioned anywhere; the only configuration is `PHOENIX_BASE_URL` (leave it unset for the

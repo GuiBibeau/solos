@@ -1,7 +1,6 @@
 # Iris integration
 
-Status: scoping through grill-with-docs. Implementation will be assigned to the solOS factory
-through a GitHub issue once the behavior and acceptance criteria are settled.
+Status: scoped through grill-with-docs for implementation through a GitHub issue.
 
 ## Agreed scope
 

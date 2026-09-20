@@ -39,6 +39,6 @@ empty portfolios. The configured market is the declared coverage, never all Kami
 
 Deposit and withdrawal both need offline decoded-instruction coverage. Live funding waits until
 both entry and exit exist; the operator compares underlying balances and receipt quantities
-before deposit and after withdrawal, including rent, fees and dust. No factory credentials.
+before deposit and after withdrawal, including rent, fees and dust. Reusable tests hold no credentials.
 Old dormant Actions without market or with zero amount now fail schema validation; migration is
 intentional and versioned. Existing wallet/transfer/swap callers are unaffected.
