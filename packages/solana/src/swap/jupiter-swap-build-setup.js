@@ -19,7 +19,7 @@ export const setupBindingRejection = async (envelope, action, taker) => {
   return (
     (await wrapRejection(envelope, action, taker)) ??
     (envelope.cleanupInstruction
-      ? await cleanupBindingRejection(envelope.cleanupInstruction, action, taker)
+      ? await cleanupBindingRejection(envelope, action, taker)
       : undefined)
   );
 };

@@ -2,7 +2,6 @@
 import {
   AccountRole,
   appendTransactionMessageInstructions,
-  getBase58Decoder,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
@@ -68,11 +67,12 @@ const roleFor = (account, taker) => {
 
 /**
  * Assemble the validated envelope into one inline v1 message with the local resource config
- * and the provider's blockhash lifetime.
+ * and the configured RPC's fresh blockhash lifetime.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("../signer/kit-signer.js").KitCompatibleSigner} takerSigner
+ * @param {import("@solana/kit").BlockhashLifetimeConstraint} lifetime
  */
-export const assembleSwapMessage = (envelope, takerSigner) => {
+export const assembleSwapMessage = (envelope, takerSigner, lifetime) => {
   const ordered = [
     ...envelope.setupInstructions,
     envelope.swapInstruction,
@@ -89,17 +89,7 @@ export const assembleSwapMessage = (envelope, takerSigner) => {
       },
     }),
   );
-  return setTransactionMessageLifetimeUsingBlockhash(
-    {
-      blockhash: /** @type {import("@solana/kit").Blockhash} */ (
-        /** @type {unknown} */ (
-          getBase58Decoder().decode(Uint8Array.from(envelope.blockhashWithMetadata.blockhash))
-        )
-      ),
-      lastValidBlockHeight: BigInt(envelope.blockhashWithMetadata.lastValidBlockHeight),
-    },
-    message,
-  );
+  return setTransactionMessageLifetimeUsingBlockhash(lifetime, message);
 };
 
 /**

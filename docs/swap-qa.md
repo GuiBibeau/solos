@@ -57,8 +57,8 @@ permission before QA). Live QA is reported blocked, never passed.
    - The USDC ATA (created by the build's idempotent ATA instruction, owned by the taker) holds
      at least the simulate step's minimum output, i.e. `otherAmountThreshold`
      = `floor(outAmount x (10000 - slippageBps) / 10000)` — the min-out compliance bound.
-   - The cleanup closed the temporary wSOL account back to the taker, so no wSOL residual
-     account should remain for the input hop.
+   - The cleanup closed only the ATA that was absent during preflight and created by this exact
+     build, returning its rent to the taker. No temporary wSOL residual should remain.
    - Any residual is only ever dust from rounding at the recorded slippage; residuals beyond the
      bound are a defect — record the signature and stop.
 5. **Reverse hop.** Repeat steps 2-4 with input USDC (the ATA from step 4) and output wSOL, then

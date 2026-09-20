@@ -12,7 +12,7 @@ import { JupiterSwapLive } from "./jupiter-swap-live.js";
  */
 
 /**
- * @typedef {Array<{ status?: number; body?: unknown; location?: string }>} FixtureResponses
+ * @typedef {Array<{ status?: number; body?: unknown; location?: string; stream?: boolean }>} FixtureResponses
  * @typedef {{ url: string; method: string; key: string | undefined; inputMint: string | null; outputMint: string | null; amount: string | null; slippageBps: string | null; swapMode: string | null; excludeRouters: string | null; taker: string | null }} RecordedRequest
  */
 
@@ -50,13 +50,26 @@ export const startFixture = (responses, { delayMs = 0, bodyDelayMs = 0 } = {}) =
         "content-type": "application/json",
       });
       if (next.location) headers.location = next.location;
-      return new Response(delayedBody(payload, bodyDelayMs), {
+      const body = next.stream ? streamedBody(payload) : delayedBody(payload, bodyDelayMs);
+      return new Response(body, {
         status: next.status ?? 200,
         headers,
       });
     },
   });
   return { requests, url: `http://127.0.0.1:${server.port}`, stop: () => server.stop(true) };
+};
+
+/** @param {string} payload */
+const streamedBody = (payload) => {
+  let isSent = false;
+  return new ReadableStream({
+    pull(controller) {
+      if (isSent) return controller.close();
+      controller.enqueue(new TextEncoder().encode(payload));
+      isSent = true;
+    },
+  });
 };
 
 /** @param {string} payload @param {number} delayMs */

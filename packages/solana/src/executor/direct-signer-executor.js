@@ -4,7 +4,8 @@ import { Clock, Effect, Layer } from "effect";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
-import { assertSwapWireBeforeContact, buildSignedSwap, gateSwapLifetime } from "./swap-sol.js";
+import { recheckSignedSwapLifetime } from "./swap-preflight.js";
+import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
 import { submitSimulatedSwap } from "./swap-submit.js";
 import { buildSignedTransfer, sendSigned, simulateSigned } from "./transfer-sol.js";
 
@@ -28,7 +29,10 @@ export const EXECUTOR_NAME = "direct-signer";
 const build = ({ ctx, kit, build: buildSwap }, action) => {
   if (action.type === "transfer_sol") return buildSignedTransfer(ctx, kit, action);
   if (action.type === "swap") {
-    return Effect.map(buildSignedSwap({ kit, build: buildSwap }, action), ({ signed }) => signed);
+    return Effect.map(
+      buildSignedSwap({ ctx, kit, build: buildSwap }, action),
+      ({ signed }) => signed,
+    );
   }
   return Effect.fail(new UnsupportedAction({ actionType: action.type, executor: EXECUTOR_NAME }));
 };
@@ -41,7 +45,10 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
 const simulate = ({ ctx, kit, build: buildSwap }, action) =>
   Effect.gen(function* () {
     const signed = yield* build({ ctx, kit, build: buildSwap }, action);
-    if (action.type === "swap") yield* assertSwapWireBeforeContact(signed);
+    if (action.type === "swap") {
+      yield* assertSwapWireBeforeContact(signed);
+      yield* recheckSignedSwapLifetime(ctx, signed);
+    }
     const raw = yield* simulateSigned(ctx, signed);
     const isOk = raw.err === null;
     return {
@@ -63,13 +70,11 @@ const simulate = ({ ctx, kit, build: buildSwap }, action) =>
 const execute = ({ ctx, kit, build: buildSwap }, action, options) =>
   Effect.gen(function* () {
     if (action.type === "swap") {
-      const swap = yield* buildSignedSwap({ kit, build: buildSwap }, action);
-      // Pre-submit boundary first: the exact bytes are proven v1 before ANY RPC call.
+      const swap = yield* buildSignedSwap({ ctx, kit, build: buildSwap }, action);
+      // Pre-submit boundary: the exact locally-lived bytes are proven v1 before simulation/send.
       yield* assertSwapWireBeforeContact(swap.signed);
-      // Only then is the build's own lifetime gated on chain, before simulation or send.
-      yield* gateSwapLifetime(ctx, swap.envelope);
       const signature = yield* submitSimulatedSwap(
-        { ctx, signed: swap.signed, envelope: swap.envelope },
+        { ctx, signed: swap.signed },
         options.skipSimulation,
       );
       return {

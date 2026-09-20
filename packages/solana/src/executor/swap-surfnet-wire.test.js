@@ -2,10 +2,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   decompileTransactionMessage,
-  getBase58Decoder,
   getBase64Codec,
   getCompiledTransactionMessageDecoder,
   getTransactionDecoder,
+  getU64Codec,
 } from "@solana/kit";
 import { EventBusInMemory, TransactionFailed, executeSwap } from "@solos/core";
 import { Effect, Layer } from "effect";
@@ -19,22 +19,30 @@ import {
 } from "../swap/jupiter-swap-build-assemble.js";
 import {
   AMOUNT,
-  BLOCKHASH_BYTES,
   INPUT_MINT,
+  INPUT_VAULT,
   KEY,
-  LAST_VALID_BLOCK_HEIGHT,
+  OUT_AMOUNT,
   OUTPUT_MINT,
+  OUTPUT_VAULT,
+  POOL_AUTHORITY,
 } from "../swap/jupiter-swap-build-bodies.js";
 import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
 import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
-import { COMPUTE_BUDGET_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
+import {
+  ATA_PROGRAM,
+  COMPUTE_BUDGET_PROGRAM,
+  JUP6_PROGRAM,
+  SYSTEM_PROGRAM,
+  TOKEN_PROGRAM,
+} from "../swap/jupiter-swap-build-validate.js";
 
 /**
  * Wire proof for one real submission: `solos` executes an explicitly un-simulated swap against
  * Surfnet through the recording RPC proxy, the submission honestly fails on chain (no Jupiter
  * program offline), and the recorded wire decodes to the v1 transaction solOS assembled —
  * 0x81 version prefix, no lookup tables, the explicit local compute policy, the taker as fee
- * payer and only signer, no provider budget instruction, and the provider's lifetime.
+ * payer and only signer, no provider budget instruction, and the configured RPC's lifetime.
  */
 
 const intent = { inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, slippageBps: 50 };
@@ -91,11 +99,14 @@ describe("the exact submitted swap wire [integration]", () => {
     expect(compiled.staticAccounts[0]).toBe(taker);
     expect(compiled.header.numSignerAccounts).toBe(1);
     expect(compiled.staticAccounts).not.toContain(COMPUTE_BUDGET_PROGRAM);
+    const latest = /** @type {{ value: { blockhash: string; lastValidBlockHeight: bigint } }} */ (
+      rpc.callsFor("getLatestBlockhash")[0]?.result
+    );
     const decompiled = decompileTransactionMessage(
       /** @type {Parameters<typeof decompileTransactionMessage>[0]} */ (
         /** @type {unknown} */ (compiled)
       ),
-      { lastValidBlockHeight: BigInt(LAST_VALID_BLOCK_HEIGHT) },
+      { lastValidBlockHeight: BigInt(latest.value.lastValidBlockHeight) },
     );
     expect(decompiled.config).toEqual({
       computeUnitLimit: SWAP_COMPUTE_UNIT_LIMIT,
@@ -105,8 +116,23 @@ describe("the exact submitted swap wire [integration]", () => {
     // Pinned to the verified literal: the submitted wire carries the 16 MiB bound the real
     // Metis route simulation required.
     expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(16_777_216);
-    expect(decompiled.lifetimeConstraint.blockhash).toBe(
-      getBase58Decoder().decode(BLOCKHASH_BYTES),
+    expect(decompiled.lifetimeConstraint.blockhash).toBe(latest.value.blockhash);
+    expect(decompiled.instructions.map((ix) => ix.programAddress)).toEqual([
+      ATA_PROGRAM,
+      ATA_PROGRAM,
+      SYSTEM_PROGRAM,
+      TOKEN_PROGRAM,
+      JUP6_PROGRAM,
+      TOKEN_PROGRAM,
+    ]);
+    const transfer = decompiled.instructions[2];
+    const route = decompiled.instructions[4];
+    if (!transfer || !route) throw new Error("submitted wire lacked the expected instructions");
+    expect(getU64Codec().decode(transfer.data, 4)).toBe(BigInt(AMOUNT));
+    expect(getU64Codec().decode(route.data, 8)).toBe(BigInt(AMOUNT));
+    expect(getU64Codec().decode(route.data, 16)).toBe(BigInt(OUT_AMOUNT));
+    expect(compiled.staticAccounts).toEqual(
+      expect.arrayContaining([POOL_AUTHORITY, INPUT_VAULT, OUTPUT_VAULT]),
     );
   });
 });

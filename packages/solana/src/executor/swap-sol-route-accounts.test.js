@@ -67,7 +67,7 @@ const directDestinationOptional = withAccounts((accounts) =>
   ),
 );
 
-describe("Jupiter V2 fixed account slots before signer or RPC contact", () => {
+describe("Jupiter V2 fixed account slots before signer or RPC contact [integration]", () => {
   test("the current shared-accounts prefix reaches the first RPC gate", async () => {
     const { error } = await runBranch("execute", sharedEnvelope);
     expect(error).toBeInstanceOf(RpcError);

@@ -1,8 +1,8 @@
 // @ts-check
 import { getBase64EncodedWireTransaction } from "@solana/kit";
-import { BuildRejected, UnsupportedAction } from "@solos/core";
+import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
-import { rpcCall } from "../rpc/rpc-call.js";
+import { preflightSwapBuild } from "./swap-preflight.js";
 import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
 import { assertV1WireForSubmission } from "./transaction-v1.js";
 
@@ -23,9 +23,9 @@ export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
 /**
  * Fetch, validate, assemble, and sign one swap. Only Jupiter is supported; unsupported venues
  * are refused before any build request.
- * @param {{ kit: Kit; build: Build }} deps @param {SwapAction} action
+ * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
  */
-export const buildSignedSwap = ({ kit, build }, action) =>
+export const buildSignedSwap = ({ ctx, kit, build }, action) =>
   Effect.gen(function* () {
     if (action.venue === "pump") {
       return yield* new UnsupportedAction({ actionType: "swap:pump", executor: EXECUTOR });
@@ -37,33 +37,18 @@ export const buildSignedSwap = ({ kit, build }, action) =>
       });
     }
     const envelope = yield* fetchValidatedBuild({ kit, build }, action);
-    const signed = yield* assembleAndSign({ kit }, envelope);
+    const lifetime = yield* preflightSwapBuild(ctx, envelope, kit.signer.address);
+    const signed = yield* assembleAndSign({ kit, lifetime }, envelope);
     return { signed, envelope };
   });
 
 /**
  * Prove the exact wire bytes about to touch RPC decode to a v1 message.
  * @param {Signed} signed
- * @returns {import("effect").Effect.Effect<unknown, BuildRejected>}
+ * @returns {import("effect").Effect.Effect<unknown, import("@solos/core").BuildRejected>}
  */
 export const assertSwapWireBeforeContact = (signed) =>
   Effect.try({
     try: () => assertV1WireForSubmission(getBase64EncodedWireTransaction(signed)),
-    catch: (error) => /** @type {BuildRejected} */ (error),
-  });
-
-/**
- * Reject an expired build before anything is simulated or sent.
- * @param {Rpc} ctx @param {JupiterBuildEnvelope} envelope
- */
-export const gateSwapLifetime = (ctx, envelope) =>
-  Effect.gen(function* () {
-    const height = yield* rpcCall("getBlockHeight", ctx.url, () =>
-      ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
-    );
-    if (height >= BigInt(envelope.blockhashWithMetadata.lastValidBlockHeight)) {
-      return yield* new BuildRejected({
-        reason: "blockhash lifetime had already expired before submit; nothing was sent",
-      });
-    }
+    catch: (error) => /** @type {import("@solos/core").BuildRejected} */ (error),
   });

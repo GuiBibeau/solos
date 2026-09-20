@@ -9,6 +9,7 @@ export {
   InternalError,
   RpcError,
   SimulationFailed,
+  TransactionExpired,
   TransactionFailed,
   UnsupportedAction,
   ValidationError,

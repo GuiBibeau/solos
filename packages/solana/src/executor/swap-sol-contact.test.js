@@ -1,6 +1,5 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
 import {
   createTransactionMessage,
@@ -12,14 +11,14 @@ import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
 import { runBranch } from "./swap-sol-driver.js";
 import { assertSwapWireBeforeContact } from "./swap-sol.js";
 
-describe("the executor swap branch makes its first contact honestly", () => {
-  test("a valid build signs; execution first contacts the lifetime gate", async () => {
+describe("the executor swap branch makes its first contact honestly [integration]", () => {
+  test("a valid build reaches the account preflight through the real RPC adapter", async () => {
     const { error, requests } = await runBranch("execute");
     expect(error).toBeInstanceOf(RpcError);
     expect(requests).toHaveLength(1);
   });
 
-  test("a valid build signs; simulation first contacts simulation", async () => {
+  test("simulation uses the same account preflight", async () => {
     const { error } = await runBranch("simulate");
     expect(error).toBeInstanceOf(RpcError);
   });
@@ -36,13 +35,5 @@ describe("the executor swap branch makes its first contact honestly", () => {
     );
     const error = await failureOf(assertSwapWireBeforeContact(signed));
     expect(error).toBeInstanceOf(BuildRejected);
-  });
-
-  test("the wire assertion precedes every RPC call in execute", () => {
-    const source = readFileSync(new URL("direct-signer-executor.js", import.meta.url), "utf8");
-    const wire = source.indexOf("assertSwapWireBeforeContact(swap.signed)");
-    const gate = source.indexOf("gateSwapLifetime(ctx, swap.envelope)");
-    expect(wire).toBeGreaterThan(-1);
-    expect(gate).toBeGreaterThan(wire);
   });
 });

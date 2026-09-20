@@ -302,19 +302,23 @@ until their executor branches land.
 - **What is validated before signing.** The response must echo the exact pair, amount, and
   tolerance, carry a tolerance-bound minimum output (`otherAmountThreshold`), and pass a strict
   instruction allowlist: a well-formed compute-unit price (stripped — v1 carries no budget
-  instructions), idempotent ATA creates bound to the taker and the requested mints, wSOL funding
+  instructions), exact ATA creates bound to the taker and requested mints (idempotent for durable
+  accounts, non-idempotent for a cleanup-owned temporary account), wSOL funding
   in the canonical 12-byte System transfer form for exactly the requested amount, the JUP6
-  route, and a closeAccount cleanup limited to the taker's temporary wSOL account back to the
-  taker. Transfers, approvals, authorities, mints, burns, tips, foreign signers, foreign
-  recipients, or an expired lifetime are refused with a fixed-reason `BuildRejected` — before
-  anything is signed or sent.
+  route, and a closeAccount cleanup limited to a build-owned temporary wSOL ATA. Cleanup is
+  accepted only when that ATA is absent in a read-only RPC preflight, this build creates it with
+  the canonical ATA instruction, and the wrap/route direction funds and consumes the same
+  account. Transfers, approvals, authorities, mints, burns, tips, foreign signers, foreign
+  recipients, pre-existing wSOL ATAs, or a pre-sign expiry are refused with a fixed-reason
+  `BuildRejected` before anything is signed or sent.
 - **v1-only, self-submitted.** The transaction is assembled as a Solana v1 message with explicit
   local resource policy (compute-unit limit, loaded-account-data limit, a capped total priority
   fee in lamports), all accounts inline (no address-lookup tables), signed once by the
-  configured signer, proven v1 on the wire before any RPC contact, simulated as those exact
-  bytes unless `--skip-simulation` is explicit, and submitted exactly once to
-  `SOLANA_RPC_URL`. Jupiter's `/execute` and `/submit` are never used; there are no auto tips,
-  referral fees, or provider-chosen payers.
+  configured signer, proven v1 on the wire before simulation or submission, simulated as those
+  exact bytes unless `--skip-simulation` is explicit, and submitted exactly once to
+  `SOLANA_RPC_URL`. The configured RPC supplies and pre-sign gates the blockhash lifetime;
+  provider lifetime metadata never chooses the signed bytes. Jupiter's `/execute` and `/submit`
+  are never used; there are no auto tips, referral fees, or provider-chosen payers.
 - **Zero-send guarantees.** A build that fails validation, a failed simulation, an expired
   blockhash lifetime, or a missing key leaves the balance untouched — nothing is submitted. A
   confirmation failure is an honest `TransactionFailed` carrying the submitted signature; there
@@ -325,10 +329,11 @@ until their executor branches land.
   The signer comes from `SOLOS_SIGNER_PRIVATE_KEY` / `SOLOS_SIGNER_KEYPAIR_PATH` /
   `SOLOS_PROFILE` per ADR-0015; `SOLOS_EXECUTOR` selects the executor (currently `direct`).
   Keys live in the environment or profile store, never in tool arguments or error payloads.
-- **Errors:** executor-channel failures — `BuildRejected` (local policy), `BuildUnavailable`
+- **Errors:** executor-channel failures — `BuildRejected` (pre-sign policy), `BuildUnavailable`
   (credential, rate limit, timeout, contract mismatch; with no `JUPITER_API_KEY` the failure is
-  pre-HTTP), `SimulationFailed` (nothing was sent), `TransactionFailed` (the one submission did
-  not confirm; signature preserved), `UnsupportedAction`, `RpcError`. Domain errors exit
+  pre-HTTP), `SimulationFailed` (nothing was sent), `TransactionExpired` (expired after signing;
+  signature preserved and nothing sent), `TransactionFailed` (the one
+  submission did not confirm; signature preserved), `UnsupportedAction`, `RpcError`. Domain errors exit
   non-zero with `{ "error": { "code", ... } }` on stderr; results are JSON on stdout.
 
 ## Launch curve (Pump bonding curve)

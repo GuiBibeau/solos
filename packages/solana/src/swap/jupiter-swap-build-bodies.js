@@ -14,9 +14,9 @@ import {
  *
  * Provenance. Endpoint contract: `GET {base}/swap/v2/build` (developers.jup.ag, Swap API V2
  * "Build swap transaction"), rechecked 2026-09-19. Instruction encodings: ComputeBudget
- * `setComputeUnitPrice` (discriminator 3 + u64 micro-lamports), ATA `createIdempotent` (data
- * byte 1), System `transfer` (discriminator 2 + u64 lamports), Token `closeAccount` (data byte
- * 9), and the Jupiter v6 anchor `route` instruction whose 8-byte discriminator is
+ * `setComputeUnitPrice` (discriminator 3 + u64 micro-lamports), ATA `create`/`createIdempotent`
+ * (data bytes 0/1), System `transfer` (discriminator 2 + u64 lamports), Token `closeAccount`
+ * (data byte 9), and the Jupiter v6 anchor `route` instruction whose 8-byte discriminator is
  * `route_v2` instruction and whose args are the documented borsh
  * (inAmount, quotedOutAmount, slippageBps, platformFeeBps, positiveSlippageBps, routePlan).
  * The one-step fixture mirrors a current live route shape, and the embedded u64 amounts echo
@@ -65,20 +65,32 @@ export const cuPriceInstruction = () => ({
   data: toBase64(Uint8Array.of(3, ...getU64Codec().encode(COMPUTE_PRICE_MICRO_LAMPORTS))),
 });
 
-/** Idempotent create for the taker's destination (USDC) ATA: the account the swap credits. */
-/** @param {string} taker @param {string} destinationAta */
-export const destinationCreateInstruction = (taker, destinationAta) => ({
+/** Canonical idempotent create for one taker-owned ATA. */
+/** @param {string} taker @param {string} account @param {string} mint */
+export const ataCreateInstruction = (taker, account, mint) => ({
   programId: ATA_PROGRAM,
   accounts: [
     meta(taker, true, true),
-    meta(destinationAta, true, false),
+    meta(account, true, false),
     meta(taker, false, false),
-    meta(OUTPUT_MINT, false, false),
+    meta(mint, false, false),
     meta(SYSTEM_PROGRAM, false, false),
     meta(TOKEN_PROGRAM, false, false),
   ],
   data: toBase64(Uint8Array.of(1)),
 });
+
+/** Non-idempotent creation gives a temporary ATA atomic ownership inside this transaction. */
+/** @param {string} taker @param {string} account @param {string} mint */
+export const temporaryAtaCreateInstruction = (taker, account, mint) => ({
+  ...ataCreateInstruction(taker, account, mint),
+  data: toBase64(Uint8Array.of(0)),
+});
+
+/** Idempotent create for the taker's destination (USDC) ATA: the account the swap credits. */
+/** @param {string} taker @param {string} destinationAta */
+export const destinationCreateInstruction = (taker, destinationAta) =>
+  ataCreateInstruction(taker, destinationAta, OUTPUT_MINT);
 
 /** The documented wSOL wrap: a System transfer of the full input amount to the taker's wSOL ATA. */
 /** @param {string} taker @param {string} sourceAta */

@@ -6,19 +6,14 @@ import { ActionExecutor, BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { randomSeed } from "../surfnet/test-surfnet.js";
 import { AMOUNT, INPUT_MINT, OUTPUT_MINT } from "../swap/jupiter-swap-build-bodies.js";
-import {
-  buildEnvelope,
-  executorLayer,
-  failureOf,
-  stubBuildLayer,
-} from "../swap/jupiter-swap-build-fixture.js";
+import { buildEnvelope, executorLayer, failureOf } from "../swap/jupiter-swap-build-fixture.js";
+import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
+import { JupiterSwapBuildLive } from "../swap/jupiter-swap-build-live.js";
 
 /**
- * Offline driver for the executor's swap branch tests: the real DirectSignerExecutor over a
- * dead RPC port and a stub build Layer serving the documented envelope for the branch's own
- * taker. A BuildRejected proves refusal before any chain contact (the dead port would surface
- * as RpcError); an RpcError proves validation and signing passed and the first contact is the
- * lifetime gate or the simulation — never a send.
+ * Integration driver for the executor's swap branch tests: the real DirectSignerExecutor and
+ * Jupiter HTTP adapter over a loopback build fixture. The RPC adapter targets a closed loopback
+ * port, so validation failures remain distinguishable from the first read-only RPC preflight.
  */
 
 /** @typedef {Awaited<ReturnType<typeof buildEnvelope>>} Envelope */
@@ -44,8 +39,8 @@ export const reasonOf = (error) => {
 
 /** @param {number} index @param {{ pubkey: string; isSigner?: boolean }} patch @returns {(envelope: Envelope) => Envelope} */
 export const rebindCreate = (index, patch) => (envelope) => {
-  const [create, funding] = envelope.setupInstructions;
-  if (!create || !funding) throw new Error("fixture envelope has no setup instructions");
+  const [create, ...rest] = envelope.setupInstructions;
+  if (!create) throw new Error("fixture envelope has no setup instructions");
   return {
     ...envelope,
     setupInstructions: [
@@ -53,7 +48,7 @@ export const rebindCreate = (index, patch) => (envelope) => {
         ...create,
         accounts: create.accounts.map((a, p) => (p === index ? { ...a, ...patch } : a)),
       },
-      funding,
+      ...rest,
     ],
   };
 };
@@ -74,14 +69,13 @@ export const rebindCleanup = (index, patch) => (envelope) => {
 /** Replace the wSOL funding transfer's wire bytes with an arbitrary payload. */
 /** @param {number[]} bytes @returns {(envelope: Envelope) => Envelope} */
 export const withWrapForm = (bytes) => (envelope) => {
-  const [create, transfer] = envelope.setupInstructions;
-  if (!create || !transfer) throw new Error("fixture envelope has no setup instructions");
+  const transferAt = envelope.setupInstructions.findIndex((ix) => ix.accounts.length === 2);
+  if (transferAt === -1) throw new Error("fixture envelope has no wrap transfer");
   return {
     ...envelope,
-    setupInstructions: [
-      create,
-      { ...transfer, data: getBase64Codec().decode(Uint8Array.from(bytes)) },
-    ],
+    setupInstructions: envelope.setupInstructions.map((ix, index) =>
+      index === transferAt ? { ...ix, data: getBase64Codec().decode(Uint8Array.from(bytes)) } : ix,
+    ),
   };
 };
 
@@ -107,26 +101,31 @@ export const withWrapAmount = (lamports) =>
  * @param {Partial<import("@solos/actions").SwapAction>} [actionOverrides]
  */
 export const runBranch = async (face, mutate, actionOverrides = {}) => {
-  /** @type {import("../swap/jupiter-swap-build-api.js").SwapBuildParams[]} */
-  const requests = [];
+  const fixture = startBuildFixture({
+    responder: async (params) => {
+      const envelope = await buildEnvelope({ taker: params.get("taker") ?? "" });
+      return mutate ? mutate(envelope) : envelope;
+    },
+  });
   const layer = executorLayer(
     randomSeed(),
-    stubBuildLayer(async (params) => {
-      const envelope = await buildEnvelope({ taker: params.taker });
-      return mutate ? mutate(envelope) : envelope;
-    }, requests),
+    JupiterSwapBuildLive({ baseUrl: fixture.url, apiKey: "test-jupiter-key" }),
   );
-  const error = await failureOf(
-    Effect.gen(function* () {
-      const executor = yield* ActionExecutor;
-      if (face === "simulate") {
-        return yield* executor.simulate({ ...swapAction, ...actionOverrides });
-      }
-      return yield* executor.execute(
-        { ...swapAction, ...actionOverrides },
-        { skipSimulation: true },
-      );
-    }).pipe(Effect.provide(layer)),
-  );
-  return { error, requests };
+  try {
+    const error = await failureOf(
+      Effect.gen(function* () {
+        const executor = yield* ActionExecutor;
+        if (face === "simulate") {
+          return yield* executor.simulate({ ...swapAction, ...actionOverrides });
+        }
+        return yield* executor.execute(
+          { ...swapAction, ...actionOverrides },
+          { skipSimulation: true },
+        );
+      }).pipe(Effect.provide(layer)),
+    );
+    return { error, requests: fixture.requests };
+  } finally {
+    fixture.stop();
+  }
 };

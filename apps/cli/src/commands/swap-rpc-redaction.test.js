@@ -6,25 +6,54 @@ import { startBuildFixture } from "@solos/solana/swap/build-http-fixture";
 import { runSolos, stderrJson } from "./swap-quote-fixture.js";
 
 const SECRET = "qa-synthetic-swap-rpc-secret";
-const RPC_REQUEST_FAILED = "the configured RPC endpoint failed the request";
+const REQUEST_FAILED = "the configured RPC endpoint failed the request";
+const SUBMISSION_FAILED = "the configured RPC endpoint failed transaction submission";
 const args = ["--input-mint", INPUT_MINT, "--output-mint", OUTPUT_MINT, "--amount", AMOUNT];
-
+/** @type {"lifetime" | "simulation" | "send"} */
+let stage = "lifetime";
 /** @type {ReturnType<typeof startBuildFixture>} */
 let fixture;
 /** @type {ReturnType<typeof Bun.serve>} */
 let rpc;
+
+/** @param {string} method */
+const resultFor = (method) => {
+  if (method === "getAccountInfo") return { context: { slot: 1 }, value: null };
+  if (method === "getLatestBlockhash") {
+    return {
+      context: { slot: 1 },
+      value: { blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 200 },
+    };
+  }
+  if (method === "getBlockHeight") return 1;
+  if (method === "simulateTransaction") {
+    return { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 1 } };
+  }
+  return null;
+};
+
+/** @param {string} method */
+const isFailureStage = (method) =>
+  (stage === "lifetime" && method === "getLatestBlockhash") ||
+  (stage === "simulation" && method === "simulateTransaction") ||
+  (stage === "send" && method === "sendTransaction");
 
 beforeAll(() => {
   fixture = startBuildFixture();
   rpc = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
-    fetch: () =>
-      Response.json({
-        jsonrpc: "2.0",
-        id: 1,
-        error: { code: -32_603, message: `provider echoed ${SECRET}` },
-      }),
+    async fetch(request) {
+      const body = /** @type {{ id: unknown; method: string }} */ (await request.json());
+      if (isFailureStage(body.method)) {
+        return Response.json({
+          jsonrpc: "2.0",
+          id: body.id,
+          error: { code: -32_603, message: `provider echoed ${SECRET}` },
+        });
+      }
+      return Response.json({ jsonrpc: "2.0", id: body.id, result: resultFor(body.method) });
+    },
   });
 });
 
@@ -42,40 +71,50 @@ const childEnv = async () => ({
   JUPITER_BASE_URL: fixture.url,
 });
 
+/** @param {unknown} error @param {string} expected */
+const expectRedacted = (error, expected) => {
+  const serialized = JSON.stringify(error);
+  expect(serialized).not.toContain(SECRET);
+  expect(error).toMatchObject({ code: expected });
+  if (expected === "RpcError") {
+    expect(error).toMatchObject({ url: `http://127.0.0.1:${rpc.port}`, reason: REQUEST_FAILED });
+  } else {
+    expect(error).toMatchObject({ reason: SUBMISSION_FAILED });
+  }
+};
+
+const cases = /** @type {const} */ ([
+  ["lifetime", "RpcError"],
+  ["simulation", "RpcError"],
+  ["send", "TransactionFailed"],
+]);
+
 describe("swap RPC redaction through real child processes [integration]", () => {
-  test("native CLI omits endpoint credentials and provider text", async () => {
-    const { stderr, code } = await runSolos(
-      ["swap", "execute", ...args, "--skip-simulation"],
-      await childEnv(),
-    );
-    expect(code).toBe(1);
-    expect(stderr).not.toContain(SECRET);
-    expect(stderrJson(stderr)?.error).toMatchObject({
-      code: "RpcError",
-      url: `http://127.0.0.1:${rpc.port}`,
-      reason: RPC_REQUEST_FAILED,
-    });
+  test("native CLI redacts lifetime, simulation, and send provider failures", async () => {
+    for (const [failureStage, tag] of cases) {
+      stage = failureStage;
+      const { stderr, code } = await runSolos(["swap", "execute", ...args], await childEnv());
+      expect(code).toBe(1);
+      expect(stderr).not.toContain(SECRET);
+      expectRedacted(stderrJson(stderr)?.error, tag);
+    }
   });
 
-  test("real stdio MCP omits endpoint credentials and provider text", async () => {
+  test("real stdio MCP redacts lifetime, simulation, and send provider failures", async () => {
     const toolArgs = JSON.stringify({
       inputMint: INPUT_MINT,
       outputMint: OUTPUT_MINT,
       amount: AMOUNT,
-      skipSimulation: true,
     });
-    const { stdout, stderr, code } = await runSolos(
-      ["mcp", "call", "solana_swap_execute_swap", "--args", toolArgs],
-      await childEnv(),
-    );
-    expect(code).toBe(1);
-    expect(`${stdout}${stderr}`).not.toContain(SECRET);
-    const result = JSON.parse(stdout);
-    expect(result.isError).toBe(true);
-    expect(result.structuredContent).toMatchObject({
-      code: "RpcError",
-      url: `http://127.0.0.1:${rpc.port}`,
-      reason: RPC_REQUEST_FAILED,
-    });
+    for (const [failureStage, tag] of cases) {
+      stage = failureStage;
+      const result = await runSolos(
+        ["mcp", "call", "solana_swap_execute_swap", "--args", toolArgs],
+        await childEnv(),
+      );
+      expect(result.code).toBe(1);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SECRET);
+      expectRedacted(JSON.parse(result.stdout).structuredContent, tag);
+    }
   });
 });

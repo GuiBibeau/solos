@@ -20,6 +20,7 @@ export const WSOL_MINT = "So11111111111111111111111111111111111111112";
 
 /** Instruction discriminators (first data byte) of the allowlisted instructions. */
 const SET_COMPUTE_UNIT_PRICE = 3;
+const ATA_CREATE = 0;
 const ATA_CREATE_IDEMPOTENT = 1;
 const CLOSE_ACCOUNT = 9;
 export const SYSTEM_TRANSFER = 2;
@@ -50,7 +51,7 @@ const budgetRejection = (envelope) => {
 };
 
 /**
- * Setup instruction forms: an idempotent ATA create, a classic-Token SyncNative, or a plain
+ * Setup instruction forms: a canonical ATA create, a classic-Token SyncNative, or a plain
  * System transfer. Any other token discriminator — transfer, approve, set-authority, mint-to,
  * burn — or an unknown one is refused by form alone, before any account is read.
  */
@@ -62,7 +63,9 @@ const UNKNOWN_SETUP_REASON =
 /** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
 const ataFormRejection = (ix) => {
   const bytes = dataBytes(ix.data);
-  return bytes.length === 1 && bytes[0] === ATA_CREATE_IDEMPOTENT
+  const discriminator = bytes[0];
+  return bytes.length === 1 &&
+    (discriminator === ATA_CREATE || discriminator === ATA_CREATE_IDEMPOTENT)
     ? undefined
     : "setup carried an unknown ATA instruction";
 };

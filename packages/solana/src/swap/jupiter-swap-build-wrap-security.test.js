@@ -56,22 +56,33 @@ describe("wSOL wrap ownership bindings before signing", () => {
   });
 
   test("a duplicate wSOL funding transfer is rejected", async () => {
-    const [create, transfer, sync] = driver.envelope.setupInstructions;
-    expect(
-      await driver.rejectionFor({ setupInstructions: [create, transfer, transfer, sync] }),
-    ).toContain("more than one wSOL funding transfer");
+    const setup = driver.envelope.setupInstructions;
+    const transfer = setup.find((ix) => ix.programId === SYSTEM_PROGRAM);
+    if (!transfer) throw new Error("fixture lacked wrap transfer");
+    expect(await driver.rejectionFor({ setupInstructions: [...setup, transfer] })).toContain(
+      "more than one wSOL funding transfer",
+    );
   });
 
   test("a duplicate SyncNative is rejected", async () => {
-    const [create, transfer, sync] = driver.envelope.setupInstructions;
-    expect(
-      await driver.rejectionFor({ setupInstructions: [create, transfer, sync, sync] }),
-    ).toContain("more than one SyncNative");
+    const setup = driver.envelope.setupInstructions;
+    const sync = setup.find((ix) => ix.accounts.length === 1);
+    if (!sync) throw new Error("fixture lacked SyncNative");
+    expect(await driver.rejectionFor({ setupInstructions: [...setup, sync] })).toContain(
+      "more than one SyncNative",
+    );
   });
 
   test("a SyncNative preceding its funding transfer is rejected", async () => {
-    const [create, transfer, sync] = driver.envelope.setupInstructions;
-    expect(await driver.rejectionFor({ setupInstructions: [create, sync, transfer] })).toContain(
+    const setup = [...driver.envelope.setupInstructions];
+    const transferAt = setup.findIndex((ix) => ix.programId === SYSTEM_PROGRAM);
+    const syncAt = setup.findIndex((ix) => ix.accounts.length === 1);
+    const transfer = setup[transferAt];
+    const sync = setup[syncAt];
+    if (!transfer || !sync) throw new Error("fixture lacked wrap pair");
+    setup[transferAt] = sync;
+    setup[syncAt] = transfer;
+    expect(await driver.rejectionFor({ setupInstructions: setup })).toContain(
       "did not follow the wSOL funding transfer",
     );
   });

@@ -2,15 +2,23 @@
 import { describe, expect, test } from "bun:test";
 import { POOL_AUTHORITY } from "./jupiter-swap-build-bodies.js";
 import { cleanupBindingRejection } from "./jupiter-swap-build-setup-account.js";
-import { createSetupSecurityDriver, meta } from "./jupiter-swap-build-setup-security-driver.js";
-import { TOKEN_2022_PROGRAM, WSOL_MINT } from "./jupiter-swap-build-validate.js";
+import {
+  b64,
+  createSetupSecurityDriver,
+  meta,
+} from "./jupiter-swap-build-setup-security-driver.js";
+import { ATA_PROGRAM, TOKEN_2022_PROGRAM, WSOL_MINT } from "./jupiter-swap-build-validate.js";
 
 const driver = await createSetupSecurityDriver();
 
 const cleanupRejection = (action, accounts = driver.envelope.cleanupInstruction?.accounts) => {
   const cleanup = driver.envelope.cleanupInstruction;
   if (!cleanup || !accounts) throw new Error("fixture lacked cleanup instruction");
-  return cleanupBindingRejection({ ...cleanup, accounts }, action, driver.taker);
+  return cleanupBindingRejection(
+    { ...driver.envelope, cleanupInstruction: { ...cleanup, accounts } },
+    action,
+    driver.taker,
+  );
 };
 
 describe("setup and cleanup ownership bindings before signing", () => {
@@ -49,18 +57,89 @@ describe("setup and cleanup ownership bindings before signing", () => {
       outputMint: POOL_AUTHORITY,
     };
     expect(await cleanupRejection(action)).toBe(
-      "cleanup was present for a swap that did not involve wSOL",
+      "cleanup was not bound to one native-SOL swap direction",
     );
   });
 
-  test("cleanup remains valid for both the native-SOL input and output directions", async () => {
+  test("cleanup remains valid for a complete native-SOL input lifecycle", async () => {
     expect(await cleanupRejection(driver.action)).toBeUndefined();
+  });
+
+  test("cleanup rejects an output-wSOL build that also wraps native SOL", async () => {
     const unwrap = {
       ...driver.action,
       inputMint: driver.action.outputMint,
       outputMint: WSOL_MINT,
     };
-    expect(await cleanupRejection(unwrap)).toBeUndefined();
+    expect(await cleanupRejection(unwrap)).toBe(
+      "cleanup of wrapped output carried an unsafe native-SOL wrap",
+    );
+  });
+
+  test("cleanup accepts output wSOL only without a native-SOL wrap", async () => {
+    const unwrap = {
+      ...driver.action,
+      inputMint: driver.action.outputMint,
+      outputMint: WSOL_MINT,
+    };
+    const envelope = {
+      ...driver.envelope,
+      setupInstructions: driver.envelope.setupInstructions.filter(
+        (ix) => ix.accounts.length !== 2 && ix.accounts.length !== 1,
+      ),
+    };
+    expect(await cleanupBindingRejection(envelope, unwrap, driver.taker)).toBeUndefined();
+  });
+
+  test("a complete token-to-native build owns, credits, and closes its output wSOL ATA", async () => {
+    const accounts = driver.envelope.swapInstruction.accounts;
+    const setupInstructions = driver.envelope.setupInstructions.filter(
+      (ix) => ix.accounts.length !== 2 && ix.accounts.length !== 1,
+    );
+    const swapInstruction = {
+      ...driver.envelope.swapInstruction,
+      accounts: [
+        accounts[0],
+        accounts[2],
+        accounts[1],
+        { ...accounts[3], pubkey: driver.action.outputMint },
+        { ...accounts[4], pubkey: WSOL_MINT },
+        ...accounts.slice(5),
+      ],
+    };
+    const inverted = { inputMint: driver.action.outputMint, outputMint: WSOL_MINT };
+    expect(
+      await driver.rejectionForAction(
+        { ...inverted, setupInstructions, swapInstruction },
+        inverted,
+      ),
+    ).toBeUndefined();
+  });
+
+  test("cleanup rejects a build that did not create the temporary wSOL account", async () => {
+    const envelope = {
+      ...driver.envelope,
+      setupInstructions: driver.envelope.setupInstructions.filter(
+        (ix) => ix.programId !== ATA_PROGRAM || ix.accounts[1]?.pubkey !== driver.atas.sourceAta,
+      ),
+    };
+    expect(await cleanupBindingRejection(envelope, driver.action, driver.taker)).toContain(
+      "required this build to create",
+    );
+  });
+
+  test("cleanup rejects idempotent creation because it cannot prove atomic ownership", async () => {
+    const envelope = {
+      ...driver.envelope,
+      setupInstructions: driver.envelope.setupInstructions.map((ix) =>
+        ix.programId === ATA_PROGRAM && ix.accounts[1]?.pubkey === driver.atas.sourceAta
+          ? { ...ix, data: b64(1) }
+          : ix,
+      ),
+    };
+    expect(await cleanupBindingRejection(envelope, driver.action, driver.taker)).toContain(
+      "required this build to create",
+    );
   });
 
   test("cleanup rejects every account identity decoy", async () => {

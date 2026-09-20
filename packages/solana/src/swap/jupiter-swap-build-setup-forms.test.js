@@ -72,7 +72,7 @@ describe("instruction forms before signing", () => {
   });
 
   test("an unknown ATA discriminator is refused", async () => {
-    const ix = { programId: ATA_PROGRAM, accounts: [], data: b64(0) };
+    const ix = { programId: ATA_PROGRAM, accounts: [], data: b64(2) };
     expect(await withExtraSetup(ix)).toContain("unknown ATA instruction");
   });
 

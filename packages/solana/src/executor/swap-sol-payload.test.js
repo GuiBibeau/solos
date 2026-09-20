@@ -31,7 +31,7 @@ const feeRouteData = (platformFee, positiveSlippage) => {
   return bytes;
 };
 
-describe("the swap payload is bound to the validated intent before signing", () => {
+describe("the swap payload is bound to the validated intent before signing [integration]", () => {
   test("an embedded input amount other than the requested one is refused", async () => {
     const { error, requests } = await runBranch(
       "execute",

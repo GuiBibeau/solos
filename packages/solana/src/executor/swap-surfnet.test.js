@@ -28,8 +28,8 @@ import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
  * The swap executor against Surfnet through the real ActionExecutor, the real Jupiter build
  * transport (loopback fixture), and the real RPC (recording proxy): a failed simulation is a
  * SimulationFailed with zero sends, an explicit skip is sent exactly once and honestly fails on
- * chain, an expired build never leaves, a missing key fails pre-HTTP, and the exact submitted
- * bytes are the assembled v1 transaction.
+ * chain, provider lifetime metadata cannot choose the signed lifetime, a missing key fails
+ * pre-HTTP, and cleanup never closes a pre-existing taker wSOL ATA.
  */
 
 const intent = { inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, slippageBps: 50 };
@@ -116,21 +116,36 @@ describe("the swap executor against Surfnet [integration]", () => {
     expect(rpc.callsFor("sendTransaction").length).toBe(sends + 1);
   });
 
-  test("an expired build is refused before submission and nothing is sent", async () => {
+  test("provider expiry metadata is replaced by the configured RPC lifetime", async () => {
     const seed = randomSeed();
     taker = await seedAddress(seed);
-    const before = await lamportsOf(taker);
+    await surfnet.cheats.fundSol(taker, 1);
     const sends = rpc.callsFor("sendTransaction").length;
     const error = await failureOf(
       executeSwap({ ...intent, skipSimulation: true }).pipe(
         Effect.provide(swapLayer(expired.url, seed, KEY)),
       ),
     );
-    expect(error).toBeInstanceOf(BuildRejected);
-    expect(/** @type {BuildRejected} */ (error)?.reason).toContain("expired");
-    expect(rpc.callsFor("sendTransaction").length).toBe(sends);
-    expect(await lamportsOf(taker)).toBe(before);
+    expect(error).toBeInstanceOf(TransactionFailed);
+    expect(rpc.callsFor("sendTransaction").length).toBe(sends + 1);
     expect(expired.requests).toHaveLength(1);
+  });
+
+  test("cleanup rejects a pre-existing taker wSOL ATA with zero simulation and sends", async () => {
+    const seed = randomSeed();
+    taker = await seedAddress(seed);
+    await surfnet.cheats.setTokenAccount(taker, INPUT_MINT, 0);
+    const simulations = rpc.callsFor("simulateTransaction").length;
+    const sends = rpc.callsFor("sendTransaction").length;
+    const error = await failureOf(
+      executeSwap({ ...intent, skipSimulation: true }).pipe(
+        Effect.provide(swapLayer(fixture.url, seed, KEY)),
+      ),
+    );
+    expect(error).toBeInstanceOf(BuildRejected);
+    expect(/** @type {BuildRejected} */ (error)?.reason).toContain("pre-existing");
+    expect(rpc.callsFor("simulateTransaction").length).toBe(simulations);
+    expect(rpc.callsFor("sendTransaction").length).toBe(sends);
   });
 
   test("a missing Jupiter key fails pre-HTTP with zero build requests", async () => {

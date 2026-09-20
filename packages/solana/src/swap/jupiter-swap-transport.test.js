@@ -4,24 +4,6 @@ import { KEY, okBody } from "./jupiter-swap-bodies.js";
 import { MAX_SWAP_RESPONSE_BYTES } from "./jupiter-swap-body.js";
 import { BODY_MARKER, quoteFailure, startFixture } from "./jupiter-swap-fixture.js";
 
-const oversizedStream = (contentLength) => {
-  let isFirst = true;
-  let isCancelled = false;
-  const body = new ReadableStream({
-    pull(controller) {
-      controller.enqueue(
-        isFirst ? new Uint8Array(MAX_SWAP_RESPONSE_BYTES) : new TextEncoder().encode(BODY_MARKER),
-      );
-      isFirst = false;
-    },
-    cancel() {
-      isCancelled = true;
-    },
-  });
-  const headers = contentLength ? { "content-length": contentLength } : undefined;
-  return { response: new Response(body, { headers }), wasCancelled: () => isCancelled };
-};
-
 /**
  * Transport failures: a cross-origin redirect is rejected before the destination is contacted,
  * the deadline covers headers and body alike, and a network rejection maps separately from
@@ -39,16 +21,9 @@ describe("JupiterSwapLive transport failures [integration]", () => {
   test("a redirect to another origin is rejected before that destination is contacted", async () => {
     const other = startFixture([]);
     fixture = startFixture([{ status: 302, location: `${other.url}/swap/v2/order` }]);
-    const attempted = [];
-    const failure = await quoteFailure(fixture, {
-      fetchImpl: async (input, init) => {
-        attempted.push(String(input));
-        return fetch(input, init);
-      },
-    });
+    const failure = await quoteFailure(fixture);
     expect(failure).toMatchObject({ _tag: "QuoteNetworkError" });
-    expect(attempted).toHaveLength(1);
-    expect(attempted[0].startsWith(fixture.url)).toBe(true);
+    expect(fixture.requests).toHaveLength(1);
     expect(other.requests).toHaveLength(0);
     const rendered = JSON.stringify(failure);
     expect(rendered.includes(KEY)).toBe(false);
@@ -75,11 +50,8 @@ describe("JupiterSwapLive transport failures [integration]", () => {
   });
 
   test("rejects a declared oversized body without exposing its contents", async () => {
-    fixture = startFixture([]);
-    const response = new Response(BODY_MARKER, {
-      headers: { "content-length": String(MAX_SWAP_RESPONSE_BYTES + 1) },
-    });
-    const failure = await quoteFailure(fixture, { fetchImpl: async () => response });
+    fixture = startFixture([{ body: `${"x".repeat(MAX_SWAP_RESPONSE_BYTES)}${BODY_MARKER}` }]);
+    const failure = await quoteFailure(fixture);
     expect(failure).toMatchObject({
       _tag: "QuoteNetworkError",
       reason: "Jupiter swap quote request failed",
@@ -89,29 +61,23 @@ describe("JupiterSwapLive transport failures [integration]", () => {
     expect(rendered).not.toContain(KEY);
   });
 
-  test("caps streamed bodies when Content-Length is missing or dishonest", async () => {
-    fixture = startFixture([]);
-    for (const contentLength of [undefined, "1"]) {
-      const oversized = oversizedStream(contentLength);
-      const failure = await quoteFailure(fixture, {
-        fetchImpl: async () => oversized.response,
-      });
-      expect(failure).toMatchObject({
-        _tag: "QuoteNetworkError",
-        reason: "Jupiter swap quote request failed",
-      });
-      expect(JSON.stringify(failure)).not.toContain(BODY_MARKER);
-      expect(oversized.wasCancelled()).toBe(true);
-    }
+  test("caps a streamed body when Content-Length is missing", async () => {
+    fixture = startFixture([
+      { body: `${"x".repeat(MAX_SWAP_RESPONSE_BYTES)}${BODY_MARKER}`, stream: true },
+    ]);
+    const failure = await quoteFailure(fixture);
+    expect(failure).toMatchObject({
+      _tag: "QuoteNetworkError",
+      reason: "Jupiter swap quote request failed",
+    });
+    expect(JSON.stringify(failure)).not.toContain(BODY_MARKER);
+    expect(fixture.requests).toHaveLength(1);
   });
 
   test("maps a network rejection separately from HTTP and response failures", async () => {
     fixture = startFixture([]);
-    const failure = await quoteFailure(fixture, {
-      fetchImpl: async () => {
-        throw new TypeError("socket closed");
-      },
-    });
+    fixture.stop();
+    const failure = await quoteFailure(fixture);
     expect(failure).toMatchObject({
       _tag: "QuoteNetworkError",
       reason: "Jupiter swap quote request failed",

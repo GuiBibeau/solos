@@ -1,118 +1,142 @@
 // @ts-check
-import { describe, expect, test } from "bun:test";
-import { ActionExecutor, BuildRejected, TransactionFailed } from "@solos/core";
-import { Cause, Effect, Exit, Layer, Option } from "effect";
-import { SolanaRpc } from "../rpc/solana-rpc.js";
-import { KitSignerFromBytes } from "../signer/kit-signer.js";
+import { afterEach, describe, expect, test } from "bun:test";
+import {
+  BuildRejected,
+  EventBusInMemory,
+  TransactionExpired,
+  executeSwap,
+  simulateSwap,
+} from "@solos/core";
+import { Effect, Layer } from "effect";
+import { SolanaTestLive } from "../index.js";
 import { randomSeed } from "../surfnet/test-surfnet.js";
-import { LAST_VALID_BLOCK_HEIGHT } from "../swap/jupiter-swap-build-bodies.js";
-import { buildEnvelope, stubBuildLayer } from "../swap/jupiter-swap-build-fixture.js";
-import { DirectSignerExecutor } from "./direct-signer-executor.js";
-import { swapAction } from "./swap-sol-driver.js";
+import { AMOUNT, INPUT_MINT, KEY, OUTPUT_MINT } from "../swap/jupiter-swap-build-bodies.js";
+import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
+import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
 
-/**
- * Lifetime gating of the swap submission, over a scripted RPC: the build's lifetime is gated
- * before simulation, rechecked after a successful simulation, and only then is the transaction
- * sent once. An expiry during simulation therefore produces zero sends, and an explicit skip
- * gates exactly once. Nothing here needs a chain: the RPC is a scripted object, a send is a
- * recorded call, and the scripted confirm step fails into the honest TransactionFailed.
- */
+const BLOCKHASH = "11111111111111111111111111111111";
+const intent = { inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, slippageBps: 50 };
+/** @type {Array<() => void>} */
+const stops = [];
+afterEach(() => {
+  for (const stop of stops.splice(0)) stop();
+});
 
-const LAST_VALID = BigInt(LAST_VALID_BLOCK_HEIGHT);
-
-/** @param {Exit.Exit<unknown, unknown>} exit */
-const errorOf = (exit) => {
-  if (Exit.isSuccess(exit)) return undefined;
-  const failure = Cause.failureOption(exit.cause);
-  return Option.isSome(failure) ? failure.value : undefined;
+/** @param {number[]} heights @param {number} lastValid */
+const startRpcFixture = (heights, lastValid) => {
+  /** @type {string[]} */
+  const calls = [];
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      const payload = /** @type {{ id: unknown; method: string }} */ (await request.json());
+      calls.push(payload.method);
+      const result = rpcResult(payload.method, heights, lastValid);
+      return Response.json({ jsonrpc: "2.0", id: payload.id, result });
+    },
+  });
+  const stop = () => server.stop(true);
+  stops.push(stop);
+  return { calls, stop, url: `http://127.0.0.1:${server.port}` };
 };
 
-/**
- * A SolanaRpc layer whose block heights are scripted left to right (then pinned to expiry) and
- * whose calls are recorded in order.
- * @param {bigint[]} heights
- * @param {string[]} log
- */
-const scriptedRpcLayer = (heights, log) =>
-  Layer.succeed(
-    SolanaRpc,
-    /** @type {import("../rpc/solana-rpc.js").SolanaRpcShape} */
-    (
-      /** @type {any} */ ({
-        url: "http://127.0.0.1:1",
-        rpcSubscriptions: {},
-        rpc: {
-          getBlockHeight: () => ({
-            send: async () => {
-              log.push("getBlockHeight");
-              return heights.shift() ?? LAST_VALID;
-            },
-          }),
-          simulateTransaction: () => ({
-            send: async () => {
-              log.push("simulateTransaction");
-              return { value: { err: null, logs: ["Program log: ok"], unitsConsumed: 4242n } };
-            },
-          }),
-          sendTransaction: () => ({
-            send: async () => {
-              log.push("sendTransaction");
-              return "5fQpYdeUq1mRVHqBh56f2XYL8DkYLRfYfB9hcvxNViUh";
-            },
-          }),
-        },
-      })
-    ),
-  );
-
-/**
- * Run one swap execute over the scripted heights.
- * @param {bigint[]} heights
- * @param {boolean} skipSimulation
- */
-const runExecute = async (heights, skipSimulation) => {
-  const log = [];
-  const layer = DirectSignerExecutor.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        KitSignerFromBytes(randomSeed()),
-        scriptedRpcLayer(heights, log),
-        stubBuildLayer(async (params) => buildEnvelope({ taker: params.taker })),
-      ),
-    ),
-  );
-  const exit = await Effect.runPromiseExit(
-    Effect.gen(function* () {
-      const executor = yield* ActionExecutor;
-      return yield* executor.execute(swapAction, { skipSimulation });
-    }).pipe(Effect.provide(layer)),
-  );
-  return { error: errorOf(exit), log };
+/** @param {string} method @param {number[]} heights @param {number} lastValid */
+const rpcResult = (method, heights, lastValid) => {
+  if (method === "getAccountInfo") return { context: { slot: 1 }, value: null };
+  if (method === "getLatestBlockhash") {
+    return {
+      context: { slot: 1 },
+      value: { blockhash: BLOCKHASH, lastValidBlockHeight: lastValid },
+    };
+  }
+  if (method === "getBlockHeight") return heights.shift() ?? lastValid;
+  if (method === "simulateTransaction") {
+    return { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 1 } };
+  }
+  throw new Error(`unexpected RPC method ${method}`);
 };
 
-describe("swap lifetime gating around simulation", () => {
-  test("an expiry during simulation is refused with zero sends", async () => {
-    const { error, log } = await runExecute([100n, LAST_VALID], false);
+/** @param {number[]} heights @param {number} lastValid
+ * @param {{ face?: "execute" | "simulate"; skipSimulation?: boolean }} [options] */
+const run = async (heights, lastValid, options = {}) => {
+  const rpc = startRpcFixture(heights, lastValid);
+  const build = startBuildFixture();
+  stops.push(build.stop);
+  const layer = Layer.merge(
+    SolanaTestLive({
+      rpcUrl: rpc.url,
+      wsUrl: "ws://127.0.0.1:1",
+      seed: randomSeed(),
+      jupiter: { baseUrl: build.url, apiKey: KEY },
+    }),
+    EventBusInMemory,
+  );
+  const effect =
+    options.face === "simulate"
+      ? simulateSwap(intent)
+      : executeSwap({ ...intent, skipSimulation: options.skipSimulation });
+  const error = await failureOf(effect.pipe(Effect.provide(layer)));
+  return { calls: rpc.calls, error };
+};
+
+describe("swap lifetime stages through the HTTP RPC adapter [integration]", () => {
+  test("an RPC lifetime already expired is BuildRejected before signing", async () => {
+    const { calls, error } = await run([201], 200);
     expect(error).toBeInstanceOf(BuildRejected);
-    expect(/** @type {BuildRejected} */ (error)?.reason).toContain("expired");
-    expect(log.filter((call) => call === "getBlockHeight")).toHaveLength(2);
-    expect(log).toContain("simulateTransaction");
-    expect(log).not.toContain("sendTransaction");
+    expect(/** @type {BuildRejected} */ (error)?.reason).toContain("before signing");
+    expect(calls).toEqual(["getAccountInfo", "getLatestBlockhash", "getBlockHeight"]);
   });
 
-  test("a healthy build rechecks once and is sent exactly once", async () => {
-    const { error, log } = await runExecute([100n, 100n], false);
-    // The send is recorded; the scripted confirm step then fails honestly.
-    expect(error).toBeInstanceOf(TransactionFailed);
-    expect(log.filter((call) => call === "sendTransaction")).toHaveLength(1);
-    expect(log.filter((call) => call === "getBlockHeight")).toHaveLength(2);
+  test("the inclusive last-valid height passes the pre-sign gate", async () => {
+    const { calls, error } = await run([200, 201], 200, { skipSimulation: true });
+    expect(error).toBeInstanceOf(TransactionExpired);
+    expect(calls).toEqual([
+      "getAccountInfo",
+      "getLatestBlockhash",
+      "getBlockHeight",
+      "getBlockHeight",
+    ]);
   });
 
-  test("an explicit skip gates exactly once, immediately before the send", async () => {
-    const { error, log } = await runExecute([100n, LAST_VALID], true);
-    // The second scripted height would have rejected: seeing a send proves the gate ran once.
-    expect(error).toBeInstanceOf(TransactionFailed);
-    expect(log.filter((call) => call === "getBlockHeight")).toHaveLength(1);
-    expect(log.filter((call) => call === "sendTransaction")).toHaveLength(1);
+  test("expiry between signing and simulation is TransactionExpired with zero sends", async () => {
+    const { calls, error } = await run([100, 201], 200);
+    expect(error).toBeInstanceOf(TransactionExpired);
+    expect(calls).not.toContain("simulateTransaction");
+    expect(calls).not.toContain("sendTransaction");
+  });
+
+  test("expiry after successful simulation is TransactionExpired with zero sends", async () => {
+    const { calls, error } = await run([100, 100, 201], 200);
+    expect(error).toBeInstanceOf(TransactionExpired);
+    expect(/** @type {TransactionExpired} */ (error)?.signature).toBeTruthy();
+    expect(calls).toEqual([
+      "getAccountInfo",
+      "getLatestBlockhash",
+      "getBlockHeight",
+      "getBlockHeight",
+      "simulateTransaction",
+      "getBlockHeight",
+    ]);
+    expect(calls).not.toContain("sendTransaction");
+  });
+
+  test("expiry after signing with simulation skipped is TransactionExpired with zero sends", async () => {
+    const { calls, error } = await run([100, 201], 200, { skipSimulation: true });
+    expect(error).toBeInstanceOf(TransactionExpired);
+    expect(calls).toEqual([
+      "getAccountInfo",
+      "getLatestBlockhash",
+      "getBlockHeight",
+      "getBlockHeight",
+    ]);
+    expect(calls).not.toContain("simulateTransaction");
+    expect(calls).not.toContain("sendTransaction");
+  });
+
+  test("the simulate surface reports post-sign expiry before RPC simulation", async () => {
+    const { calls, error } = await run([100, 201], 200, { face: "simulate" });
+    expect(error).toBeInstanceOf(TransactionExpired);
+    expect(calls).not.toContain("simulateTransaction");
   });
 });

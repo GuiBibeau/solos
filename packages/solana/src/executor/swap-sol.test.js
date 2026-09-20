@@ -14,7 +14,7 @@ import {
 
 const attacker = await attackerAddress();
 
-describe("the executor swap branch refuses before any contact", () => {
+describe("the executor swap branch refuses before any contact [integration]", () => {
   test("an explicit pump venue fails before any build request", async () => {
     const { error, requests } = await runBranch("execute", undefined, { venue: "pump" });
     expect(error).toBeInstanceOf(UnsupportedAction);

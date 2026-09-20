@@ -95,7 +95,7 @@ const withTrailingAtaData = (envelope) => {
   return { ...envelope, setupInstructions: [{ ...create, data }, ...rest] };
 };
 
-describe("ATA setup fixed account contract before RPC contact", () => {
+describe("ATA setup fixed account contract before RPC contact [integration]", () => {
   test("a canonical Token-2022 destination ATA remains supported", async () => {
     const { error } = await runBranch("execute", withToken2022);
     expect(error).toBeInstanceOf(RpcError);

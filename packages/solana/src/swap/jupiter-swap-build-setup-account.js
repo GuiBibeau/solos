@@ -7,6 +7,7 @@ import {
   TOKEN_2022_PROGRAM,
   TOKEN_PROGRAM,
   WSOL_MINT,
+  dataBytes,
 } from "./jupiter-swap-build-validate.js";
 
 /** @typedef {import("./jupiter-swap-build-response.js").RawInstruction} RawInstruction */
@@ -91,11 +92,63 @@ const cleanupRoleRejection = (cleanup) => {
     : undefined;
 };
 
+/** @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope */
+const hasWrapPair = (envelope) => {
+  const transfers = envelope.setupInstructions.filter((ix) => ix.programId === SYSTEM_PROGRAM);
+  const syncs = envelope.setupInstructions.filter(
+    (ix) => ix.programId === TOKEN_PROGRAM && dataBytes(ix.data)[0] === 17,
+  );
+  return transfers.length === 1 && syncs.length === 1;
+};
+
+/** @param {{ envelope: import("./jupiter-swap-build-response.js").JupiterBuildEnvelope;
+ * action: import("@solos/actions").SwapAction; taker: string; tempWsol: string }} bound */
+const cleanupCreateRejection = async ({ envelope, action, taker, tempWsol }) => {
+  const creates = envelope.setupInstructions.filter((ix) => isTargetAccount(ix, tempWsol));
+  const reason =
+    "cleanup required this build to create the taker's temporary wSOL account exactly once";
+  if (creates.length !== 1) return reason;
+  const [create] = creates;
+  if (!create) return reason;
+  const binding = await ataCreateRejection(create, action, taker);
+  if (binding) return binding;
+  return isCanonicalWsolCreate(create) ? undefined : reason;
+};
+
+/** @param {RawInstruction} ix @param {string} account */
+const isTargetAccount = (ix, account) =>
+  ix.programId === ATA_PROGRAM && ix.accounts[1]?.pubkey === account;
+
+/** @param {RawInstruction} ix */
+const isCanonicalWsolCreate = (ix) => {
+  const bytes = dataBytes(ix.data);
+  if (ix.accounts[3]?.pubkey !== WSOL_MINT) return false;
+  if (ix.accounts[5]?.pubkey !== TOKEN_PROGRAM) return false;
+  if (bytes.length !== 1) return false;
+  return bytes[0] === 0;
+};
+
 /** @param {import("@solos/actions").SwapAction} action */
-const cleanupActionRejection = (action) =>
-  action.inputMint === WSOL_MINT || action.outputMint === WSOL_MINT
-    ? undefined
-    : "cleanup was present for a swap that did not involve wSOL";
+const nativeDirection = (action) => {
+  const isInput = action.inputMint === WSOL_MINT;
+  const isOutput = action.outputMint === WSOL_MINT;
+  if (isInput === isOutput) return "invalid";
+  return isInput ? "input" : "output";
+};
+
+/** @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
+ * @param {import("@solos/actions").SwapAction} action */
+const cleanupDirectionRejection = (envelope, action) => {
+  const direction = nativeDirection(action);
+  if (direction === "invalid") return "cleanup was not bound to one native-SOL swap direction";
+  if (direction === "input" && !hasWrapPair(envelope)) {
+    return "cleanup of wrapped input required this build's exact native-SOL wrap";
+  }
+  if (direction === "output" && hasWrapPair(envelope)) {
+    return "cleanup of wrapped output carried an unsafe native-SOL wrap";
+  }
+  return undefined;
+};
 
 /** @param {RawInstruction} cleanup @param {string} taker @param {string} tempWsol */
 const cleanupIdentityRejection = (cleanup, taker, tempWsol) => {
@@ -109,15 +162,20 @@ const cleanupIdentityRejection = (cleanup, taker, tempWsol) => {
 };
 
 /**
- * Bind cleanup to a wSOL action and the taker's temporary account, rent destination, and authority.
- * @param {RawInstruction} cleanup @param {import("@solos/actions").SwapAction} action
- * @param {string} taker
+ * Bind cleanup to one complete build-owned wSOL ATA lifecycle.
+ * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
+ * @param {import("@solos/actions").SwapAction} action @param {string} taker
  */
-export const cleanupBindingRejection = async (cleanup, action, taker) => {
-  const actionRejection = cleanupActionRejection(action);
-  if (actionRejection) return actionRejection;
+export const cleanupBindingRejection = async (envelope, action, taker) => {
+  const cleanup = envelope.cleanupInstruction;
+  if (!cleanup) return undefined;
+  const directionRejection = cleanupDirectionRejection(envelope, action);
+  if (directionRejection) return directionRejection;
   const roleRejection = cleanupRoleRejection(cleanup);
   if (roleRejection) return roleRejection;
   const tempWsol = await derivedAta(taker, WSOL_MINT);
-  return cleanupIdentityRejection(cleanup, taker, tempWsol);
+  return (
+    cleanupIdentityRejection(cleanup, taker, tempWsol) ??
+    (await cleanupCreateRejection({ envelope, action, taker, tempWsol }))
+  );
 };

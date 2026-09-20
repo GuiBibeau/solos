@@ -34,6 +34,13 @@ export class TransactionFailed extends /** @type {TransactionFailedClass} */ (
   taggedError("TransactionFailed")
 ) {}
 
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"TransactionExpired", TransactionExpiredProps>} TransactionExpiredClass */
+/** @typedef {{ readonly signature: string; readonly reason: string }} TransactionExpiredProps */
+/** A signed transaction expired before submission. It was never sent. */
+export class TransactionExpired extends /** @type {TransactionExpiredClass} */ (
+  taggedError("TransactionExpired")
+) {}
+
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"UnsupportedAction", UnsupportedActionProps>} UnsupportedActionClass */
 /** @typedef {{ readonly actionType: string; readonly executor: string }} UnsupportedActionProps */
 /** The configured executor has no implementation for this action type. */
@@ -43,7 +50,7 @@ export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
 
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
 /** @typedef {{ readonly reason: string }} BuildRejectedProps */
-/** A transaction failed local policy before it reached a signer or RPC transport. */
+/** A transaction failed policy before signing; validation may include read-only RPC preflight. */
 export class BuildRejected extends /** @type {BuildRejectedClass} */ (
   taggedError("BuildRejected")
 ) {}

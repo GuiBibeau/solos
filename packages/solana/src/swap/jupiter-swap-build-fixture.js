@@ -21,9 +21,9 @@ import {
   cuPriceInstruction,
   minOutFor,
   syncNativeInstruction,
+  temporaryAtaCreateInstruction,
   wsolFundingInstruction,
 } from "./jupiter-swap-build-bodies.js";
-import { JupiterSwapBuild } from "./jupiter-swap-build-live.js";
 import { swapInstruction } from "./jupiter-swap-build-route-bodies.js";
 import { TOKEN_PROGRAM } from "./jupiter-swap-build-validate.js";
 
@@ -84,6 +84,7 @@ export const buildEnvelope = async ({ taker, slippageBps = 50, overrides = {} })
     computeBudgetInstructions: [cuPriceInstruction()],
     setupInstructions: [
       destinationCreateInstruction(taker, destinationAta),
+      temporaryAtaCreateInstruction(taker, sourceAta, INPUT_MINT),
       wsolFundingInstruction(taker, sourceAta),
       syncNativeInstruction(sourceAta),
     ],
@@ -100,20 +101,6 @@ export const buildEnvelope = async ({ taker, slippageBps = 50, overrides = {} })
     ...overrides,
   };
 };
-
-/**
- * A JupiterSwapBuild Layer backed by the given async envelope factory instead of HTTP,
- * recording every build request it serves. Executor tests thus run the real branch offline.
- * @param {(params: import("./jupiter-swap-build-api.js").SwapBuildParams) => Promise<import("./jupiter-swap-build-response.js").JupiterBuildEnvelope>} envelopeFor
- * @param {import("./jupiter-swap-build-api.js").SwapBuildParams[]} [requests]
- */
-export const stubBuildLayer = (envelopeFor, requests) =>
-  Layer.succeed(JupiterSwapBuild, {
-    build: (params) => {
-      if (requests) requests.push(params);
-      return Effect.promise(() => envelopeFor(params));
-    },
-  });
 
 const DEAD_RPC_URL = "http://127.0.0.1:1";
 const DEAD_WS_URL = "ws://127.0.0.1:2";
