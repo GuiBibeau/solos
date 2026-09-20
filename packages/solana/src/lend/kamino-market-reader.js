@@ -11,6 +11,7 @@ import {
 } from "@solos/core/lend";
 import { RpcError } from "@solos/core/shared";
 import { Effect } from "effect";
+import { sdkLoadBareMarket } from "./kamino-position-sdk.js";
 import {
   KaminoAccountLayoutError,
   KaminoMarketOwnerError,
@@ -36,6 +37,27 @@ const TRANSPORT_REASON = "the configured RPC endpoint failed the request";
 export const loadKaminoMarket = (rpc, marketAddress, origin) =>
   Effect.tryPromise({
     try: () => sdkLoadMarket(rpc, marketAddress),
+    catch: (error) => {
+      if (error instanceof KaminoMarketOwnerError) {
+        return new LendingMarketUnavailable({
+          market: marketAddress,
+          reason: "the configured market account is not owned by the pinned lending program",
+        });
+      }
+      if (error instanceof KaminoAccountLayoutError) {
+        return new LendingLayoutUnsupported({
+          reserve: marketAddress,
+          reason: "the configured market account could not be decoded under the pinned program",
+        });
+      }
+      return new RpcError({ method: "getAccountInfo", url: origin, reason: TRANSPORT_REASON });
+    },
+  });
+
+/** Market-account-only load for positions. @param {SolanaKitRpc} rpc @param {string} marketAddress @param {string} origin */
+export const loadBareKaminoMarket = (rpc, marketAddress, origin) =>
+  Effect.tryPromise({
+    try: () => sdkLoadBareMarket(rpc, marketAddress),
     catch: (error) => {
       if (error instanceof KaminoMarketOwnerError) {
         return new LendingMarketUnavailable({

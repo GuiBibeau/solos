@@ -10,6 +10,10 @@ import { Context } from "effect";
  * @typedef {{
  *   readonly getReserve: (mint: import("../../shared/domain/address.js").Address) =>
  *     import("effect").Effect.Effect<import("../domain/types.js").ReserveSnapshot, import("../domain/errors.js").LendingError>;
+ *   readonly getPosition: (request: { readonly mint: import("../../shared/domain/address.js").Address; readonly owner: import("../../shared/domain/address.js").Address }) =>
+ *     import("effect").Effect.Effect<import("../domain/types.js").LendPosition, import("../domain/errors.js").LendingError>;
+ *   readonly listPositions: (owner: import("../../shared/domain/address.js").Address) =>
+ *     import("effect").Effect.Effect<import("../domain/types.js").LendEnumeration, import("../domain/errors.js").LendingError>;
  * }} LendingVenueShape
  */
 

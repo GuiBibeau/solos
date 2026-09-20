@@ -429,11 +429,16 @@ until those prerequisites exist. Read the operator position and compare `liquidi
 second client; both surfaces must return identical underlying quantities. See
 [liquidity QA](docs/liquidity-qa.md).
 
-## Kamino Lend reserve reads (read-only today)
+## Kamino Lend reserve and supply reads (read-only today)
 
 `solana_lend_get_reserve` (MCP) and `solos lend reserve --mint <address>` (CLI) read one
 reserve's rates and available liquidity from one explicitly configured Kamino market and
 return `{ protocol, market, reserve, mint, decimals, supplyApy, borrowApy, liquidity, at }`:
+
+`solana_lend_get_position` and `solos lend position --mint <address> [--owner <address>]`
+read one owner's aggregate supply in the same market. Omitted owner means the active signer;
+an explicit owner is used verbatim. The result is the published lend Position with underlying
+base units and the distinct obligation accounts that contribute supply.
 
 - **One configured market, never a search.** The default market is Kamino Main Market
   `7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF`; `KAMINO_LENDING_MARKET` may select one other
@@ -449,6 +454,9 @@ return `{ protocol, market, reserve, mint, decimals, supplyApy, borrowApy, liqui
   (`liquidity.totalAvailableAmount`, u64, decimal string, BigInt end to end) — never TVL, never
   USD, never `totalSupply - totalBorrow`. `decimals` is the reserve liquidity mint's decimals.
   An existing reserve with zero available liquidity is a successful read with `liquidity: "0"`.
+  Supply positions sum collateral units across each distinct owner obligation, convert once at
+  the reserve's current collateral-per-liquidity exchange rate using integer arithmetic, and
+  round down to underlying base units. Borrow entries are never subtracted or reported as supply.
 - **APYs are observations, not promised returns.** `supplyApy`/`borrowApy` are annual fractional
   decimal strings (`0.05` = 5%) computed by the SDK's published per-slot interest math and
   exclude incentive reward yields by documented contract. They move every slot; record the time
@@ -458,13 +466,17 @@ return `{ protocol, market, reserve, mint, decimals, supplyApy, borrowApy, liqui
   float-rate reserve (or a mapping violation) fails `ReserveUnavailable`; an undecodable reserve
   account fails `LendingLayoutUnsupported`; a decoded value outside the snapshot schema fails
   `LendingResponseInvalid`; a deadline miss fails `LendingTimeout`; transport failures surface
-  as the shared `RpcError`. One attempt per read, no retries, raw provider bodies never travel.
+  as the shared `RpcError`. Corrupt obligations fail `LendingObligationInvalid`; enumerations
+  beyond 4096 accounts, 256 positions, or 32 pages fail `LendingEnumerationIncomplete` rather
+  than returning a partial result. One attempt per read, no retries, raw provider bodies never travel.
 - **No deposit/withdraw tools exist yet** (#22/#23); this slice signs nothing and spends nothing.
 
 ```sh
 SOLANA_RPC_URL=... bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 KAMINO_LENDING_MARKET=<market> SOLANA_RPC_URL=... bun run solos lend reserve --mint <address>
 SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_reserve --args '{"mint":"<address>"}'
+SOLANA_RPC_URL=... bun run solos lend position --mint <address> --owner <owner>
+SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_position --args '{"mint":"<address>","owner":"<owner>"}'
 ```
 
 `KAMINO_LENDING_MARKET` is optional everywhere and is forwarded to the MCP child like the other

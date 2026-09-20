@@ -1,7 +1,9 @@
 // @ts-check
 import { z } from "zod";
+export { LendPositionSchema } from "@solos/actions";
 import { AddressSchema } from "../../shared/domain/address.js";
 import { base58ByteLength } from "../../shared/domain/base58.js";
+/** @typedef {import("../../shared/domain/address.js").Address} Address */
 
 /**
  * A reserve request mint. Beyond the base58 shape, the address must decode to the 32 bytes of
@@ -80,3 +82,23 @@ export const GetReserveInputSchema = z.object({
 });
 
 /** @typedef {z.infer<typeof GetReserveInputSchema>} GetReserveInput */
+
+/** Read one owner's supply for a mint. Omitted owner means the configured signer. */
+export const GetLendPositionInputSchema = z.object({
+  mint: MintSchema.describe("Underlying token mint in the configured Kamino market"),
+  owner: MintSchema.optional().describe(
+    "Supply owner. Defaults to the configured signer wallet when omitted",
+  ),
+});
+
+/** Resolve every supported Kamino supply position for one owner. */
+export const ListLendPositionsInputSchema = z.object({
+  owner: MintSchema.optional().describe(
+    "Supply owner. Defaults to the configured signer wallet when omitted",
+  ),
+});
+
+/** @typedef {z.infer<typeof GetLendPositionInputSchema>} GetLendPositionInput */
+/** @typedef {z.infer<typeof ListLendPositionsInputSchema>} ListLendPositionsInput */
+/** @typedef {z.infer<typeof import("@solos/actions").LendPositionSchema>} LendPosition */
+/** @typedef {{ readonly positions: LendPosition[]; readonly perpAccounts: []; readonly receiptMints: Address[] }} LendEnumeration */
