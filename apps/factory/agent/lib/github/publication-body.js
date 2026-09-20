@@ -12,6 +12,7 @@ import {
   stalePublication,
 } from "./publication-outcome.js";
 import { updatePublicationRecord } from "./publication-record.js";
+import { publicationRefreshAt, withPublicationRefresh } from "./publication-refresh.js";
 
 /** @typedef {import("./publication-outcome.js").PublicationState} PublicationState */
 /** @typedef {import("./publication-outcome.js").PublicationResult} PublicationResult */
@@ -61,29 +62,44 @@ export const publishEvidenceBody = async (state) => {
  * @returns {Promise<PublicationResult>}
  */
 export const confirmEvidenceCheck = async (state, input) => {
-  const checkState = evidenceCheckState(state, input.check);
+  const active = await recoverRefreshMarker(state, input.body);
+  const checkState = evidenceCheckState(active, input.check);
   if (checkState === "failed")
-    return failPublication(state, "The refreshed current-head Evidence check genuinely failed.");
+    return failPublication(active, "The refreshed current-head Evidence check genuinely failed.");
   if (checkState === "pending")
-    return publicationResult(state.record, {
+    return publicationResult(active.record, {
       reason: "The relevant Evidence check is pending.",
       repairAllowed: false,
     });
-  if (state.record.stage === "refresh-requested")
-    return publicationResult(state.record, {
+  if (active.record.stage === "refresh-requested")
+    return publicationResult(active.record, {
       reason: "The relevant Evidence refresh is pending.",
       repairAllowed: false,
     });
-  await writePublicationBody(state.context.api, state.record.pullNumber, input.body);
-  const record = updatePublicationRecord(state.record, {
+  const body = withPublicationRefresh(input.body, active.record.operationId, active.now);
+  await writePublicationBody(active.context.api, active.record.pullNumber, body);
+  const written = await readPublicationPull(active.context.api, active.record.pullNumber);
+  if (written.head !== active.record.targetSha) return stalePublication(active, written.head);
+  if (publicationRefreshAt(written.body, active.record.operationId) !== active.now)
+    return failPublication(active, "GitHub did not retain the Evidence refresh marker.");
+  const record = updatePublicationRecord(active.record, {
     stage: "refresh-requested",
-    mutationAt: state.now,
+    mutationAt: active.now,
   });
-  await savePublication(state, record);
+  await savePublication(active, record);
   return publicationResult(record, {
-    reason: "Refreshed only the Evidence check without changing the body.",
+    reason: "Requested one durable Evidence check refresh marker.",
     repairAllowed: false,
   });
+};
+
+/** @param {PublicationState} state @param {string} body */
+const recoverRefreshMarker = async (state, body) => {
+  const mutationAt = publicationRefreshAt(body, state.record.operationId);
+  if (!mutationAt || state.record.mutationAt === mutationAt) return state;
+  const record = updatePublicationRecord(state.record, { stage: "refresh-requested", mutationAt });
+  await savePublication(state, record);
+  return { ...state, record };
 };
 
 /** @param {PublicationState} state @param {EvidenceCheck} check */

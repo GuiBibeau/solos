@@ -1,5 +1,6 @@
 // @ts-check
 import { expect, test } from "bun:test";
+import { evidenceRaw } from "./publication-evidence.js";
 import { fullEvidence, publicationFixture, TARGET_SHA } from "./publication-fixture.js";
 import { publishRevisionEvidence, reconcileEvidencePublication } from "./publication-operation.js";
 
@@ -27,7 +28,7 @@ test("a genuine refreshed verifier failure is not treated as publication delay",
     fixture.context,
   );
   expect(refreshing).toMatchObject({ status: "active", repairAllowed: false });
-  expect(fixture.state.body).toBe(body);
+  expect(evidenceRaw(fixture.state.body)).toBe(evidence);
   fixture.state.check = {
     name: "evidence",
     status: "completed",
