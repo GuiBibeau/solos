@@ -20,11 +20,11 @@ import {
   destinationCreateInstruction,
   cuPriceInstruction,
   minOutFor,
-  swapInstruction,
   syncNativeInstruction,
   wsolFundingInstruction,
 } from "./jupiter-swap-build-bodies.js";
 import { JupiterSwapBuild } from "./jupiter-swap-build-live.js";
+import { swapInstruction } from "./jupiter-swap-build-route-bodies.js";
 import { TOKEN_PROGRAM } from "./jupiter-swap-build-validate.js";
 
 /**

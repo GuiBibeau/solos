@@ -14,8 +14,12 @@ export const SHARED_ROUTE_V2_DISCRIMINATOR = Uint8Array.of(209, 152, 83, 147, 12
 const MAX_ROUTE_STEPS = 32;
 const MIN_STEP_BYTES = 5;
 const variants = [
-  { discriminator: ROUTE_V2_DISCRIMINATOR, amountOffset: 8 },
-  { discriminator: SHARED_ROUTE_V2_DISCRIMINATOR, amountOffset: 9 },
+  { discriminator: ROUTE_V2_DISCRIMINATOR, amountOffset: 8, layout: "route-v2" },
+  {
+    discriminator: SHARED_ROUTE_V2_DISCRIMINATOR,
+    amountOffset: 9,
+    layout: "shared-accounts-route-v2",
+  },
 ];
 const UNSUPPORTED_LAYOUT_REASON =
   "swap instruction data was not the supported Jupiter route layout";
@@ -28,6 +32,10 @@ const EMBEDDED_FEE_REASON = "swap instruction data did not carry the required ze
 /** @param {import("@solana/kit").ReadonlyUint8Array} bytes */
 const matchingVariant = (bytes) =>
   variants.find(({ discriminator }) => discriminator.every((byte, index) => bytes[index] === byte));
+
+/** Derive the fixed account layout only from the already-allowlisted instruction discriminator.
+ * @param {import("./jupiter-swap-build-response.js").RawInstruction} swap */
+export const swapRouteLayout = (swap) => matchingVariant(dataBytes(swap.data))?.layout;
 
 /** @param {import("@solana/kit").ReadonlyUint8Array} bytes */
 const decodeRouteArgs = (bytes) => {

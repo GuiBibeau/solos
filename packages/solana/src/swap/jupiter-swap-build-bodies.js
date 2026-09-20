@@ -1,16 +1,8 @@
 // @ts-check
-import {
-  getBase58Decoder,
-  getBase64Codec,
-  getU16Codec,
-  getU32Codec,
-  getU64Codec,
-} from "@solana/kit";
-import { ROUTE_V2_DISCRIMINATOR } from "./jupiter-swap-build-swapdata.js";
+import { getBase58Decoder, getBase64Codec, getU64Codec } from "@solana/kit";
 import {
   ATA_PROGRAM,
   COMPUTE_BUDGET_PROGRAM,
-  JUP6_PROGRAM,
   SYSTEM_PROGRAM,
   TOKEN_PROGRAM,
   WSOL_MINT,
@@ -55,7 +47,7 @@ export const ALT_ADDRESS = synthAddress(1);
 export const POOL_AUTHORITY = synthAddress(2);
 export const INPUT_VAULT = synthAddress(3);
 export const OUTPUT_VAULT = synthAddress(4);
-export const EVENT_AUTHORITY = synthAddress(5);
+export const EVENT_AUTHORITY = "D8cy77BBepLMngZx6ZukaTff5hCt1HrWyKk3Hnd9oitf";
 
 /** @param {Uint8Array} bytes */
 const toBase64 = (bytes) => getBase64Codec().decode(bytes);
@@ -93,7 +85,7 @@ export const destinationCreateInstruction = (taker, destinationAta) => ({
 export const wsolFundingInstruction = (taker, sourceAta) => ({
   programId: SYSTEM_PROGRAM,
   accounts: [meta(taker, true, true), meta(sourceAta, true, false)],
-  data: toBase64(Uint8Array.of(2, ...getU64Codec().encode(BigInt(AMOUNT)))),
+  data: toBase64(Uint8Array.of(2, 0, 0, 0, ...getU64Codec().encode(BigInt(AMOUNT)))),
 });
 
 /** The wrap's second half: SyncNative turns the transferred lamports into spendable wSOL. */
@@ -102,40 +94,6 @@ export const syncNativeInstruction = (sourceAta) => ({
   programId: TOKEN_PROGRAM,
   accounts: [meta(sourceAta, true, false)],
   data: toBase64(Uint8Array.of(17)),
-});
-
-/** Jupiter v6 `routeV2` over the taker's derived ATAs; pool accounts ride the lookup table. */
-/** @param {string} taker @param {string} sourceAta @param {string} destinationAta */
-export const swapInstruction = (taker, sourceAta, destinationAta) => ({
-  programId: JUP6_PROGRAM,
-  accounts: [
-    meta(taker, true, true),
-    meta(sourceAta, true, false),
-    meta(destinationAta, true, false),
-    meta(INPUT_MINT, true, false),
-    meta(OUTPUT_MINT, true, false),
-    meta(POOL_AUTHORITY, true, false),
-    meta(INPUT_VAULT, true, false),
-    meta(OUTPUT_VAULT, false, false),
-    meta(EVENT_AUTHORITY, false, false),
-    meta(JUP6_PROGRAM, false, false),
-  ],
-  data: toBase64(
-    Uint8Array.of(
-      ...ROUTE_V2_DISCRIMINATOR,
-      ...getU64Codec().encode(BigInt(AMOUNT)),
-      ...getU64Codec().encode(BigInt(OUT_AMOUNT)),
-      ...getU16Codec().encode(50),
-      ...getU16Codec().encode(0),
-      ...getU16Codec().encode(0),
-      ...getU32Codec().encode(1),
-      125,
-      0,
-      ...getU16Codec().encode(10_000),
-      0,
-      1,
-    ),
-  ),
 });
 
 /** Closes the taker's emptied wSOL account; rent returns to the taker. */
