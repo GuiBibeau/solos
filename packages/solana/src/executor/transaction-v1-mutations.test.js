@@ -7,6 +7,7 @@ import {
   createTransactionMessage,
   getAddressDecoder,
   getBase64EncodedWireTransaction,
+  getTransactionMessageSize,
   setTransactionMessageFeePayerSigner,
   signTransactionMessageWithSigners,
 } from "@solana/kit";
@@ -73,6 +74,18 @@ describe("transaction v1 mutation guards [integration]", () => {
     expect(calls.count).toBe(0);
   });
 
+  test("refuses invalid local resource configuration before signing", async () => {
+    const { signer, calls } = await countingSigner();
+    for (const config of [
+      { ...V1_CONFIG, computeUnitLimit: 0 },
+      { ...V1_CONFIG, loadedAccountsDataSizeLimit: 0 },
+      { ...V1_CONFIG, priorityFeeLamports: 100_001n },
+    ]) {
+      expect(() => beginV1Message({ feePayerSigner: signer, config })).toThrow(BuildRejected);
+    }
+    expect(calls.count).toBe(0);
+  });
+
   test("refuses more than 64 unique addresses and a wire over 4096 bytes", async () => {
     const signer = await createMemorySignerFromBytes(randomSeed());
     const decoder = getAddressDecoder();
@@ -90,6 +103,24 @@ describe("transaction v1 mutation guards [integration]", () => {
       v1MessageFor(signer),
     );
     expect(() => assertV1MessageForSigning(oversized)).toThrow(BuildRejected);
+  });
+
+  test("accepts the exact 4096-byte boundary", async () => {
+    const signer = await createMemorySignerFromBytes(randomSeed());
+    const atLimit = Array.from({ length: 300 }, (_, offset) =>
+      appendTransactionMessageInstructions(
+        [
+          {
+            programAddress: "11111111111111111111111111111111",
+            data: new Uint8Array(3800 + offset),
+          },
+        ],
+        v1MessageFor(signer),
+      ),
+    ).find((message) => getTransactionMessageSize(message) === 4096);
+    expect(atLimit).toBeDefined();
+    if (!atLimit) throw new Error("fixture did not reach the v1 size boundary");
+    expect(() => assertV1MessageForSigning(atLimit)).not.toThrow();
   });
 
   test("refuses a signed v0 wire at the pre-RPC boundary", async () => {
