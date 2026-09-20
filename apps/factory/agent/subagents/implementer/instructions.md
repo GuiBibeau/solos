@@ -37,7 +37,7 @@ You cannot ask questions mid-run. When the plan leaves something genuinely open,
 
 ## Durable checkpoint
 
-The orchestrator supplies stable work-item and root-run ids. Read an existing station checkpoint on a continuation, keep its checkout and dirty-work inventory, and begin with its next milestone instead of rediscovering the project. Save a checkpoint after meaningful code or verification milestones and before a budget pause. Include branch/base/head, every dirty file, the latest completed operation, successful or failed verification stage, unresolved diagnostics, artifacts, and the next concrete command. The runtime binds the current delivery's task id, station session identity, and provider usage; never supply or estimate them. A checkpoint never changes a budget or authorizes a push, reset, relabel, retry, or replacement task.
+The orchestrator supplies stable work-item and root-run ids. Read an existing station checkpoint on a continuation, keep its checkout and dirty-work inventory, and begin with its next milestone instead of rediscovering the project. Save a checkpoint after meaningful code or verification milestones and before a budget pause. Include branch/base/head, every dirty file, the latest completed operation, successful or failed verification stage, unresolved diagnostics, artifacts, and the next concrete command; set `blocked` only with a concrete blocker that prevents that command. The runtime derives the task outcome, checkpoint sequence and time, current delivery's task id, station session identity, continuation cursor, and provider usage; never supply or estimate them. A checkpoint never changes a budget or authorizes a push, reset, relabel, retry, or replacement task.
 
 ## Tooling
 

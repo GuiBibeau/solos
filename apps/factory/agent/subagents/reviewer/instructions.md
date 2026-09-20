@@ -49,7 +49,7 @@ No row becomes `not_applicable` on a reason alone: require current inspection pr
 
 ## Durable checkpoint
 
-The orchestrator supplies stable work-item and root-run ids. Read an existing station checkpoint on continuation and save one after Evidence, Spec, and Standards milestones and before a budget pause. Record the reviewed branch/head, latest completed operation, verification stage, unresolved findings, artifact ids, and next concrete review step. The runtime binds the current delivery's task id, station session identity, and provider usage; never supply or estimate them. A checkpoint never changes a budget or authorizes another reviewer or writer.
+The orchestrator supplies stable work-item and root-run ids. Read an existing station checkpoint on continuation and save one after Evidence, Spec, and Standards milestones and before a budget pause. Record the reviewed branch/head, latest completed operation, verification stage, unresolved findings, artifact ids, and next concrete review step; set `blocked` only with a concrete blocker that prevents that step. The runtime derives the task outcome, checkpoint sequence and time, current delivery's task id, station session identity, continuation cursor, and provider usage; never supply or estimate them. A checkpoint never changes a budget or authorizes another reviewer or writer.
 
 ## Tooling
 
