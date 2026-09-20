@@ -75,12 +75,21 @@ const measureRuntime = async (sandbox) => {
   };
 };
 
-/** @param {{actualHead: string|null, branch: string|null, status: string|null}} checkout @param {VerificationInput} input @param {string|null|undefined} observedRemote */
-const canPrepare = (checkout, input, observedRemote) =>
-  checkout.status === "" &&
+/** @param {VerificationInput} input */
+const hasRevisionPair = (input) =>
+  (input.branch === undefined) === (input.expectedRemoteHead === undefined);
+
+/** @param {{actualHead: string|null, branch: string|null}} checkout @param {VerificationInput} input @param {string|null|undefined} observedRemote */
+const hasMatchingRevision = (checkout, input, observedRemote) =>
   (!input.expectedHead || checkout.actualHead === input.expectedHead) &&
   (!input.branch || checkout.branch === input.branch) &&
-  (!input.branch || !input.expectedRemoteHead || observedRemote === input.expectedRemoteHead);
+  (!input.branch || observedRemote === input.expectedRemoteHead);
+
+/** @param {{actualHead: string|null, branch: string|null, status: string|null}} checkout @param {VerificationInput} input @param {string|null|undefined} observedRemote */
+const canPrepare = (checkout, input, observedRemote) =>
+  hasRevisionPair(input) &&
+  checkout.status === "" &&
+  hasMatchingRevision(checkout, input, observedRemote);
 
 /** @param {SandboxSession} sandbox @param {boolean} shouldPrepare @param {boolean} shouldSmoke */
 const prepareRuntime = async (sandbox, shouldPrepare, shouldSmoke) => {

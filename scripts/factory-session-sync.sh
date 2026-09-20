@@ -7,7 +7,8 @@ default_branch="$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^or
 current_branch="$(git branch --show-current)"
 actual_head="$(git rev-parse HEAD)"
 git fetch "$remote_url" "$default_branch"
-remote_head="$(git rev-parse FETCH_HEAD)"
+remote_head="$(git rev-parse --verify 'FETCH_HEAD^{commit}')"
+git update-ref "refs/remotes/origin/$default_branch" "$remote_head"
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "factory-session-sync: preserved dirty $current_branch at $actual_head" >&2

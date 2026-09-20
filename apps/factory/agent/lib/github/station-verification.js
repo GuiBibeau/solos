@@ -18,6 +18,19 @@ const STEPS = {
   unit: ["line-limit", "format", "lint", "depcruise", "typecheck", "test:unit"],
 };
 
+const Sha = z.string().regex(/^[0-9a-f]{40}$/u);
+export const stationVerificationInputSchema = z
+  .object({
+    branch: z.string().min(1).optional().describe("Remote branch to recheck before verification."),
+    expectedHead: Sha.optional().describe("Immutable commit SHA expected locally."),
+    expectedRemoteHead: Sha.optional().describe("Remote baseline SHA that must remain unchanged."),
+    scope: z.enum(["check", "unit", "full"]),
+  })
+  .refine((input) => (input.branch === undefined) === (input.expectedRemoteHead === undefined), {
+    message: "branch and expectedRemoteHead must be provided together",
+    path: ["expectedRemoteHead"],
+  });
+
 const EvidenceShape = z.object({
   dirty: z.boolean(),
   durationMs: z.number().int().nonnegative(),
@@ -105,22 +118,5 @@ export const stationVerificationTool = () =>
     description:
       "Prepare this station for a requested verification scope, fail closed on dirty/wrong/stale heads or missing capabilities, then run the solos verifier and return its actual exit code and untouched Evidence JSON.",
     execute: verifyStation,
-    inputSchema: z.object({
-      branch: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Remote branch to recheck before verification."),
-      expectedHead: z
-        .string()
-        .regex(/^[0-9a-f]{40}$/u)
-        .optional()
-        .describe("Immutable commit SHA expected in the local checkout."),
-      expectedRemoteHead: z
-        .string()
-        .regex(/^[0-9a-f]{40}$/u)
-        .optional()
-        .describe("Remote baseline SHA that must remain unchanged before an amendment is pushed."),
-      scope: z.enum(["check", "unit", "full"]),
-    }),
+    inputSchema: stationVerificationInputSchema,
   });

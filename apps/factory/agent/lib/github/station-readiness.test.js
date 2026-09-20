@@ -85,6 +85,13 @@ describe("station readiness", () => {
     ).toBe(true);
   });
 
+  test("blocks incomplete revision ownership inputs", () => {
+    for (const override of [{ expectedRemoteHead: null }, { expectedBranch: null }])
+      expect(evaluateReadiness(facts(override)).diagnostics.map((item) => item.code)).toContain(
+        "revision-ownership-incomplete",
+      );
+  });
+
   test("explains that dependency install was skipped to preserve dirty work", () => {
     const result = evaluateReadiness(
       facts({ dirty: true, lockfileInstalled: false, lockfileSkipped: true }),

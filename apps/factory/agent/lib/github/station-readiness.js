@@ -26,6 +26,13 @@ const headDiagnostics = (facts) => {
 
 /** @param {ReadinessFacts} facts @returns {Diagnostic[]} */
 const remoteDiagnostics = (facts) => {
+  if ((facts.expectedBranch === null) !== (facts.expectedRemoteHead === null))
+    return [
+      {
+        code: "revision-ownership-incomplete",
+        message: "Revision verification requires both branch and expected remote head.",
+      },
+    ];
   if (facts.remoteLookupFailed)
     return [
       {

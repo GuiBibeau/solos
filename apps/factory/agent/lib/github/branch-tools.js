@@ -71,6 +71,16 @@ const pushBranch = async ({ branch, expectedHead }, ctx) => {
   return { branch, sha: await revParse(ctx, branch), success: true };
 };
 
+/** @param {string} [branchDescription] */
+export const checkoutBranchInputSchema = (branchDescription = "Existing revision branch.") =>
+  z.object({
+    branch: z.string().min(1).describe(branchDescription),
+    expectedHead: z
+      .string()
+      .regex(/^[0-9a-f]{40}$/u)
+      .describe("Required remote SHA; checkout refuses a moved revision head."),
+  });
+
 /**
  * The `checkout-branch` tool, described for the station that mounts it.
  * @param {{ description: string; branchDescription: string }} text
@@ -79,14 +89,7 @@ export const checkoutBranchTool = (text) =>
   defineTool({
     description: text.description,
     execute: checkoutBranch,
-    inputSchema: z.object({
-      branch: z.string().min(1).describe(text.branchDescription),
-      expectedHead: z
-        .string()
-        .regex(/^[0-9a-f]{40}$/u)
-        .optional()
-        .describe("Expected remote SHA for a revision; checkout refuses a moved head."),
-    }),
+    inputSchema: checkoutBranchInputSchema(text.branchDescription),
   });
 
 /** The `push-branch` tool: the implementer's only side effect. */

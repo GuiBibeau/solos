@@ -54,24 +54,29 @@ test("[integration] session sync fast-forwards a clean default branch", () => {
   run(seed, ["git", "push", "origin", "main"]);
   sync(station, remote);
   expect(run(station, ["git", "rev-parse", "HEAD"])).toBe(remoteHead);
+  expect(run(station, ["git", "rev-parse", "origin/main"])).toBe(remoteHead);
 });
 
 test("[integration] session sync preserves feature branch bytes and dirty status", () => {
-  const { remote, station } = fixture();
+  const { remote, seed, station } = fixture();
+  const remoteHead = commit(seed, "remote-second");
+  run(seed, ["git", "push", "origin", "main"]);
   run(station, ["git", "switch", "-c", "factory/test"]);
   writeFileSync(path.join(station, "tracked.txt"), "unsaved\n");
   const before = readFileSync(path.join(station, "tracked.txt"), "utf8");
   sync(station, remote);
   expect(readFileSync(path.join(station, "tracked.txt"), "utf8")).toBe(before);
   expect(run(station, ["git", "branch", "--show-current"])).toBe("factory/test");
+  expect(run(station, ["git", "rev-parse", "origin/main"])).toBe(remoteHead);
   expect(run(station, ["git", "status", "--porcelain"])).not.toBe("");
 });
 
 test("[integration] session sync preserves unpushed commits when main diverges", () => {
   const { remote, seed, station } = fixture();
-  commit(seed, "remote-second");
+  const remoteHead = commit(seed, "remote-second");
   run(seed, ["git", "push", "origin", "main"]);
   const localHead = commit(station, "local-second");
   sync(station, remote);
   expect(run(station, ["git", "rev-parse", "HEAD"])).toBe(localHead);
+  expect(run(station, ["git", "rev-parse", "origin/main"])).toBe(remoteHead);
 });
