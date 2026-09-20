@@ -79,7 +79,7 @@ Identity comes from the filesystem: `agent/tools/read-artifact.js` is the tool `
 
 See `.env.example`. Set `ZAI_CODING_API_KEY` as a Vercel Secret for Production and Preview. The default stations use `glm-5.3-flash` directly at `https://api.z.ai/api/coding/paas/v4`, so their requests use the Coding Plan endpoint. There is no automatic fallback to the separately billed Model API or Gateway. The reviewer remains on `openai/gpt-5.6-luna` through Gateway for review by a different vendor. The Z.ai key is read at request time and never forwarded to sandboxes.
 
- `GITHUB_CONNECTOR` (Vercel Connect connector UID) and `FACTORY_REPO` are the two values a deployment sets; everything else has a default. `FACTORY_SETUP_COMMAND` defaults to `bash scripts/factory-setup.sh` (at the repo root), which installs Bun at the version in `.bun-version`, runs `bun install --frozen-lockfile`, and runs `bun run solos dev verify --scope check --json` inside the sandbox clone at template build.
+ `GITHUB_CONNECTOR` (Vercel Connect connector UID) and `FACTORY_REPO` are the two values a deployment sets; everything else has a default. `FACTORY_SETUP_COMMAND` defaults to `bash scripts/factory-setup.sh` (at the repo root), which installs the pinned Bun and CI-pinned Surfpool, runs `bun install --frozen-lockfile`, and runs `bun run solos dev verify --scope check --json` inside the sandbox clone at template build. Surfpool is not started until a station requests full verification. Revision checkout and verification fail closed on dirty, diverged, stale or wrong-head state and preserve local work.
 
 ## Commands
 

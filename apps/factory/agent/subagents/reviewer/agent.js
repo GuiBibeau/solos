@@ -13,7 +13,7 @@ import { modelConfigFor, sessionLimitsFor } from "../../lib/models.js";
 export default defineAgent({
   description:
     "Independently review a pushed factory branch against the original work item and its acceptance criteria: " +
-    "fetch the branch, run `bun run solos dev verify --scope check --json` in an independent clone, compare its " +
+    "fetch the exact branch head, run the station verification tool in an independent clone, compare its " +
     "sha with the implementer's Evidence (missing, mismatched, or dirty Evidence is request_changes before " +
     "reading the diff), then read the real diff and return approve, request_changes, or reject with specific " +
     "findings; approve_draft preserves explicitly deferred operator/CI QA. Never modifies code. The caller passes the work item, the analysis with acceptance criteria, the " +

@@ -39,7 +39,7 @@ export const FACTORY_SANDBOX_CREATE_OPTIONS = {
  * template (authored sandbox source is tracked by eve automatically).
  */
 export const factoryRevalidationKey = () =>
-  `factory-repo-v2:${FACTORY_REPO}:${FACTORY_SETUP_COMMAND}`;
+  `factory-repo-v3:${FACTORY_REPO}:${FACTORY_SETUP_COMMAND}`;
 
 /**
  * Clone the repository through the brokered firewall, translating a failure into a message that
@@ -79,6 +79,7 @@ export const factoryBootstrap = async ({ use }) => {
 
 /** Bun lives outside any home directory so the session user finds the build-time install. */
 export const BUN_BIN = "/workspace/.bun/bin";
+export const SURFPOOL_BIN = "/workspace/.local/bin";
 
 /**
  * Session-scoped setup: fix git's ownership check (the template snapshot is owned by the builder
@@ -106,13 +107,13 @@ export const factoryOnSession = async ({ use }) => {
   try {
     await runOrThrow(
       sandbox,
-      `cd ${REPO_DIR} && branch=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||') && git fetch ${REMOTE_URL} "$branch" && git checkout -B "$branch" FETCH_HEAD`,
+      `cd ${REPO_DIR} && bash scripts/factory-session-sync.sh '${REMOTE_URL}'`,
     );
   } finally {
     await sandbox.setNetworkPolicy("allow-all");
   }
   await runOrThrow(
     sandbox,
-    `cd ${REPO_DIR} && export PATH="${BUN_BIN}:$PATH" && bun install --frozen-lockfile`,
+    `cd ${REPO_DIR} && if test -z "$(git status --porcelain)"; then export PATH="${BUN_BIN}:${SURFPOOL_BIN}:$PATH" && bun install --frozen-lockfile; else echo 'factory session preserved dirty work; dependency install deferred to station readiness' >&2; fi`,
   );
 };
