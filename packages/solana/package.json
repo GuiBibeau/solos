@@ -11,7 +11,8 @@
     "./perp/phoenix-fixture": "./src/perp/phoenix-fixture.js",
     "./perp/phoenix-scenarios": "./src/perp/phoenix-scenarios.js",
     "./liquidity/whirlpool-fixture": "./src/liquidity/liquidity-seeds.js",
-    "./swap/build-http-fixture": "./src/swap/jupiter-swap-build-http-fixture.js"
+    "./swap/build-http-fixture": "./src/swap/jupiter-swap-build-http-fixture.js",
+    "./swap/build-bodies": "./src/swap/jupiter-swap-build-bodies.js"
   },
   "dependencies": {
     "@hpke/chacha20poly1305": "1.8.0",
