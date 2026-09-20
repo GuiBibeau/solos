@@ -14,11 +14,14 @@
  * If a future kit major ever broke that shape, the fix is a passthrough object built here —
  * still one endpoint, one stack, no second RPC client.
  */
-import {
-  DEFAULT_RECENT_SLOT_DURATION_MS,
-  getCurrentLedgerInstant,
-  KaminoMarket,
-} from "@kamino-finance/klend-sdk";
+/** @type {Promise<typeof import("@kamino-finance/klend-sdk")> | undefined} */
+let sdkPromise;
+
+/** Load the large protocol SDK only for an actual lend read, not every CLI/MCP process. */
+const kaminoSdk = () => {
+  sdkPromise ??= import("@kamino-finance/klend-sdk");
+  return sdkPromise;
+};
 
 /** The SDK's market type, for the reader's signatures. */
 /** @typedef {import("@kamino-finance/klend-sdk").KaminoMarket} KaminoMarketInstance */
@@ -35,13 +38,15 @@ import {
  * @param {string} marketAddress
  * @returns {Promise<KaminoMarketInstance | null>} null when the market account is missing
  */
-export const sdkLoadMarket = (rpc, marketAddress) =>
-  KaminoMarket.load(
+export const sdkLoadMarket = async (rpc, marketAddress) => {
+  const { DEFAULT_RECENT_SLOT_DURATION_MS, KaminoMarket } = await kaminoSdk();
+  return KaminoMarket.load(
     /** @type {any} */ (rpc),
     /** @type {any} */ (marketAddress),
     DEFAULT_RECENT_SLOT_DURATION_MS,
     /** @type {any} */ ("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"),
   );
+};
 
 /**
  * The configured market's float-rate reserve for a mint, or undefined when it has none.
@@ -88,5 +93,7 @@ export const sdkReserveRates = (reserve, instant) => ({
  * @param {import("@solana/kit").Rpc<import("@solana/kit").SolanaRpcApi>} rpc
  * @returns {Promise<LedgerInstant>}
  */
-export const sdkLedgerInstant = (rpc) =>
-  getCurrentLedgerInstant(/** @type {any} */ (rpc), "confirmed");
+export const sdkLedgerInstant = async (rpc) => {
+  const { getCurrentLedgerInstant } = await kaminoSdk();
+  return getCurrentLedgerInstant(/** @type {any} */ (rpc), "confirmed");
+};
