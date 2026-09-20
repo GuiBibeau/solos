@@ -119,8 +119,8 @@ describe("the assembled swap wire", () => {
     expect(sync.programAddress).toBe(TOKEN_PROGRAM);
     expect(sync.data).toHaveLength(1);
     expect(getU64Codec().decode(transfer.data, 4)).toBe(BigInt(AMOUNT));
-    expect(getU64Codec().decode(route.data, 12)).toBe(BigInt(AMOUNT));
-    expect(getU64Codec().decode(route.data, 20)).toBe(BigInt(OUT_AMOUNT));
+    expect(getU64Codec().decode(route.data, 8)).toBe(BigInt(AMOUNT));
+    expect(getU64Codec().decode(route.data, 16)).toBe(BigInt(OUT_AMOUNT));
     expect(route.accounts.map((a) => a.address)).toContain(atas.destinationAta);
     expect(compiled.staticAccounts).toEqual(
       expect.arrayContaining([POOL_AUTHORITY, INPUT_VAULT, OUTPUT_VAULT]),
