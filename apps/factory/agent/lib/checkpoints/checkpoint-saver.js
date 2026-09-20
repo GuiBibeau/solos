@@ -28,6 +28,22 @@ const supersededOwners = (checkpoint, taskId) => {
 /** @param {import("./runtime-observation.js").RuntimeObservation["taskOutcome"]} outcome */
 const checkpointOutcome = (outcome) => (outcome === "cancelled" ? "failed" : (outcome ?? "active"));
 
+/** @param {{rootRunId: string; station: string; workItem: string}} binding @param {z.infer<typeof WritableCheckpointSchema>} input */
+const hasCheckpointOwnership = (binding, input) =>
+  binding.rootRunId === input.rootRunId &&
+  binding.station === input.station &&
+  binding.workItem === input.workItem;
+
+/** @param {import("./runtime-observation.js").RuntimeObservation | undefined} observation @param {import("./schema.js").StationCheckpoint | undefined} previous */
+const runtimeFields = (observation, previous) => {
+  const cursor = observation?.cursor ?? previous?.cursor;
+  return {
+    ...(cursor !== undefined && { cursor }),
+    outcome: checkpointOutcome(observation?.taskOutcome),
+    ...(observation?.usage !== undefined && { usage: observation.usage }),
+  };
+};
+
 /** @param {z.infer<typeof StationSchema>} station */
 export const saveInputSchema = (station) =>
   WritableCheckpointSchema.extend({ station: z.literal(StationSchema.parse(station)) });
@@ -44,30 +60,20 @@ export const createCheckpointSaver =
       stationRunId: ctx.session.id,
       turnId: ctx.session.turn.id,
     });
-    if (
-      !ownership.found ||
-      ownership.binding.rootRunId !== input.rootRunId ||
-      ownership.binding.station !== input.station ||
-      ownership.binding.workItem !== input.workItem
-    )
+    if (!ownership.found)
+      return { error: "Current station task binding is unavailable.", saved: false };
+    if (!hasCheckpointOwnership(ownership.binding, input))
       return { error: "Current station task binding is unavailable.", saved: false };
     const observed = await observer.read(ctx.session.id);
-    const usage = observed.found ? observed.observation?.usage : undefined;
-    const cursor = observed.found ? observed.observation?.cursor : undefined;
-    const outcome = checkpointOutcome(
-      observed.found ? observed.observation?.taskOutcome : undefined,
-    );
     const stored = await checkpoints.read(input);
     const previous = stored.checkpoint;
     const supersededTaskIds = supersededOwners(previous, ownership.binding.taskId);
     return checkpoints.save({
       ...input,
-      ...((cursor ?? previous?.cursor) !== undefined && { cursor: cursor ?? previous?.cursor }),
-      outcome,
+      ...runtimeFields(observed.observation, previous),
       stationRunId: ctx.session.id,
       supersededTaskIds,
       taskId: ownership.binding.taskId,
-      ...(usage !== undefined && { usage }),
     });
   };
 
