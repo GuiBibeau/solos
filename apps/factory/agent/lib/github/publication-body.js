@@ -93,10 +93,23 @@ const evidenceCheckState = (state, check) => {
 };
 
 /** @param {PublicationState} state @param {EvidenceCheck} check */
-const hasFailedAfterMutation = (state, check) =>
-  check?.conclusion === "failure" &&
-  state.record.mutationAt !== undefined &&
-  Date.parse(check.completedAt) >= Date.parse(state.record.mutationAt);
+const hasFailedAfterMutation = (state, check) => {
+  const startedAt = timestamp(check?.startedAt);
+  const mutationAt = timestamp(state.record.mutationAt);
+  return (
+    check?.conclusion === "failure" &&
+    startedAt !== undefined &&
+    mutationAt !== undefined &&
+    startedAt >= mutationAt
+  );
+};
+
+/** @param {unknown} value */
+const timestamp = (value) => {
+  if (typeof value !== "string") return undefined;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 /** @param {EvidenceCheck} check */
 const isPendingCheck = (check) => check?.status === "queued" || check?.status === "in_progress";
