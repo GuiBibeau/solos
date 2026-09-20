@@ -4,7 +4,7 @@ import { BUN_BIN, SURFPOOL_BIN } from "./repo-sandbox.js";
 
 /** @typedef {import("eve/sandbox").SandboxSession} SandboxSession */
 /** @typedef {"check" | "unit" | "full"} Scope */
-/** @typedef {{branch?: string, expectedHead?: string, scope: Scope}} VerificationInput */
+/** @typedef {{branch?: string, expectedHead?: string, expectedRemoteHead?: string, scope: Scope}} VerificationInput */
 
 const PATH_PREFIX = `export PATH="${BUN_BIN}:${SURFPOOL_BIN}:$PATH"`;
 const SURFPOOL_VERSION_COMMAND = String.raw`sed -nE 's/^[[:space:]]*SURFPOOL_VERSION: "([^"]+)".*/\1/p' .github/workflows/ci.yml | head -1`;
@@ -80,7 +80,7 @@ const canPrepare = (checkout, input, observedRemote) =>
   checkout.status === "" &&
   (!input.expectedHead || checkout.actualHead === input.expectedHead) &&
   (!input.branch || checkout.branch === input.branch) &&
-  (!input.branch || !input.expectedHead || observedRemote === input.expectedHead);
+  (!input.branch || !input.expectedRemoteHead || observedRemote === input.expectedRemoteHead);
 
 /** @param {SandboxSession} sandbox @param {boolean} shouldPrepare @param {boolean} shouldSmoke */
 const prepareRuntime = async (sandbox, shouldPrepare, shouldSmoke) => {
@@ -90,6 +90,7 @@ const prepareRuntime = async (sandbox, shouldPrepare, shouldSmoke) => {
   const canSmoke = shouldPrepare && shouldSmoke && install.code === 0;
   return {
     lockfileInstalled: install.code === 0,
+    lockfileSkipped: !shouldPrepare,
     offlineStartup: canSmoke ? await smokeOffline(sandbox) : null,
   };
 };
@@ -117,6 +118,7 @@ export const measure = async (sandbox, input, observedRemote) => {
     dirty: checkout.status === null || checkout.status !== "",
     expectedBranch: input.branch ?? null,
     expectedHead: input.expectedHead ?? null,
+    expectedRemoteHead: input.expectedRemoteHead ?? null,
     ...prepared,
     platform: fallback(checkout.platform, "unknown"),
     remoteHead: observedRemote ?? null,

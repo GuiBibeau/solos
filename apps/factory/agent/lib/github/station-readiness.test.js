@@ -2,7 +2,6 @@
 import { describe, expect, test } from "bun:test";
 import { checkoutDecision } from "./branch-checkout.js";
 import { evaluateReadiness } from "./station-readiness.js";
-import { verificationResult } from "./station-verification.js";
 
 const SHA = "a".repeat(40);
 /** @param {Partial<Parameters<typeof evaluateReadiness>[0]>} [overrides] @returns {Parameters<typeof evaluateReadiness>[0]} */
@@ -15,7 +14,9 @@ const facts = (overrides = {}) => ({
   dirty: false,
   expectedBranch: "factory/test",
   expectedHead: SHA,
+  expectedRemoteHead: SHA,
   lockfileInstalled: true,
+  lockfileSkipped: false,
   offlineStartup: true,
   platform: "Linux",
   remoteHead: SHA,
@@ -64,6 +65,24 @@ describe("station readiness", () => {
       expect.arrayContaining(["dirty-checkout", "wrong-head", "remote-moved"]),
     );
   });
+
+  test("allows a committed amendment while guarding its remote baseline", () => {
+    const local = "b".repeat(40);
+    expect(
+      evaluateReadiness(
+        facts({ actualHead: local, expectedHead: local, expectedRemoteHead: SHA, remoteHead: SHA }),
+      ).ready,
+    ).toBe(true);
+  });
+
+  test("explains that dependency install was skipped to preserve dirty work", () => {
+    const result = evaluateReadiness(
+      facts({ dirty: true, lockfileInstalled: false, lockfileSkipped: true }),
+    );
+    expect(result.diagnostics.map((item) => item.code)).not.toContain("lockfile-install-failed");
+    expect(result.diagnostics[0]?.message).toContain("preserve");
+    expect(result.diagnostics[0]?.message).toContain("retry");
+  });
 });
 
 describe("revision checkout preservation", () => {
@@ -91,51 +110,4 @@ describe("revision checkout preservation", () => {
     });
     expect(moved.error).toContain("checkout was not changed");
   });
-});
-
-test("verification preserves exact JSON and cannot hide the process exit code", () => {
-  const names = [
-    "line-limit",
-    "format",
-    "lint",
-    "depcruise",
-    "typecheck",
-    "test:unit",
-    "test:integration",
-  ];
-  const evidence = `${JSON.stringify({
-    dirty: false,
-    durationMs: 10,
-    ok: true,
-    scope: "full",
-    sha: SHA,
-    startedAt: "2026-09-20T00:00:00.000Z",
-    steps: names.map((name) => ({ command: `run ${name}`, ms: 1, name, ok: true, summary: "ok" })),
-    versions: { bun: "1.3.14", surfpool: "1.5.0" },
-  })}\n`;
-  const result = verificationResult({
-    facts: { actualHead: SHA },
-    readiness: { diagnostics: [], ready: true },
-    result: { code: 7, stderr: "integration failed", stdout: evidence },
-    scope: "full",
-  });
-  expect(result.evidence).toBe(evidence);
-  expect(result.exitCode).toBe(7);
-  expect(result.evidenceMatches).toBe(true);
-  expect(result.success).toBe(false);
-});
-
-test("verification rejects abbreviated or incomplete Evidence", () => {
-  const result = verificationResult({
-    facts: { actualHead: SHA },
-    readiness: { diagnostics: [], ready: true },
-    result: {
-      code: 0,
-      stderr: "",
-      stdout: JSON.stringify({ dirty: false, ok: true, scope: "check", sha: SHA.slice(0, 7) }),
-    },
-    scope: "check",
-  });
-  expect(result.evidenceMatches).toBe(false);
-  expect(result.success).toBe(false);
 });

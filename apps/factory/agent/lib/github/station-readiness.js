@@ -2,7 +2,7 @@
 
 /** @typedef {{code: string, message: string}} Diagnostic */
 /** @typedef {"check" | "unit" | "full"} Scope */
-/** @typedef {{actualHead: string, architecture: string, branch: string, bunPath: string|null, bunVersion: string|null, dirty: boolean, expectedBranch: string|null, expectedHead: string|null, lockfileInstalled: boolean, offlineStartup: boolean|null, platform: string, remoteHead: string|null, requiredBunVersion: string, requiredSurfpoolVersion: string, scope: Scope, surfpoolPath: string|null, surfpoolVersion: string|null}} ReadinessFacts */
+/** @typedef {{actualHead: string, architecture: string, branch: string, bunPath: string|null, bunVersion: string|null, dirty: boolean, expectedBranch: string|null, expectedHead: string|null, expectedRemoteHead: string|null, lockfileInstalled: boolean, lockfileSkipped: boolean, offlineStartup: boolean|null, platform: string, remoteHead: string|null, requiredBunVersion: string, requiredSurfpoolVersion: string, scope: Scope, surfpoolPath: string|null, surfpoolVersion: string|null}} ReadinessFacts */
 
 /** @param {string | null} actual @param {string} expected */
 const versionMatches = (actual, expected) =>
@@ -27,12 +27,16 @@ const headDiagnostics = (facts) => {
 
 /** @param {ReadinessFacts} facts @returns {Diagnostic[]} */
 const remoteDiagnostics = (facts) => {
-  if (!facts.expectedBranch || !facts.expectedHead || facts.remoteHead === facts.expectedHead)
+  if (
+    !facts.expectedBranch ||
+    !facts.expectedRemoteHead ||
+    facts.remoteHead === facts.expectedRemoteHead
+  )
     return [];
   return [
     {
       code: "remote-moved",
-      message: `Remote is ${facts.remoteHead ?? "absent"}, not ${facts.expectedHead}.`,
+      message: `Remote is ${facts.remoteHead ?? "absent"}, not ${facts.expectedRemoteHead}.`,
     },
   ];
 };
@@ -42,8 +46,11 @@ const workspaceDiagnostics = (facts) => {
   /** @type {Diagnostic[]} */
   const diagnostics = [];
   if (facts.dirty)
-    diagnostics.push({ code: "dirty-checkout", message: "Uncommitted work is present." });
-  if (!facts.lockfileInstalled)
+    diagnostics.push({
+      code: "dirty-checkout",
+      message: "Uncommitted work was preserved; commit or preserve it, then retry verification.",
+    });
+  if (!facts.lockfileInstalled && !facts.lockfileSkipped)
     diagnostics.push({
       code: "lockfile-install-failed",
       message: "bun install --frozen-lockfile did not complete successfully.",

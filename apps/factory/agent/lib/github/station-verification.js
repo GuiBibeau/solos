@@ -10,7 +10,7 @@ import { evaluateReadiness } from "./station-readiness.js";
 
 /** @typedef {import("eve/tools").ToolContext} ToolContext */
 /** @typedef {"check" | "unit" | "full"} Scope */
-/** @typedef {{branch?: string, expectedHead?: string, scope: Scope}} VerificationInput */
+/** @typedef {{branch?: string, expectedHead?: string, expectedRemoteHead?: string, scope: Scope}} VerificationInput */
 
 const STEPS = {
   check: ["line-limit", "format", "lint", "depcruise", "typecheck"],
@@ -83,7 +83,7 @@ export const verificationResult = ({ result, facts, scope, readiness }) => {
 };
 
 /** @param {VerificationInput} input @param {ToolContext} ctx */
-const execute = async (input, ctx) => {
+export const verifyStation = async (input, ctx) => {
   const sandbox = await ctx.getSandbox();
   await assertNoSolanaSecrets(sandbox);
   const observedRemote = await remoteHead(ctx, input.branch);
@@ -100,7 +100,7 @@ export const stationVerificationTool = () =>
   defineTool({
     description:
       "Prepare this station for a requested verification scope, fail closed on dirty/wrong/stale heads or missing capabilities, then run the solos verifier and return its actual exit code and untouched Evidence JSON.",
-    execute,
+    execute: verifyStation,
     inputSchema: z.object({
       branch: z
         .string()
@@ -111,7 +111,12 @@ export const stationVerificationTool = () =>
         .string()
         .regex(/^[0-9a-f]{40}$/u)
         .optional()
-        .describe("Immutable revision SHA expected locally and remotely."),
+        .describe("Immutable commit SHA expected in the local checkout."),
+      expectedRemoteHead: z
+        .string()
+        .regex(/^[0-9a-f]{40}$/u)
+        .optional()
+        .describe("Remote baseline SHA that must remain unchanged before an amendment is pushed."),
       scope: z.enum(["check", "unit", "full"]),
     }),
   });
