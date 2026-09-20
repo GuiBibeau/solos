@@ -2,11 +2,10 @@
 
 /** @typedef {{code: string, message: string}} Diagnostic */
 /** @typedef {"check" | "unit" | "full"} Scope */
-/** @typedef {{actualHead: string, architecture: string, branch: string, bunPath: string|null, bunVersion: string|null, dirty: boolean, expectedBranch: string|null, expectedHead: string|null, expectedRemoteHead: string|null, lockfileInstalled: boolean, lockfileSkipped: boolean, offlineStartup: boolean|null, platform: string, remoteHead: string|null, requiredBunVersion: string, requiredSurfpoolVersion: string, scope: Scope, surfpoolPath: string|null, surfpoolVersion: string|null}} ReadinessFacts */
+/** @typedef {{actualHead: string, architecture: string, branch: string, bunPath: string|null, bunVersion: string|null, dirty: boolean, expectedBranch: string|null, expectedHead: string|null, expectedRemoteHead: string|null, lockfileInstalled: boolean, lockfileSkipped: boolean, offlineStartup: boolean|null, platform: string, remoteHead: string|null, remoteLookupFailed: boolean, requiredBunVersion: string, requiredSurfpoolVersion: string, scope: Scope, surfpoolPath: string|null, surfpoolVersion: string|null}} ReadinessFacts */
 
-/** @param {string | null} actual @param {string} expected */
-const versionMatches = (actual, expected) =>
-  actual !== null && (actual === expected || actual.includes(` ${expected}`));
+/** @param {string | null} actual @param {string} expected @param {string} [prefix] */
+const isVersionExact = (actual, expected, prefix = "") => actual === `${prefix}${expected}`;
 
 /** @param {ReadinessFacts} facts @returns {Diagnostic[]} */
 const headDiagnostics = (facts) => {
@@ -27,6 +26,13 @@ const headDiagnostics = (facts) => {
 
 /** @param {ReadinessFacts} facts @returns {Diagnostic[]} */
 const remoteDiagnostics = (facts) => {
+  if (facts.remoteLookupFailed)
+    return [
+      {
+        code: "remote-inspection-failed",
+        message: "The remote branch could not be inspected reliably; verification was not run.",
+      },
+    ];
   if (
     !facts.expectedBranch ||
     !facts.expectedRemoteHead ||
@@ -67,7 +73,7 @@ const runtimeDiagnostics = (facts) => {
     diagnostics.push({ code, message });
   };
   if (!facts.bunPath) add("bun-missing", "Bun is not available on the effective PATH.");
-  else if (!versionMatches(facts.bunVersion, facts.requiredBunVersion))
+  else if (!isVersionExact(facts.bunVersion, facts.requiredBunVersion))
     add(
       "bun-version-mismatch",
       `Bun ${facts.bunVersion ?? "unknown"} does not match ${facts.requiredBunVersion}.`,
@@ -84,7 +90,10 @@ const surfpoolDiagnostics = (facts) => {
       code: "surfpool-missing",
       message: "Surfpool is not on the effective PATH.",
     });
-  if (facts.surfpoolPath && !versionMatches(facts.surfpoolVersion, facts.requiredSurfpoolVersion))
+  if (
+    facts.surfpoolPath &&
+    !isVersionExact(facts.surfpoolVersion, facts.requiredSurfpoolVersion, "surfpool ")
+  )
     diagnostics.push({
       code: "surfpool-version-mismatch",
       message: `Surfpool ${facts.surfpoolVersion ?? "unknown"} does not match ${facts.requiredSurfpoolVersion}.`,

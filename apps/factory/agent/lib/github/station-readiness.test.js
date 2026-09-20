@@ -20,6 +20,7 @@ const facts = (overrides = {}) => ({
   offlineStartup: true,
   platform: "Linux",
   remoteHead: SHA,
+  remoteLookupFailed: false,
   requiredBunVersion: "1.3.14",
   requiredSurfpoolVersion: "1.5.0",
   scope: "full",
@@ -55,6 +56,15 @@ describe("station readiness", () => {
       expect(evaluateReadiness(facts(override)).diagnostics.map((item) => item.code)).toContain(
         code,
       );
+    });
+
+  for (const reported of ["surfpool 1.5.0-dev", "surfpool 1.5.0 extra"])
+    test(`rejects non-exact Surfpool output: ${reported}`, () => {
+      expect(
+        evaluateReadiness(facts({ surfpoolVersion: reported })).diagnostics.map(
+          (item) => item.code,
+        ),
+      ).toContain("surfpool-version-mismatch");
     });
 
   test("fails dirty, wrong and remotely moved revisions", () => {
@@ -98,6 +108,7 @@ describe("revision checkout preservation", () => {
       dirty: false,
       expectedHead: SHA,
       remoteHead: SHA,
+      targetHead: "b".repeat(40),
     });
     expect(local.error).toContain("local commits were preserved");
     const moved = checkoutDecision({
@@ -109,5 +120,17 @@ describe("revision checkout preservation", () => {
       remoteHead: "c".repeat(40),
     });
     expect(moved.error).toContain("checkout was not changed");
+  });
+
+  test("preserves an existing diverged target when a different branch is current", () => {
+    const result = checkoutDecision({
+      branch: "factory/test",
+      currentBranch: "main",
+      currentHead: SHA,
+      dirty: false,
+      remoteHead: SHA,
+      targetHead: "b".repeat(40),
+    });
+    expect(result.error).toContain("local commits were preserved");
   });
 });

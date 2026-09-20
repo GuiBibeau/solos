@@ -34,13 +34,13 @@ architecture="$(uname -m)"
 if [ "$platform" != "Linux" ] || [ "$architecture" != "x86_64" ]; then
   echo "factory-setup: full verification unsupported on $platform/$architecture" >&2
 else
-  if ! command -v surfpool > /dev/null 2>&1 || ! surfpool --version | grep -Fq "$SURFPOOL_VERSION"; then
+  if ! command -v surfpool > /dev/null 2>&1 || ! bash scripts/factory-surfpool-version.sh "$SURFPOOL_VERSION"; then
     url="https://github.com/solana-foundation/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
     mkdir -p "$SURFPOOL_INSTALL/bin"
     curl -fsSL "$url" | tar -xz -C "$SURFPOOL_INSTALL/bin"
     chmod +x "$SURFPOOL_INSTALL/bin/surfpool"
   fi
-  if ! surfpool --version | grep -Fq "$SURFPOOL_VERSION"; then
+  if ! bash scripts/factory-surfpool-version.sh "$SURFPOOL_VERSION"; then
     echo "factory-setup: Surfpool version does not match $SURFPOOL_VERSION" >&2
     exit 1
   fi

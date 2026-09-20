@@ -82,13 +82,17 @@ export const verificationResult = ({ result, facts, scope, readiness }) => {
   };
 };
 
-/** @param {VerificationInput} input @param {ToolContext} ctx */
-export const verifyStation = async (input, ctx) => {
+/** @typedef {(ctx: ToolContext, branch: string|undefined) => Promise<string|null|undefined>} InspectRemote */
+
+/** @param {VerificationInput} input @param {ToolContext} ctx @param {InspectRemote} [inspectRemote] */
+export const verifyStation = async (input, ctx, inspectRemote = remoteHead) => {
   const sandbox = await ctx.getSandbox();
   await assertNoSolanaSecrets(sandbox);
-  const observedRemote = await remoteHead(ctx, input.branch);
+  const observedRemote = await inspectRemote(ctx, input.branch);
   const facts = await measure(sandbox, input, observedRemote);
-  facts.remoteHead = (await remoteHead(ctx, input.branch)) ?? null;
+  const refreshedRemote = await inspectRemote(ctx, input.branch);
+  facts.remoteHead = refreshedRemote ?? null;
+  facts.remoteLookupFailed ||= refreshedRemote === undefined;
   const readiness = evaluateReadiness(facts);
   if (!readiness.ready) return { facts, readiness, success: false };
   const result = await command(sandbox, `bun run solos dev verify --scope ${input.scope} --json`);

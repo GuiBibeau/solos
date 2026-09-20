@@ -122,6 +122,7 @@ export const measure = async (sandbox, input, observedRemote) => {
     ...prepared,
     platform: fallback(checkout.platform, "unknown"),
     remoteHead: observedRemote ?? null,
+    remoteLookupFailed: input.branch !== undefined && observedRemote === undefined,
     requiredBunVersion: fallback(runtime.requiredBunVersion, "unknown"),
     requiredSurfpoolVersion: fallback(runtime.requiredSurfpoolVersion, "unknown"),
     scope: input.scope,
