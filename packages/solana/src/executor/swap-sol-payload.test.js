@@ -2,19 +2,36 @@
 import { describe, expect, test } from "bun:test";
 import { getU16Codec, getU32Codec, getU64Codec } from "@solana/kit";
 import { AMOUNT, OUT_AMOUNT } from "../swap/jupiter-swap-build-bodies.js";
-import { ROUTE_DISCRIMINATOR } from "../swap/jupiter-swap-build-swapdata.js";
+import {
+  ROUTE_V2_DISCRIMINATOR,
+  SHARED_ROUTE_V2_DISCRIMINATOR,
+} from "../swap/jupiter-swap-build-swapdata.js";
 import { reasonOf, runBranch, withSwapData } from "./swap-sol-driver.js";
 
 /** @param {bigint} input @param {bigint} output @param {number} [slippageBps] */
 const routeData = (input, output, slippageBps = 50) =>
   Uint8Array.of(
-    ...ROUTE_DISCRIMINATOR,
-    ...getU32Codec().encode(0),
+    ...ROUTE_V2_DISCRIMINATOR,
     ...getU64Codec().encode(input),
     ...getU64Codec().encode(output),
     ...getU16Codec().encode(slippageBps),
     ...getU16Codec().encode(0),
+    ...getU16Codec().encode(0),
+    ...getU32Codec().encode(1),
+    125,
+    0,
+    ...getU16Codec().encode(10_000),
+    0,
+    1,
   );
+
+/** @param {number} platformFee @param {number} positiveSlippage */
+const feeRouteData = (platformFee, positiveSlippage) => {
+  const bytes = routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT));
+  bytes.set(getU16Codec().encode(platformFee), 26);
+  bytes.set(getU16Codec().encode(positiveSlippage), 28);
+  return bytes;
+};
 
 describe("the swap payload is bound to the validated intent before signing", () => {
   test("an embedded input amount other than the requested one is refused", async () => {
@@ -58,6 +75,33 @@ describe("the swap payload is bound to the validated intent before signing", () 
     expect(reasonOf(error)).toBe(
       "swap instruction data was not the supported Jupiter route layout",
     );
+  });
+
+  test("the live shared-account V2 layout is accepted", async () => {
+    const direct = routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT));
+    const shared = Uint8Array.of(...SHARED_ROUTE_V2_DISCRIMINATOR, 0, ...direct.slice(8));
+    const { error } = await runBranch("simulate", withSwapData([...shared]));
+    expect(error).toMatchObject({ _tag: "RpcError" });
+  });
+
+  test("provider and positive-slippage fees are refused", async () => {
+    for (const bytes of [feeRouteData(1, 0), feeRouteData(0, 1)]) {
+      const { error } = await runBranch("execute", withSwapData([...bytes]));
+      expect(reasonOf(error)).toBe(
+        "swap instruction data did not carry the required zero-fee contract",
+      );
+    }
+  });
+
+  test("empty and implausibly large route plans are refused", async () => {
+    for (const steps of [0, 33]) {
+      const bytes = routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT));
+      bytes.set(getU32Codec().encode(steps), 30);
+      const { error } = await runBranch("execute", withSwapData([...bytes]));
+      expect(reasonOf(error)).toBe(
+        "swap instruction data was not the supported Jupiter route layout",
+      );
+    }
   });
 
   test("an amount beyond u64 is refused before any build request", async () => {

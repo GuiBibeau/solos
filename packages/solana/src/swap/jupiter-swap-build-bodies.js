@@ -6,7 +6,7 @@ import {
   getU32Codec,
   getU64Codec,
 } from "@solana/kit";
-import { ROUTE_DISCRIMINATOR } from "./jupiter-swap-build-swapdata.js";
+import { ROUTE_V2_DISCRIMINATOR } from "./jupiter-swap-build-swapdata.js";
 import {
   ATA_PROGRAM,
   COMPUTE_BUDGET_PROGRAM,
@@ -25,9 +25,10 @@ import {
  * `setComputeUnitPrice` (discriminator 3 + u64 micro-lamports), ATA `createIdempotent` (data
  * byte 1), System `transfer` (discriminator 2 + u64 lamports), Token `closeAccount` (data byte
  * 9), and the Jupiter v6 anchor `route` instruction whose 8-byte discriminator is
- * sha256("global:route") and whose args tail is the documented borsh
- * (routePlan, inAmount, quotedOutAmount, slippageBps, platformFeeBps, routePlanLen). The
- * fixture route plan is an empty vector, and the embedded u64 amounts echo the envelope
+ * `route_v2` instruction and whose args are the documented borsh
+ * (inAmount, quotedOutAmount, slippageBps, platformFeeBps, positiveSlippageBps, routePlan).
+ * The one-step fixture mirrors a current live route shape, and the embedded u64 amounts echo
+ * the envelope
  * exactly: the executor decodes this layout, binds the input to the Action and the quoted
  * output to the envelope outAmount, and refuses anything it cannot decode this way.
  */
@@ -103,7 +104,7 @@ export const syncNativeInstruction = (sourceAta) => ({
   data: toBase64(Uint8Array.of(17)),
 });
 
-/** Jupiter v6 `route` over the taker's derived ATAs; pool accounts ride the lookup table. */
+/** Jupiter v6 `routeV2` over the taker's derived ATAs; pool accounts ride the lookup table. */
 /** @param {string} taker @param {string} sourceAta @param {string} destinationAta */
 export const swapInstruction = (taker, sourceAta, destinationAta) => ({
   programId: JUP6_PROGRAM,
@@ -121,13 +122,18 @@ export const swapInstruction = (taker, sourceAta, destinationAta) => ({
   ],
   data: toBase64(
     Uint8Array.of(
-      ...ROUTE_DISCRIMINATOR,
-      ...getU32Codec().encode(0),
+      ...ROUTE_V2_DISCRIMINATOR,
       ...getU64Codec().encode(BigInt(AMOUNT)),
       ...getU64Codec().encode(BigInt(OUT_AMOUNT)),
-      50,
-      0,
+      ...getU16Codec().encode(50),
       ...getU16Codec().encode(0),
+      ...getU16Codec().encode(0),
+      ...getU32Codec().encode(1),
+      125,
+      0,
+      ...getU16Codec().encode(10_000),
+      0,
+      1,
     ),
   ),
 });

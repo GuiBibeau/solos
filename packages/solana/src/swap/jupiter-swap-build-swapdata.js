@@ -1,53 +1,54 @@
 // @ts-check
-import { createHash } from "node:crypto";
 import { getU16Codec, getU32Codec, getU64Codec } from "@solana/kit";
 import { dataBytes } from "./jupiter-swap-build-validate.js";
 
 /**
- * The executable-byte binding for the Jupiter v6 swap instruction. solOS signs only amounts it
- * has decoded itself, so the swap payload must be exactly the one supported layout — the
- * documented borsh `route` args whose wire form the fixtures encode: the 8-byte
- * sha256("global:route") discriminator, an empty routePlan vector, the u64 input amount, the
- * u64 quoted output amount, the slippage byte, a zero platform fee, and a zero route-plan
- * tail. Another discriminator, another shape, or truncation is refused before signing; the
- * decoded input is bound to the Action and the decoded quoted output to the envelope's
- * validated outAmount, while the minimum output keeps being enforced through
- * otherAmountThreshold. Fixed reason strings only; BigInt throughout.
+ * Jupiter V2 ExactIn keeps the economic contract before its opaque route plan. Shared-account
+ * routes add one router-id byte after the discriminator. The route plan stays opaque because its
+ * Swap enum changes as venues are added; its bounded vector header is still checked before sign.
  */
 
-/** First 8 bytes of sha256("global:route") — the Jupiter v6 route discriminator. */
-export const ROUTE_DISCRIMINATOR = Uint8Array.from(
-  createHash("sha256").update("global:route").digest().subarray(0, 8),
-);
+export const ROUTE_V2_DISCRIMINATOR = Uint8Array.of(187, 100, 250, 204, 49, 196, 175, 20);
+export const SHARED_ROUTE_V2_DISCRIMINATOR = Uint8Array.of(209, 152, 83, 147, 124, 254, 216, 233);
 
-const ROUTE_DATA_BYTES = 32;
+const MAX_ROUTE_STEPS = 32;
+const MIN_STEP_BYTES = 5;
+const variants = [
+  { discriminator: ROUTE_V2_DISCRIMINATOR, amountOffset: 8 },
+  { discriminator: SHARED_ROUTE_V2_DISCRIMINATOR, amountOffset: 9 },
+];
 const UNSUPPORTED_LAYOUT_REASON =
   "swap instruction data was not the supported Jupiter route layout";
 const EMBEDDED_INPUT_REASON = "swap instruction data did not carry the requested input amount";
 const EMBEDDED_OUTPUT_REASON = "swap instruction data did not carry the quoted envelope output";
 const EMBEDDED_SLIPPAGE_REASON =
   "swap instruction data did not carry the requested maximum slippage";
+const EMBEDDED_FEE_REASON = "swap instruction data did not carry the required zero-fee contract";
 
-/**
- * Decode the supported route layout, or undefined for anything else.
- * @param {import("@solana/kit").ReadonlyUint8Array} bytes
- * @returns {{ inAmount: bigint; quotedOutAmount: bigint; slippageBps: number } | undefined}
- */
+/** @param {import("@solana/kit").ReadonlyUint8Array} bytes */
+const matchingVariant = (bytes) =>
+  variants.find(({ discriminator }) => discriminator.every((byte, index) => bytes[index] === byte));
+
+/** @param {import("@solana/kit").ReadonlyUint8Array} bytes */
 const decodeRouteArgs = (bytes) => {
-  if (bytes.length !== ROUTE_DATA_BYTES) return undefined;
-  if (ROUTE_DISCRIMINATOR.some((byte, index) => bytes[index] !== byte)) return undefined;
-  if (getU32Codec().decode(bytes, 8) !== 0) return undefined;
-  if (getU16Codec().decode(bytes, 30) !== 0) return undefined;
+  const variant = matchingVariant(bytes);
+  if (!variant) return undefined;
+  const offset = variant.amountOffset;
+  const planOffset = offset + 22;
+  if (bytes.length < planOffset + 4) return undefined;
+  const steps = getU32Codec().decode(bytes, planOffset);
+  if (steps === 0 || steps > MAX_ROUTE_STEPS) return undefined;
+  if (bytes.length < planOffset + 4 + steps * MIN_STEP_BYTES) return undefined;
   return {
-    inAmount: getU64Codec().decode(bytes, 12),
-    quotedOutAmount: getU64Codec().decode(bytes, 20),
-    slippageBps: getU16Codec().decode(bytes, 28),
+    inAmount: getU64Codec().decode(bytes, offset),
+    quotedOutAmount: getU64Codec().decode(bytes, offset + 8),
+    slippageBps: getU16Codec().decode(bytes, offset + 16),
+    platformFeeBps: getU16Codec().decode(bytes, offset + 18),
+    positiveSlippageBps: getU16Codec().decode(bytes, offset + 20),
   };
 };
 
 /**
- * The pre-sign swap-data rejection: undefined means the payload is the supported layout and its
- * embedded amounts match the validated intent. Pure decoding — nothing signs, sends, or dials.
  * @param {import("./jupiter-swap-build-response.js").RawInstruction} swap
  * @param {import("@solos/actions").SwapAction} action
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
@@ -58,5 +59,6 @@ export const swapDataRejection = (swap, action, envelope) => {
   if (args.inAmount !== BigInt(action.amount)) return EMBEDDED_INPUT_REASON;
   if (args.quotedOutAmount !== BigInt(envelope.outAmount)) return EMBEDDED_OUTPUT_REASON;
   if (args.slippageBps !== action.maxSlippageBps) return EMBEDDED_SLIPPAGE_REASON;
+  if (args.platformFeeBps !== 0 || args.positiveSlippageBps !== 0) return EMBEDDED_FEE_REASON;
   return undefined;
 };
