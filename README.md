@@ -67,6 +67,7 @@ the draft ready and merges. See `docs/factory.md` for operating the factory and 
 | `solana_swap_get_quote` | read |
 | `solana_liquidity_get_position` | read |
 | `solana_perp_get_position` | read |
+| `solana_lend_get_reserve` | read |
 | `solana_transfer_simulate_sol` | simulate |
 | `solana_transfer_send_sol` | execute |
 
@@ -77,7 +78,9 @@ arrives with Action-based build execution); `launch` has the pump bonding-curve 
 configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps position reader
 (no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
 `liquidity` has the Orca Whirlpool position reader over the configured Solana RPC (no provider
-key at all); `signals` has ports only.
+key at all); `lend` has the Kamino reserve reader over the configured Solana RPC through the
+official Kamino klend-sdk (no provider key; one explicitly configured market); `signals` has
+ports only.
 
 ## Market intelligence (Elfa Iris)
 
@@ -430,6 +433,51 @@ is reported blocked, never passed): read the operator position and compare `liqu
 `tokenA`/`tokenB` amounts and decimals against the same pool state on a block explorer or a
 second client; both surfaces must return identical underlying quantities. See
 [liquidity QA](docs/liquidity-qa.md).
+
+## Kamino Lend reserve reads (read-only today)
+
+`solana_lend_get_reserve` (MCP) and `solos lend reserve --mint <address>` (CLI) read one
+reserve's rates and available liquidity from one explicitly configured Kamino market and
+return `{ protocol, market, reserve, mint, decimals, supplyApy, borrowApy, liquidity, at }`:
+
+- **One configured market, never a search.** The default market is Kamino Main Market
+  `7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF`; `KAMINO_LENDING_MARKET` may select one other
+  supported market. The market address is validated and echoed in every snapshot (`market` plus
+  the exact `reserve` PDA), so later reads and execution reuse the same identities. There is no
+  APY-based market choice and no first-reserve-across-markets fallback: two markets holding a
+  reserve for the same mint answer with the configured market's float-rate reserve or fail
+  `ReserveUnavailable` for that market.
+- **Program pin.** Lending program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD`; reads go
+  through Kamino's official `@kamino-finance/klend-sdk` over the same configured Solana RPC
+  every other tool uses. No provider key, no second RPC endpoint, no off-chain HTTP leg.
+- **Exact units.** `liquidity` is the reserve's available underlying token amount in base units
+  (`liquidity.totalAvailableAmount`, u64, decimal string, BigInt end to end) — never TVL, never
+  USD, never `totalSupply - totalBorrow`. `decimals` is the reserve liquidity mint's decimals.
+  An existing reserve with zero available liquidity is a successful read with `liquidity: "0"`.
+- **APYs are observations, not promised returns.** `supplyApy`/`borrowApy` are annual fractional
+  decimal strings (`0.05` = 5%) computed by the SDK's published per-slot interest math and
+  exclude incentive reward yields by documented contract. They move every slot; record the time
+  when comparing.
+- **Typed failures.** Input that is not a 32-byte base58 address fails `LendingInputInvalid`
+  before any RPC; a missing configured market fails `LendingMarketUnavailable`; a mint without a
+  float-rate reserve (or a mapping violation) fails `ReserveUnavailable`; an undecodable reserve
+  account fails `LendingLayoutUnsupported`; a decoded value outside the snapshot schema fails
+  `LendingResponseInvalid`; a deadline miss fails `LendingTimeout`; transport failures surface
+  as the shared `RpcError`. One attempt per read, no retries, raw provider bodies never travel.
+- **No deposit/withdraw tools exist yet** (#22/#23); this slice signs nothing and spends nothing.
+
+```sh
+SOLANA_RPC_URL=... bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+KAMINO_LENDING_MARKET=<market> SOLANA_RPC_URL=... bun run solos lend reserve --mint <address>
+SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_reserve --args '{"mint":"<address>"}'
+```
+
+`KAMINO_LENDING_MARKET` is optional everywhere and is forwarded to the MCP child like the other
+solOS keys; without it every tool still works against the default market.
+
+Operator QA (compare one USDC reserve snapshot with the same named Kamino market, recording
+time and units; **blocked** in the factory — the factory never provisions RPC endpoints, so
+live QA is reported blocked, never passed): see [lend QA](docs/lend-qa.md).
 
 ## License
 
