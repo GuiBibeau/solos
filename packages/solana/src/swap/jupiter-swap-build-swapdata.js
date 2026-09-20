@@ -33,7 +33,7 @@ const EMBEDDED_OUTPUT_REASON = "swap instruction data did not carry the quoted e
  */
 const decodeRouteArgs = (bytes) => {
   if (bytes.length !== ROUTE_DATA_BYTES) return undefined;
-  if (!ROUTE_DISCRIMINATOR.every((byte, index) => bytes[index] === byte)) return undefined;
+  if (ROUTE_DISCRIMINATOR.some((byte, index) => bytes[index] !== byte)) return undefined;
   if (getU32Codec().decode(bytes, 8) !== 0) return undefined;
   if (bytes[29] !== 0 || getU16Codec().decode(bytes, 30) !== 0) return undefined;
   return {

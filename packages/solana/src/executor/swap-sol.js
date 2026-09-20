@@ -63,6 +63,78 @@ const amountBoundRejection = (action) => {
  *   BuildRejected | import("@solos/core").BuildUnavailable | UnsupportedAction
  * >}
  */
+/**
+ * Fetch the provider build for the exact Action and hold it to the full semantic rejection
+ * chain. A validator crash on a malformed artifact is a fixed-reason rejection, never an
+ * Effect defect or raw library text.
+ * @param {{ kit: Kit; build: Build }} deps
+ * @param {SwapAction} action
+ * @returns {import("effect").Effect.Effect<
+ *   JupiterBuildEnvelope, BuildRejected | import("@solos/core").BuildUnavailable
+ * >}
+ */
+const fetchValidatedBuild = ({ kit, build }, action) =>
+  Effect.gen(function* () {
+    const overBound = amountBoundRejection(action);
+    if (overBound) return yield* new BuildRejected({ reason: overBound });
+    const envelope = yield* build.build({
+      inputMint: action.inputMint,
+      outputMint: action.outputMint,
+      amount: action.amount,
+      slippageBps: action.maxSlippageBps,
+      taker: kit.signer.address,
+    });
+    const rejection = yield* Effect.tryPromise({
+      try: () => buildRejection(envelope, action, kit.signer.address),
+      catch: () => new BuildRejected({ reason: VALIDATION_GUARD_REASON }),
+    });
+    if (rejection) return yield* new BuildRejected({ reason: rejection });
+    return envelope;
+  });
+
+/**
+ * Assemble the validated envelope and sign it once. The pre-sign boundary proves v1 and the
+ * size bounds before a signer is involved; assembly is guarded the same way as validation.
+ * @param {{ kit: Kit }} deps
+ * @param {JupiterBuildEnvelope} envelope
+ * @returns {import("effect").Effect.Effect<Signed, BuildRejected>}
+ */
+const assembleAndSign = ({ kit }, envelope) =>
+  Effect.gen(function* () {
+    const message = yield* Effect.try({
+      try: () => assembleSwapMessage(envelope, kit.signer),
+      catch: () => new BuildRejected({ reason: ASSEMBLY_GUARD_REASON }),
+    });
+    // Pre-sign boundary: the message must be v1 and inside the fixed size bounds. A refusal
+    // here happens before any signer is involved — no signature, no chain contact.
+    yield* Effect.try({
+      try: () => assertSwapMessageBounds(message),
+      catch: (error) => /** @type {BuildRejected} */ (error),
+    });
+    return yield* Effect.tryPromise({
+      // Compression rewrites account metas into lookup-table indexes; the signer registrations
+      // on the taker's static accounts survive, but their refined type does not.
+      try: () =>
+        signTransactionMessageWithSigners(
+          /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */
+          (/** @type {unknown} */ (message)),
+        ),
+      catch: () => new BuildRejected({ reason: "swap transaction could not be signed" }),
+    });
+  });
+
+/**
+ * Fetch, validate, assemble, and sign one swap. An omitted or explicit `jupiter` venue takes
+ * the Jupiter path; any other venue is refused as unsupported before any build request — pump
+ * until that venue is supported (#25), and every other venue outright.
+ * @param {{ kit: Kit; build: Build }} deps
+ * @param {SwapAction} action
+ * @returns {import("effect").Effect.Effect<
+ *   SignedSwap,
+ *   BuildRejected | import("@solos/core").BuildUnavailable | UnsupportedAction
+ * >
+ * }
+ */
 export const buildSignedSwap = ({ kit, build }, action) =>
   Effect.gen(function* () {
     if (action.venue === "pump") {
@@ -74,44 +146,8 @@ export const buildSignedSwap = ({ kit, build }, action) =>
         executor: EXECUTOR,
       });
     }
-    const overBound = amountBoundRejection(action);
-    if (overBound) return yield* new BuildRejected({ reason: overBound });
-    const taker = kit.signer.address;
-    const envelope = yield* build.build({
-      inputMint: action.inputMint,
-      outputMint: action.outputMint,
-      amount: action.amount,
-      slippageBps: action.maxSlippageBps,
-      taker,
-    });
-    // Semantic validation runs as its own guarded step: even a validator crash on a malformed
-    // artifact is a fixed-reason rejection, never an Effect defect or raw library text.
-    const rejection = yield* Effect.tryPromise({
-      try: () => buildRejection(envelope, action, taker),
-      catch: () => new BuildRejected({ reason: VALIDATION_GUARD_REASON }),
-    });
-    if (rejection) return yield* new BuildRejected({ reason: rejection });
-    const message = yield* Effect.try({
-      try: () => assembleSwapMessage(envelope, kit.signer),
-      catch: () => new BuildRejected({ reason: ASSEMBLY_GUARD_REASON }),
-    });
-    // Pre-sign boundary: the message must be v1 and inside the fixed size bounds. A refusal
-    // here happens before any signer is involved — no signature, no chain contact.
-    yield* Effect.try({
-      try: () => assertSwapMessageBounds(message),
-      catch: (error) => /** @type {BuildRejected} */ (error),
-    });
-    const signed = yield* Effect.tryPromise({
-      // Compression rewrites account metas into lookup-table indexes; the signer registrations
-      // on the taker's static accounts survive, but their refined type does not.
-      try: () =>
-        signTransactionMessageWithSigners(
-          /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */ (
-            /** @type {unknown} */ (message)
-          ),
-        ),
-      catch: () => new BuildRejected({ reason: "swap transaction could not be signed" }),
-    });
+    const envelope = yield* fetchValidatedBuild({ kit, build }, action);
+    const signed = yield* assembleAndSign({ kit }, envelope);
     return { signed, envelope };
   });
 

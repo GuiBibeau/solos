@@ -96,7 +96,20 @@ const wrapRejection = async (envelope, action, taker) => {
   if (!transfer) return SYNC_OUTSIDE_WRAP_REASON;
   const tempWsol = await derivedAta(taker, WSOL_MINT);
   const rejection = await transferRejection({ transfer, action, taker, tempWsol });
-  if (rejection) return rejection;
+  return rejection ?? (await syncPairRejection({ order, transfer, syncs, tempWsol }));
+};
+
+/**
+ * The SyncNative half of the wrap pair: exactly one, on the taker's temporary account, after
+ * its funding transfer.
+ * @param {{
+ *   order: import("./jupiter-swap-build-response.js").RawInstruction[];
+ *   transfer: import("./jupiter-swap-build-response.js").RawInstruction;
+ *   syncs: import("./jupiter-swap-build-response.js").RawInstruction[];
+ *   tempWsol: import("@solana/kit").Address;
+ * }} bound
+ */
+const syncPairRejection = async ({ order, transfer, syncs, tempWsol }) => {
   if (syncs.length === 0) return MISSING_SYNC_REASON;
   if (syncs.length > 1) return "setup carried more than one SyncNative";
   const [sync] = syncs;
