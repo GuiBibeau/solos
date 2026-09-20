@@ -38,3 +38,9 @@ export const taskBindingKey = (stationRunId, turnId) => {
   const turn = createHash("sha256").update(turnId).digest("hex").slice(0, 24);
   return observation.replace(/\.json$/, `/turns/${turn}/task.json`);
 };
+
+/** @param {string} workItem @param {string} rootRunId @param {string} station */
+export const currentTaskKey = (workItem, rootRunId, station) => {
+  const checkpoint = checkpointKey(workItem, rootRunId, station);
+  return checkpoint?.replace(/\.json$/, "/current-task.json") ?? null;
+};

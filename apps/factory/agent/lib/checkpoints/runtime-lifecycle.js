@@ -17,16 +17,22 @@ const requestedInput = (event) =>
     : /** @type {const} */ ("other");
 
 /** @param {Extract<import("eve/hooks").HookEvent, {type: "input.resolved"}>} event */
-const stoppedForBudget = (event) =>
-  event.data.resolutions.some(
-    (resolution) => resolution.kind === "session-limit" && resolution.response?.optionId === "stop",
-  );
+const budgetResolution = (event) =>
+  event.data.resolutions.find((resolution) => resolution.kind === "session-limit");
+
+/** @param {Extract<import("eve/hooks").HookEvent, {type: "input.resolved"}>} event */
+const budgetDecision = (event) => {
+  const resolution = budgetResolution(event);
+  if (resolution === undefined) return "not_budget";
+  return resolution.response?.optionId === "continue" ? "continue" : "paused";
+};
 
 /** @param {import("eve/hooks").HookEvent} event */
 const taskOutcome = (event) => {
   if (event.type === "input.requested")
     return requestedInput(event) === "session_limit" ? "budget_paused" : "active";
-  if (event.type === "input.resolved") return stoppedForBudget(event) ? "budget_paused" : "active";
+  if (event.type === "input.resolved")
+    return budgetDecision(event) === "paused" ? "budget_paused" : "active";
   const outcome = OUTCOMES[/** @type {keyof typeof OUTCOMES} */ (event.type)];
   if (outcome !== undefined || event.type === "session.waiting") return outcome;
   return "active";
@@ -43,10 +49,11 @@ const sessionStatus = (event) => {
 
 /** @param {import("eve/hooks").HookEvent} event */
 export const lifecycleDelta = (event) => ({
-  clearPendingInput:
-    event.type === "turn.started" || (event.type === "input.resolved" && !stoppedForBudget(event)),
+  clearPendingInput: event.type === "input.resolved" && budgetDecision(event) !== "paused",
   eventType: event.type,
-  ...(event.type === "input.requested" && { pendingInput: requestedInput(event) }),
+  ...(event.type === "input.requested" && {
+    pendingInput: requestedInput(event),
+  }),
   sessionStatus: sessionStatus(event),
   taskOutcome: taskOutcome(event),
 });
@@ -59,10 +66,8 @@ const nextPendingInput = (prior, event) => {
 
 /** @param {RuntimeState} prior @param {ReturnType<typeof lifecycleDelta>} event @param {RuntimeState["pendingInput"]} pendingInput */
 const mergedOutcome = (prior, event, pendingInput) => {
-  if (pendingInput !== undefined && event.eventType === "turn.completed")
-    return pendingInput === "session_limit" ? "budget_paused" : "active";
-  if (pendingInput === "session_limit" && event.eventType === "turn.cancelled")
-    return "budget_paused";
+  if (pendingInput === "session_limit") return "budget_paused";
+  if (pendingInput !== undefined && event.eventType === "turn.completed") return "active";
   return event.taskOutcome ?? prior.taskOutcome;
 };
 

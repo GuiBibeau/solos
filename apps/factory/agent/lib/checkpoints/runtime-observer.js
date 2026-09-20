@@ -1,9 +1,11 @@
 // @ts-check
 import { readDocument, writeDocument } from "../blob.js";
 import { observationKey } from "./config.js";
+import { createPrePauseCheckpoint } from "./pre-pause-checkpoint.js";
 import { mergeLifecycle } from "./runtime-lifecycle.js";
 import { observationFromEvent, RuntimeObservationSchema } from "./runtime-observation.js";
 import { addUsage } from "./runtime-usage.js";
+import { checkpointStore } from "./store.js";
 import { taskBindingStore } from "./task-binding.js";
 
 /** @typedef {import("./runtime-observation.js").RuntimeObservation} RuntimeObservation */
@@ -91,11 +93,16 @@ export const createRuntimeObserver = (io) => {
   return { observe, read };
 };
 
-export const runtimeObserver = createRuntimeObserver({ read: readDocument, write: writeDocument });
+export const runtimeObserver = createRuntimeObserver({
+  read: readDocument,
+  write: writeDocument,
+});
 
-/** @param {Pick<typeof runtimeObserver, "observe">} observer @param {Pick<typeof taskBindingStore, "observe">} [bindings] */
+const noPrePauseCheckpoint = async () => {};
+
+/** @param {Pick<typeof runtimeObserver, "observe">} observer @param {Pick<typeof taskBindingStore, "observe">} [bindings] @param {(event: import("eve/hooks").HookEvent, ctx: import("eve/hooks").HookContext) => Promise<void>} [prePause] */
 export const createRuntimeEventHandler =
-  (observer, bindings = taskBindingStore) =>
+  (observer, bindings = taskBindingStore, prePause = noPrePauseCheckpoint) =>
   /** @param {import("eve/hooks").HookEvent} event @param {import("eve/hooks").HookContext} ctx */
   async (event, ctx) => {
     await bindings.observe(event, ctx);
@@ -104,6 +111,17 @@ export const createRuntimeEventHandler =
       ctx.session.id,
       ctx.session.parent === undefined ? "root_aggregate" : "station",
     );
+    await prePause(event, ctx);
   };
 
-export const observeRuntimeEvent = createRuntimeEventHandler(runtimeObserver);
+const prePauseCheckpoint = createPrePauseCheckpoint({
+  bindings: taskBindingStore,
+  checkpoints: checkpointStore,
+  observer: runtimeObserver,
+});
+
+export const observeRuntimeEvent = createRuntimeEventHandler(
+  runtimeObserver,
+  taskBindingStore,
+  prePauseCheckpoint,
+);

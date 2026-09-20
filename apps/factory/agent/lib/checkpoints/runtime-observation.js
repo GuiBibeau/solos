@@ -21,6 +21,7 @@ const TRACKED = new Set([
   "actions.requested",
   "input.requested",
   "input.resolved",
+  "message.received",
   "session.completed",
   "session.failed",
   "session.started",

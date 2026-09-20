@@ -18,30 +18,60 @@ const readRootObservation = async (observer, ctx) => {
     : observer.read(sessionId);
 };
 
-/** @param {RuntimeRead} observed */
-const stationObservation = (observed) =>
+/** @param {RuntimeRead} observed @param {ReturnType<typeof activeIdentity>} active */
+const stationObservation = (observed, active) =>
   observed.found
     ? (observed.observation ?? { observationTimedOut: /** @type {const} */ (true) })
-    : { observationTimedOut: /** @type {const} */ (true) };
+    : replacementObservation(active);
 
-/** @param {import("./schema.js").StationCheckpoint} stored @param {{root: RuntimeRead; station: RuntimeRead}} observations @param {number} unchangedObservations */
-const joinedResult = (stored, observations, unchangedObservations) => {
-  const checkpoint = withObservedUsage(stored, observations.station);
+/** @param {ReturnType<typeof activeIdentity>} active */
+const replacementObservation = (active) => {
+  if (!active.isReplacement) return { observationTimedOut: /** @type {const} */ (true) };
+  return { latestActivityAt: active.receivedAt, taskOutcome: /** @type {const} */ ("active") };
+};
+
+/** @param {import("./schema.js").StationCheckpoint} stored @param {CurrentRead} current */
+const activeIdentity = (stored, current) => ({
+  isReplacement: current.found && current.binding.taskId !== stored.taskId,
+  receivedAt: current.found ? current.binding.receivedAt : stored.updatedAt,
+  stationRunId: current.found ? current.binding.stationRunId : stored.stationRunId,
+  taskId: current.found ? current.binding.taskId : stored.taskId,
+});
+
+/** @param {import("./schema.js").StationCheckpoint} stored @param {JoinDetails} details */
+const joinedResult = (stored, { observations, active, unchangedObservations }) => {
+  const checkpoint = active.isReplacement
+    ? stored
+    : withObservedUsage(stored, observations.station);
+  const statusCheckpoint = active.isReplacement
+    ? { ...stored, outcome: /** @type {const} */ ("active") }
+    : checkpoint;
   const rootUsage = observations.root.found ? observations.root.observation?.usage : undefined;
-  const usage = reportUsage([rootUsage, checkpoint.usage]);
+  const stationUsage = observations.station.found
+    ? observations.station.observation?.usage
+    : checkpoint.usage;
+  const usage = reportUsage([rootUsage, stationUsage]);
   return {
     checkpoint,
     backoffMs: monitoringBackoffMs(unchangedObservations),
     blocker: blockerStatus(checkpoint),
     found: true,
     ...(usage !== undefined && { usage }),
-    view: stationView(checkpoint, stationObservation(observations.station)),
+    view: {
+      ...stationView(statusCheckpoint, stationObservation(observations.station, active)),
+      stationRunId: active.stationRunId,
+      taskId: active.taskId,
+    },
   };
 };
 
-/** @param {CheckpointStore} checkpoints @param {RuntimeObserver} observer */
+const noCurrentBinding = {
+  readCurrent: async () => ({ found: /** @type {const} */ (false) }),
+};
+
+/** @param {CheckpointStore} checkpoints @param {RuntimeObserver} observer @param {TaskBindings} [bindings] */
 export const createCheckpointReader =
-  (checkpoints, observer) =>
+  (checkpoints, observer, bindings = noCurrentBinding) =>
   async (
     /** @type {{rootRunId: string; station: string; unchangedObservations?: number; workItem: string}} */ input,
     /** @type {import("eve/tools").SessionContext | undefined} */ ctx,
@@ -50,14 +80,27 @@ export const createCheckpointReader =
     const result = await checkpoints.read({ rootRunId, station, workItem });
     const stored = result.checkpoint;
     if (stored === undefined || !result.found) return result;
+    const current = await bindings.readCurrent({
+      rootRunId,
+      station,
+      workItem,
+    });
+    const active = activeIdentity(stored, current);
     const observed =
-      stored.stationRunId === undefined
+      active.stationRunId === undefined
         ? { found: /** @type {const} */ (false) }
-        : await observer.read(stored.stationRunId);
+        : await observer.read(active.stationRunId);
     const rootObserved = await readRootObservation(observer, ctx);
-    return joinedResult(stored, { root: rootObserved, station: observed }, unchangedObservations);
+    return joinedResult(stored, {
+      active,
+      observations: { root: rootObserved, station: observed },
+      unchangedObservations,
+    });
   };
 
 /** @typedef {{read: (input: {rootRunId: string; station: string; workItem: string}) => Promise<{checkpoint?: import("./schema.js").StationCheckpoint; found: boolean}>}} CheckpointStore */
 /** @typedef {{read: (id: string) => Promise<RuntimeRead>}} RuntimeObserver */
 /** @typedef {{found: boolean; observation?: import("./runtime-observation.js").RuntimeObservation}} RuntimeRead */
+/** @typedef {{found: false} | {binding: {receivedAt: string; stationRunId: string; taskId: string}; found: true}} CurrentRead */
+/** @typedef {{readCurrent: (identity: {rootRunId: string; station: string; workItem: string}) => Promise<CurrentRead>}} TaskBindings */
+/** @typedef {{active: ReturnType<typeof activeIdentity>; observations: {root: RuntimeRead; station: RuntimeRead}; unchangedObservations: number}} JoinDetails */

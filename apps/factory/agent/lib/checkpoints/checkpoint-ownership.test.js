@@ -30,7 +30,10 @@ const dispatchContext = (sequence, onAgent) =>
   /** @type {import("eve/tools").WorkflowToolContext} */ ({
     agent: onAgent,
     callId: `dispatch-${sequence}`,
-    session: { id: "root-session", turn: { id: `root-turn-${sequence}`, sequence } },
+    session: {
+      id: "root-session",
+      turn: { id: `root-turn-${sequence}`, sequence },
+    },
     toolName: "dispatch-implementer",
   });
 
@@ -39,7 +42,7 @@ const taskContext = (taskId) => /** @type {import("eve/tools").TaskExec} */ ({ t
 const deliveryEvent = (message, turnId, sequence) =>
   /** @type {import("eve/hooks").HookEvent} */ ({
     data: { message, sequence, turnId },
-    meta: { at: `2026-09-19T00:00:0${sequence}Z`, id: `delivery-${sequence}` },
+    meta: { at: `2099-09-19T00:00:0${sequence}Z`, id: `delivery-${sequence}` },
     type: "message.received",
   });
 
@@ -126,6 +129,9 @@ test("real dispatch tools transfer reused-session checkpoint ownership", async (
       task: taskContext(secondTaskId),
     },
   );
+  expect(await bindings.readCurrent({ ...dispatchInput, station: "implementer" })).toMatchObject({
+    binding: { taskId: secondTaskId },
+  });
   const replacement = { ...first, revision: 2 };
   expect(
     await tool.execute(

@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { readDocument, writeDocument } from "../blob.js";
 import { taskBindingKey } from "./config.js";
+import { createCurrentTaskBindingStore } from "./current-task-binding.js";
 import { StationSchema } from "./schema.js";
 import { stationDeliveryFromMessage } from "./station-delivery.js";
 
@@ -41,9 +42,10 @@ const persist = async (io, { incoming, key, schema }) => {
   throw lastError;
 };
 
-/** @param {TaskBindingIo} io */
-export const createTaskBindingStore = (io) => ({
-  observe: async (
+/** @param {TaskBindingIo} io @param {ReturnType<typeof createCurrentTaskBindingStore>} current */
+const observeTask =
+  (io, current) =>
+  async (
     /** @type {import("eve/hooks").HookEvent} */ event,
     /** @type {import("eve/hooks").HookContext} */ ctx,
   ) => {
@@ -60,19 +62,38 @@ export const createTaskBindingStore = (io) => ({
       key,
       schema: ActiveBindingSchema,
     });
-  },
-  read: async (/** @type {{stationRunId: string; turnId: string}} */ identity) => {
-    const key = taskBindingKey(identity.stationRunId, identity.turnId);
-    if (key === null) return { found: /** @type {const} */ (false) };
-    const stored = await io.read(key);
-    return stored.found
-      ? {
-          binding: ActiveBindingSchema.parse(JSON.parse(stored.content)),
-          found: /** @type {const} */ (true),
-        }
-      : { found: /** @type {const} */ (false) };
-  },
-});
+    await current.save({
+      ...binding,
+      eventId: event.meta.id,
+      receivedAt: event.meta.at,
+      stationRunId: ctx.session.id,
+      turnId: event.data.turnId,
+    });
+  };
+
+/** @param {TaskBindingIo} io @param {{stationRunId: string; turnId: string}} identity */
+const readTask = async (io, identity) => {
+  const key = taskBindingKey(identity.stationRunId, identity.turnId);
+  if (key === null) return { found: /** @type {const} */ (false) };
+  const stored = await io.read(key);
+  return stored.found
+    ? {
+        binding: ActiveBindingSchema.parse(JSON.parse(stored.content)),
+        found: /** @type {const} */ (true),
+      }
+    : { found: /** @type {const} */ (false) };
+};
+
+/** @param {TaskBindingIo} io */
+export const createTaskBindingStore = (io) => {
+  const current = createCurrentTaskBindingStore(io);
+  return {
+    observe: observeTask(io, current),
+    read: (/** @type {{stationRunId: string; turnId: string}} */ identity) =>
+      readTask(io, identity),
+    readCurrent: current.read,
+  };
+};
 
 export const taskBindingStore = createTaskBindingStore({
   read: readDocument,

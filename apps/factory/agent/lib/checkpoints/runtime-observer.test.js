@@ -47,6 +47,34 @@ test("approved budget input returns the station to active", async () => {
   expect(stored.observation).not.toHaveProperty("pendingInput");
 });
 
+test("ignored budget input stays pending until explicit continue", async () => {
+  const observer = createRuntimeObserver(createCheckpointMemoryIo().io);
+  await observer.observe(
+    runtimeEvent("input.requested", 1, { requests: [sessionLimitRequest()] }),
+    "run",
+  );
+  await observer.observe(
+    runtimeEvent("input.resolved", 2, {
+      resolutions: [
+        {
+          kind: "session-limit",
+          outcome: "ignored",
+          requestId: "limit-1",
+          response: null,
+        },
+      ],
+    }),
+    "run",
+  );
+  await observer.observe(runtimeEvent("turn.started", 3), "run");
+  expect(await observer.read("run")).toMatchObject({
+    observation: {
+      pendingInput: "session_limit",
+      taskOutcome: "budget_paused",
+    },
+  });
+});
+
 test("ordinary completed turns retain Eve's continuation cursor", async () => {
   const observer = createRuntimeObserver(createCheckpointMemoryIo().io);
   await observer.observe(runtimeEvent("session.started", 1), "station-run");

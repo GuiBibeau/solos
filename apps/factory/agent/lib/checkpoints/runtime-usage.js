@@ -7,8 +7,11 @@ export const RuntimeUsageSchema = z.object({
   billedCostUsd: z.number().nonnegative().optional(),
   billedCostComplete: z.boolean().optional(),
   cachedInputTokens: z.number().int().nonnegative().optional(),
+  cachedInputTokensComplete: z.boolean().optional(),
   inputTokens: z.number().int().nonnegative().optional(),
+  inputTokensComplete: z.boolean().optional(),
   outputTokens: z.number().int().nonnegative().optional(),
+  outputTokensComplete: z.boolean().optional(),
 });
 
 /** @param {import("eve/hooks").HookEvent} event */
@@ -31,32 +34,67 @@ export const usageFromEvent = (event, scope) => {
       billedCostUsd: usage.costUsd,
     }),
     cachedInputTokens: usage.cacheReadTokens,
+    cachedInputTokensComplete: usage.cacheReadTokens !== undefined,
     inputTokens: usage.inputTokens,
+    inputTokensComplete: usage.inputTokens !== undefined,
     outputTokens: usage.outputTokens,
+    outputTokensComplete: usage.outputTokens !== undefined,
   });
+};
+
+/** @typedef {"billedCostUsd" | "cachedInputTokens" | "inputTokens" | "outputTokens"} ValueKey */
+/** @typedef {"billedCostComplete" | "cachedInputTokensComplete" | "inputTokensComplete" | "outputTokensComplete"} CompleteKey */
+
+/** @param {RuntimeUsage | undefined} usage @param {FieldKeys} keys @param {boolean} missing */
+const known = (usage, { valueKey, completeKey }, missing) => {
+  if (usage === undefined) return missing;
+  return usage[completeKey] ?? usage[valueKey] !== undefined;
+};
+
+/** @param {RuntimeUsage | undefined} usage @param {ValueKey} key */
+const value = (usage, key) => usage?.[key] ?? 0;
+
+/** @param {RuntimeUsage | undefined} prior @param {RuntimeUsage} delta @param {FieldKeys} keys */
+const fieldState = (prior, delta, keys) => {
+  const complete = known(prior, keys, true) && known(delta, keys, false);
+  if (!complete) return { complete, value: undefined };
+  return { complete, value: value(prior, keys.valueKey) + value(delta, keys.valueKey) };
 };
 
 /** @param {RuntimeUsage | undefined} prior @param {RuntimeUsage | undefined} delta */
 export const addUsage = (prior, delta) => {
   if (delta === undefined) return prior;
-  /** @param {keyof Pick<RuntimeUsage, "billedCostUsd" | "cachedInputTokens" | "inputTokens" | "outputTokens">} key */
-  const add = (key) =>
-    prior?.[key] === undefined && delta[key] === undefined
-      ? undefined
-      : (prior?.[key] ?? 0) + (delta[key] ?? 0);
-  const priorCostComplete =
-    prior === undefined ? true : (prior.billedCostComplete ?? prior.billedCostUsd !== undefined);
-  const deltaCostComplete = delta.billedCostComplete ?? delta.billedCostUsd !== undefined;
-  const billedCostComplete = priorCostComplete && deltaCostComplete;
+  const billed = fieldState(prior, delta, {
+    completeKey: "billedCostComplete",
+    valueKey: "billedCostUsd",
+  });
+  const cached = fieldState(prior, delta, {
+    completeKey: "cachedInputTokensComplete",
+    valueKey: "cachedInputTokens",
+  });
+  const input = fieldState(prior, delta, {
+    completeKey: "inputTokensComplete",
+    valueKey: "inputTokens",
+  });
+  const output = fieldState(prior, delta, {
+    completeKey: "outputTokensComplete",
+    valueKey: "outputTokens",
+  });
   return RuntimeUsageSchema.parse({
     accountingScope: delta.accountingScope,
-    billedCostComplete,
-    ...(billedCostComplete && { billedCostSource: "eve.runtime.provider-reported" }),
-    ...(billedCostComplete && { billedCostUsd: add("billedCostUsd") }),
-    cachedInputTokens: add("cachedInputTokens"),
-    inputTokens: add("inputTokens"),
-    outputTokens: add("outputTokens"),
+    billedCostComplete: billed.complete,
+    ...(billed.complete && {
+      billedCostSource: "eve.runtime.provider-reported",
+    }),
+    billedCostUsd: billed.value,
+    cachedInputTokens: cached.value,
+    cachedInputTokensComplete: cached.complete,
+    inputTokens: input.value,
+    inputTokensComplete: input.complete,
+    outputTokens: output.value,
+    outputTokensComplete: output.complete,
   });
 };
 
 /** @typedef {z.infer<typeof RuntimeUsageSchema>} RuntimeUsage */
+/** @typedef {{completeKey: CompleteKey; valueKey: ValueKey}} FieldKeys */

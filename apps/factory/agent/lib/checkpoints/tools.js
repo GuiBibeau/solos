@@ -20,6 +20,7 @@ const StatusViewSchema = z.object({
   cursor: z.string().optional(),
   latestActivityAt: z.iso.datetime(),
   redispatch: z.literal(false),
+  stationRunId: z.string().optional(),
   status: z.enum([
     "active",
     "blocked",
@@ -29,6 +30,7 @@ const StatusViewSchema = z.object({
     "superseded",
     "unknown",
   ]),
+  taskId: StationCheckpointSchema.shape.taskId,
 });
 const ReadInput = z.object({
   rootRunId: z.string().min(1).max(200),
@@ -46,7 +48,11 @@ const ReadOutput = z.object({
   view: StatusViewSchema.optional(),
 });
 
-export const readCheckpoint = createCheckpointReader(checkpointStore, runtimeObserver);
+export const readCheckpoint = createCheckpointReader(
+  checkpointStore,
+  runtimeObserver,
+  taskBindingStore,
+);
 
 const saveCheckpoint = createCheckpointSaver(checkpointStore, runtimeObserver, taskBindingStore);
 
@@ -72,7 +78,7 @@ export const saveCheckpointTool = (station) => createSaveCheckpointTool(station,
 export const readCheckpointTool = () =>
   defineTool({
     description:
-      "Read a station checkpoint joined with runtime-owned activity for its stored station run id. " +
+      "Read a station checkpoint joined with its durable current task and runtime-owned activity. " +
       "A missing observation returns unknown and never authorizes redispatch. Token usage is a " +
       "guardrail counter, not an invoice; billed cost appears only from the runtime provider.",
     execute: readCheckpoint,
