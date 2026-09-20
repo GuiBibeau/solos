@@ -1,24 +1,35 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
-import { POOL_AUTHORITY } from "./jupiter-swap-build-bodies.js";
-import { AMOUNT, INPUT_MINT, OUT_AMOUNT, OUTPUT_MINT, minOutFor } from "./jupiter-swap-build-bodies.js";
-import { buildEnvelope } from "./jupiter-swap-build-fixture.js";
 import { buildRejection } from "./jupiter-swap-build-accounts.js";
+import {
+  POOL_AUTHORITY,
+  AMOUNT,
+  INPUT_MINT,
+  OUT_AMOUNT,
+  OUTPUT_MINT,
+  minOutFor,
+} from "./jupiter-swap-build-bodies.js";
+import { buildEnvelope } from "./jupiter-swap-build-fixture.js";
 import { COMPUTE_BUDGET_PROGRAM, SYSTEM_PROGRAM } from "./jupiter-swap-build-validate.js";
 
 /**
- * Pre-sign rejection of a mutated provider build: the intent echo, the minimum output, the
- * program allowlist, and the signer allowlist. Every mutation must yield `BuildRejected` with a
- * fixed reason — and because `buildRejection` runs before assembly, nothing was signed, sent,
- * or dialled to prove it.
+ * Pre-sign rejection of a mutated provider build: the intent echo, the minimum output, and the
+ * program and signer allowlists. Every mutation must yield `BuildRejected` with a fixed reason,
+ * and because `buildRejection` runs before assembly, nothing was signed, sent, or dialled.
  */
 
 /** @type {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} */
 let envelope;
 /** @type {string} */
 let taker;
-const action = { type: "swap", inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, maxSlippageBps: 50 };
+const action = {
+  type: "swap",
+  inputMint: INPUT_MINT,
+  outputMint: OUTPUT_MINT,
+  amount: AMOUNT,
+  maxSlippageBps: 50,
+};
 
 beforeAll(async () => {
   const signer = await createMemorySignerFromBytes(new Uint8Array(32).fill(42));
@@ -61,17 +72,23 @@ describe("build rejection before signing", () => {
 
   test("a minimum output below the exact tolerance floor is rejected", async () => {
     const low = String(BigInt(minOutFor(OUT_AMOUNT, 50)) - 1n);
-    expect(await rejectionFor({ otherAmountThreshold: low })).toContain("below the exact worst case");
+    expect(await rejectionFor({ otherAmountThreshold: low })).toContain(
+      "below the exact worst case",
+    );
   });
 
   test("a minimum output above the quoted output is rejected", async () => {
     const high = String(BigInt(OUT_AMOUNT) + 1n);
-    expect(await rejectionFor({ otherAmountThreshold: high })).toContain("exceeded the quoted output");
+    expect(await rejectionFor({ otherAmountThreshold: high })).toContain(
+      "exceeded the quoted output",
+    );
   });
 
   test("non-integer amount strings are rejected before any BigInt math", async () => {
     expect(await rejectionFor({ outAmount: "12x" })).toContain("not a positive integer");
-    expect(await rejectionFor({ otherAmountThreshold: "1.5" })).toContain("base-unit integer string");
+    expect(await rejectionFor({ otherAmountThreshold: "1.5" })).toContain(
+      "base-unit integer string",
+    );
   });
 
   test("a swap instruction on any program but Jupiter v6 is rejected", async () => {
@@ -93,7 +110,9 @@ describe("build rejection before signing", () => {
 
   test("cleanup that is not a token closeAccount is rejected", async () => {
     const cleanup = { ...envelope.cleanupInstruction, data: "Ag==" };
-    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain("not a token closeAccount");
+    expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
+      "not a token closeAccount",
+    );
   });
 
   test("a tip instruction is rejected: auto tips are banned", async () => {
@@ -114,7 +133,9 @@ describe("build rejection before signing", () => {
         { pubkey: POOL_AUTHORITY, isWritable: true, isSigner: true },
       ],
     };
-    expect(await rejectionFor({ swapInstruction: swap })).toContain("outside the configured signer");
+    expect(await rejectionFor({ swapInstruction: swap })).toContain(
+      "outside the configured signer",
+    );
   });
 
   test("a swap that does not require the configured signer is rejected", async () => {
@@ -122,6 +143,8 @@ describe("build rejection before signing", () => {
       ...envelope.swapInstruction,
       accounts: envelope.swapInstruction.accounts.map((a) => ({ ...a, isSigner: false })),
     };
-    expect(await rejectionFor({ swapInstruction: swap })).toContain("did not require the configured signer");
+    expect(await rejectionFor({ swapInstruction: swap })).toContain(
+      "did not require the configured signer",
+    );
   });
 });
