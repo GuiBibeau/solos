@@ -5,6 +5,7 @@ import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
 import { assertSwapWireBeforeContact, buildSignedSwap, gateSwapLifetime } from "./swap-sol.js";
+import { submitSimulatedSwap } from "./swap-submit.js";
 import { buildSignedTransfer, sendSigned, simulateSigned } from "./transfer-sol.js";
 
 export const EXECUTOR_NAME = "direct-signer";
@@ -67,8 +68,8 @@ const execute = ({ ctx, kit, build: buildSwap }, action, options) =>
       yield* assertSwapWireBeforeContact(swap.signed);
       // Only then is the build's own lifetime gated on chain, before simulation or send.
       yield* gateSwapLifetime(ctx, swap.envelope);
-      const signature = yield* submitSimulated(
-        { ctx, signed: swap.signed },
+      const signature = yield* submitSimulatedSwap(
+        { ctx, signed: swap.signed, envelope: swap.envelope },
         options.skipSimulation,
       );
       return {
