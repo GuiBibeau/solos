@@ -10,7 +10,7 @@ import { createCheckpointSaver } from "./checkpoint-saver.js";
 import { createCheckpointMemoryIo } from "./checkpoint-test-io.js";
 import { issue18Checkpoint } from "./fixtures.js";
 import { createRuntimeEventHandler, createRuntimeObserver } from "./runtime-observer.js";
-import { bindAndDispatchStation, StationDispatchInput } from "./station-dispatch.js";
+import { bindAndDispatchStation } from "./station-dispatch.js";
 import { createCheckpointStore } from "./store.js";
 import { createTaskBindingStore } from "./task-binding.js";
 import { createSaveCheckpointTool } from "./tools.js";
@@ -32,7 +32,7 @@ export const createOwnershipHarness = () => {
 };
 
 /** @typedef {ReturnType<typeof createOwnershipHarness>} OwnershipHarness */
-/** @typedef {import("zod").infer<typeof StationDispatchInput>} DispatchInput */
+/** @typedef {{agentId?: string; message: string; rootRunId: string; workItem: string}} DispatchInput */
 /** @typedef {{input: DispatchInput; sequence: number; taskId: string; turnId: string}} DispatchDetails */
 
 const checkpointInput = () => {
@@ -84,26 +84,9 @@ const dispatchStation = async (harness, { input, sequence, taskId, turnId }) => 
   );
 };
 
-/** @param {OwnershipHarness} harness */
-export const verifyOwnershipTransfer = async (harness) => {
-  const firstTaskId = "task_111111111111111111111111";
+/** @param {OwnershipHarness} harness @param {DispatchInput} input @param {ReturnType<typeof checkpointInput>} first */
+const verifyReplacement = async (harness, input, first) => {
   const secondTaskId = "task_222222222222222222222222";
-  const first = checkpointInput();
-  const input = {
-    message: "Implement the approved plan.",
-    rootRunId: issue18Checkpoint.rootRunId,
-    workItem: issue18Checkpoint.workItem,
-  };
-  harness.memory.failAfterNextWrite();
-  await dispatchStation(harness, {
-    input,
-    sequence: 1,
-    taskId: firstTaskId,
-    turnId: "station-turn-1",
-  });
-  expect(await harness.tool.execute(first, stationContext("station-turn-1"))).toMatchObject({
-    saved: true,
-  });
   await dispatchStation(harness, {
     input: { ...input, agentId: "ag_implementer:reused", message: "Address review findings." },
     sequence: 2,
@@ -122,9 +105,30 @@ export const verifyOwnershipTransfer = async (harness) => {
   expect(await harness.checkpoints.read(first)).toMatchObject({
     checkpoint: {
       stationRunId: "reused-station-session",
-      supersededTaskIds: [firstTaskId],
+      supersededTaskIds: ["task_111111111111111111111111"],
       taskId: secondTaskId,
     },
     found: true,
   });
+};
+
+/** @param {OwnershipHarness} harness */
+export const verifyOwnershipTransfer = async (harness) => {
+  const first = checkpointInput();
+  const input = {
+    message: "Implement the approved plan.",
+    rootRunId: issue18Checkpoint.rootRunId,
+    workItem: issue18Checkpoint.workItem,
+  };
+  harness.memory.failAfterNextWrite();
+  await dispatchStation(harness, {
+    input,
+    sequence: 1,
+    taskId: "task_111111111111111111111111",
+    turnId: "station-turn-1",
+  });
+  expect(await harness.tool.execute(first, stationContext("station-turn-1"))).toMatchObject({
+    saved: true,
+  });
+  await verifyReplacement(harness, input, first);
 };
