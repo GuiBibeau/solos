@@ -30,7 +30,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        url="https://github.com/txtx/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
+        url="https://github.com/solana-foundation/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
         mkdir -p "$HOME/.local/bin"
         curl -fsSL "$url" | tar -xz -C "$HOME/.local/bin"
         chmod +x "$HOME/.local/bin/surfpool"

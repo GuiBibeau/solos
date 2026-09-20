@@ -2,12 +2,14 @@
 import { Context } from "effect";
 
 /**
- * Errors any executor may raise. Wallet-mode adapters raise the first three; an engine adapter
- * adds its own rejection later without changing this port's callers.
+ * Errors any executor may raise. Local policy failures use `BuildRejected` before signing or RPC;
+ * provider build failures use `BuildUnavailable` without changing this port's callers.
  * @typedef {import("../domain/errors.js").RpcError
  *   | import("../domain/errors.js").SimulationFailed
  *   | import("../domain/errors.js").TransactionFailed
- *   | import("../domain/errors.js").UnsupportedAction} ExecutorError
+ *   | import("../domain/errors.js").UnsupportedAction
+ *   | import("../domain/errors.js").BuildRejected
+ *   | import("../domain/errors.js").BuildUnavailable} ExecutorError
  */
 
 /**

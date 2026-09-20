@@ -37,7 +37,7 @@
       "description": "Surfpool version pinned in workflows",
       "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
       "matchStrings": ["SURFPOOL_VERSION: \"(?<currentValue>[0-9.]+)\""],
-      "depNameTemplate": "txtx/surfpool",
+      "depNameTemplate": "solana-foundation/surfpool",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
     },

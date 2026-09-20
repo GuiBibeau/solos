@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { getBalances } from "@solos/core";
+import { getBalances, simulateSol } from "@solos/core";
 import { Effect } from "effect";
 import { loadSolanaEnv } from "../env.js";
 import { SolanaLive } from "../index.js";
@@ -52,6 +52,15 @@ describe("signer from a profile [integration]", () => {
       getBalances(undefined).pipe(Effect.provide(SolanaLive(env))),
     );
     expect(balances).toMatchObject({ owner: address, sol: "1.5" });
+  });
+
+  test("local keypair profile signs and simulates the final v1 transfer wire", async () => {
+    const env = loadSolanaEnv({ SOLOS_CONFIG_DIR: dir, SOLOS_PROFILE: "test" });
+    const result = await Effect.runPromise(
+      simulateSol({ to: address, amountSol: "0.001" }).pipe(Effect.provide(SolanaLive(env))),
+    );
+    expect(result).toMatchObject({ from: address, to: address, lamports: "1000000" });
+    expect(BigInt(result.unitsConsumed)).toBeGreaterThan(0n);
   });
 
   test("explicit env still wins over the profile", () => {
