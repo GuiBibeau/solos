@@ -1,10 +1,14 @@
 // @ts-check
-import { signTransactionMessageWithSigners } from "@solana/kit";
+import { getBase64EncodedWireTransaction, signTransactionMessageWithSigners } from "@solana/kit";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { buildRejection } from "../swap/jupiter-swap-build-accounts.js";
-import { assembleSwapMessage } from "../swap/jupiter-swap-build-assemble.js";
+import {
+  assembleSwapMessage,
+  assertSwapMessageBounds,
+} from "../swap/jupiter-swap-build-assemble.js";
+import { assertV1WireForSubmission } from "./transaction-v1.js";
 
 /** Same executor identity as direct-signer-executor.js, inlined to keep this module acyclic. */
 const EXECUTOR = "direct-signer";
@@ -55,19 +59,38 @@ export const buildSignedSwap = ({ kit, build }, action) =>
     });
     const rejection = yield* Effect.promise(() => buildRejection(envelope, action, taker));
     if (rejection) return yield* new BuildRejected({ reason: rejection });
-    const compressed = assembleSwapMessage(envelope, kit.signer);
+    const message = assembleSwapMessage(envelope, kit.signer);
+    // Pre-sign boundary: the message must be v1 and inside the fixed size bounds. A refusal
+    // here happens before any signer is involved — no signature, no chain contact.
+    yield* Effect.try({
+      try: () => assertSwapMessageBounds(message),
+      catch: (error) => /** @type {BuildRejected} */ (error),
+    });
     const signed = yield* Effect.tryPromise({
       // Compression rewrites account metas into lookup-table indexes; the signer registrations
       // on the taker's static accounts survive, but their refined type does not.
       try: () =>
         signTransactionMessageWithSigners(
           /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */ (
-            /** @type {unknown} */ (compressed)
+            /** @type {unknown} */ (message)
           ),
         ),
       catch: () => new BuildRejected({ reason: "swap transaction could not be signed" }),
     });
     return { signed, envelope };
+  });
+
+/**
+ * Pre-submit boundary: the exact wire bytes about to touch the RPC must decode to a v1
+ * message. A refusal here is a fixed-reason `BuildRejected` before simulation or send — no
+ * network contact with those bytes in any form.
+ * @param {Signed} signed
+ * @returns {import("effect").Effect.Effect<unknown, BuildRejected>}
+ */
+export const assertSwapWireBeforeContact = (signed) =>
+  Effect.try({
+    try: () => assertV1WireForSubmission(getBase64EncodedWireTransaction(signed)),
+    catch: (error) => /** @type {BuildRejected} */ (error),
   });
 
 /**

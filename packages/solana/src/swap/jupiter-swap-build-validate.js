@@ -1,15 +1,13 @@
 // @ts-check
 import { getBase64Codec } from "@solana/kit";
-import { BASE_UNITS, POSITIVE_BASE_UNITS } from "./jupiter-swap-quote.js";
-import { toleranceRejection } from "./jupiter-swap-tolerance.js";
 
 /**
- * Semantic validation of one Jupiter V2 build against the exact Action intent, before anything
- * is signed. Program allowlist: ComputeBudget `setComputeUnitPrice` only, ATA/Token setup,
- * System transfer only to fund the taker's own wSOL account, the JUP6 aggregator swap, and a
- * Token `closeAccount` cleanup. Every account marked as a required signer must be the taker.
- * Every check returns a fixed reason string; no provider text travels into errors. Amounts are
- * compared with BigInt, never a JS Number.
+ * Semantic validation of one Jupiter V2 build, before anything is signed. Program allowlist:
+ * well-formed ComputeBudget `setComputeUnitPrice` only (stripped at assembly — v1 carries no
+ * budget instructions), ATA/Token setup in its exact safe forms, System transfer only to fund
+ * the taker's own wSOL account, the JUP6 aggregator swap, and a classic-Token `closeAccount`
+ * cleanup. Token instructions that move, approve, re-authorize, mint, or burn are refused by
+ * discriminator. Fixed reason strings only; amounts are BigInt, never a JS Number.
  */
 
 export const COMPUTE_BUDGET_PROGRAM = "ComputeBudget111111111111111111111111111111";
@@ -20,100 +18,110 @@ export const JUP6_PROGRAM = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 export const SYSTEM_PROGRAM = "11111111111111111111111111111111";
 export const WSOL_MINT = "So11111111111111111111111111111111111111112";
 
-const TOKEN_PROGRAMS = new Set([TOKEN_PROGRAM, TOKEN_2022_PROGRAM]);
 /** Instruction discriminators (first data byte) of the allowlisted instructions. */
 const SET_COMPUTE_UNIT_PRICE = 3;
 const ATA_CREATE_IDEMPOTENT = 1;
 const CLOSE_ACCOUNT = 9;
 const SYSTEM_TRANSFER = 2;
+const SYNC_NATIVE = 17;
 
-/** @param {string} base64 @returns {import("@solana/kit").ReadonlyUint8Array} */
+/**
+ * Base64 instruction data to bytes, the one decoding validation needs.
+ * @param {string} base64 @returns {import("@solana/kit").ReadonlyUint8Array}
+ */
 export const dataBytes = (base64) => getBase64Codec().encode(base64);
 
 /**
- * Echo checks hold the provider to the exact requested pair, amount, and tolerance.
+ * Only a well-formed `setComputeUnitPrice` may travel; assembly strips it (v1 has none).
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action
  */
-export const echoRejection = (envelope, action) => {
-  if (envelope.inputMint !== action.inputMint || envelope.outputMint !== action.outputMint) {
-    return "echoed mints did not match the requested pair";
+const budgetRejection = (envelope) => {
+  const malformed = envelope.computeBudgetInstructions.find((ix) => {
+    const bytes = dataBytes(ix.data);
+    return (
+      ix.programId !== COMPUTE_BUDGET_PROGRAM ||
+      bytes[0] !== SET_COMPUTE_UNIT_PRICE ||
+      bytes.length !== 9
+    );
+  });
+  return malformed
+    ? "compute budget instructions may only carry a well-formed compute unit price"
+    : undefined;
+};
+
+/**
+ * Setup instruction forms: an idempotent ATA create, a classic-Token SyncNative, or a plain
+ * System transfer. Any other token discriminator — transfer, approve, set-authority, mint-to,
+ * burn — or an unknown one is refused by form alone, before any account is read.
+ */
+const FORBIDDEN_TOKEN_REASON =
+  "setup carried a forbidden token instruction: transfer, approve, set-authority, mint-to, or burn";
+const UNKNOWN_SETUP_REASON =
+  "setup instructions are outside the known ATA, token, and wSOL-funding set";
+
+/** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
+const ataFormRejection = (ix) =>
+  dataBytes(ix.data)[0] === ATA_CREATE_IDEMPOTENT
+    ? undefined
+    : "setup carried an unknown ATA instruction";
+
+/** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
+const tokenSetupFormRejection = (ix) =>
+  dataBytes(ix.data)[0] === SYNC_NATIVE ? undefined : FORBIDDEN_TOKEN_REASON;
+
+/** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
+const systemFormRejection = (ix) =>
+  dataBytes(ix.data)[0] === SYSTEM_TRANSFER
+    ? undefined
+    : "setup carried an unknown System instruction";
+
+/** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
+const setupInstructionRejection = (ix) => {
+  if (ix.programId === ATA_PROGRAM) return ataFormRejection(ix);
+  if (ix.programId === TOKEN_PROGRAM) return tokenSetupFormRejection(ix);
+  if (ix.programId === TOKEN_2022_PROGRAM)
+    return "setup carried a forbidden token-2022 instruction";
+  if (ix.programId === SYSTEM_PROGRAM) return systemFormRejection(ix);
+  return UNKNOWN_SETUP_REASON;
+};
+
+/** @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope */
+const setupFormRejection = (envelope) => {
+  for (const ix of envelope.setupInstructions) {
+    const rejection = setupInstructionRejection(ix);
+    if (rejection) return rejection;
   }
-  if (envelope.inAmount !== action.amount) {
-    return "echoed inAmount did not match the requested amount";
-  }
-  if (envelope.slippageBps !== action.maxSlippageBps) {
-    return "echoed slippageBps did not match the requested tolerance";
-  }
-  if (envelope.swapMode !== "ExactIn") return "response was not an ExactIn swap";
   return undefined;
 };
 
-/**
- * The minimum output is never fabricated and must sit inside the same BigInt tolerance bound
- * the quote face enforces: floor(out × (10000−bps)/10000) ≤ threshold ≤ out.
- * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- */
-export const minOutRejection = (envelope) => {
-  if (envelope.otherAmountThreshold === undefined) {
-    return "response had no otherAmountThreshold; the minimum output is never fabricated";
-  }
-  if (!POSITIVE_BASE_UNITS.test(envelope.outAmount)) {
-    return "response outAmount was not a positive integer base-unit string";
-  }
-  if (!BASE_UNITS.test(envelope.otherAmountThreshold)) {
-    return "response otherAmountThreshold was not a base-unit integer string";
-  }
-  if (BigInt(envelope.otherAmountThreshold) > BigInt(envelope.outAmount)) {
-    return "minimum output exceeded the quoted output";
-  }
-  return toleranceRejection(/** @type {any} */ (envelope));
+/** Cleanup may only close a classic token account, in the three-account closeAccount form. */
+/** @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope["cleanupInstruction"]} cleanup */
+const cleanupFormRejection = (cleanup) => {
+  if (cleanup === null) return undefined;
+  const isCloseAccount =
+    cleanup.programId === TOKEN_PROGRAM &&
+    dataBytes(cleanup.data)[0] === CLOSE_ACCOUNT &&
+    cleanup.accounts.length === 3;
+  return isCloseAccount ? undefined : "cleanup instruction was not a token closeAccount";
 };
 
 /**
- * Every allowlisted program and instruction discriminator. Compute budget instructions must be
- * `setComputeUnitPrice` (never `setComputeUnitLimit`: the limit is ours); setup may create the
- * taker's accounts idempotently; cleanup may only close the taker's token account.
+ * Every allowlisted program and instruction form, in a fixed rejection order.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  */
 export const programRejection = (envelope) => {
-  if (envelope.computeBudgetInstructions.some((ix) => !isPriceInstruction(ix))) {
-    return "compute budget instructions may only set a compute unit price";
+  if (envelope.otherInstructions.length > 0) {
+    return "response carried unexpected otherInstructions";
   }
-  if (envelope.setupInstructions.some((ix) => !isKnownSetup(ix))) {
-    return "setup instructions are outside the known ATA, token, and wSOL-funding set";
-  }
+  if (envelope.tipInstruction) return "response carried a tip instruction; auto tips are banned";
   if (envelope.swapInstruction.programId !== JUP6_PROGRAM) {
     return "swap instruction did not run on the Jupiter v6 aggregator program";
   }
-  if (envelope.otherInstructions.length > 0) return "response carried unexpected otherInstructions";
-  if (envelope.tipInstruction) return "response carried a tip instruction; auto tips are banned";
-  return cleanupRejection(envelope.cleanupInstruction);
-};
-
-/** Only `setComputeUnitPrice`: a provider-chosen compute-unit limit is never assembled. */
-/** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
-const isPriceInstruction = (ix) =>
-  ix.programId === COMPUTE_BUDGET_PROGRAM && dataBytes(ix.data)[0] === SET_COMPUTE_UNIT_PRICE;
-
-/** Idempotent ATA create, any token-program instruction, or a plain System transfer. */
-/** @param {import("./jupiter-swap-build-response.js").RawInstruction} ix */
-const isKnownSetup = (ix) => {
-  const byte0 = dataBytes(ix.data)[0];
   return (
-    (ix.programId === ATA_PROGRAM && byte0 === ATA_CREATE_IDEMPOTENT) ||
-    TOKEN_PROGRAMS.has(ix.programId) ||
-    (ix.programId === SYSTEM_PROGRAM && byte0 === SYSTEM_TRANSFER)
+    budgetRejection(envelope) ??
+    setupFormRejection(envelope) ??
+    cleanupFormRejection(envelope.cleanupInstruction)
   );
-};
-
-/** Cleanup may only close a token account the taker owns. */
-/** @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope["cleanupInstruction"]} cleanup */
-const cleanupRejection = (cleanup) => {
-  if (cleanup === null) return undefined;
-  const isCloseAccount =
-    dataBytes(cleanup.data)[0] === CLOSE_ACCOUNT && TOKEN_PROGRAMS.has(cleanup.programId);
-  return isCloseAccount ? undefined : "cleanup instruction was not a token closeAccount";
 };
 
 /**
