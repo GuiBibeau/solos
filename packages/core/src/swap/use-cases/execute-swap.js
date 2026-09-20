@@ -14,7 +14,7 @@ import { validateSwapInput } from "./validate-input.js";
  * transaction that will be submitted is simulated first unless `skipSimulation` is true.
  * @param {import("../domain/types.js").SwapQuoteRequest & { skipSimulation?: boolean }} input
  * @returns {import("effect").Effect.Effect<
- *   import("../domain/types.js").SwapExecution,
+ *   import("@solos/actions").ExecutionResult,
  *   import("../domain/errors.js").QuoteInputInvalid | import("../../shared/ports/action-executor.js").ExecutorError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}
@@ -32,15 +32,6 @@ export const executeSwap = (input) =>
         reason: result.error ?? `executor ${executor.name} returned ${result.status}`,
       });
     }
-    /** @type {import("../domain/types.js").SwapExecution} */
-    const receipt = {
-      signature: result.signature,
-      simulated: result.simulated,
-      inputMint: request.inputMint,
-      outputMint: request.outputMint,
-      amount: request.amount,
-      maxSlippageBps: request.slippageBps,
-    };
-    yield* (yield* EventBus).publish(makeEvent("swap.executed", receipt));
-    return receipt;
+    yield* (yield* EventBus).publish(makeEvent("swap.executed", result));
+    return result;
   }).pipe(Effect.withSpan("swap.executeSwap"));

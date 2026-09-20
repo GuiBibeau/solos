@@ -2,8 +2,6 @@
 /** @typedef {import("./domain/errors.js").SwapQuoteError} SwapQuoteError */
 /** @typedef {import("./domain/types.js").SwapQuote} SwapQuote */
 /** @typedef {import("./domain/types.js").SwapQuoteRequest} SwapQuoteRequest */
-/** @typedef {import("./domain/types.js").SwapSimulation} SwapSimulation */
-/** @typedef {import("./domain/types.js").SwapExecution} SwapExecution */
 export {
   NoRouteFound,
   QuoteAuthFailed,
@@ -15,12 +13,7 @@ export {
   QuoteResponseInvalid,
   QuoteTimeout,
 } from "./domain/errors.js";
-export {
-  SwapExecutionSchema,
-  SwapQuoteRequestSchema,
-  SwapQuoteSchema,
-  SwapSimulationSchema,
-} from "./domain/types.js";
+export { SwapQuoteRequestSchema, SwapQuoteSchema } from "./domain/types.js";
 export { SwapProvider } from "./ports/swap-provider.js";
 export { executeSwap } from "./use-cases/execute-swap.js";
 export { getQuote } from "./use-cases/get-quote.js";

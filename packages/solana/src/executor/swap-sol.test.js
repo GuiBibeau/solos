@@ -37,15 +37,14 @@ import { assertSwapWireBeforeContact } from "./swap-sol.js";
 const attacker = await attackerAddress();
 
 /** The supported route payload over the given u64 amounts, exactly as the fixture encodes it. */
-/** @param {bigint} inAmount @param {bigint} quotedOutAmount */
-const routeData = (inAmount, quotedOutAmount) =>
+/** @param {bigint} inAmount @param {bigint} quotedOutAmount @param {number} [slippageBps] */
+const routeData = (inAmount, quotedOutAmount, slippageBps = 50) =>
   Uint8Array.of(
     ...ROUTE_DISCRIMINATOR,
     ...getU32Codec().encode(0),
     ...getU64Codec().encode(inAmount),
     ...getU64Codec().encode(quotedOutAmount),
-    50,
-    0,
+    ...getU16Codec().encode(slippageBps),
     ...getU16Codec().encode(0),
   );
 
@@ -156,6 +155,15 @@ describe("the swap payload is bound to the validated intent before signing", () 
       withSwapData([...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT) - 1n)]),
     );
     expect(reasonOf(error)).toBe("swap instruction data did not carry the quoted envelope output");
+  });
+
+  test("embedded slippage other than the Action maximum is refused before chain contact", async () => {
+    const bytes = [...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT), 51)];
+    const { error, requests } = await runBranch("execute", withSwapData(bytes));
+    expect(reasonOf(error)).toBe(
+      "swap instruction data did not carry the requested maximum slippage",
+    );
+    expect(requests).toHaveLength(1);
   });
 
   test("an unknown discriminator is refused as an unsupported layout", async () => {

@@ -7,6 +7,7 @@
     ".": "./src/index.js",
     "./market/test-seeds": "./src/market/test-seeds.js",
     "./surfnet": "./src/surfnet/index.js",
+    "./surfnet/rpc-recorder": "./src/surfnet/rpc-recorder.js",
     "./launch/fixture-accounts": "./src/launch/fixture-accounts.js",
     "./perp/phoenix-fixture": "./src/perp/phoenix-fixture.js",
     "./perp/phoenix-scenarios": "./src/perp/phoenix-scenarios.js",

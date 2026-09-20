@@ -11,7 +11,7 @@ import { validateSwapInput } from "./validate-input.js";
  * obtains a fresh quote that may differ from this one.
  * @param {import("../domain/types.js").SwapQuoteRequest} input
  * @returns {import("effect").Effect.Effect<
- *   import("../domain/types.js").SwapSimulation,
+ *   import("@solos/actions").SimulationResult,
  *   import("../domain/errors.js").QuoteInputInvalid | import("../../shared/ports/action-executor.js").ExecutorError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape
  * >}
@@ -27,12 +27,5 @@ export const simulateSwap = (input) =>
         logs: result.logs,
       });
     }
-    return {
-      inputMint: request.inputMint,
-      outputMint: request.outputMint,
-      amount: request.amount,
-      maxSlippageBps: request.slippageBps,
-      unitsConsumed: result.unitsConsumed,
-      logs: result.logs,
-    };
+    return result;
   }).pipe(Effect.withSpan("swap.simulateSwap"));

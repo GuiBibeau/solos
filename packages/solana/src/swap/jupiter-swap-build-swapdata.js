@@ -25,20 +25,23 @@ const UNSUPPORTED_LAYOUT_REASON =
   "swap instruction data was not the supported Jupiter route layout";
 const EMBEDDED_INPUT_REASON = "swap instruction data did not carry the requested input amount";
 const EMBEDDED_OUTPUT_REASON = "swap instruction data did not carry the quoted envelope output";
+const EMBEDDED_SLIPPAGE_REASON =
+  "swap instruction data did not carry the requested maximum slippage";
 
 /**
  * Decode the supported route layout, or undefined for anything else.
  * @param {import("@solana/kit").ReadonlyUint8Array} bytes
- * @returns {{ inAmount: bigint; quotedOutAmount: bigint } | undefined}
+ * @returns {{ inAmount: bigint; quotedOutAmount: bigint; slippageBps: number } | undefined}
  */
 const decodeRouteArgs = (bytes) => {
   if (bytes.length !== ROUTE_DATA_BYTES) return undefined;
   if (ROUTE_DISCRIMINATOR.some((byte, index) => bytes[index] !== byte)) return undefined;
   if (getU32Codec().decode(bytes, 8) !== 0) return undefined;
-  if (bytes[29] !== 0 || getU16Codec().decode(bytes, 30) !== 0) return undefined;
+  if (getU16Codec().decode(bytes, 30) !== 0) return undefined;
   return {
     inAmount: getU64Codec().decode(bytes, 12),
     quotedOutAmount: getU64Codec().decode(bytes, 20),
+    slippageBps: getU16Codec().decode(bytes, 28),
   };
 };
 
@@ -54,5 +57,6 @@ export const swapDataRejection = (swap, action, envelope) => {
   if (args === undefined) return UNSUPPORTED_LAYOUT_REASON;
   if (args.inAmount !== BigInt(action.amount)) return EMBEDDED_INPUT_REASON;
   if (args.quotedOutAmount !== BigInt(envelope.outAmount)) return EMBEDDED_OUTPUT_REASON;
+  if (args.slippageBps !== action.maxSlippageBps) return EMBEDDED_SLIPPAGE_REASON;
   return undefined;
 };
