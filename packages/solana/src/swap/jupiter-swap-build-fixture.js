@@ -16,8 +16,6 @@ import {
   OUTPUT_MINT,
   OUTPUT_VAULT,
   POOL_AUTHORITY,
-} from "./jupiter-swap-build-bodies.js";
-import {
   cleanupInstruction,
   destinationCreateInstruction,
   cuPriceInstruction,
@@ -38,7 +36,11 @@ import { TOKEN_PROGRAM } from "./jupiter-swap-build-validate.js";
 
 const TOKEN_PROGRAM_ADDRESS = address(TOKEN_PROGRAM);
 
-/** ATA derivation under the classic token program, exactly as the executor's checks derive it. */
+/**
+ * ATA derivation under the classic token program, exactly as the executor's checks derive it.
+ * @param {string} owner
+ * @param {string} mint
+ */
 const derivedAta = async (owner, mint) =>
   (
     await findAssociatedTokenPda({
@@ -48,7 +50,10 @@ const derivedAta = async (owner, mint) =>
     })
   )[0];
 
-/** The taker's source and destination token accounts for the fixture pair. */
+/**
+ * The taker's source and destination token accounts for the fixture pair.
+ * @param {string} taker
+ */
 export const fixtureAtas = async (taker) => ({
   sourceAta: await derivedAta(taker, INPUT_MINT),
   destinationAta: await derivedAta(taker, OUTPUT_MINT),
@@ -118,7 +123,11 @@ const DEAD_WS_URL = "ws://127.0.0.1:2";
 export const executorLayer = (seed, buildLayer) =>
   DirectSignerExecutor.pipe(
     Layer.provide(
-      Layer.mergeAll(KitSignerFromBytes(seed), SolanaRpcLive(DEAD_RPC_URL, DEAD_WS_URL), buildLayer),
+      Layer.mergeAll(
+        KitSignerFromBytes(seed),
+        SolanaRpcLive(DEAD_RPC_URL, DEAD_WS_URL),
+        buildLayer,
+      ),
     ),
   );
 

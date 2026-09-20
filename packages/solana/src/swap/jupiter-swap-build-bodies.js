@@ -1,4 +1,5 @@
 // @ts-check
+import { createHash } from "node:crypto";
 import {
   getBase58Decoder,
   getBase64Codec,
@@ -6,7 +7,6 @@ import {
   getU32Codec,
   getU64Codec,
 } from "@solana/kit";
-import { createHash } from "node:crypto";
 import {
   ATA_PROGRAM,
   COMPUTE_BUDGET_PROGRAM,
@@ -49,6 +49,7 @@ export const LAST_VALID_BLOCK_HEIGHT = 4_294_967_296;
 export const ROUTE_DISCRIMINATOR = createHash("sha256").update("global:route").digest().slice(0, 8);
 
 /** Deterministic synthetic addresses with 32 meaningful bytes, valid base58 throughout. */
+/** @param {number} seed */
 const synthAddress = (seed) =>
   getBase58Decoder().decode(Uint8Array.from({ length: 32 }, (_, i) => ((seed + i) % 255) + 1));
 
@@ -58,10 +59,13 @@ export const INPUT_VAULT = synthAddress(3);
 export const OUTPUT_VAULT = synthAddress(4);
 export const EVENT_AUTHORITY = synthAddress(5);
 
+/** @param {Uint8Array} bytes */
 const toBase64 = (bytes) => getBase64Codec().decode(bytes);
+/** @param {string} pubkey @param {boolean} isWritable @param {boolean} isSigner */
 const meta = (pubkey, isWritable, isSigner) => ({ pubkey, isWritable, isSigner });
 
 /** Provider tolerance floor: floor(outAmount x (10000 - bps) / 10000), BigInt throughout. */
+/** @param {string} outAmount @param {number} slippageBps */
 export const minOutFor = (outAmount, slippageBps) =>
   String((BigInt(outAmount) * BigInt(10_000 - slippageBps)) / 10_000n);
 
@@ -72,6 +76,7 @@ export const cuPriceInstruction = () => ({
 });
 
 /** Idempotent create for the taker's destination (USDC) ATA: the account the swap credits. */
+/** @param {string} taker @param {string} destinationAta */
 export const destinationCreateInstruction = (taker, destinationAta) => ({
   programId: ATA_PROGRAM,
   accounts: [
@@ -86,6 +91,7 @@ export const destinationCreateInstruction = (taker, destinationAta) => ({
 });
 
 /** The documented wSOL wrap: a System transfer of the full input amount to the taker's wSOL ATA. */
+/** @param {string} taker @param {string} sourceAta */
 export const wsolFundingInstruction = (taker, sourceAta) => ({
   programId: SYSTEM_PROGRAM,
   accounts: [meta(taker, true, true), meta(sourceAta, true, false)],
@@ -93,6 +99,7 @@ export const wsolFundingInstruction = (taker, sourceAta) => ({
 });
 
 /** Jupiter v6 `route` over the taker's derived ATAs; pool accounts ride the lookup table. */
+/** @param {string} taker @param {string} sourceAta @param {string} destinationAta */
 export const swapInstruction = (taker, sourceAta, destinationAta) => ({
   programId: JUP6_PROGRAM,
   accounts: [
@@ -121,6 +128,7 @@ export const swapInstruction = (taker, sourceAta, destinationAta) => ({
 });
 
 /** Closes the taker's emptied wSOL account; rent returns to the taker. */
+/** @param {string} taker @param {string} sourceAta */
 export const cleanupInstruction = (taker, sourceAta) => ({
   programId: TOKEN_PROGRAM,
   accounts: [meta(sourceAta, true, false), meta(taker, true, false), meta(taker, true, true)],
