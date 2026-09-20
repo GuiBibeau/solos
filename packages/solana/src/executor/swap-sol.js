@@ -1,139 +1,29 @@
 // @ts-check
-import { getBase64EncodedWireTransaction, signTransactionMessageWithSigners } from "@solana/kit";
+import { getBase64EncodedWireTransaction } from "@solana/kit";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { buildRejection } from "../swap/jupiter-swap-build-accounts.js";
-import {
-  assembleSwapMessage,
-  assertSwapMessageBounds,
-} from "../swap/jupiter-swap-build-assemble.js";
+import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
 import { assertV1WireForSubmission } from "./transaction-v1.js";
 
-/** Same executor identity as direct-signer-executor.js, inlined to keep this module acyclic. */
 const EXECUTOR = "direct-signer";
+export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
 
 /**
- * Execution amounts are bounded to u64: the swap payload's embedded input amount is a u64 arg,
- * so a larger Action amount could never be bound to the transaction and is refused before any
- * build request. Quote-only reads keep unbounded decimal strings; only this branch bounds.
- */
-export const SWAP_AMOUNT_U64_MAX = 18_446_744_073_709_551_615n;
-const AMOUNT_BOUND_REASON = "swap amount exceeded the u64 bound the executor can assemble";
-const VALIDATION_GUARD_REASON =
-  "build validation could not be completed; nothing was signed or sent";
-const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed or sent";
-
-/** @param {import("@solos/actions").SwapAction} action */
-const amountBoundRejection = (action) => {
-  if (!/^\d+$/.test(action.amount) || BigInt(action.amount) > SWAP_AMOUNT_U64_MAX) {
-    return AMOUNT_BOUND_REASON;
-  }
-  return undefined;
-};
-
-/**
- * The executor's swap branch: one fresh Jupiter build for the configured signer's taker
- * address, validated against the exact Action, assembled into one message, signed once. The
- * identical signed transaction is what gets simulated and what gets sent. Nothing here touches
- * the chain — the caller owns simulation, the lifetime gate, and submission.
  * @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
  * @typedef {import("../swap/jupiter-swap-build-live.js").JupiterSwapBuildShape} Build
  * @typedef {import("@solos/actions").SwapAction} SwapAction
  * @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} JupiterBuildEnvelope
- * @typedef {Awaited<ReturnType<typeof signTransactionMessageWithSigners>>} Signed
+ * @typedef {import("./swap-sol-build.js").Signed} Signed
  */
 
-/**
- * @typedef {{
- *   readonly signed: Signed;
- *   readonly envelope: JupiterBuildEnvelope;
- * }} SignedSwap
- */
+/** @typedef {{ readonly signed: Signed; readonly envelope: JupiterBuildEnvelope }} SignedSwap */
 
 /**
- * Fetch, validate, assemble, and sign one swap. An omitted or explicit `jupiter` venue takes
- * the Jupiter path; any other venue is refused as unsupported before any build request — pump
- * until that venue is supported (#25), and every other venue outright.
- * @param {{ kit: Kit; build: Build }} deps
- * @param {SwapAction} action
- * @returns {import("effect").Effect.Effect<
- *   SignedSwap,
- *   BuildRejected | import("@solos/core").BuildUnavailable | UnsupportedAction
- * >}
- */
-/**
- * Fetch the provider build for the exact Action and hold it to the full semantic rejection
- * chain. A validator crash on a malformed artifact is a fixed-reason rejection, never an
- * Effect defect or raw library text.
- * @param {{ kit: Kit; build: Build }} deps
- * @param {SwapAction} action
- * @returns {import("effect").Effect.Effect<
- *   JupiterBuildEnvelope, BuildRejected | import("@solos/core").BuildUnavailable
- * >}
- */
-const fetchValidatedBuild = ({ kit, build }, action) =>
-  Effect.gen(function* () {
-    const overBound = amountBoundRejection(action);
-    if (overBound) return yield* new BuildRejected({ reason: overBound });
-    const envelope = yield* build.build({
-      inputMint: action.inputMint,
-      outputMint: action.outputMint,
-      amount: action.amount,
-      slippageBps: action.maxSlippageBps,
-      taker: kit.signer.address,
-    });
-    const rejection = yield* Effect.tryPromise({
-      try: () => buildRejection(envelope, action, kit.signer.address),
-      catch: () => new BuildRejected({ reason: VALIDATION_GUARD_REASON }),
-    });
-    if (rejection) return yield* new BuildRejected({ reason: rejection });
-    return envelope;
-  });
-
-/**
- * Assemble the validated envelope and sign it once. The pre-sign boundary proves v1 and the
- * size bounds before a signer is involved; assembly is guarded the same way as validation.
- * @param {{ kit: Kit }} deps
- * @param {JupiterBuildEnvelope} envelope
- * @returns {import("effect").Effect.Effect<Signed, BuildRejected>}
- */
-const assembleAndSign = ({ kit }, envelope) =>
-  Effect.gen(function* () {
-    const message = yield* Effect.try({
-      try: () => assembleSwapMessage(envelope, kit.signer),
-      catch: () => new BuildRejected({ reason: ASSEMBLY_GUARD_REASON }),
-    });
-    // Pre-sign boundary: the message must be v1 and inside the fixed size bounds. A refusal
-    // here happens before any signer is involved — no signature, no chain contact.
-    yield* Effect.try({
-      try: () => assertSwapMessageBounds(message),
-      catch: (error) => /** @type {BuildRejected} */ (error),
-    });
-    return yield* Effect.tryPromise({
-      // Compression rewrites account metas into lookup-table indexes; the signer registrations
-      // on the taker's static accounts survive, but their refined type does not.
-      try: () =>
-        signTransactionMessageWithSigners(
-          /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */
-          (/** @type {unknown} */ (message)),
-        ),
-      catch: () => new BuildRejected({ reason: "swap transaction could not be signed" }),
-    });
-  });
-
-/**
- * Fetch, validate, assemble, and sign one swap. An omitted or explicit `jupiter` venue takes
- * the Jupiter path; any other venue is refused as unsupported before any build request — pump
- * until that venue is supported (#25), and every other venue outright.
- * @param {{ kit: Kit; build: Build }} deps
- * @param {SwapAction} action
- * @returns {import("effect").Effect.Effect<
- *   SignedSwap,
- *   BuildRejected | import("@solos/core").BuildUnavailable | UnsupportedAction
- * >
- * }
+ * Fetch, validate, assemble, and sign one swap. Only Jupiter is supported; unsupported venues
+ * are refused before any build request.
+ * @param {{ kit: Kit; build: Build }} deps @param {SwapAction} action
  */
 export const buildSignedSwap = ({ kit, build }, action) =>
   Effect.gen(function* () {
@@ -152,9 +42,7 @@ export const buildSignedSwap = ({ kit, build }, action) =>
   });
 
 /**
- * Pre-submit boundary: the exact wire bytes about to touch the RPC must decode to a v1
- * message. A refusal here is a fixed-reason `BuildRejected` before simulation or send — no
- * network contact with those bytes in any form.
+ * Prove the exact wire bytes about to touch RPC decode to a v1 message.
  * @param {Signed} signed
  * @returns {import("effect").Effect.Effect<unknown, BuildRejected>}
  */
@@ -165,12 +53,8 @@ export const assertSwapWireBeforeContact = (signed) =>
   });
 
 /**
- * Reject an expired build before anything is simulated or sent: the confirmed block height must
- * still be inside the provider's stated lifetime, otherwise the exact transaction built above
- * can never land and nothing leaves solOS.
- * @param {Rpc} ctx
- * @param {JupiterBuildEnvelope} envelope
- * @returns {import("effect").Effect.Effect<void, BuildRejected | import("@solos/core").RpcError>}
+ * Reject an expired build before anything is simulated or sent.
+ * @param {Rpc} ctx @param {JupiterBuildEnvelope} envelope
  */
 export const gateSwapLifetime = (ctx, envelope) =>
   Effect.gen(function* () {
