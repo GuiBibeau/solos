@@ -20,3 +20,12 @@ test("billed cost is accepted only with an authoritative source", () => {
     StationCheckpointSchema.safeParse({ ...issue18Checkpoint, usage: sourced }).success,
   ).toBeTrue();
 });
+
+test("checkpoint operations are completed, never inferred from an in-flight tool", () => {
+  expect(
+    StationCheckpointSchema.safeParse({
+      ...issue18Checkpoint,
+      latestOperation: { ...issue18Checkpoint.latestOperation, status: "running" },
+    }).success,
+  ).toBeFalse();
+});

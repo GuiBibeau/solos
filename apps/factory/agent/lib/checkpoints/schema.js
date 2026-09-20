@@ -74,7 +74,7 @@ export const StationCheckpointSchema = z.object({
   latestOperation: z.object({
     at: z.iso.datetime(),
     name: z.string().min(1).max(200),
-    status: z.enum(["running", "passed", "failed", "cancelled"]),
+    status: z.enum(["passed", "failed", "cancelled"]),
   }),
   nextMilestone: z.string().min(1).max(1000),
   outcome: OutcomeSchema,
