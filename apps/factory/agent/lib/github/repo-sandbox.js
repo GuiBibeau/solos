@@ -15,6 +15,7 @@ import {
   mintTokenOrExplain,
   runOrThrow,
 } from "./sandbox-commands.js";
+import { sessionSyncCommand } from "./session-sync-command.js";
 
 /** @typedef {import("eve/sandbox").SandboxBootstrapContext} SandboxBootstrapContext */
 /** @typedef {import("eve/sandbox").SandboxSessionContext} SandboxSessionContext */
@@ -39,7 +40,7 @@ export const FACTORY_SANDBOX_CREATE_OPTIONS = {
  * template (authored sandbox source is tracked by eve automatically).
  */
 export const factoryRevalidationKey = () =>
-  `factory-repo-v3:${FACTORY_REPO}:${FACTORY_SETUP_COMMAND}`;
+  `factory-repo-v4:${FACTORY_REPO}:${FACTORY_SETUP_COMMAND}`;
 
 /**
  * Clone the repository through the brokered firewall, translating a failure into a message that
@@ -104,10 +105,7 @@ export const factoryOnSession = async ({ use }) => {
   const token = await mintTokenOrExplain(() => mintInstallationToken(githubCredentials));
   await sandbox.setNetworkPolicy(brokerPolicy(token));
   try {
-    await runOrThrow(
-      sandbox,
-      `cd ${REPO_DIR} && bash scripts/factory-session-sync.sh '${REMOTE_URL}'`,
-    );
+    await runOrThrow(sandbox, sessionSyncCommand());
   } finally {
     await sandbox.setNetworkPolicy("allow-all");
   }
