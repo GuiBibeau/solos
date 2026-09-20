@@ -2,10 +2,8 @@
 import { describe, expect, test } from "bun:test";
 import { getU16Codec, getU32Codec, getU64Codec } from "@solana/kit";
 import { AMOUNT, OUT_AMOUNT } from "../swap/jupiter-swap-build-bodies.js";
-import {
-  ROUTE_V2_DISCRIMINATOR,
-  SHARED_ROUTE_V2_DISCRIMINATOR,
-} from "../swap/jupiter-swap-build-swapdata.js";
+import { sharedSwapInstruction } from "../swap/jupiter-swap-build-route-bodies.js";
+import { ROUTE_V2_DISCRIMINATOR } from "../swap/jupiter-swap-build-swapdata.js";
 import { reasonOf, runBranch, withSwapData } from "./swap-sol-driver.js";
 
 /** @param {bigint} input @param {bigint} output @param {number} [slippageBps] */
@@ -78,9 +76,14 @@ describe("the swap payload is bound to the validated intent before signing", () 
   });
 
   test("the live shared-account V2 layout is accepted", async () => {
-    const direct = routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT));
-    const shared = Uint8Array.of(...SHARED_ROUTE_V2_DISCRIMINATOR, 0, ...direct.slice(8));
-    const { error } = await runBranch("simulate", withSwapData([...shared]));
+    const { error } = await runBranch("simulate", (envelope) => ({
+      ...envelope,
+      swapInstruction: sharedSwapInstruction(
+        envelope.swapInstruction.accounts[0].pubkey,
+        envelope.swapInstruction.accounts[1].pubkey,
+        envelope.swapInstruction.accounts[2].pubkey,
+      ),
+    }));
     expect(error).toMatchObject({ _tag: "RpcError" });
   });
 
