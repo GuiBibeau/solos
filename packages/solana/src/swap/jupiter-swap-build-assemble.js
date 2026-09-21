@@ -2,11 +2,13 @@
 import {
   AccountRole,
   appendTransactionMessageInstructions,
+  getBase64Codec,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { assertV1MessageForSigning, beginV1Message } from "../executor/transaction-v1.js";
-import { dataBytes } from "./jupiter-swap-build-validate.js";
+import { derivedAta } from "./jupiter-swap-build-setup-account.js";
+import { ATA_PROGRAM, WSOL_MINT, dataBytes } from "./jupiter-swap-build-validate.js";
 
 /**
  * Assembly of one Jupiter V2 build into exactly one Kit v1 transaction message. The provider's
@@ -66,15 +68,31 @@ const roleFor = (account, taker) => {
 };
 
 /**
+ * The temp wSOL create rides from the provider as createIdempotent (Jupiter's live shape);
+ * assembly pins it to exclusive creation (opcode 0). If the account raced into existence after
+ * the preflight absence proof, the create fails and the whole transaction aborts instead of
+ * adopting and closing that account (SPL Token unwraps a native account on close). The
+ * destination ATA create keeps idempotent semantics: it legitimately pre-exists after a swap.
+ * @param {RawInstruction} ix @param {string} tempWsol
+ */
+const pinExclusiveTempCreate = (ix, tempWsol) => {
+  if (ix.programId !== ATA_PROGRAM || ix.accounts[1]?.pubkey !== tempWsol) return ix;
+  const bytes = dataBytes(ix.data);
+  if (bytes.length !== 1 || bytes[0] === 0) return ix;
+  return { ...ix, data: getBase64Codec().decode(Uint8Array.of(0)) };
+};
+
+/**
  * Assemble the validated envelope into one inline v1 message with the local resource config
  * and the configured RPC's fresh blockhash lifetime.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("../signer/kit-signer.js").KitCompatibleSigner} takerSigner
  * @param {import("@solana/kit").BlockhashLifetimeConstraint} lifetime
  */
-export const assembleSwapMessage = (envelope, takerSigner, lifetime) => {
+export const assembleSwapMessage = async (envelope, takerSigner, lifetime) => {
+  const tempWsol = await derivedAta(takerSigner.address, WSOL_MINT);
   const ordered = [
-    ...envelope.setupInstructions,
+    ...envelope.setupInstructions.map((ix) => pinExclusiveTempCreate(ix, tempWsol)),
     envelope.swapInstruction,
     ...(envelope.cleanupInstruction ? [envelope.cleanupInstruction] : []),
   ];

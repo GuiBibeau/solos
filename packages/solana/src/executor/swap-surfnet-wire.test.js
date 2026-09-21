@@ -131,6 +131,11 @@ describe("the exact submitted swap wire [integration]", () => {
     expect(getU64Codec().decode(transfer.data, 4)).toBe(BigInt(AMOUNT));
     expect(getU64Codec().decode(route.data, 8)).toBe(BigInt(AMOUNT));
     expect(getU64Codec().decode(route.data, 16)).toBe(BigInt(OUT_AMOUNT));
+    // The temp wSOL create rides from the provider as idempotent and is pinned to exclusive
+    // creation at assembly; the destination ATA keeps idempotent semantics. Fixture order:
+    // destination create first, temp wSOL create second.
+    expect(decompiled.instructions[1]?.data?.at(0)).toBe(0);
+    expect(decompiled.instructions[0]?.data?.at(0)).toBe(1);
     expect(compiled.staticAccounts).toEqual(
       expect.arrayContaining([POOL_AUTHORITY, INPUT_VAULT, OUTPUT_VAULT]),
     );

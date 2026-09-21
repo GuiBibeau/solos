@@ -74,7 +74,7 @@ export const fetchValidatedBuild = ({ kit, build }, action) =>
  */
 export const assembleAndSign = ({ kit, lifetime }, envelope) =>
   Effect.gen(function* () {
-    const message = yield* Effect.try({
+    const message = yield* Effect.tryPromise({
       try: () => assembleSwapMessage(envelope, kit.signer, lifetime),
       catch: () => new BuildRejected({ reason: ASSEMBLY_GUARD_REASON }),
     });

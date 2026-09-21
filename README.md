@@ -303,12 +303,15 @@ until their executor branches land.
   tolerance, carry a tolerance-bound minimum output (`otherAmountThreshold`), and pass a strict
   instruction allowlist: a well-formed compute-unit price (stripped — v1 carries no budget
   instructions), exact ATA creates bound to the taker and requested mints (idempotent for durable
-  accounts, non-idempotent for a cleanup-owned temporary account), wSOL funding
+  accounts, either canonical create opcode for a cleanup-owned temporary account), wSOL funding
   in the canonical 12-byte System transfer form for exactly the requested amount, the JUP6
   route, and a closeAccount cleanup limited to a build-owned temporary wSOL ATA. Cleanup is
   accepted only when that ATA is absent in a read-only RPC preflight, this build creates it with
   the canonical ATA instruction, and the wrap/route direction funds and consumes the same
-  account. Transfers, approvals, authorities, mints, burns, tips, foreign signers, foreign
+  account. At assembly the temporary create is pinned to exclusive creation (opcode 0): a raced
+  pre-existing account aborts the whole transaction instead of being adopted and closed, while
+  the destination ATA keeps idempotent semantics because it legitimately pre-exists after a
+  first swap. Transfers, approvals, authorities, mints, burns, tips, foreign signers, foreign
   recipients, pre-existing wSOL ATAs, or a pre-sign expiry are refused with a fixed-reason
   `BuildRejected` before anything is signed or sent.
 - **v1-only, self-submitted.** The transaction is assembled as a Solana v1 message with explicit
