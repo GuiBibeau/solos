@@ -30,7 +30,7 @@ const base58 = getBase58Decoder();
 const utf8 = getUtf8Encoder();
 
 /** Decoded fields of one Position account. @typedef {{ readonly whirlpool: string; readonly positionMint: string; readonly liquidity: bigint; readonly tickLowerIndex: number; readonly tickUpperIndex: number }} PositionLayout */
-/** Decoded fields of one Whirlpool account. @typedef {{ readonly sqrtPrice: bigint; readonly tokenMintA: string; readonly tokenMintB: string }} WhirlpoolLayout */
+/** Decoded fields of one Whirlpool account: price, canonical mints, spacing, and vaults. @typedef {{ readonly sqrtPrice: bigint; readonly tokenMintA: string; readonly tokenMintB: string; readonly tickSpacing: number; readonly tokenVaultA: string; readonly tokenVaultB: string }} WhirlpoolLayout */
 /** Outcome of decoding one guarded account. @typedef {{ readonly status: "decoded"; readonly layout: PositionLayout } | { readonly status: "corrupt"; readonly reason: string }} PositionRead */
 /** @typedef {{ readonly status: "decoded"; readonly layout: WhirlpoolLayout } | { readonly status: "corrupt"; readonly reason: string }} WhirlpoolRead */
 
@@ -105,6 +105,9 @@ export const decodeWhirlpool = (bytes) => {
       sqrtPrice: readU128(view, WHIRLPOOL_OFFSETS.sqrtPrice),
       tokenMintA: readAddress(bytes, WHIRLPOOL_OFFSETS.tokenMintA),
       tokenMintB: readAddress(bytes, WHIRLPOOL_OFFSETS.tokenMintB),
+      tickSpacing: view.getUint16(WHIRLPOOL_OFFSETS.tickSpacing, true),
+      tokenVaultA: readAddress(bytes, WHIRLPOOL_OFFSETS.tokenVaultA),
+      tokenVaultB: readAddress(bytes, WHIRLPOOL_OFFSETS.tokenVaultB),
     },
   };
 };

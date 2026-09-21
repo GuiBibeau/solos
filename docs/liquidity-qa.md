@@ -42,3 +42,36 @@ Record live QA as `blocked` until the prerequisites above exist. Never report it
 from fixture runs: seeded-surfnet suites prove adapter behavior, not venue state. The first
 live QA round runs from the operator environment against a real RPC with an operator-owned
 position; no funded transaction is involved (read-only slice).
+
+## Deposits into an existing position (#30)
+
+`solana_liquidity_simulate_deposit` / `solana_liquidity_execute_deposit` and
+`solos liquidity simulate-deposit` / `deposit` add liquidity to one explicitly identified
+existing position. Prerequisites are the read prerequisites **plus** a funded signer: the
+signer must hold the position NFT, own token accounts for both pool mints with at least the
+budgeted amounts, and the named pool must be the pool the position references. The position
+must already exist — solOS never creates a position, selects a range, or rebalances.
+
+Offline coverage: seeded Surfnet suites drive the real executor over the real RPC (build,
+guards, budget-fit quote, instruction assembly, exact-transaction simulation, zero sends on
+failure), and locally decoded fixture transactions prove the encoded max spends and the
+pool/position/authority/tick-array accounts. What they cannot prove is live pool behavior;
+that is what this QA round is for.
+
+**Status: blocked until #31 (bounded removals) is live and checked.** ADR-0022 forbids a
+live deposit/open without a checked exit path. Once #31 ships, run this round with a tiny
+stated budget on an operator-provisioned test position:
+
+1. Read the position before (`solos liquidity position`) and record both token balances of
+   the signer.
+2. `simulate-deposit` with the chosen budgets; record the quoted liquidity, the required
+   amounts, and the encoded spend bounds (quoted amounts plus slippage, capped by the
+   budgets), then `deposit` and record the signature, fees paid, and compute units.
+3. Read the position after: raw liquidity must have grown by exactly the quoted amount, and
+   the underlying amounts by at most the budgets (delta per token = spent). Both signer
+   balances must have dropped by no more than the budgets; unused funds stay in the wallet.
+4. Remove the test liquidity with #31's tools and reconcile both tokens, rent, and fees back
+   to the pre-round state within the stated tolerance. Record everything in the QA report.
+
+Never report a deposit QA as passed from fixture runs, and never spend beyond the stated
+budget.

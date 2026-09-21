@@ -43,13 +43,13 @@ export const mintBytes = (decimals) =>
     }),
   );
 
-/** @param {string} owner @param {string} mint @returns {Uint8Array} one SPL token account holding the NFT */
-export const nftBytes = (owner, mint) =>
+/** @param {string} owner @param {string} mint @param {bigint} amount @returns {Uint8Array} one SPL token account holding `amount` of mint */
+export const tokenBytes = (owner, mint, amount) =>
   new Uint8Array(
     getTokenEncoder().encode({
       mint: address(mint),
       owner: address(owner),
-      amount: 1n,
+      amount,
       delegate: none(),
       state: AccountState.Initialized,
       isNative: none(),
@@ -57,6 +57,9 @@ export const nftBytes = (owner, mint) =>
       closeAuthority: none(),
     }),
   );
+
+/** @param {string} owner @param {string} mint @returns {Uint8Array} one SPL token account holding the NFT */
+export const nftBytes = (owner, mint) => tokenBytes(owner, mint, 1n);
 
 /**
  * Seed `count` custody-only token accounts for one owner — distinct fresh mints with no

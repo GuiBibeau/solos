@@ -77,10 +77,23 @@ const tokenAccounts = (read, owner, filter) =>
  * @returns {Effect.Effect<boolean, import("@solos/core").RpcError>}
  */
 export const holdsPositionNft = (read, owner, mint) =>
-  Effect.map(
-    tokenAccounts(read, owner, { mint }),
-    (rows) => rows.filter((row) => row.amount === 1n).length === 1,
-  );
+  Effect.map(positionNftAccount(read, owner, mint), (account) => account !== null);
+
+/**
+ * The token account that custodies the position NFT: the owner's one token account of the
+ * mint holding exactly amount 1, or null when custody is absent. The deposit instruction
+ * must name this actual account — custody is not required to sit in the derived ATA.
+ * @param {AccountRead} read
+ * @param {string} owner
+ * @param {string} mint
+ * @returns {Effect.Effect<string | null, import("@solos/core").RpcError>}
+ */
+export const positionNftAccount = (read, owner, mint) =>
+  Effect.map(tokenAccounts(read, owner, { mint }), (rows) => {
+    const custody = rows.filter((row) => row.amount === 1n);
+    if (custody.length !== 1) return null;
+    return custody[0]?.pubkey ?? null;
+  });
 
 /**
  * Every token account of one owner across both token programs.

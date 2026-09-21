@@ -52,6 +52,63 @@ export const LiquidityListPositionsInputSchema = z.object({
 
 /** One enumeration request, after input validation. @typedef {{ readonly protocol: "orca" | "meteora" | "raydium"; readonly owner: Address }} LiquidityListPositionsRequest */
 
+/** One deposit budget: a u64 decimal string in base units, zero allowed. */
+const DepositBudgetSchema = z
+  .string()
+  .regex(/^\d+$/, "a u64 decimal string in base units")
+  .pipe(
+    z
+      .string()
+      .refine((value) => value.length <= 20 && BigInt(value) <= 18_446_744_073_709_551_615n, {
+        message: "amount exceeds u64",
+      }),
+  );
+
+/** The deposit request fields before the cross-field budget rule. */
+const DepositInputBaseSchema = z.object({
+  protocol: LiquidityProtocolSchema.describe(
+    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+  ),
+  pool: AddressSchema.describe(
+    "Pool address the position belongs to; the deposit fails typed when the position references a different pool",
+  ),
+  position: AddressSchema.describe(
+    "Existing protocol position account (the Whirlpool position PDA), never the NFT mint and never the pool; new positions are never created",
+  ),
+  amountA: DepositBudgetSchema.describe(
+    "Maximum token A spend, in base units of the pool's canonical token A mint; unused funds stay in the wallet",
+  ),
+  amountB: DepositBudgetSchema.describe(
+    "Maximum token B spend, in base units of the pool's canonical token B mint; unused funds stay in the wallet",
+  ),
+  maxSlippageBps: z
+    .number()
+    .int()
+    .min(0)
+    .max(9999)
+    .default(50)
+    .describe(
+      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). The on-chain spend bounds are the quoted amounts plus this tolerance, capped by the budgets, so a price move that would overspend either bound aborts on chain",
+    ),
+});
+
+/** One deposit request. The budgets are maxima, never targets; the cross-field rule that at
+ * least one budget must be positive lives in the use case, beside the schema. */
+export const LiquidityDepositInputSchema = DepositInputBaseSchema;
+
+/** The execute twin adds the explicit simulation bypass, default false. */
+export const LiquidityExecuteDepositInputSchema = DepositInputBaseSchema.extend({
+  skipSimulation: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Skip the pre-send simulation of the exact transaction. Defaults to false; bypassing only skips simulation, never validation",
+    ),
+});
+
+/** @typedef {z.infer<typeof LiquidityDepositInputSchema>} LiquidityDepositInput */
+/** @typedef {z.infer<typeof LiquidityExecuteDepositInputSchema>} LiquidityExecuteDepositInput */
+
 /**
  * Complete owner enumeration (ADR-0018): every supported LP position plus the receipt mints
  * the owner holds (the position NFTs, for wallet dedup downstream). This venue holds no perp
