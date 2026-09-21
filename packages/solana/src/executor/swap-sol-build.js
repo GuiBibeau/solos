@@ -10,6 +10,7 @@ import {
 
 export const SWAP_AMOUNT_U64_MAX = 18_446_744_073_709_551_615n;
 const AMOUNT_BOUND_REASON = "swap amount exceeded the u64 bound the executor can assemble";
+const AMOUNT_POSITIVE_REASON = "swap amount must be a positive integer base-unit string";
 const VALIDATION_GUARD_REASON =
   "build validation could not be completed; nothing was signed or sent";
 const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed or sent";
@@ -24,7 +25,10 @@ const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed 
 
 /** @param {SwapAction} action */
 const amountBoundRejection = (action) => {
-  if (!/^\d+$/.test(action.amount) || BigInt(action.amount) > SWAP_AMOUNT_U64_MAX) {
+  if (!/^\d+$/.test(action.amount) || BigInt(action.amount) === 0n) {
+    return AMOUNT_POSITIVE_REASON;
+  }
+  if (BigInt(action.amount) > SWAP_AMOUNT_U64_MAX) {
     return AMOUNT_BOUND_REASON;
   }
   return undefined;

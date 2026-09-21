@@ -114,4 +114,10 @@ describe("the swap payload is bound to the validated intent before signing [inte
     expect(reasonOf(error)).toBe("swap amount exceeded the u64 bound the executor can assemble");
     expect(requests).toHaveLength(0);
   });
+
+  test("a zero amount is refused before any build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, { amount: "0" });
+    expect(reasonOf(error)).toBe("swap amount must be a positive integer base-unit string");
+    expect(requests).toHaveLength(0);
+  });
 });
