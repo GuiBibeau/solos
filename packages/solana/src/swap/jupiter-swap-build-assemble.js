@@ -91,8 +91,14 @@ const pinExclusiveTempCreate = (ix, tempWsol) => {
  */
 export const assembleSwapMessage = async (envelope, takerSigner, lifetime) => {
   const tempWsol = await derivedAta(takerSigner.address, WSOL_MINT);
+  // Only a cleanup-owned lifecycle grants the right to create-and-close the temp account; a
+  // build without cleanup may legitimately use the canonical wSOL ATA durably, and its
+  // idempotent create must survive for swaps from or into an existing wSOL position.
+  const isCleanupOwned = envelope.cleanupInstruction !== null;
   const ordered = [
-    ...envelope.setupInstructions.map((ix) => pinExclusiveTempCreate(ix, tempWsol)),
+    ...envelope.setupInstructions.map((ix) =>
+      isCleanupOwned ? pinExclusiveTempCreate(ix, tempWsol) : ix,
+    ),
     envelope.swapInstruction,
     ...(envelope.cleanupInstruction ? [envelope.cleanupInstruction] : []),
   ];
