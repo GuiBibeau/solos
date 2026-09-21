@@ -10,6 +10,7 @@ import {
   coldState,
   flatState,
   longState,
+  marketConfig,
   multiMarketState,
   positionRow,
   shortState,
@@ -18,6 +19,24 @@ import {
 } from "./phoenix-scenarios.js";
 
 describe("mapPointRead", () => {
+  test("a negative-lot market maps through the published position contract (PUMP at -2)", () => {
+    const pumpMarket = marketConfig("PUMP", -2);
+    const state = traderState(DEFAULT_AUTHORITY, [
+      subaccount(0, { positions: [positionRow("PUMP", "250")] }),
+    ]);
+    const { position } = mapPointRead({
+      authority: DEFAULT_AUTHORITY,
+      market: pumpMarket,
+      state,
+    });
+    expect(position).toMatchObject({
+      instrument: "PUMP",
+      side: "long",
+      amount: "250",
+      decimals: -2,
+    });
+  });
+
   test("a long carries the absolute amount, explicit side, and null valueUsd", () => {
     const { position, account } = mapPointRead({
       authority: DEFAULT_AUTHORITY,

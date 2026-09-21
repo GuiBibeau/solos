@@ -16,3 +16,5 @@ export const PositiveDecimalSchema = DecimalSchema.refine(
 export const SlippageBpsSchema = z.number().int().min(0).max(9999);
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 export const TokenDecimalsSchema = z.number().int().min(0).max(255);
+/** Lot-size exponent for perp positions: uiAmount = amount x 10^-decimals. Negative means a lot larger than one token (PUMP at -2 trades 100 tokens per lot). */
+export const PerpLotDecimalsSchema = z.number().int().min(-18).max(255);
