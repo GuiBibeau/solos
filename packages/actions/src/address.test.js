@@ -26,4 +26,9 @@ describe("AddressSchema", () => {
   test("non-base58 characters are rejected", () => {
     expect(AddressSchema.safeParse("0OIl" + "2".repeat(28)).success).toBe(false);
   });
+
+  test("an absurdly long base58-only string is rejected without a decode blowup", () => {
+    expect(AddressSchema.safeParse("2".repeat(100_000)).success).toBe(false);
+    expect(AddressSchema.safeParse("2".repeat(45)).success).toBe(false);
+  });
 });

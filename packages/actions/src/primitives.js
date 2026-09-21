@@ -38,11 +38,14 @@ const base58ByteLength = (value) => {
 /** @param {string} value */
 const is32ByteBase58 = (value) => base58ByteLength(value) === 32;
 
-/** Base58 Solana address: exactly 32 bytes once decoded. Length-checked here, curve-checked by adapters. */
+/** Base58 Solana address: exactly 32 bytes once decoded. Every canonical encoding of a 32-byte value is 32-44 chars, so the cheap encoded-length bound runs before the decode - curve checking stays with adapters. */
 export const AddressSchema = z
   .string()
   .regex(BASE58_ADDRESS, "expected a base58 Solana address")
-  .refine(is32ByteBase58, "address does not decode to exactly 32 bytes")
+  .refine(
+    (value) => value.length >= 32 && value.length <= 44 && is32ByteBase58(value),
+    "address does not decode to exactly 32 bytes",
+  )
   .describe("Base58 Solana account address");
 
 /** @typedef {z.infer<typeof AddressSchema>} Address */
