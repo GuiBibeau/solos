@@ -103,7 +103,6 @@ const lookupLanded = async (ctx, signature) => {
 };
 
 /**
- * Send over HTTP, then poll signature status until confirmed or the deadline.
  * @param {Rpc} ctx
  * @param {Signed} signed
  */
