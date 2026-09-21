@@ -50,6 +50,7 @@ describe("`solos swap quote` error and discovery scenarios [integration]", () =>
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
       "solana_perp_get_position",
+      "solana_portfolio_get_state",
       "solana_swap_execute_swap",
       "solana_swap_get_quote",
       "solana_swap_simulate_swap",

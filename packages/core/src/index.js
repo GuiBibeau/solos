@@ -8,6 +8,7 @@ import { lendTools } from "./lend/index.js";
 import { liquidityTools } from "./liquidity/index.js";
 import { marketTools } from "./market/index.js";
 import { perpTools } from "./perp/index.js";
+import { portfolioTools } from "./portfolio/index.js";
 import { swapTools } from "./swap/index.js";
 import { transferTools } from "./transfer/index.js";
 import { walletTools } from "./wallet/index.js";
@@ -17,6 +18,7 @@ export * from "./launch/index.js";
 export * from "./liquidity/index.js";
 export * from "./market/index.js";
 export * from "./perp/index.js";
+export * from "./portfolio/index.js";
 export * from "./shared/index.js";
 export * from "./signals/index.js";
 export * from "./swap/index.js";
@@ -36,6 +38,7 @@ export const allTools = [
   ...lendTools,
   ...liquidityTools,
   ...perpTools,
+  ...portfolioTools,
 ].toSorted((a, b) => a.name.localeCompare(b.name));
 
 /** Group names in display order, used for server instructions and per-step tool activation. */

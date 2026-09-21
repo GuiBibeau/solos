@@ -14,7 +14,7 @@
     "check:lines": "bun run scripts/check-physical-lines.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "lint": "eslint .",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint .",
     "lint:fix": "eslint . --fix",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.cjs",
     "depcruise:graph": "depcruise packages apps --config .dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",

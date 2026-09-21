@@ -63,6 +63,7 @@ re-runs the same command. See ADR-0016 for the verification contract.
 | `solana_swap_get_quote` | read |
 | `solana_liquidity_get_position` | read |
 | `solana_perp_get_position` | read |
+| `solana_portfolio_get_state` | read |
 | `solana_lend_get_reserve` | read |
 | `solana_swap_simulate_swap` | simulate |
 | `solana_transfer_simulate_sol` | simulate |
@@ -79,7 +80,10 @@ configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps pos
 (no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
 `liquidity` has the Orca Whirlpool position reader plus deposits into explicitly identified
 existing positions over the configured Solana RPC (no provider key at all); `lend` has the Kamino reserve reader over the configured Solana RPC through the
-official Kamino klend-sdk (no provider key; one explicitly configured market); `signals` has
+official Kamino klend-sdk (no provider key; one explicitly configured market); `portfolio`
+composes the wallet, price feed and venue reads into the supported-portfolio state
+(ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero
+holding is priced — a supported-assets view, never full net worth; `signals` has
 ports only.
 
 ## Market intelligence (Elfa Iris)
