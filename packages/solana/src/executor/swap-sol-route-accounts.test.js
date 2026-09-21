@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { RpcError } from "@solos/core";
 import { EVENT_AUTHORITY, INPUT_MINT, OUTPUT_MINT } from "../swap/jupiter-swap-build-bodies.js";
 import { sharedSwapInstruction } from "../swap/jupiter-swap-build-route-bodies.js";
-import { TOKEN_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
+import { TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
 import { attackerAddress, reasonOf, runBranch } from "./swap-sol-driver.js";
 
 const attacker = await attackerAddress();
@@ -159,6 +159,18 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
       expect(reasonOf(error)).toContain("repeated the taker");
       expect(requests).toHaveLength(1);
     }
+  });
+
+  test("a wSOL route party on Token-2022 is refused as split from its wrap and cleanup", async () => {
+    const { error, requests } = await runBranch(
+      "execute",
+      rebind(5, { pubkey: TOKEN_2022_PROGRAM }),
+    );
+    expect(reasonOf(error)).toContain("wSOL route source");
+    expect(requests).toHaveLength(1);
+    const shared = await runBranch("execute", sharedRebind(8, { pubkey: TOKEN_2022_PROGRAM }));
+    expect(reasonOf(shared.error)).toContain("wSOL route source");
+    expect(shared.requests).toHaveLength(1);
   });
 
   test("the taker duplicated inside the shared prefix is refused for privilege elevation", async () => {

@@ -1,7 +1,12 @@
 // @ts-check
 import { derivedAta } from "./jupiter-swap-build-setup.js";
 import { swapRouteLayout } from "./jupiter-swap-build-swapdata.js";
-import { JUP6_PROGRAM, TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "./jupiter-swap-build-validate.js";
+import {
+  JUP6_PROGRAM,
+  TOKEN_2022_PROGRAM,
+  TOKEN_PROGRAM,
+  WSOL_MINT,
+} from "./jupiter-swap-build-validate.js";
 
 export const JUPITER_EVENT_AUTHORITY = "D8cy77BBepLMngZx6ZukaTff5hCt1HrWyKk3Hnd9oitf";
 const SOURCE_REASON = "swap instruction did not spend the taker's source token account";
@@ -36,6 +41,23 @@ const fixedRejection = (checks) =>
 
 /** @param {Meta | undefined} meta @param {boolean} writable */
 const selfExpected = (meta, writable) => expected(meta?.pubkey || "", writable, false);
+
+/**
+ * A wSOL route party must ride the classic token program: the wrap funds and the cleanup closes
+ * the classic-derived wSOL ATA, so a Token-2022 route party would derive a distinct empty
+ * account and fail only on-chain — burning fees under an explicit simulation skip.
+ * @param {import("@solos/actions").SwapAction} action
+ * @param {Meta | undefined} sourceProgram @param {Meta | undefined} destinationProgram
+ */
+const wsolProgramRejection = (action, sourceProgram, destinationProgram) => {
+  if (action.inputMint === WSOL_MINT && sourceProgram?.pubkey !== TOKEN_PROGRAM) {
+    return "wSOL route source did not use the classic token program of its wrap and cleanup";
+  }
+  if (action.outputMint === WSOL_MINT && destinationProgram?.pubkey !== TOKEN_PROGRAM) {
+    return "wSOL route destination did not use the classic token program";
+  }
+  return undefined;
+};
 
 /** Anchor encodes None as the Jupiter placeholder and Some as the writable destination ATA.
  * @param {Meta[]} accounts @param {string} destination */
@@ -74,6 +96,8 @@ const directRejection = async (accounts, action, taker) => {
   const destinationProgram = accounts[6];
   if (!sourceProgram || !destinationProgram) return PROGRAM_REASON;
   if (!isTokenProgram(sourceProgram) || !isTokenProgram(destinationProgram)) return PROGRAM_REASON;
+  const wsolRejection = wsolProgramRejection(action, sourceProgram, destinationProgram);
+  if (wsolRejection) return wsolRejection;
   const source = await derivedAta(taker, action.inputMint, sourceProgram.pubkey);
   const destination = await derivedAta(taker, action.outputMint, destinationProgram.pubkey);
   return (
@@ -140,6 +164,8 @@ const sharedRejection = async (accounts, action, taker) => {
   const destinationProgram = accounts[9];
   if (!sourceProgram || !destinationProgram) return PROGRAM_REASON;
   if (!isTokenProgram(sourceProgram) || !isTokenProgram(destinationProgram)) return PROGRAM_REASON;
+  const wsolRejection = wsolProgramRejection(action, sourceProgram, destinationProgram);
+  if (wsolRejection) return wsolRejection;
   const source = await derivedAta(taker, action.inputMint, sourceProgram.pubkey);
   const destination = await derivedAta(taker, action.outputMint, destinationProgram.pubkey);
   return (
