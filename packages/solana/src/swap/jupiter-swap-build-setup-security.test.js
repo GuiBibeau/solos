@@ -128,17 +128,31 @@ describe("setup and cleanup ownership bindings before signing", () => {
     );
   });
 
-  test("cleanup rejects idempotent creation because it cannot prove atomic ownership", async () => {
+  test("cleanup accepts both canonical ATA create opcodes for the temp account", async () => {
+    for (const opcode of [0, 1]) {
+      const envelope = {
+        ...driver.envelope,
+        setupInstructions: driver.envelope.setupInstructions.map((ix) =>
+          ix.programId === ATA_PROGRAM && ix.accounts[1]?.pubkey === driver.atas.sourceAta
+            ? { ...ix, data: b64(opcode) }
+            : ix,
+        ),
+      };
+      expect(await cleanupBindingRejection(envelope, driver.action, driver.taker)).toBeUndefined();
+    }
+  });
+
+  test("cleanup rejects a temp create that is not a canonical ATA create", async () => {
     const envelope = {
       ...driver.envelope,
       setupInstructions: driver.envelope.setupInstructions.map((ix) =>
         ix.programId === ATA_PROGRAM && ix.accounts[1]?.pubkey === driver.atas.sourceAta
-          ? { ...ix, data: b64(1) }
+          ? { ...ix, data: b64(2) }
           : ix,
       ),
     };
     expect(await cleanupBindingRejection(envelope, driver.action, driver.taker)).toContain(
-      "required this build to create",
+      "not a canonical single-instruction ATA create",
     );
   });
 

@@ -105,27 +105,37 @@ const hasWrapPair = (envelope) => {
  * action: import("@solos/actions").SwapAction; taker: string; tempWsol: string }} bound */
 const cleanupCreateRejection = async ({ envelope, action, taker, tempWsol }) => {
   const creates = envelope.setupInstructions.filter((ix) => isTargetAccount(ix, tempWsol));
-  const reason =
-    "cleanup required this build to create the taker's temporary wSOL account exactly once";
-  if (creates.length !== 1) return reason;
+  if (creates.length !== 1) {
+    return "cleanup required this build to create the taker's temporary wSOL account exactly once";
+  }
   const [create] = creates;
-  if (!create) return reason;
+  if (!create)
+    return "cleanup required this build to create the taker's temporary wSOL account exactly once";
   const binding = await ataCreateRejection(create, action, taker);
   if (binding) return binding;
-  return isCanonicalWsolCreate(create) ? undefined : reason;
+  return isCanonicalWsolCreate(create)
+    ? undefined
+    : "cleanup's temporary wSOL create was not a canonical single-instruction ATA create";
 };
 
 /** @param {RawInstruction} ix @param {string} account */
 const isTargetAccount = (ix, account) =>
   ix.programId === ATA_PROGRAM && ix.accounts[1]?.pubkey === account;
 
-/** @param {RawInstruction} ix */
+/**
+ * The temp wSOL create must be a canonical single-instruction ATA create (opcode 0 create or
+ * opcode 1 createIdempotent) under the classic token program for the wSOL mint. Jupiter's
+ * current live builds emit createIdempotent here. Safety does not depend on the opcode: the
+ * pre-sign preflight proves the account is absent, and Token closeAccount fails on a non-zero
+ * balance, so a raced pre-existing account aborts the whole transaction atomically.
+ * @param {RawInstruction} ix
+ */
 const isCanonicalWsolCreate = (ix) => {
   const bytes = dataBytes(ix.data);
   if (ix.accounts[3]?.pubkey !== WSOL_MINT) return false;
   if (ix.accounts[5]?.pubkey !== TOKEN_PROGRAM) return false;
   if (bytes.length !== 1) return false;
-  return bytes[0] === 0;
+  return bytes[0] === 0 || bytes[0] === 1;
 };
 
 /** @param {import("@solos/actions").SwapAction} action */

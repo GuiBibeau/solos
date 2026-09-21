@@ -80,11 +80,14 @@ export const ataCreateInstruction = (taker, account, mint) => ({
   data: toBase64(Uint8Array.of(1)),
 });
 
-/** Non-idempotent creation gives a temporary ATA atomic ownership inside this transaction. */
-/** @param {string} taker @param {string} account @param {string} mint */
+/**
+ * The temp wSOL create mirrors Jupiter's current live builds: a canonical idempotent create.
+ * Preflight absence plus closeAccount's zero-balance rule keep the lifecycle build-owned.
+ * @param {string} taker @param {string} account @param {string} mint
+ */
 export const temporaryAtaCreateInstruction = (taker, account, mint) => ({
   ...ataCreateInstruction(taker, account, mint),
-  data: toBase64(Uint8Array.of(0)),
+  data: toBase64(Uint8Array.of(1)),
 });
 
 /** Idempotent create for the taker's destination (USDC) ATA: the account the swap credits. */
