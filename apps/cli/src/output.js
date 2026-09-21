@@ -29,11 +29,28 @@ export const exitOnFailure = (effect) =>
     Effect.catchAllCause(() => Effect.void),
   );
 
+/**
+ * The first domain error in a cause. Layer composition (one graph, many built layers) can
+ * turn a single failed build into a parallel or sequential cause; the domain error inside is
+ * still the meaningful thing to report.
+ * @param {import("effect").Cause.Cause<unknown>} cause
+ * @returns {{ _tag?: string } | undefined}
+ */
+const firstFailure = (cause) => {
+  if (cause._tag === "Fail") {
+    return /** @type {{ _tag?: string } | undefined} */ (cause.error);
+  }
+  if (cause._tag === "Parallel" || cause._tag === "Sequential") {
+    const fromLeft = firstFailure(cause.left);
+    if (fromLeft !== undefined) return fromLeft;
+    return firstFailure(cause.right);
+  }
+  return undefined;
+};
+
 /** @param {import("effect").Cause.Cause<unknown>} cause */
 const describeCause = (cause) => {
-  const failure = /** @type {{ _tag?: string } | undefined} */ (
-    cause._tag === "Fail" ? cause.error : undefined
-  );
+  const failure = /** @type {{ _tag?: string } | undefined} */ (firstFailure(cause));
   if (failure && typeof failure === "object" && "_tag" in failure) {
     const { _tag, ...props } = /** @type {Record<string, unknown>} */ (failure);
     return { code: _tag, .../** @type {Record<string, unknown>} */ (toJsonSafe(props)) };

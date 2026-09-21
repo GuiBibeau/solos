@@ -3,7 +3,7 @@ import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
 describe("tool registry", () => {
-  test("has at least the wallet, transfer, market, launch, liquidity, perp, and swap tools", () => {
+  test("has at least the wallet, transfer, market, launch, liquidity, perp, portfolio, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_launch_get_curve",
       "solana_lend_get_position",
@@ -18,6 +18,7 @@ describe("tool registry", () => {
       "solana_market_get_token_news",
       "solana_market_get_trending_tokens",
       "solana_perp_get_position",
+      "solana_portfolio_get_state",
       "solana_swap_execute_swap",
       "solana_swap_get_quote",
       "solana_swap_simulate_swap",
@@ -32,6 +33,7 @@ describe("tool registry", () => {
       "liquidity",
       "market",
       "perp",
+      "portfolio",
       "swap",
       "transfer",
       "wallet",

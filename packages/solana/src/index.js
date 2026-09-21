@@ -19,6 +19,7 @@ import { JupiterPriceLive } from "./market/jupiter-price-live.js";
 import { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 import { TokenRegistryLive } from "./market/token-registry-live.js";
 import { PerpVenueLive } from "./perp/perp-venue-live.js";
+import { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
@@ -53,6 +54,7 @@ export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
 export { BalanceReaderLive } from "./wallet/balance-reader-live.js";
+export { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 
 /**
  * Every core port this package implements over a KitSigner. `ActionExecutor` is the wallet
@@ -107,20 +109,29 @@ const perp = (phoenix) => PerpVenueLive(phoenix ?? { baseUrl: DEFAULT_PHOENIX_BA
 const lending = (kamino) => KaminoVenueLive(kamino ?? { market: KAMINO_MAIN_MARKET });
 
 /**
+ * Feeds the composed read ports into the portfolio reader and merges its output back in.
+ * The reader needs the venue tags as inputs, which the base layer already outputs.
+ * @param {Layer.Layer<any, any, never>} base
+ */
+const withPortfolio = (base) => Layer.merge(base, PortfolioReaderLive().pipe(Layer.provide(base)));
+
+/**
  * Production wiring from validated env: RPC + keychain signer + all adapters.
  * `provideMerge` keeps the internal tags visible for the CLI and tests.
  * @param {SolanaEnv} env
  */
 export const SolanaLive = (env) =>
-  adapters.pipe(
-    Layer.merge(lending(env.kamino)),
-    Layer.provideMerge(KitSignerLive(env.signer)),
-    Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
-    Layer.provideMerge(builds(env.jupiter)),
-    Layer.merge(intelligence(env.elfa)),
-    Layer.merge(prices(env.jupiter)),
-    Layer.merge(quotes(env.jupiter)),
-    Layer.merge(perp(env.phoenix)),
+  withPortfolio(
+    adapters.pipe(
+      Layer.merge(lending(env.kamino)),
+      Layer.provideMerge(KitSignerLive(env.signer)),
+      Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
+      Layer.provideMerge(builds(env.jupiter)),
+      Layer.merge(intelligence(env.elfa)),
+      Layer.merge(prices(env.jupiter)),
+      Layer.merge(quotes(env.jupiter)),
+      Layer.merge(perp(env.phoenix)),
+    ),
   );
 
 /**
@@ -138,13 +149,15 @@ export const SolanaLive = (env) =>
  * }} options
  */
 export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, kamino }) =>
-  adapters.pipe(
-    Layer.merge(lending(kamino)),
-    Layer.provideMerge(KitSignerFromBytes(seed)),
-    Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
-    Layer.provideMerge(builds(jupiter)),
-    Layer.merge(intelligence(elfa)),
-    Layer.merge(prices(jupiter)),
-    Layer.merge(quotes(jupiter)),
-    Layer.merge(perp(phoenix)),
+  withPortfolio(
+    adapters.pipe(
+      Layer.merge(lending(kamino)),
+      Layer.provideMerge(KitSignerFromBytes(seed)),
+      Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
+      Layer.provideMerge(builds(jupiter)),
+      Layer.merge(intelligence(elfa)),
+      Layer.merge(prices(jupiter)),
+      Layer.merge(quotes(jupiter)),
+      Layer.merge(perp(phoenix)),
+    ),
   );
