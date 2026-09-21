@@ -10,18 +10,18 @@ describe("liquidity position tool input guard", () => {
     expect(getLpPositionTool.check).toBeTypeOf("function");
     for (const protocol of ["meteora", "raydium"]) {
       expect(
-        () => getLpPositionTool.check({ protocol, position: "1".repeat(44) }),
+        () => getLpPositionTool.check({ protocol, position: "2".repeat(44) }),
         protocol,
       ).toThrow(LiquidityUnsupportedProtocol);
     }
   });
 
   test("accepts orca with an optional owner", () => {
-    expect(getLpPositionTool.check({ protocol: "orca", position: "1".repeat(44) })).toBeUndefined();
+    expect(getLpPositionTool.check({ protocol: "orca", position: "2".repeat(44) })).toBeUndefined();
     expect(
       getLpPositionTool.check({
         protocol: "orca",
-        position: "1".repeat(44),
+        position: "2".repeat(44),
         owner: "11111111111111111111111111111111",
       }),
     ).toBeUndefined();
@@ -29,7 +29,7 @@ describe("liquidity position tool input guard", () => {
 
   test("the schema rejects unknown protocol values before the guard runs", () => {
     expect(
-      LiquidityGetPositionInputSchema.safeParse({ protocol: "jupiter", position: "1".repeat(44) })
+      LiquidityGetPositionInputSchema.safeParse({ protocol: "jupiter", position: "2".repeat(44) })
         .success,
     ).toBe(false);
     expect(LiquidityGetPositionInputSchema.safeParse({ protocol: "orca" }).success).toBe(false);
@@ -49,7 +49,7 @@ describe("liquidity position tool input guard", () => {
       const base = {
         kind: "lp",
         protocol,
-        position: "1".repeat(44),
+        position: "2".repeat(44),
         instrument: "2".repeat(44),
         liquidity: "0",
         tokenA: { mint: "3".repeat(44), amount: "0", decimals: 6 },

@@ -1,13 +1,48 @@
 // @ts-check
 import { z } from "zod";
 
-const BASE58_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const BASE58_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]+$/;
 const BASE58_SIGNATURE = /^[1-9A-HJ-NP-Za-km-z]{64,88}$/;
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
-/** Base58 Solana address. Length-checked here, curve-checked by adapters. */
+/**
+ * Decoded byte length of a base58 string in Bitcoin convention: each leading `1` is a leading
+ * zero byte, the rest is a big-endian integer. Returns -1 for characters outside the alphabet.
+ * @param {string} value
+ */
+/** @param {string} value */
+const base58ByteLength = (value) => {
+  /** @type {number[]} */
+  const digits = [];
+  for (const char of value) {
+    let carry = BASE58_ALPHABET.indexOf(char);
+    if (carry < 0) return -1;
+    for (let i = 0; i < digits.length; i++) {
+      carry += (digits[i] ?? 0) * 58;
+      digits[i] = carry % 256;
+      carry = Math.trunc(carry / 256);
+    }
+    while (carry > 0) {
+      digits.push(carry % 256);
+      carry = Math.trunc(carry / 256);
+    }
+  }
+  let zeros = 0;
+  for (const char of value) {
+    if (char !== "1") break;
+    zeros += 1;
+  }
+  return zeros + digits.length;
+};
+
+/** @param {string} value */
+const is32ByteBase58 = (value) => base58ByteLength(value) === 32;
+
+/** Base58 Solana address: exactly 32 bytes once decoded. Length-checked here, curve-checked by adapters. */
 export const AddressSchema = z
   .string()
   .regex(BASE58_ADDRESS, "expected a base58 Solana address")
+  .refine(is32ByteBase58, "address does not decode to exactly 32 bytes")
   .describe("Base58 Solana account address");
 
 /** @typedef {z.infer<typeof AddressSchema>} Address */

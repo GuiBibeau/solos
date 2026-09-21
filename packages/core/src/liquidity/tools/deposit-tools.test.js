@@ -10,7 +10,7 @@ import { simulateDepositTool } from "./simulate-deposit.js";
 
 const base = {
   protocol: "orca",
-  pool: "1".repeat(44),
+  pool: "2".repeat(44),
   position: "2".repeat(44),
   amountA: "1000000",
   amountB: "0",
