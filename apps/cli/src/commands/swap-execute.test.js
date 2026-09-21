@@ -51,7 +51,7 @@ const childEnv = async ({ jupiter = true } = {}) => {
 };
 
 describe("`solos swap simulate/execute` through real child processes [integration]", () => {
-  // bun 1.3 ignores bunfig `[test].timeout`, so slow child-process tests set their own budget.
+  // Slow multi-child test: an explicit 60s budget, matching the repo-wide `bun test --timeout`.
   test("swap simulate reaches the fixture and reports SimulationFailed without sending", {
     timeout: 60_000,
   }, async () => {

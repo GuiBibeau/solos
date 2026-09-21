@@ -34,7 +34,7 @@ const childEnv = async () => ({
 });
 
 describe("default swap execution gates through real child processes [integration]", () => {
-  // bun 1.3 ignores bunfig `[test].timeout`, so slow child-process tests set their own budget.
+  // Slow multi-child test: an explicit 60s budget, matching the repo-wide `bun test --timeout`.
   test("native execute fails simulation after one build and sends nothing", {
     timeout: 60_000,
   }, async () => {
