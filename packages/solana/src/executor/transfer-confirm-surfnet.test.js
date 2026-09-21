@@ -41,8 +41,8 @@ const overlayStatuses = (ctx, send) => ({
 const hangUntilAbort = (opts) =>
   new Promise((_, reject) => {
     const abort = opts?.abortSignal;
-    const fail = () => reject(abort?.reason ?? new Error("aborted"));
     if (!abort) return;
+    const fail = () => reject(abort.reason ?? new Error("aborted"));
     if (abort.aborted) fail();
     else abort.addEventListener("abort", fail, { once: true });
   });
@@ -53,9 +53,10 @@ const dropAfterSend = (ctx) => ({
   rpc: new Proxy(ctx.rpc, {
     get(target, prop, receiver) {
       if (prop !== "sendTransaction") return Reflect.get(target, prop, receiver);
+      const sendTx = Reflect.get(target, prop, receiver);
       return (/** @type {never} */ wire, /** @type {never} */ options) => ({
         send: async (/** @type {{ abortSignal?: AbortSignal }} */ opts) => {
-          await target.sendTransaction(wire, options).send(opts);
+          await sendTx(wire, options).send(opts);
           throw new Error("transport dropped after send");
         },
       });
@@ -111,7 +112,9 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
 
   test("a dropped send still reports the signature when Surfnet already has it", async () => {
     const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
-    const exit = await Effect.runPromiseExit(sendSigned(dropAfterSend(ctx), signed));
+    const exit = await Effect.runPromiseExit(
+      sendSigned(dropAfterSend(ctx), signed, { deadlineMs: 8000 }),
+    );
     expect(Exit.isSuccess(exit)).toBe(true);
     if (!Exit.isSuccess(exit)) throw new Error("expected success");
     expect(exit.value.length).toBeGreaterThan(60);
@@ -119,15 +122,15 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
 
   test("a hung getSignatureStatuses lookup aborts at the confirmation deadline", async () => {
     const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
-    let receivedAbort = false;
+    let didReceiveAbort = false;
     const hung = overlayStatuses(ctx, (opts) => {
-      receivedAbort = receivedAbort || Boolean(opts?.abortSignal);
+      didReceiveAbort ||= Boolean(opts?.abortSignal);
       return hangUntilAbort(opts);
     });
     const started = Date.now();
     const error = await failureOf(sendSigned(hung, signed, { deadlineMs: 80 }));
-    expect(Date.now() - started).toBeLessThan(5_000);
-    expect(receivedAbort).toBe(true);
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(didReceiveAbort).toBe(true);
     expect(error).toBeInstanceOf(TransactionFailed);
     expect(/** @type {TransactionFailed} */ (error)?.reason).toBe(MAY_HAVE_LANDED);
     expect(/** @type {TransactionFailed} */ (error)?.signature).toBeTruthy();
@@ -147,8 +150,8 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
       ],
     }));
     const started = Date.now();
-    const error = await failureOf(sendSigned(failed, signed, { deadlineMs: 5_000 }));
-    expect(Date.now() - started).toBeLessThan(2_000);
+    const error = await failureOf(sendSigned(failed, signed, { deadlineMs: 5000 }));
+    expect(Date.now() - started).toBeLessThan(2000);
     expect(error).toBeInstanceOf(TransactionFailed);
     expect(/** @type {TransactionFailed} */ (error)?.reason).toBe(EXECUTION_FAILED);
     expect(/** @type {TransactionFailed} */ (error)?.signature).toBeTruthy();
