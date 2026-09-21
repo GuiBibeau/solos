@@ -3,7 +3,8 @@
  * The deposit half of the executor: turn one `add_liquidity` action into exactly one signed
  * v1 transaction — or a typed failure, before anything is signed. The plan (guards, fetch
  * orchestration, budget-fit liquidity, derivations) is pure over its reader seam; this
- * module binds the reader to real RPC, enforces the balance pre-check, and assembles the
+ * module binds the reader to real RPC, proves the funding accounts (creating a missing
+ * owner ATA idempotently when the quoted spend on that side is zero), and assembles the
  * transaction under the local v1 policy. A failed plan is a `BuildRejected`: the intent
  * never becomes bytes, and the caller's funds stay put.
  */
@@ -11,10 +12,13 @@ import {
   appendTransactionMessageInstructions,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
-import { getTokenDecoder } from "@solana-program/token";
+import {
+  getCreateAssociatedTokenIdempotentInstruction,
+  getTokenDecoder,
+} from "@solana-program/token";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
-import { fetchAccounts, holdsPositionNft } from "../liquidity/liquidity-accounts.js";
+import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
 import {
   DEPOSIT_V1_CONFIG,
   increaseLiquidityInstruction,
@@ -31,39 +35,82 @@ const tokenDecoder = getTokenDecoder();
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("@solos/actions").AddLiquidityAction} AddLiquidityAction */
-/** @typedef {import("./swap-sol.js").Signed} Signed */
+/** @typedef {Awaited<ReturnType<typeof signV1Message>>} Signed */
+/** @typedef {Parameters<typeof appendTransactionMessageInstructions>[0][number]} SetupInstruction */
 /** @typedef {{ readonly signed: Signed; readonly plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk }} PlannedDeposit */
 
 /**
- * Fetch the three funding token accounts and prove each exists with enough of the token.
+ * Fetch the two funding token accounts. A missing side is allowed only when the quote needs
+ * nothing from it: the driver then prepends an idempotent ATA create so the instruction's
+ * account exists — rent is the signer's. A present-but-short side is a typed rejection.
  * @param {{ rpc: Rpc["rpc"]; origin: string; timeoutMs: number }} read
+ * @param {Kit} kit
  * @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
+ * @returns {import("effect").Effect.Effect<SetupInstruction[], BuildRejected | import("@solos/core").RpcError>}
  */
-const proofBalances = (read, plan) =>
+const fundingSetup = (read, kit, plan) =>
   Effect.flatMap(
-    fetchAccounts(read, [
-      plan.accounts.positionTokenAccount,
-      plan.accounts.tokenOwnerAccountA,
-      plan.accounts.tokenOwnerAccountB,
-    ]),
-    ([nft, a, b]) => {
-      if (nft === null) return fail("the position NFT token account is missing");
-      const aShort = balanceShort(a, plan.requiredA);
-      if (aShort !== null) return fail(`insufficient token A balance: ${aShort}`);
-      const bShort = balanceShort(b, plan.requiredB);
-      if (bShort !== null) return fail(`insufficient token B balance: ${bShort}`);
-      return Effect.succeed(undefined);
-    },
+    fetchAccounts(read, [plan.accounts.tokenOwnerAccountA, plan.accounts.tokenOwnerAccountB]),
+    ([a, b]) =>
+      Effect.gen(function* () {
+        const aSetup = yield* fundingSide(kit, {
+          row: a,
+          required: plan.requiredA,
+          label: "A",
+          mint: plan.mintA,
+          plan,
+        });
+        const bSetup = yield* fundingSide(kit, {
+          row: b,
+          required: plan.requiredB,
+          label: "B",
+          mint: plan.mintB,
+          plan,
+        });
+        return [aSetup, bSetup].filter((setup) => setup !== null);
+      }),
   );
 
-/** @param {import("../liquidity/liquidity-accounts.js").FetchedAccount | null | undefined} row @param {bigint} required @returns {string | null} a shortfall reason, or null when the balance covers the spend */
-const balanceShort = (row, required) => {
-  if (row === null || row === undefined) {
-    return "the funding account is missing; no deposit is possible";
+/**
+ * One funding side: null when nothing is needed, an idempotent ATA create when the account
+ * is absent and the quote needs nothing from it, a typed failure when it is short.
+ * @param {Kit} kit
+ * @param {{
+ *   row: import("../liquidity/liquidity-accounts.js").FetchedAccount | null | undefined;
+ *   required: bigint;
+ *   label: string;
+ *   mint: string;
+ *   plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk;
+ * }} parts
+ * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
+ */
+const fundingSide = (kit, { row, required, label, mint, plan }) => {
+  const isAbsent = row === null || row === undefined;
+  if (!isAbsent) {
+    const amount = tokenDecoder.decode(row.bytes).amount;
+    if (amount >= required) return Effect.succeed(null);
   }
-  const amount = tokenDecoder.decode(row.bytes).amount;
-  return amount < required ? `${amount} available, the deposit needs ${required}` : null;
+  if (required > 0n) {
+    const detail = isAbsent
+      ? "the funding account does not exist"
+      : `${tokenDecoder.decode(row.bytes).amount} available, the deposit needs ${required}`;
+    return fail(`insufficient token ${label} balance: ${detail}`);
+  }
+  const target =
+    label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB;
+  return Effect.succeed(createAta(kit, mint, target));
 };
+
+/** @param {Kit} kit @param {string} mint @param {string} ata */
+const createAta = (kit, mint, ata) =>
+  getCreateAssociatedTokenIdempotentInstruction({
+    payer: kit.signer,
+    ata: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (ata)),
+    owner: /** @type {import("@solana/kit").Address} */ (
+      /** @type {unknown} */ (kit.signer.address)
+    ),
+    mint: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (mint)),
+  });
 
 /** @param {string} reason @returns {import("effect").Effect.Effect<never, BuildRejected>} */
 const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
@@ -79,7 +126,7 @@ const planFromChain = (ctx, owner, action) => {
   /** @type {import("../liquidity/whirlpool-deposit-plan.js").DepositReader} */
   const reader = {
     rows: (/** @type {readonly string[]} */ accounts) => fetchAccounts(read, accounts),
-    custody: (/** @type {string} */ positionMint) => holdsPositionNft(read, owner, positionMint),
+    custody: (/** @type {string} */ positionMint) => positionNftAccount(read, owner, positionMint),
   };
   return depositPlan({
     reader,
@@ -88,18 +135,25 @@ const planFromChain = (ctx, owner, action) => {
       position: action.position,
       amountA: BigInt(action.amountA),
       amountB: BigInt(action.amountB),
+      maxSlippageBps: action.maxSlippageBps,
     },
     owner,
   });
 };
 
 /**
- * Assemble and sign the deposit under the local v1 policy: a fresh blockhash lifetime and
- * exactly one `increase_liquidity` instruction. Nothing here can send anything.
- * @param {Rpc} ctx @param {Kit} kit @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
+ * Assemble and sign the deposit under the local v1 policy: a fresh blockhash lifetime, any
+ * idempotent ATA creates the funding proof demanded, then exactly one `increase_liquidity`.
+ * Nothing here can send anything.
+ * @param {{
+ *   ctx: Rpc;
+ *   kit: Kit;
+ *   plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk;
+ *   creates: SetupInstruction[];
+ * }} parts
  * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").BuildRejected | import("@solos/core").RpcError>}
  */
-const signDeposit = (ctx, kit, plan) =>
+const signDeposit = ({ ctx, kit, plan, creates }) =>
   Effect.gen(function* () {
     const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
       ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
@@ -113,6 +167,7 @@ const signDeposit = (ctx, kit, plan) =>
         signV1Message(
           appendTransactionMessageInstructions(
             [
+              ...creates,
               increaseLiquidityInstruction(plan.accounts, {
                 liquidity: plan.liquidity,
                 tokenMaxA: plan.tokenMaxA,
@@ -149,7 +204,7 @@ export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
       return yield* new BuildRejected({ reason: plan.reason });
     }
     const read = { rpc: ctx.rpc, origin: rpcOrigin(ctx.url), timeoutMs: TOKEN_RPC_TIMEOUT_MS };
-    yield* proofBalances(read, plan);
-    const signed = yield* signDeposit(ctx, kit, plan);
+    const creates = yield* fundingSetup(read, kit, plan);
+    const signed = yield* signDeposit({ ctx, kit, plan, creates });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildLiquidityDeposit"));

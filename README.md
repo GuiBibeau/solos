@@ -501,16 +501,23 @@ rebalances.
 - **Budgets are maxima, on chain.** `amountA`/`amountB` are maximum spends in the pool's
 canonical mint order (at least one positive). The executor computes the largest liquidity
 both budgets can fund at the current price — rounding down, never reinterpreting a maximum
-as an exact spend — and encodes the budgets themselves as the instruction's `token_max_a`
-and `token_max_b`, which the Whirlpool program enforces (`TokenMaxExceeded`): a price move
-that would overspend either budget aborts the transaction. Unused funds stay in the wallet.
+as an exact spend — and encodes spend bounds at the quoted amounts **plus the requested
+slippage tolerance, capped by the budgets**, in the instruction's `token_max_a` and
+`token_max_b`, which the Whirlpool program enforces (`TokenMaxExceeded`): a price move that
+would overspend either bound aborts the transaction. A tighter tolerance therefore accepts
+less price drift; with the budgets it can never spend more than requested. Unused funds
+stay in the wallet.
 - **One-sided adds work.** With the price below the position's range only token A is
 required (token B's budget is ignored); above the range, only token B. In range, budgets
-are two-sided: a zero budget on one side computes zero liquidity and is rejected.
-- **Typed rejections before signing.** Wrong pool, missing/foreign position, absent NFT
-custody, token-2022 mints, missing funding accounts, insufficient balances, and
-zero-liquidity outcomes all fail `BuildRejected` (or the liquidity slice's input errors)
-before anything is signed or sent.
+are two-sided: a zero budget on one side computes zero liquidity and is rejected. A
+missing funding account on a side the quote needs nothing from is created idempotently
+(`createIdempotent`, rent paid by the signer); a missing account on a side the quote needs
+is still a typed rejection.
+- **Custody is passed through.** The instruction names the actual token account that holds
+the position NFT — not assumed to be the derived ATA. Wrong pool, a position account that
+is not its mint's PDA, corrupt pool tick spacing, token-2022 mints, insufficient
+balances, and zero-liquidity outcomes all fail `BuildRejected` (or the liquidity slice's
+input errors) before anything is signed or sent.
 - **Execution is bounded.** `skipSimulation` defaults false; a failed simulation, rejected
 build, or expired blockhash sends nothing, and there is never a re-send after an ambiguous
 submission.

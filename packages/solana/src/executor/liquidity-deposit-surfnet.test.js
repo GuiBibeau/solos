@@ -1,5 +1,6 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { tickIndexToSqrtPrice } from "@orca-so/whirlpools-core";
 import {
   BuildRejected,
   executeDeposit,
@@ -50,20 +51,28 @@ afterAll(() => {
   rpc.stop();
 });
 
-/** Seed one self-consistent pool+position family for `owner` and return its addresses. */
-const seedFamily = async () => {
+/**
+ * Seed one self-consistent pool+position family for `owner` and return its addresses.
+ * `belowRange` prices the pool far below the position's range (one-sided adds); `skipB`
+ * leaves the signer's token B funding account absent so the driver must create it.
+ * @param {{ belowRange?: boolean; skipB?: boolean }} [options]
+ */
+const seedFamily = async (options = {}) => {
   const cheats = surfnetCheatcodes(surfnet.rpcUrl);
-  const pool = await seedWhirlpool(surfnet.rpcUrl, { sqrtPrice: SQRT_PRICE_ONE });
+  // The in-range family keeps the price strictly inside the range (boundary-exact prices
+  // degenerate the quote to one-sided); the below-range variant puts the price far under it.
+  const sqrtPrice = options.belowRange === true ? tickIndexToSqrtPrice(-2000) : SQRT_PRICE_ONE;
+  const pool = await seedWhirlpool(surfnet.rpcUrl, { sqrtPrice });
   const position = await seedWhirlpoolPosition(surfnet.rpcUrl, {
     pool: pool.pool,
     owner,
     liquidity: 0n,
-    tickLowerIndex: -1000,
+    tickLowerIndex: options.belowRange === true ? 0 : -1000,
     tickUpperIndex: 1000,
   });
   // The signer funds both sides: balances comfortably above any quote for these budgets.
   await cheats.setTokenAccount(owner, pool.mintA, 10n ** 12n);
-  await cheats.setTokenAccount(owner, pool.mintB, 10n ** 12n);
+  if (options.skipB !== true) await cheats.setTokenAccount(owner, pool.mintB, 10n ** 12n);
   return { pool, position };
 };
 
@@ -89,6 +98,21 @@ describe("liquidity deposit executor against Surfnet [integration]", () => {
     const failure = await failureOf(simulateDeposit(intent(pool.pool, position.position)), seed);
     expect(failure).toBeInstanceOf(SimulationFailed);
     expect(rpc.callsFor("sendTransaction").length).toBe(sends);
+  });
+
+  test("a one-sided below-range add without a token B account creates it and simulates", async () => {
+    const seed = randomSeed();
+    owner = await seedAddress(seed);
+    const { pool, position } = await seedFamily({ belowRange: true, skipB: true });
+    const sims = rpc.callsFor("simulateTransaction").length;
+    const failure = await failureOf(
+      simulateDeposit({ ...intent(pool.pool, position.position), amountB: "0" }),
+      seed,
+    );
+    // The build succeeds — the driver prepends the idempotent B ATA create — and the exact
+    // transaction reaches simulation, failing honestly on the fork (synthetic accounts).
+    expect(failure).toBeInstanceOf(SimulationFailed);
+    expect(rpc.callsFor("simulateTransaction").length).toBe(sims + 1);
   });
 
   test("a rejected build never simulates and never sends", async () => {

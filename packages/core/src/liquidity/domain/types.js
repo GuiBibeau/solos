@@ -88,7 +88,7 @@ const DepositInputBaseSchema = z.object({
     .max(9999)
     .default(50)
     .describe(
-      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). Orca encodes the two budgets themselves as the on-chain spend bounds, so a price move that would overspend either budget aborts on chain",
+      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). The on-chain spend bounds are the quoted amounts plus this tolerance, capped by the budgets, so a price move that would overspend either bound aborts on chain",
     ),
 });
 

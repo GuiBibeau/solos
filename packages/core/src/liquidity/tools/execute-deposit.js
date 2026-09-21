@@ -14,11 +14,14 @@ export const executeDepositTool = defineTool({
     "and wait for confirmation. Signs and submits a real transaction that moves funds. " +
     "amountA and amountB are the maximum spends of each token in the pool's canonical mint " +
     "order; the executor computes the liquidity they can fund, rounds down to fit both " +
-    "budgets, and encodes the budgets themselves as the on-chain spend bounds, so a price " +
-    "move that would overspend either budget aborts instead of overrunning. position is the " +
-    "protocol position account (the Whirlpool position PDA) and pool must be the pool that " +
-    "position references; the signer must hold the position NFT, and new positions or ranges " +
-    "are never created. Simulates the exact transaction first and sends nothing when " +
+    "budgets, and encodes spend bounds at the quoted amounts plus the requested slippage " +
+    "tolerance, capped by the budgets — the Whirlpool program enforces them on chain, so a " +
+    "price move that would overspend either bound aborts instead of overrunning. position is " +
+    "the protocol position account (the Whirlpool position PDA) and pool must be the pool " +
+    "that position references; the signer must hold the position NFT (whichever token " +
+    "account custodies it is used), and new positions or ranges are never created. A missing " +
+    "funding account on a side the quote needs nothing from is created idempotently. " +
+    "Simulates the exact transaction first and sends nothing when " +
     "simulation, validation, or the blockhash lifetime fails; skipSimulation bypasses only " +
     "the simulation, never validation. Never re-sends after an ambiguous submission. Unused " +
     "funds always stay in the wallet. Use solana_liquidity_simulate_deposit to preview " +

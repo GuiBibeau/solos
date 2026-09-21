@@ -89,7 +89,7 @@ const simulateDepositCommand = Command.make("simulate-deposit", depositOptions, 
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate adding liquidity to one existing Orca position without submitting anything; the budgets are the on-chain spend bounds",
+    "Simulate adding liquidity to one existing Orca position without submitting anything; bounds are the quoted spends plus slippage, capped by the budgets",
   ),
 );
 

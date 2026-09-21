@@ -13,10 +13,13 @@ export const simulateDepositTool = defineTool({
     "Simulate adding liquidity to one existing Orca Whirlpool position without submitting " +
     "anything. amountA and amountB are the maximum spends of each token in the pool's " +
     "canonical mint order; the executor computes the liquidity they can fund, rounds down to " +
-    "fit both budgets, and encodes the budgets themselves as the on-chain spend bounds, so a " +
-    "price move that would overspend aborts. position is the protocol position account (the " +
-    "Whirlpool position PDA) and pool must be the pool that position references; the signer " +
-    "must hold the position NFT, and new positions or ranges are never created. The executor " +
+    "fit both budgets, and encodes spend bounds at the quoted amounts plus the requested " +
+    "slippage tolerance, capped by the budgets — the Whirlpool program enforces them on " +
+    "chain. position is the protocol position account (the Whirlpool position PDA) and pool " +
+    "must be the pool that position references; the signer must hold the position NFT " +
+    "(whichever token account custodies it is used), and new positions or ranges are never " +
+    "created. A missing funding account on a side the quote needs nothing from is created " +
+    "idempotently. The executor " +
     "builds and simulates exactly the transaction it would send, reporting compute units and " +
     "program logs; unused funds always stay in the wallet. Nothing is ever sent or signed for " +
     "submission, and a later execute re-plans and may differ. Use " +

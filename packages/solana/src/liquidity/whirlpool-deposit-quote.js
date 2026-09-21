@@ -21,11 +21,13 @@ import {
 
 /** The budgets cannot buy any liquidity at all (zero, or a zero result after rounding). @typedef {{ readonly status: "zero" }} DepositZero */
 
-/** @typedef {DepositQuoted | DepositZero} DepositQuote */
+/** The pinned math refused the input outright; never a fabricated quote. @typedef {{ readonly status: "invalid"; readonly reason: string }} DepositInvalid */
+
+/** @typedef {DepositQuoted | DepositZero | DepositInvalid} DepositQuote */
 
 /**
  * The largest liquidity both budgets can fund, with the spends the protocol will require at
- * the current price. A zero result means the request cannot add anything and must be
+ * the current price. A non-quoted result means the request cannot add anything and must be
  * rejected before any transaction is built.
  * @param {DepositBudgets} input
  * @returns {DepositQuote}
@@ -37,18 +39,27 @@ export const depositLiquidityForBudgets = ({
   amountA,
   amountB,
 }) => {
-  const fromA = increaseLiquidityQuoteA(amountA, 0, sqrtPrice, tickLowerIndex, tickUpperIndex);
-  const fromB = increaseLiquidityQuoteB(amountB, 0, sqrtPrice, tickLowerIndex, tickUpperIndex);
-  const status = positionStatus(sqrtPrice, tickLowerIndex, tickUpperIndex);
-  const liquidity = pickLiquidity(status, fromA.liquidityDelta, fromB.liquidityDelta);
-  if (liquidity === 0n) return { status: "zero" };
-  const spends = increaseLiquidityQuote(liquidity, 0, sqrtPrice, tickLowerIndex, tickUpperIndex);
-  return {
-    status: "quoted",
-    liquidity,
-    requiredA: spends.tokenEstA,
-    requiredB: spends.tokenEstB,
-  };
+  try {
+    const fromA = increaseLiquidityQuoteA(amountA, 0, sqrtPrice, tickLowerIndex, tickUpperIndex);
+    const fromB = increaseLiquidityQuoteB(amountB, 0, sqrtPrice, tickLowerIndex, tickUpperIndex);
+    const status = positionStatus(sqrtPrice, tickLowerIndex, tickUpperIndex);
+    const liquidity = pickLiquidity(status, fromA.liquidityDelta, fromB.liquidityDelta);
+    if (liquidity === 0n) return { status: "zero" };
+    const spends = increaseLiquidityQuote(liquidity, 0, sqrtPrice, tickLowerIndex, tickUpperIndex);
+    return {
+      status: "quoted",
+      liquidity,
+      requiredA: spends.tokenEstA,
+      requiredB: spends.tokenEstB,
+    };
+  } catch (/** @type {unknown} */ error) {
+    return {
+      status: "invalid",
+      reason: `the pinned quote math rejected this deposit for this position range: ${
+        error instanceof Error ? error.message : "unknown quote failure"
+      }`,
+    };
+  }
 };
 
 /**

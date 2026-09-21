@@ -64,8 +64,9 @@ stated budget on an operator-provisioned test position:
 
 1. Read the position before (`solos liquidity position`) and record both token balances of
    the signer.
-2. `simulate-deposit` with the chosen budgets; record the quoted liquidity and required
-   amounts, then `deposit` and record the signature, fees paid, and compute units.
+2. `simulate-deposit` with the chosen budgets; record the quoted liquidity, the required
+   amounts, and the encoded spend bounds (quoted amounts plus slippage, capped by the
+   budgets), then `deposit` and record the signature, fees paid, and compute units.
 3. Read the position after: raw liquidity must have grown by exactly the quoted amount, and
    the underlying amounts by at most the budgets (delta per token = spent). Both signer
    balances must have dropped by no more than the budgets; unused funds stay in the wallet.
