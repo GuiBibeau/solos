@@ -1,7 +1,11 @@
 // @ts-check
 import { z } from "zod";
 import { AddressSchema, AmountSchema, DecimalSchema } from "./primitives.js";
-import { LiquidityProtocolSchema, TokenDecimalsSchema } from "./trading-primitives.js";
+import {
+  LiquidityProtocolSchema,
+  PerpLotDecimalsSchema,
+  TokenDecimalsSchema,
+} from "./trading-primitives.js";
 
 const holding = {
   instrument: z.string().min(1).describe("Mint identity, or SOL for native lamports"),
@@ -41,7 +45,9 @@ export const PerpPositionSchema = z
     instrument: z.string().min(1),
     side: z.enum(["long", "short", "flat"]),
     amount: AmountSchema.describe("Absolute base exposure; direction is side"),
-    decimals: TokenDecimalsSchema,
+    decimals: PerpLotDecimalsSchema.describe(
+      "Lot-size exponent; uiAmount = amount x 10^decimals, negative is a lot smaller than one token",
+    ),
     valueUsd: z.null().describe("Never notional; count shared account equity once instead"),
   })
   .refine((value) => /^0+$/.test(value.amount) === (value.side === "flat"), {

@@ -51,6 +51,12 @@ describe("Position identities and valuation units", () => {
     expect(PositionSchema.safeParse({ ...lend, amount: "0", positions: [] }).success).toBe(true);
   });
 
+  test("perp lot decimals may be negative: a lot smaller than one token is representable", () => {
+    // Phoenix lists markets like PUMP with baseLotsDecimals -2 (one lot = 0.01 tokens).
+    expect(PositionSchema.safeParse({ ...perp, decimals: -2 }).success).toBe(true);
+    expect(PositionSchema.safeParse({ ...perp, decimals: -0.5 }).success).toBe(false);
+  });
+
   test("shorts preserve direction and flat requires exactly zero size", () => {
     expect(PositionSchema.parse(perp)).toEqual(perp);
     expect(PositionSchema.safeParse({ ...perp, side: "flat", amount: "0" }).success).toBe(true);
