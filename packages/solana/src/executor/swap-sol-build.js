@@ -2,7 +2,6 @@
 import { signTransactionMessageWithSigners } from "@solana/kit";
 import { BuildRejected, SignerUnavailable } from "@solos/core";
 import { Effect } from "effect";
-import { describeError } from "../rpc/rpc-call.js";
 import { buildRejection } from "../swap/jupiter-swap-build-accounts.js";
 import {
   assembleSwapMessage,
@@ -78,8 +77,12 @@ export const assembleAndSign = ({ kit, lifetime }, envelope) =>
           /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */
           (/** @type {unknown} */ (message)),
         ),
-      catch: (error) =>
-        // Signing I/O has been attempted, so this is the signer, not pre-sign policy.
-        new SignerUnavailable({ backend: kit.backend, reason: describeError(error) }),
+      catch: () =>
+        // Signing I/O has been attempted, so this is the signer, not pre-sign policy. The
+        // reason is fixed: remote signer exceptions can embed raw provider response bodies.
+        new SignerUnavailable({
+          backend: kit.backend,
+          reason: "the configured signer failed to sign the swap transaction",
+        }),
     });
   });

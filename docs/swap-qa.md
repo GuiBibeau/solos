@@ -52,11 +52,8 @@ permission before QA). Live QA is reported blocked, never passed.
    honest `TransactionFailed` carrying that signature, and nothing is retried.
 
 4. **Verify on-chain outcomes.** After each hop and at the end, re-read balances and compare:
-   - The taker's SOL decreased by at most `amount + fee`; with the local policy the priority fee
-     is capped (100 000 lamports) on top of the base fee.
-   - The USDC ATA (created by the build's idempotent ATA instruction, owned by the taker) holds
-     at least the simulate step's minimum output, i.e. `otherAmountThreshold`
-     = `floor(outAmount x (10000 - slippageBps) / 10000)` — the min-out compliance bound.
+   - The taker's SOL decreased by at most `amount + fees + the rent-exempt minimum of every token account this build created`. On a fresh signer the execute's idempotent create makes the taker the payer for the new destination ATA, and its rent stays locked there after cleanup — so the first hop's SOL delta legitimately includes that rent. A decrease beyond that bound is a defect — record the signature and stop.
+   - The USDC ATA (created by the build's idempotent ATA instruction, owned by the taker) holds an amount within the recorded slippage of the execution-time market rate. The submitted transaction's own `otherAmountThreshold` was already enforced by the Jupiter route program on-chain — a fill below it would have failed the transaction — so a confirmed signature proves min-out for the executed build. To check the received amount against the market independently, immediately re-run `solos swap quote` for the same pair and confirm the received amount sits within the recorded 50 bps of that fresh quote's output. Never treat the earlier simulate step's `otherAmountThreshold` as the execute's bound: a fresh build between the two calls may legitimately quote lower.
    - The cleanup closed only the ATA that was absent during preflight and created by this exact
      build, returning its rent to the taker. No temporary wSOL residual should remain.
    - Any residual is only ever dust from rounding at the recorded slippage; residuals beyond the
