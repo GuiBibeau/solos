@@ -93,7 +93,7 @@ export const simulateSigned = (ctx, signed) =>
 
 /**
  * @param {Rpc} ctx
- * @param {string} signature
+ * @param {import("@solana/kit").Signature} signature
  */
 const lookupLanded = async (ctx, signature) => {
   const { value } = await ctx.rpc

@@ -76,8 +76,8 @@ const submitOrRecover = async (submit, lookup, abort) => {
   try {
     const submitted = submit(abort);
     const aborted = whenAborted(abort);
-    submitted.catch(() => {});
-    aborted.catch(() => {});
+    submitted.catch(() => undefined);
+    aborted.catch(() => undefined);
     await Promise.race([submitted, aborted]);
   } catch {
     if (await lookup()) return;
