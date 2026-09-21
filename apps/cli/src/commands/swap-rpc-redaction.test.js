@@ -8,6 +8,9 @@ import { runSolos, stderrJson } from "./swap-quote-fixture.js";
 const SECRET = "qa-synthetic-swap-rpc-secret";
 const REQUEST_FAILED = "the configured RPC endpoint failed the request";
 const SUBMISSION_FAILED = "the configured RPC endpoint failed transaction submission";
+/** The fixture mints exist on chain under the classic token program; the fresh wSOL ATA does
+ * not, which the preflight cleanup check relies on. */
+const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const args = ["--input-mint", INPUT_MINT, "--output-mint", OUTPUT_MINT, "--amount", AMOUNT];
 /** @type {"lifetime" | "simulation" | "send"} */
 let stage = "lifetime";
@@ -16,17 +19,33 @@ let fixture;
 /** @type {ReturnType<typeof Bun.serve>} */
 let rpc;
 
-/** @param {string} method */
-const resultFor = (method) => {
-  if (method === "getAccountInfo") return { context: { slot: 1 }, value: null };
-  if (method === "getLatestBlockhash") {
+/** @param {{ method: string; params: Array<unknown> }} payload */
+const resultFor = (payload) => {
+  if (payload.method === "getAccountInfo") {
+    const mint = payload.params[0];
+    if (mint !== INPUT_MINT && mint !== OUTPUT_MINT) {
+      return { context: { slot: 1 }, value: null };
+    }
+    return {
+      context: { slot: 1 },
+      value: {
+        data: ["", "base64"],
+        executable: false,
+        lamports: 1_461_600,
+        owner: TOKEN_PROGRAM,
+        rentEpoch: 0,
+        space: 82,
+      },
+    };
+  }
+  if (payload.method === "getLatestBlockhash") {
     return {
       context: { slot: 1 },
       value: { blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 200 },
     };
   }
-  if (method === "getBlockHeight") return 1;
-  if (method === "simulateTransaction") {
+  if (payload.method === "getBlockHeight") return 1;
+  if (payload.method === "simulateTransaction") {
     return { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 1 } };
   }
   return null;
@@ -44,7 +63,9 @@ beforeAll(() => {
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
-      const body = /** @type {{ id: unknown; method: string }} */ (await request.json());
+      const body = /** @type {{ id: unknown; method: string; params: Array<unknown> }} */ (
+        await request.json()
+      );
       if (isFailureStage(body.method)) {
         return Response.json({
           jsonrpc: "2.0",
@@ -52,7 +73,7 @@ beforeAll(() => {
           error: { code: -32_603, message: `provider echoed ${SECRET}` },
         });
       }
-      return Response.json({ jsonrpc: "2.0", id: body.id, result: resultFor(body.method) });
+      return Response.json({ jsonrpc: "2.0", id: body.id, result: resultFor(body) });
     },
   });
 });

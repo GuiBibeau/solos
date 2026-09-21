@@ -3,9 +3,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   BuildRejected,
   EventBusInMemory,
-  TransactionExpired,
   executeSwap,
   simulateSwap,
+  TransactionExpired,
 } from "@solos/core";
 import { Effect, Layer } from "effect";
 import { SolanaTestLive } from "../index.js";
@@ -13,6 +13,7 @@ import { randomSeed } from "../surfnet/test-surfnet.js";
 import { AMOUNT, INPUT_MINT, KEY, OUTPUT_MINT } from "../swap/jupiter-swap-build-bodies.js";
 import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
 import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
+import { TOKEN_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
 
 const BLOCKHASH = "11111111111111111111111111111111";
 const intent = { inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, slippageBps: 50 };
@@ -30,9 +31,11 @@ const startRpcFixture = (heights, lastValid) => {
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
-      const payload = /** @type {{ id: unknown; method: string }} */ (await request.json());
+      const payload = /** @type {{ id: unknown; method: string; params: Array<unknown> }} */ (
+        await request.json()
+      );
       calls.push(payload.method);
-      const result = rpcResult(payload.method, heights, lastValid);
+      const result = rpcResult(payload, heights, lastValid);
       return Response.json({ jsonrpc: "2.0", id: payload.id, result });
     },
   });
@@ -41,9 +44,29 @@ const startRpcFixture = (heights, lastValid) => {
   return { calls, stop, url: `http://127.0.0.1:${server.port}` };
 };
 
-/** @param {string} method @param {number[]} heights @param {number} lastValid */
-const rpcResult = (method, heights, lastValid) => {
-  if (method === "getAccountInfo") return { context: { slot: 1 }, value: null };
+/** The requested mints exist on chain owned by the classic token program; the taker's fresh
+ * wSOL ATA does not exist yet, which the cleanup absence check relies on.
+ * @param {{ method: string; params: Array<unknown> }} payload @param {number[]} heights
+ * @param {number} lastValid */
+const rpcResult = (payload, heights, lastValid) => {
+  const { method, params } = payload;
+  if (method === "getAccountInfo") {
+    const mint = params[0];
+    if (mint !== INPUT_MINT && mint !== OUTPUT_MINT) {
+      return { context: { slot: 1 }, value: null };
+    }
+    return {
+      context: { slot: 1 },
+      value: {
+        data: ["", "base64"],
+        executable: false,
+        lamports: 1_461_600,
+        owner: TOKEN_PROGRAM,
+        rentEpoch: 0,
+        space: 82,
+      },
+    };
+  }
   if (method === "getLatestBlockhash") {
     return {
       context: { slot: 1 },
@@ -85,13 +108,21 @@ describe("swap lifetime stages through the HTTP RPC adapter [integration]", () =
     const { calls, error } = await run([201], 200);
     expect(error).toBeInstanceOf(BuildRejected);
     expect(/** @type {BuildRejected} */ (error)?.reason).toContain("before signing");
-    expect(calls).toEqual(["getAccountInfo", "getLatestBlockhash", "getBlockHeight"]);
+    expect(calls).toEqual([
+      "getAccountInfo",
+      "getAccountInfo",
+      "getAccountInfo",
+      "getLatestBlockhash",
+      "getBlockHeight",
+    ]);
   });
 
   test("the inclusive last-valid height passes the pre-sign gate", async () => {
     const { calls, error } = await run([200, 201], 200, { skipSimulation: true });
     expect(error).toBeInstanceOf(TransactionExpired);
     expect(calls).toEqual([
+      "getAccountInfo",
+      "getAccountInfo",
       "getAccountInfo",
       "getLatestBlockhash",
       "getBlockHeight",
@@ -112,6 +143,8 @@ describe("swap lifetime stages through the HTTP RPC adapter [integration]", () =
     expect(/** @type {TransactionExpired} */ (error)?.signature).toBeTruthy();
     expect(calls).toEqual([
       "getAccountInfo",
+      "getAccountInfo",
+      "getAccountInfo",
       "getLatestBlockhash",
       "getBlockHeight",
       "getBlockHeight",
@@ -125,6 +158,8 @@ describe("swap lifetime stages through the HTTP RPC adapter [integration]", () =
     const { calls, error } = await run([100, 201], 200, { skipSimulation: true });
     expect(error).toBeInstanceOf(TransactionExpired);
     expect(calls).toEqual([
+      "getAccountInfo",
+      "getAccountInfo",
       "getAccountInfo",
       "getLatestBlockhash",
       "getBlockHeight",

@@ -4,10 +4,10 @@ import {
   BuildRejected,
   BuildUnavailable,
   EventBusInMemory,
-  SimulationFailed,
-  TransactionFailed,
   executeSwap,
+  SimulationFailed,
   simulateSwap,
+  TransactionFailed,
 } from "@solos/core";
 import { Effect, Layer } from "effect";
 import { SolanaTestLive } from "../index.js";
@@ -21,8 +21,10 @@ import {
   KEY,
   OUTPUT_MINT,
 } from "../swap/jupiter-swap-build-bodies.js";
-import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
+import { buildEnvelope, failureOf } from "../swap/jupiter-swap-build-fixture.js";
 import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
+import { derivedAta } from "../swap/jupiter-swap-build-setup-account.js";
+import { ATA_PROGRAM, TOKEN_2022_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
 
 /**
  * The swap executor against Surfnet through the real ActionExecutor, the real Jupiter build
@@ -47,6 +49,9 @@ let surfnet;
 let fixture;
 /** @type {ReturnType<typeof startBuildFixture>} */
 let expired;
+/** Serves the crafted build from issue #83: the destination party consistently Token-2022. */
+/** @type {ReturnType<typeof startBuildFixture>} */
+let bound;
 /** @type {ReturnType<typeof startRpcRecorder>} */
 let rpc;
 /** The taker of the run under test; each test that builds sets it from its own signer. */
@@ -56,8 +61,16 @@ let swapLayer;
 
 beforeAll(async () => {
   surfnet = await ensureSurfnet();
+  // The preflight binds route token programs to each mint's on-chain owner, so both fixture
+  // mints must exist on the offline fork with their real classic-token owner.
+  await surfnet.cheats.ensureMint(INPUT_MINT, 9);
+  await surfnet.cheats.ensureMint(OUTPUT_MINT, 6);
   fixture = startBuildFixture();
   expired = startBuildFixture({ overrides: EXPIRED });
+  bound = startBuildFixture({
+    responder: async (params) =>
+      craftedToken2022Destination(await buildEnvelope({ taker: params.get("taker") ?? "" })),
+  });
   rpc = startRpcRecorder(surfnet.rpcUrl);
   swapLayer = (baseUrl, seed, key) =>
     Layer.merge(
@@ -74,8 +87,43 @@ beforeAll(async () => {
 afterAll(() => {
   fixture?.stop();
   expired?.stop();
+  bound?.stop();
   rpc?.stop();
 });
+
+/** Rebind specific account slots to new pubkeys.
+ * @param {{pubkey: string}[]} accounts @param {Record<number, string>} rebinds */
+const rebound = (accounts, rebinds) =>
+  accounts.map((a, at) => (rebinds[at] === undefined ? a : { ...a, pubkey: rebinds[at] }));
+
+/** Rewrite the destination program, its ATA create, and the derived account to Token-2022:
+ * every static pre-sign check passes because the derived account matches.
+ * @param {Awaited<ReturnType<typeof buildEnvelope>>} envelope */
+const craftedToken2022Destination = async (envelope) => {
+  const taker = envelope.swapInstruction.accounts[0]?.pubkey ?? "";
+  const destination = await derivedAta(taker, OUTPUT_MINT, TOKEN_2022_PROGRAM);
+  return {
+    ...envelope,
+    setupInstructions: envelope.setupInstructions.map((ix) =>
+      ix.programId !== ATA_PROGRAM || ix.accounts[3]?.pubkey !== OUTPUT_MINT
+        ? ix
+        : {
+            ...ix,
+            accounts: rebound(ix.accounts, {
+              1: destination,
+              5: TOKEN_2022_PROGRAM,
+            }),
+          },
+    ),
+    swapInstruction: {
+      ...envelope.swapInstruction,
+      accounts: rebound(envelope.swapInstruction.accounts, {
+        2: destination,
+        6: TOKEN_2022_PROGRAM,
+      }),
+    },
+  };
+};
 
 /** @param {string} owner */
 const lamportsOf = async (owner) => {
@@ -155,5 +203,22 @@ describe("the swap executor against Surfnet [integration]", () => {
     );
     expect(error).toBeInstanceOf(BuildUnavailable);
     expect(fixture.requests.length).toBe(before);
+  });
+
+  test("a Token-2022 destination for a classic mint is refused with zero sends [issue 83]", async () => {
+    const seed = randomSeed();
+    taker = await seedAddress(seed);
+    await surfnet.cheats.fundSol(taker, 1);
+    const simulations = rpc.callsFor("simulateTransaction").length;
+    const sends = rpc.callsFor("sendTransaction").length;
+    const error = await failureOf(
+      executeSwap({ ...intent, skipSimulation: true }).pipe(
+        Effect.provide(swapLayer(bound.url, seed, KEY)),
+      ),
+    );
+    expect(error).toBeInstanceOf(BuildRejected);
+    expect(/** @type {BuildRejected} */ (error)?.reason).toContain("on-chain owner");
+    expect(rpc.callsFor("simulateTransaction").length).toBe(simulations);
+    expect(rpc.callsFor("sendTransaction").length).toBe(sends);
   });
 });

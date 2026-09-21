@@ -175,6 +175,19 @@ const sharedRejection = async (accounts, action, taker) => {
   );
 };
 
+/** Fixed slots of the route's source/destination token programs and requested mints, per layout.
+ * @typedef {{ sourceProgram: number, destinationProgram: number, inputMint: number, outputMint: number }} RouteSlots
+ * @type {Record<string, RouteSlots>} */
+export const ROUTE_LAYOUT_SLOTS = {
+  "route-v2": { sourceProgram: 5, destinationProgram: 6, inputMint: 3, outputMint: 4 },
+  "shared-accounts-route-v2": {
+    sourceProgram: 8,
+    destinationProgram: 9,
+    inputMint: 6,
+    outputMint: 7,
+  },
+};
+
 /** Validate the fixed V2 account prefix selected by the instruction discriminator.
  * @param {import("./jupiter-swap-build-response.js").RawInstruction} swap
  * @param {import("@solos/actions").SwapAction} action @param {string} taker */

@@ -135,6 +135,16 @@ const setMint = (rpcUrl, mint, decimals) => {
 /** Cheatcodes and helpers against a running Surfnet, by URL so attach-mode works too. */
 /** @param {string} rpcUrl */
 export const surfnetCheatcodes = (rpcUrl) => ({
+  /** Materialize a classic-owned mint when the fork lacks it; a no-op when it exists. */
+  /** @param {string} mint @param {number} decimals */
+  ensureMint: async (mint, decimals) => {
+    const probe = /** @type {{ value: unknown }} */ (
+      await jsonRpc(rpcUrl, "getAccountInfo", [mint, { encoding: "base64" }])
+    );
+    if (probe.value !== null) return probe.value;
+    await setMint(rpcUrl, mint, decimals);
+    return jsonRpc(rpcUrl, "getAccountInfo", [mint, { encoding: "base64" }]);
+  },
   /** @param {string} mint @param {number} decimals */
   setMint: (mint, decimals) => setMint(rpcUrl, mint, decimals),
   /** @param {string} owner @param {number} sol */
