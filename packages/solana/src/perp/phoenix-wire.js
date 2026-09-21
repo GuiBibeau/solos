@@ -11,10 +11,10 @@ import { z } from "zod";
  * the market config (`baseLotsDecimals`), never in the trader-state response.
  */
 
-/** Market metadata. `baseLotsDecimals` is optional here and its presence is validated by the mapper, which reports a missing lot size as incomplete state rather than a broken envelope. */
+/** Market metadata. `baseLotsDecimals` is optional here and its presence is validated by the mapper, which reports a missing lot size as incomplete state rather than a broken envelope. It may be negative: a lot larger than one token (PUMP at -2 trades 100 tokens per lot). */
 export const MarketConfigSchema = z.object({
   symbol: z.string().min(1),
-  baseLotsDecimals: z.number().int().min(0).optional(),
+  baseLotsDecimals: z.number().int().optional(),
 });
 
 export const MarketsListSchema = z.array(MarketConfigSchema);

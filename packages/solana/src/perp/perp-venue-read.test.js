@@ -5,6 +5,10 @@ import {
   DEFAULT_AUTHORITY,
   OTHER_AUTHORITY,
   coldState,
+  marketConfig,
+  positionRow,
+  subaccount,
+  traderState,
   flatState,
   longState,
   multiMarketState,
@@ -39,6 +43,19 @@ describe("PerpVenueLive position reads through the loopback Phoenix fixture [int
     fixture = startPhoenixFixture({ trader: shortState() });
     const result = await readThrough(fixture, { market: "SOL", owner: DEFAULT_AUTHORITY });
     expect(result.position).toMatchObject({ side: "short", amount: "1500" });
+  });
+
+  test("a market whose lots are smaller than one token enumerates and points (PUMP at -2)", async () => {
+    const pumpMarket = marketConfig("PUMP", -2);
+    const trader = traderState(DEFAULT_AUTHORITY, [
+      subaccount(0, { positions: [positionRow("PUMP", "250")] }),
+    ]);
+    fixture = startPhoenixFixture({ markets: [pumpMarket], trader });
+    const listed = await listThrough(fixture, DEFAULT_AUTHORITY);
+    expect(listed.positions.map((entry) => entry.instrument)).toEqual(["PUMP"]);
+    expect(listed.positions[0]).toMatchObject({ side: "long", amount: "250", decimals: -2 });
+    const result = await readThrough(fixture, { market: "PUMP", owner: DEFAULT_AUTHORITY });
+    expect(result.position).toMatchObject({ instrument: "PUMP", side: "long", decimals: -2 });
   });
 
   test("an active but flat trader is a typed flat position with exact collateral equity", async () => {
