@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { getU16Codec, getU32Codec, getU64Codec } from "@solana/kit";
-import { AMOUNT, OUT_AMOUNT } from "../swap/jupiter-swap-build-bodies.js";
+import { AMOUNT, INPUT_MINT, OUT_AMOUNT } from "../swap/jupiter-swap-build-bodies.js";
 import { sharedSwapInstruction } from "../swap/jupiter-swap-build-route-bodies.js";
 import { ROUTE_V2_DISCRIMINATOR } from "../swap/jupiter-swap-build-swapdata.js";
 import { reasonOf, runBranch, withSwapData } from "./swap-sol-driver.js";
@@ -118,6 +118,14 @@ describe("the swap payload is bound to the validated intent before signing [inte
   test("a zero amount is refused before any build request", async () => {
     const { error, requests } = await runBranch("execute", undefined, { amount: "0" });
     expect(reasonOf(error)).toBe("swap amount must be a positive integer base-unit string");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("identical mints are refused before any build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, {
+      outputMint: INPUT_MINT,
+    });
+    expect(reasonOf(error)).toBe("swap inputMint and outputMint must differ");
     expect(requests).toHaveLength(0);
   });
 });

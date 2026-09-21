@@ -11,6 +11,7 @@ import {
 export const SWAP_AMOUNT_U64_MAX = 18_446_744_073_709_551_615n;
 const AMOUNT_BOUND_REASON = "swap amount exceeded the u64 bound the executor can assemble";
 const AMOUNT_POSITIVE_REASON = "swap amount must be a positive integer base-unit string";
+const IDENTICAL_MINTS_REASON = "swap inputMint and outputMint must differ";
 const VALIDATION_GUARD_REASON =
   "build validation could not be completed; nothing was signed or sent";
 const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed or sent";
@@ -34,6 +35,12 @@ const amountBoundRejection = (action) => {
   return undefined;
 };
 
+/** @param {SwapAction} action */
+const intentRejection = (action) => {
+  if (action.inputMint === action.outputMint) return IDENTICAL_MINTS_REASON;
+  return amountBoundRejection(action);
+};
+
 /**
  * Fetch the provider build and hold it to the semantic rejection chain. Validator crashes on
  * malformed artifacts become fixed-reason rejections, never Effect defects or provider text.
@@ -41,7 +48,7 @@ const amountBoundRejection = (action) => {
  */
 export const fetchValidatedBuild = ({ kit, build }, action) =>
   Effect.gen(function* () {
-    const overBound = amountBoundRejection(action);
+    const overBound = intentRejection(action);
     if (overBound) return yield* new BuildRejected({ reason: overBound });
     const envelope = yield* build.build({
       inputMint: action.inputMint,
