@@ -1,9 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
-import { TransactionFailed } from "../../shared/domain/errors.js";
-import { makeEvent } from "../../shared/domain/event.js";
-import { ActionExecutor } from "../../shared/ports/action-executor.js";
-import { EventBus } from "../../shared/ports/event-bus.js";
+import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { LiquidityInputInvalid } from "../domain/errors.js";
 import { LiquidityExecuteDepositInputSchema } from "../domain/types.js";
 import { toDepositAction, validateDepositInput } from "./validate-input.js";
@@ -33,16 +30,9 @@ export const executeDeposit = (input) =>
         reason: "the request does not satisfy the add_liquidity Action contract",
       });
     }
-    const executor = yield* ActionExecutor;
-    const result = yield* executor.execute(action, {
+    return yield* executeAction({
+      action,
       skipSimulation: request.skipSimulation === true,
+      event: "liquidity.deposited",
     });
-    if (result.status !== "confirmed" || result.signature === null) {
-      return yield* new TransactionFailed({
-        signature: result.signature,
-        reason: result.error ?? `executor ${executor.name} returned ${result.status}`,
-      });
-    }
-    yield* (yield* EventBus).publish(makeEvent("liquidity.deposited", result));
-    return result;
   }).pipe(Effect.withSpan("liquidity.executeDeposit"));
