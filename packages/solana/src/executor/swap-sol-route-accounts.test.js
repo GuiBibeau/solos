@@ -76,6 +76,12 @@ const withTakerInTail = (takerSlot) => (envelope) => {
   ])(envelope);
 };
 
+/** @param {number} slot @returns {(envelope: Envelope) => Envelope} */
+const withTakerAt = (slot) => (envelope) => {
+  const taker = envelope.swapInstruction.accounts.at(1);
+  return rebind(slot, { pubkey: taker.pubkey })(envelope);
+};
+
 const sharedTakerInTail = (envelope) => withTakerInTail(1)(sharedEnvelope(envelope));
 
 describe("Jupiter V2 fixed account slots before signer or RPC contact [integration]", () => {
@@ -150,6 +156,16 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
   test("the taker duplicated into the hop tail is refused for privilege elevation", async () => {
     for (const mutation of [withTakerInTail(0), sharedTakerInTail]) {
       const { error, requests } = await runBranch("execute", mutation);
+      expect(reasonOf(error)).toContain("repeated the taker");
+      expect(requests).toHaveLength(1);
+    }
+  });
+
+  test("the taker duplicated inside the shared prefix is refused for privilege elevation", async () => {
+    for (const slot of [0, 3, 4]) {
+      const { error, requests } = await runBranch("execute", (envelope) =>
+        withTakerAt(slot)(sharedEnvelope(envelope)),
+      );
       expect(reasonOf(error)).toContain("repeated the taker");
       expect(requests).toHaveLength(1);
     }
