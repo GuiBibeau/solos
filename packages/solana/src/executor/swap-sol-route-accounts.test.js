@@ -67,6 +67,17 @@ const directDestinationOptional = withAccounts((accounts) =>
   ),
 );
 
+/** @param {number} takerSlot @returns {(envelope: Envelope) => Envelope} */
+const withTakerInTail = (takerSlot) => (envelope) => {
+  const taker = envelope.swapInstruction.accounts.at(takerSlot);
+  return withAccounts((accounts) => [
+    ...accounts,
+    { ...accounts.at(-1), pubkey: taker.pubkey, isWritable: true },
+  ])(envelope);
+};
+
+const sharedTakerInTail = (envelope) => withTakerInTail(1)(sharedEnvelope(envelope));
+
 describe("Jupiter V2 fixed account slots before signer or RPC contact [integration]", () => {
   test("the current shared-accounts prefix reaches the first RPC gate", async () => {
     const { error } = await runBranch("execute", sharedEnvelope);
@@ -134,5 +145,18 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
       const { error } = await runBranch("execute", mutation);
       reasonOf(error);
     }
+  });
+
+  test("the taker duplicated into the hop tail is refused for privilege elevation", async () => {
+    for (const mutation of [withTakerInTail(0), sharedTakerInTail]) {
+      const { error, requests } = await runBranch("execute", mutation);
+      expect(reasonOf(error)).toContain("repeated the taker");
+      expect(requests).toHaveLength(1);
+    }
+  });
+
+  test("a hop tail without the taker still reaches the first RPC gate", async () => {
+    const { error } = await runBranch("execute", sharedEnvelope);
+    expect(error).toBeInstanceOf(RpcError);
   });
 });

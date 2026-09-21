@@ -55,6 +55,22 @@ const directProgramRejection = (accounts, destination) => {
   ]);
 };
 
+/** Fixed account slots validated positionally before the unconstrained hop tail. */
+const DIRECT_FIXED_ACCOUNTS = 10;
+const SHARED_FIXED_ACCOUNTS = 12;
+
+/**
+ * The taker never rides the hop tail. Compilation coalesces duplicate addresses in one
+ * instruction to their strongest privileges, so a second writable occurrence of the taker
+ * would silently elevate the validated read-only-signer authority slot and hand the route
+ * broader wallet access than validation approved.
+ * @param {Meta[]} accounts @param {string} taker @param {number} fixedCount
+ */
+const tailRejection = (accounts, taker, fixedCount) =>
+  accounts.slice(fixedCount).some((meta) => meta.pubkey === taker)
+    ? "swap instruction repeated the taker outside its validated authority slot"
+    : undefined;
+
 /** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
 const directRejection = async (accounts, action, taker) => {
   const sourceProgram = accounts[5];
@@ -78,7 +94,9 @@ const directRejection = async (accounts, action, taker) => {
         wanted: expected(action.outputMint, false, false),
         reason: OUTPUT_MINT_REASON,
       },
-    ]) ?? directProgramRejection(accounts, destination)
+    ]) ??
+    directProgramRejection(accounts, destination) ??
+    tailRejection(accounts, taker, DIRECT_FIXED_ACCOUNTS)
   );
 };
 
@@ -129,7 +147,8 @@ const sharedRejection = async (accounts, action, taker) => {
   const destination = await derivedAta(taker, action.outputMint, destinationProgram.pubkey);
   return (
     sharedBoundRejection(accounts, action, { taker, source, destination }) ??
-    sharedRoleRejection(accounts)
+    sharedRoleRejection(accounts) ??
+    tailRejection(accounts, taker, SHARED_FIXED_ACCOUNTS)
   );
 };
 
