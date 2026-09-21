@@ -17,6 +17,8 @@ import {
 
 const POOL = "So11111111111111111111111111111111111111112";
 const MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+/** The base58 form of the fixture's default 32 zero vault bytes: one '1' per zero byte. */
+const VAULT = "1".repeat(32);
 
 describe("whirlpool position decode with mandatory guards", () => {
   test("an empty position decodes with exact identity fields", () => {
@@ -91,7 +93,14 @@ describe("whirlpool pool decode with mandatory guards", () => {
     );
     expect(decoded).toEqual({
       status: "decoded",
-      layout: { sqrtPrice: SQRT_PRICE_ONE, tokenMintA: MINT, tokenMintB: POOL },
+      layout: {
+        sqrtPrice: SQRT_PRICE_ONE,
+        tokenMintA: MINT,
+        tokenMintB: POOL,
+        tickSpacing: 64,
+        tokenVaultA: VAULT,
+        tokenVaultB: VAULT,
+      },
     });
   });
 

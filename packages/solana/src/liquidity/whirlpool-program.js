@@ -44,7 +44,10 @@ export const POSITION_OFFSETS = Object.freeze({
 
 /** Absolute offsets of the Whirlpool fields solOS reads, in IDL field order. */
 export const WHIRLPOOL_OFFSETS = Object.freeze({
+  tickSpacing: 41,
   sqrtPrice: 65,
   tokenMintA: 101,
+  tokenVaultA: 133,
   tokenMintB: 181,
+  tokenVaultB: 213,
 });

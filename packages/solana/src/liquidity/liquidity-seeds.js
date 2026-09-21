@@ -8,8 +8,10 @@
  * reads can never drift. Corrupt variants (wrong discriminator, truncated bytes, foreign
  * account owner, missing pool or mints) are expressible through the seed options.
  */
+import { address } from "@solana/kit";
+import { findAssociatedTokenPda } from "@solana-program/token";
 import { jsonRpc } from "../surfnet/surfnet-cli.js";
-import { mintBytes, nftBytes, randomAddress } from "./liquidity-token-fixture.js";
+import { mintBytes, nftBytes, randomAddress, tokenBytes } from "./liquidity-token-fixture.js";
 import { positionAddress } from "./whirlpool-decode.js";
 import { addressBytes, base16, positionBytes, whirlpoolBytes } from "./whirlpool-fixture.js";
 import { WHIRLPOOL_PROGRAM } from "./whirlpool-program.js";
@@ -40,18 +42,30 @@ const corruptOverrides = (o) => ({
 
 const POOL_DEFAULTS = { decimalsA: 6, decimalsB: 9, bytes: 0, mints: true };
 
+/** @param {string} owner @param {string} mint @returns {Promise<string>} the owner's classic ATA of mint */
+export const ataAddress = async (owner, mint) =>
+  (
+    await findAssociatedTokenPda({
+      owner: address(owner),
+      mint: address(mint),
+      tokenProgram: address(TOKEN_PROGRAM),
+    })
+  )[0];
+
 /**
  * Seed one Whirlpool pool with its two mints. `mints: false` skips the mint accounts — the
  * pool-mint-missing corrupt case; `discriminator`/`bytes` corrupt the pool account itself.
  * @param {string} rpcUrl
  * @param {{ sqrtPrice?: bigint; decimalsA?: number; decimalsB?: number; discriminator?: Uint8Array<ArrayBuffer>; bytes?: number; mints?: boolean; corruptMint?: "wrong-owner" | "short" }} [options]
- * @returns {Promise<{ pool: string; mintA: string; mintB: string }>}
+ * @returns {Promise<{ pool: string; mintA: string; mintB: string; vaultA: string; vaultB: string }>}
  */
 export const seedWhirlpool = async (rpcUrl, options = {}) => {
   const o = { ...POOL_DEFAULTS, ...options };
   const pool = randomAddress();
   const mintA = randomAddress();
   const mintB = randomAddress();
+  const vaultA = randomAddress();
+  const vaultB = randomAddress();
   const write = accountWriter(rpcUrl);
   if (o.mints) {
     // corruptMint variants: a mint under the System Program, or an undersized mint body.
@@ -61,6 +75,10 @@ export const seedWhirlpool = async (rpcUrl, options = {}) => {
     await Promise.all([
       write(mintA, mintOwner, mintData(o.decimalsA)),
       write(mintB, mintOwner, mintData(o.decimalsB)),
+      // The pool's two vaults: real empty classic token accounts owned by the pool, so a
+      // deposit build can read them and a fork with the program can CPI into them.
+      write(vaultA, TOKEN_PROGRAM, tokenBytes(pool, mintA, 0n)),
+      write(vaultB, TOKEN_PROGRAM, tokenBytes(pool, mintB, 0n)),
     ]);
   }
   await write(
@@ -69,11 +87,13 @@ export const seedWhirlpool = async (rpcUrl, options = {}) => {
     whirlpoolBytes({
       tokenMintA: addressBytes(mintA),
       tokenMintB: addressBytes(mintB),
+      tokenVaultA: addressBytes(vaultA),
+      tokenVaultB: addressBytes(vaultB),
       ...(o.sqrtPrice !== undefined && { sqrtPrice: o.sqrtPrice }),
       ...corruptOverrides(o),
     }),
   );
-  return { pool, mintA, mintB };
+  return { pool, mintA, mintB, vaultA, vaultB };
 };
 
 /** Position seed defaults: an empty position across ticks -1000..1000, program-owned. */
@@ -107,7 +127,10 @@ export const seedWhirlpoolPosition = async (rpcUrl, options) => {
   const write = accountWriter(rpcUrl);
   const positionMint = randomAddress();
   if (o.owner !== undefined) {
-    await write(randomAddress(), TOKEN_PROGRAM, nftBytes(o.owner, positionMint));
+    // Custody rides in the owner's ATA of the position mint — the same account the
+    // deposit instruction passes as position_token_account.
+    const ata = await ataAddress(o.owner, positionMint);
+    await write(ata, TOKEN_PROGRAM, nftBytes(o.owner, positionMint));
   }
   const position = await positionAddress(positionMint);
   await write(

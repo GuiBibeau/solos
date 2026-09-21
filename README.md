@@ -66,8 +66,10 @@ re-runs the same command. See ADR-0016 for the verification contract.
 | `solana_lend_get_reserve` | read |
 | `solana_swap_simulate_swap` | simulate |
 | `solana_transfer_simulate_sol` | simulate |
+| `solana_liquidity_simulate_deposit` | simulate |
 | `solana_swap_execute_swap` | execute |
 | `solana_transfer_send_sol` | execute |
+| `solana_liquidity_execute_deposit` | execute |
 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
 `JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` has the
@@ -75,8 +77,8 @@ Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative
 Action-based simulation and execution over Jupiter V2 `/build` through the shared executor; `launch` has the pump bonding-curve reader over the
 configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps position reader
 (no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
-`liquidity` has the Orca Whirlpool position reader over the configured Solana RPC (no provider
-key at all); `lend` has the Kamino reserve reader over the configured Solana RPC through the
+`liquidity` has the Orca Whirlpool position reader plus deposits into explicitly identified
+existing positions over the configured Solana RPC (no provider key at all); `lend` has the Kamino reserve reader over the configured Solana RPC through the
 official Kamino klend-sdk (no provider key; one explicitly configured market); `signals` has
 ports only.
 
@@ -433,9 +435,9 @@ Orders, opens and closes are separate, later slices (#27/#28); nothing here sign
 Live QA against a registered, funded operator account is **blocked** until those prerequisites
 exist — see [perp QA](docs/perp-qa.md) and never report it as passed.
 
-## Orca Whirlpool LP positions (read-only today)
+## Orca Whirlpool LP positions and deposits
 
-`solana_liquidity_get_position` (MCP) and `solos liquidity position --protocol orca --position
+Reads: `solana_liquidity_get_position` (MCP) and `solos liquidity position --protocol orca --position
 <position-account> [--owner <address>]` (CLI) read one existing Whirlpool LP position and
 return the shared `LpPosition` contract:
 
@@ -484,6 +486,44 @@ until those prerequisites exist. Read the operator position and compare `liquidi
 `tokenA`/`tokenB` amounts and decimals against the same pool state on a block explorer or a
 second client; both surfaces must return identical underlying quantities. See
 [liquidity QA](docs/liquidity-qa.md).
+
+### Deposits into existing positions
+
+`solana_liquidity_simulate_deposit` / `solana_liquidity_execute_deposit` (MCP) and
+`solos liquidity simulate-deposit` / `solos liquidity deposit` (CLI) add liquidity to one
+explicitly identified existing Orca position — `--pool <pool> --position <position-account>
+--amount-a <base-units> --amount-b <base-units> [--max-slippage-bps 50]` plus
+`[--skip-simulation]` on `deposit`. The existing-position prerequisite is absolute: the
+position account must already exist, the signer must hold its NFT, and the named pool must
+be the pool the position references — nothing creates a position, selects a range, or
+rebalances.
+
+- **Budgets are maxima, on chain.** `amountA`/`amountB` are maximum spends in the pool's
+canonical mint order (at least one positive). The executor computes the largest liquidity
+both budgets can fund at the current price — rounding down, never reinterpreting a maximum
+as an exact spend — and encodes the budgets themselves as the instruction's `token_max_a`
+and `token_max_b`, which the Whirlpool program enforces (`TokenMaxExceeded`): a price move
+that would overspend either budget aborts the transaction. Unused funds stay in the wallet.
+- **One-sided adds work.** With the price below the position's range only token A is
+required (token B's budget is ignored); above the range, only token B. In range, budgets
+are two-sided: a zero budget on one side computes zero liquidity and is rejected.
+- **Typed rejections before signing.** Wrong pool, missing/foreign position, absent NFT
+custody, token-2022 mints, missing funding accounts, insufficient balances, and
+zero-liquidity outcomes all fail `BuildRejected` (or the liquidity slice's input errors)
+before anything is signed or sent.
+- **Execution is bounded.** `skipSimulation` defaults false; a failed simulation, rejected
+build, or expired blockhash sends nothing, and there is never a re-send after an ambiguous
+submission.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity simulate-deposit --protocol orca --pool <pool> \
+  --position <position-account> --amount-a <base-units> --amount-b <base-units>
+SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_simulate_deposit \
+  --args '{"protocol":"orca","pool":"<pool>","position":"<position-account>","amountA":"…","amountB":"…"}'
+```
+
+Live deposit QA stays **blocked** until #31 (bounded removals) exists and is checked, per
+ADR-0022: no live deposit/open without a checked exit path.
 
 ## Kamino Lend reserve and supply reads (read-only today)
 

@@ -21,13 +21,24 @@ export {
 export { LiquidityVenue } from "./ports/liquidity-venue.js";
 export { getLpPosition } from "./use-cases/get-position.js";
 export { listLpPositions } from "./use-cases/list-positions.js";
+export { executeDeposit } from "./use-cases/execute-deposit.js";
+export { simulateDeposit } from "./use-cases/simulate-deposit.js";
+export {
+  LiquidityDepositInputSchema,
+  LiquidityExecuteDepositInputSchema,
+} from "./domain/types.js";
+export { executeDepositTool } from "./tools/execute-deposit.js";
 export { getLpPositionTool } from "./tools/get-position.js";
+export { simulateDepositTool } from "./tools/simulate-deposit.js";
 
+import { executeDepositTool } from "./tools/execute-deposit.js";
 import { getLpPositionTool } from "./tools/get-position.js";
+import { simulateDepositTool } from "./tools/simulate-deposit.js";
 
 /**
- * The liquidity slice's public verbs. Read-only today: position reads and owner
- * enumeration only — no deposits, withdrawals, claims, or rebalancing.
+ * The liquidity slice's public verbs. Position reads and owner enumeration are reads; the
+ * deposit twins add liquidity to an explicitly identified existing Orca position only —
+ * no new positions, ranges, claims, or rebalancing. Removal is a separate slice.
  * @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>}
  */
-export const liquidityTools = [getLpPositionTool];
+export const liquidityTools = [getLpPositionTool, simulateDepositTool, executeDepositTool];

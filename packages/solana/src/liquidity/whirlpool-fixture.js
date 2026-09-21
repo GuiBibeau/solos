@@ -103,8 +103,11 @@ const WHIRLPOOL_DEFAULTS = {
   sqrtPrice: SQRT_PRICE_ONE,
   liquidity: 0n,
   tickCurrentIndex: 0,
+  tickSpacing: 64,
   tokenMintA: zeros(32),
   tokenMintB: zeros(32),
+  tokenVaultA: zeros(32),
+  tokenVaultB: zeros(32),
   bytes: 0,
 };
 
@@ -119,7 +122,7 @@ export const whirlpoolBytes = (overrides = {}) => {
     o.discriminator,
     zeros(32), // whirlpools_config
     zeros(1), // whirlpool_bump
-    u16le(64), // tick_spacing
+    u16le(o.tickSpacing),
     zeros(2), // fee_tier_index_seed
     u16le(0), // fee_rate
     u16le(0), // protocol_fee_rate
@@ -128,10 +131,10 @@ export const whirlpoolBytes = (overrides = {}) => {
     i32le(o.tickCurrentIndex),
     zeros(16), // protocol fees owed A + B
     o.tokenMintA,
-    zeros(32), // token_vault_a
+    o.tokenVaultA,
     zeros(16), // fee_growth_global_a
     o.tokenMintB,
-    zeros(32), // token_vault_b
+    o.tokenVaultB,
     zeros(16), // fee_growth_global_b
     zeros(8), // reward_last_updated_timestamp
     zeros(384), // reward_infos
