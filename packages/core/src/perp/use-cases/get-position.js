@@ -6,7 +6,7 @@ import { normalizeMarketSymbol } from "../domain/symbol.js";
 import { GetPositionInputSchema } from "../domain/types.js";
 import { PerpVenue } from "../ports/perp-venue.js";
 
-/** @typedef {import("../domain/errors.js").PerpError | import("../../wallet/index.js").SignerUnavailable} GetPositionError */
+/** @typedef {import("../domain/errors.js").PerpError | import("../../shared/index.js").SignerUnavailable} GetPositionError */
 /** @typedef {import("../ports/perp-venue.js").PerpVenueShape | import("../../wallet/index.js").SignerShape} GetPositionContext */
 
 /**

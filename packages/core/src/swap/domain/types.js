@@ -1,6 +1,6 @@
 // @ts-check
 import { z } from "zod";
-import { AddressSchema, SignatureSchema } from "../../shared/domain/address.js";
+import { AddressSchema } from "../../shared/domain/address.js";
 import { base58ByteLength } from "../../shared/domain/base58.js";
 
 /**
@@ -60,10 +60,3 @@ export const SwapQuoteSchema = z.object({
 });
 
 /** @typedef {z.infer<typeof SwapQuoteSchema>} SwapQuote */
-
-export const SwapReceiptSchema = z.object({
-  signature: SignatureSchema,
-  quote: SwapQuoteSchema,
-});
-
-/** @typedef {z.infer<typeof SwapReceiptSchema>} SwapReceipt */

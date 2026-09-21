@@ -5,7 +5,7 @@ import { PerpInputInvalid } from "../domain/errors.js";
 import { ListPositionsInputSchema } from "../domain/types.js";
 import { PerpVenue } from "../ports/perp-venue.js";
 
-/** @typedef {import("../domain/errors.js").PerpError | import("../../wallet/index.js").SignerUnavailable} ListPositionsError */
+/** @typedef {import("../domain/errors.js").PerpError | import("../../shared/index.js").SignerUnavailable} ListPositionsError */
 /** @typedef {import("../ports/perp-venue.js").PerpVenueShape | import("../../wallet/index.js").SignerShape} ListPositionsContext */
 
 /**

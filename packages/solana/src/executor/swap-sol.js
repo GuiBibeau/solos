@@ -1,0 +1,54 @@
+// @ts-check
+import { getBase64EncodedWireTransaction } from "@solana/kit";
+import { UnsupportedAction } from "@solos/core";
+import { Effect } from "effect";
+import { preflightSwapBuild } from "./swap-preflight.js";
+import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
+import { assertV1WireForSubmission } from "./transaction-v1.js";
+
+const EXECUTOR = "direct-signer";
+export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
+
+/**
+ * @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc
+ * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
+ * @typedef {import("../swap/jupiter-swap-build-live.js").JupiterSwapBuildShape} Build
+ * @typedef {import("@solos/actions").SwapAction} SwapAction
+ * @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} JupiterBuildEnvelope
+ * @typedef {import("./swap-sol-build.js").Signed} Signed
+ */
+
+/** @typedef {{ readonly signed: Signed; readonly envelope: JupiterBuildEnvelope }} SignedSwap */
+
+/**
+ * Fetch, validate, assemble, and sign one swap. Only Jupiter is supported; unsupported venues
+ * are refused before any build request.
+ * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
+ */
+export const buildSignedSwap = ({ ctx, kit, build }, action) =>
+  Effect.gen(function* () {
+    if (action.venue === "pump") {
+      return yield* new UnsupportedAction({ actionType: "swap:pump", executor: EXECUTOR });
+    }
+    if (action.venue !== undefined && action.venue !== "jupiter") {
+      return yield* new UnsupportedAction({
+        actionType: `swap:${action.venue}`,
+        executor: EXECUTOR,
+      });
+    }
+    const envelope = yield* fetchValidatedBuild({ kit, build }, action);
+    const lifetime = yield* preflightSwapBuild(ctx, envelope, kit.signer.address);
+    const signed = yield* assembleAndSign({ kit, lifetime }, envelope);
+    return { signed, envelope };
+  });
+
+/**
+ * Prove the exact wire bytes about to touch RPC decode to a v1 message.
+ * @param {Signed} signed
+ * @returns {import("effect").Effect.Effect<unknown, import("@solos/core").BuildRejected>}
+ */
+export const assertSwapWireBeforeContact = (signed) =>
+  Effect.try({
+    try: () => assertV1WireForSubmission(getBase64EncodedWireTransaction(signed)),
+    catch: (error) => /** @type {import("@solos/core").BuildRejected} */ (error),
+  });

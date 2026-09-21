@@ -1,0 +1,91 @@
+// @ts-check
+import {
+  QuoteAuthFailed,
+  QuoteHttpError,
+  QuoteNetworkError,
+  QuoteRateLimited,
+  QuoteResponseInvalid,
+  QuoteTimeout,
+} from "@solos/core";
+import { Effect } from "effect";
+import { isDeadlineAbort } from "../market/elfa-api.js";
+import { DEFAULT_TIMEOUT_MS } from "./jupiter-swap-api.js";
+import { jupiterSwapBuild } from "./jupiter-swap-build-api.js";
+import { BuildEnvelopeSchema } from "./jupiter-swap-build-schema.js";
+
+/**
+ * Envelope and transport mapping for the Jupiter Swap V2 build endpoint (`GET /swap/v2/build`).
+ * The raw instruction objects stay raw here — program ids, account metas, and base64 data are
+ * decoded by the assembler only after validation. Parsed in strip mode so provider extensions
+ * never break us, and never trusted: the semantic checks live in jupiter-swap-build-validate.js.
+ */
+
+export { BuildEnvelopeSchema } from "./jupiter-swap-build-schema.js";
+/** @typedef {import("./jupiter-swap-build-schema.js").RawInstruction} RawInstruction */
+/** @typedef {import("./jupiter-swap-build-schema.js").JupiterBuildEnvelope} JupiterBuildEnvelope */
+
+/** @param {string} body @returns {unknown} */
+const parseJson = (body) => {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Non-2xx status to the slice error, or undefined for 2xx. Bodies stay redacted: a 400 build
+ * rejection is a fixed reason, never the provider's message.
+ * @param {import("./jupiter-swap-api.js").JupiterSwapOutcome} outcome
+ * @returns {import("@solos/core").SwapQuoteError | undefined}
+ */
+const statusError = (outcome) => {
+  if (outcome.status === 401 || outcome.status === 403)
+    return new QuoteAuthFailed({ status: outcome.status });
+  if (outcome.status === 429) return new QuoteRateLimited({ status: outcome.status });
+  if (outcome.status < 200 || outcome.status >= 300) {
+    return new QuoteHttpError({
+      status: outcome.status,
+      reason: `Jupiter answered with HTTP ${outcome.status}`,
+    });
+  }
+  return undefined;
+};
+
+/**
+ * Translate one build outcome into the validated envelope or a slice-owned error. Envelope
+ * mismatches are QuoteResponseInvalid; they never carry body text.
+ * @param {import("./jupiter-swap-api.js").JupiterSwapOutcome} outcome
+ */
+const fromOutcome = (outcome) => {
+  const failed = statusError(outcome);
+  if (failed) return Effect.fail(failed);
+  const parsed = BuildEnvelopeSchema.safeParse(parseJson(outcome.body));
+  if (!parsed.success) {
+    return Effect.fail(
+      new QuoteResponseInvalid({
+        status: outcome.status,
+        reason: "response did not match the documented build envelope",
+      }),
+    );
+  }
+  return Effect.succeed(parsed.data);
+};
+
+/**
+ * One build fetch through the transport, translated to the slice error channel. Single attempt:
+ * a deadline abort is a QuoteTimeout and any other transport failure a QuoteNetworkError —
+ * neither is retried, and a failed build can never become a send.
+ * @param {import("./jupiter-swap-build-api.js").SwapBuildParams} params
+ * @param {import("./jupiter-swap-api.js").JupiterSwapConfig} config
+ */
+export const fetchBuild = (params, config) => {
+  const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  return Effect.tryPromise({
+    try: () => jupiterSwapBuild(config, params),
+    catch: (error) =>
+      isDeadlineAbort(error)
+        ? new QuoteTimeout({ timeoutMs })
+        : new QuoteNetworkError({ reason: "Jupiter swap build request failed" }),
+  }).pipe(Effect.flatMap(fromOutcome));
+};

@@ -1,0 +1,131 @@
+// @ts-check
+import { describe, expect, test } from "bun:test";
+import { getU16Codec, getU32Codec, getU64Codec } from "@solana/kit";
+import { AMOUNT, INPUT_MINT, OUT_AMOUNT } from "../swap/jupiter-swap-build-bodies.js";
+import { sharedSwapInstruction } from "../swap/jupiter-swap-build-route-bodies.js";
+import { ROUTE_V2_DISCRIMINATOR } from "../swap/jupiter-swap-build-swapdata.js";
+import { reasonOf, runBranch, withSwapData } from "./swap-sol-driver.js";
+
+/** @param {bigint} input @param {bigint} output @param {number} [slippageBps] */
+const routeData = (input, output, slippageBps = 50) =>
+  Uint8Array.of(
+    ...ROUTE_V2_DISCRIMINATOR,
+    ...getU64Codec().encode(input),
+    ...getU64Codec().encode(output),
+    ...getU16Codec().encode(slippageBps),
+    ...getU16Codec().encode(0),
+    ...getU16Codec().encode(0),
+    ...getU32Codec().encode(1),
+    125,
+    0,
+    ...getU16Codec().encode(10_000),
+    0,
+    1,
+  );
+
+/** @param {number} platformFee @param {number} positiveSlippage */
+const feeRouteData = (platformFee, positiveSlippage) => {
+  const bytes = routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT));
+  bytes.set(getU16Codec().encode(platformFee), 26);
+  bytes.set(getU16Codec().encode(positiveSlippage), 28);
+  return bytes;
+};
+
+describe("the swap payload is bound to the validated intent before signing [integration]", () => {
+  test("an embedded input amount other than the requested one is refused", async () => {
+    const { error, requests } = await runBranch(
+      "execute",
+      withSwapData([...routeData(BigInt(AMOUNT) + 1n, BigInt(OUT_AMOUNT))]),
+    );
+    expect(reasonOf(error)).toBe("swap instruction data did not carry the requested input amount");
+    expect(requests).toHaveLength(1);
+  });
+
+  test("an embedded quoted output other than the envelope's is refused", async () => {
+    const { error } = await runBranch(
+      "execute",
+      withSwapData([...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT) - 1n)]),
+    );
+    expect(reasonOf(error)).toBe("swap instruction data did not carry the quoted envelope output");
+  });
+
+  test("embedded slippage other than the Action maximum is refused", async () => {
+    const bytes = [...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT), 51)];
+    const { error, requests } = await runBranch("execute", withSwapData(bytes));
+    expect(reasonOf(error)).toBe(
+      "swap instruction data did not carry the requested maximum slippage",
+    );
+    expect(requests).toHaveLength(1);
+  });
+
+  test("an unknown discriminator is refused as an unsupported layout", async () => {
+    const bytes = [...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT))];
+    bytes[0] = (bytes[0] + 1) % 256;
+    const { error } = await runBranch("execute", withSwapData(bytes));
+    expect(reasonOf(error)).toBe(
+      "swap instruction data was not the supported Jupiter route layout",
+    );
+  });
+
+  test("truncated swap data is refused as an unsupported layout", async () => {
+    const bytes = [...routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT))].slice(0, 31);
+    const { error } = await runBranch("execute", withSwapData(bytes));
+    expect(reasonOf(error)).toBe(
+      "swap instruction data was not the supported Jupiter route layout",
+    );
+  });
+
+  test("the live shared-account V2 layout is accepted", async () => {
+    const { error } = await runBranch("simulate", (envelope) => ({
+      ...envelope,
+      swapInstruction: sharedSwapInstruction(
+        envelope.swapInstruction.accounts[0].pubkey,
+        envelope.swapInstruction.accounts[1].pubkey,
+        envelope.swapInstruction.accounts[2].pubkey,
+      ),
+    }));
+    expect(error).toMatchObject({ _tag: "RpcError" });
+  });
+
+  test("provider and positive-slippage fees are refused", async () => {
+    for (const bytes of [feeRouteData(1, 0), feeRouteData(0, 1)]) {
+      const { error } = await runBranch("execute", withSwapData([...bytes]));
+      expect(reasonOf(error)).toBe(
+        "swap instruction data did not carry the required zero-fee contract",
+      );
+    }
+  });
+
+  test("empty and implausibly large route plans are refused", async () => {
+    for (const steps of [0, 33]) {
+      const bytes = routeData(BigInt(AMOUNT), BigInt(OUT_AMOUNT));
+      bytes.set(getU32Codec().encode(steps), 30);
+      const { error } = await runBranch("execute", withSwapData([...bytes]));
+      expect(reasonOf(error)).toBe(
+        "swap instruction data was not the supported Jupiter route layout",
+      );
+    }
+  });
+
+  test("an amount beyond u64 is refused before any build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, {
+      amount: "18446744073709551616",
+    });
+    expect(reasonOf(error)).toBe("swap amount exceeded the u64 bound the executor can assemble");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("a zero amount is refused before any build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, { amount: "0" });
+    expect(reasonOf(error)).toBe("swap amount must be a positive integer base-unit string");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("identical mints are refused before any build request", async () => {
+    const { error, requests } = await runBranch("execute", undefined, {
+      outputMint: INPUT_MINT,
+    });
+    expect(reasonOf(error)).toBe("swap inputMint and outputMint must differ");
+    expect(requests).toHaveLength(0);
+  });
+});

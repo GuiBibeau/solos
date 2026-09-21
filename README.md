@@ -64,13 +64,15 @@ re-runs the same command. See ADR-0016 for the verification contract.
 | `solana_liquidity_get_position` | read |
 | `solana_perp_get_position` | read |
 | `solana_lend_get_reserve` | read |
+| `solana_swap_simulate_swap` | simulate |
 | `solana_transfer_simulate_sol` | simulate |
+| `solana_swap_execute_swap` | execute |
 | `solana_transfer_send_sol` | execute |
 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
 `JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` has the
-Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes; execution
-arrives with Action-based build execution); `launch` has the pump bonding-curve reader over the
+Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes) plus
+Action-based simulation and execution over Jupiter V2 `/build` through the shared executor; `launch` has the pump bonding-curve reader over the
 configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps position reader
 (no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
 `liquidity` has the Orca Whirlpool position reader over the configured Solana RPC (no provider
@@ -257,9 +259,9 @@ transaction is null — nothing is signed, built for sending, or submitted, and 
 - **`expiresAt` is a local 30-second TTL**, the receipt time plus 30 000 ms. It is when solOS
   stops presenting the quote as usable, **not** a provider price guarantee — V2 documents no
   quote TTL.
-- **Indicative only.** The quote is never a promise to execute: an execution obtains a fresh
-  build. The provider port's `execute` method is present but fails fast with `SwapFailed` until
-  Action-based build execution lands; no send or signing path exists yet.
+- **Indicative only.** The quote is never a promise to execute: an execution or simulation
+  obtains its own fresh build (see the next section). Nothing is ever executed from a stored
+  quote.
 - **Errors:** `NoRouteFound` (empty route plan, or the documented
   400 `"Failed to get quotes"` body), `QuoteInputInvalid`, `QuoteConfigMissing`,
   `QuoteAuthFailed` (401/403), `QuoteRateLimited` (429), `QuoteHttpError` (other non-2xx),
@@ -282,6 +284,60 @@ Inspect the answer's `routeSummary` hops, `minOutAmount` (worst case at 0.5% def
 and `priceImpactPct` (a decimal ratio: `"0.01"` means 1 percent). Both surfaces must return the
 same amounts for the same request, and the fixture-backed tests assert the request went to
 `/swap/v2/order` exactly once with no submit call.
+
+## Swap simulation and execution (Jupiter V2 build)
+
+`solana_swap_simulate_swap` (MCP) and `solos swap simulate` (CLI) simulate a swap without
+submitting anything; `solana_swap_execute_swap` (MCP) and `solos swap execute [--skip-simulation]`
+(CLI) sign and submit one. Both take the same intent — `--input-mint`, `--output-mint`,
+`--amount` (exact base-unit integer string), `[--slippage-bps 50]` — plus the execute twin's
+`--skip-simulation` flag (default false: execution always simulates the exact transaction
+first). Venue is Jupiter only: omission or explicit `jupiter`; other venues are unsupported
+until their executor branches land.
+
+- **Fresh build per call.** Every simulate and execute fetches its own Jupiter V2
+  `GET {JUPITER_BASE_URL}/swap/v2/build` for the configured signer's taker address. A quote from
+  `solos swap quote`, or the build behind an earlier simulate, is never reused or replayed;
+  prices may differ between calls by design.
+- **What is validated before signing.** The response must echo the exact pair, amount, and
+  tolerance, carry a tolerance-bound minimum output (`otherAmountThreshold`), and pass a strict
+  instruction allowlist: a well-formed compute-unit price (stripped — v1 carries no budget
+  instructions), exact ATA creates bound to the taker and requested mints (idempotent for durable
+  accounts, either canonical create opcode for a cleanup-owned temporary account), wSOL funding
+  in the canonical 12-byte System transfer form for exactly the requested amount, the JUP6
+  route, and a closeAccount cleanup limited to a build-owned temporary wSOL ATA. Cleanup is
+  accepted only when that ATA is absent in a read-only RPC preflight, this build creates it with
+  the canonical ATA instruction, and the wrap/route direction funds and consumes the same
+  account. At assembly the temporary create is pinned to exclusive creation (opcode 0): a raced
+  pre-existing account aborts the whole transaction instead of being adopted and closed, while
+  the destination ATA keeps idempotent semantics because it legitimately pre-exists after a
+  first swap. Transfers, approvals, authorities, mints, burns, tips, foreign signers, foreign
+  recipients, pre-existing wSOL ATAs, or a pre-sign expiry are refused with a fixed-reason
+  `BuildRejected` before anything is signed or sent.
+- **v1-only, self-submitted.** The transaction is assembled as a Solana v1 message with explicit
+  local resource policy (compute-unit limit, loaded-account-data limit, a capped total priority
+  fee in lamports), all accounts inline (no address-lookup tables), signed once by the
+  configured signer, proven v1 on the wire before simulation or submission, simulated as those
+  exact bytes unless `--skip-simulation` is explicit, and submitted exactly once to
+  `SOLANA_RPC_URL`. The configured RPC supplies and pre-sign gates the blockhash lifetime;
+  provider lifetime metadata never chooses the signed bytes. Jupiter's `/execute` and `/submit`
+  are never used; there are no auto tips, referral fees, or provider-chosen payers.
+- **Zero-send guarantees.** A build that fails validation, a failed simulation, an expired
+  blockhash lifetime, or a missing key leaves the balance untouched — nothing is submitted. A
+  confirmation failure is an honest `TransactionFailed` carrying the submitted signature; there
+  is no automatic second attempt or swap.
+- **Credentials and destinations.** `JUPITER_API_KEY` rides the `x-api-key` header to
+  `JUPITER_BASE_URL` (default `https://api.jup.ag`; plain `http` only for loopback fixtures);
+  `SOLANA_RPC_URL` (or the active profile's stored endpoint) is where signed transactions go.
+  The signer comes from `SOLOS_SIGNER_PRIVATE_KEY` / `SOLOS_SIGNER_KEYPAIR_PATH` /
+  `SOLOS_PROFILE` per ADR-0015; `SOLOS_EXECUTOR` selects the executor (currently `direct`).
+  Keys live in the environment or profile store, never in tool arguments or error payloads.
+- **Errors:** executor-channel failures — `BuildRejected` (pre-sign policy), `BuildUnavailable`
+  (credential, rate limit, timeout, contract mismatch; with no `JUPITER_API_KEY` the failure is
+  pre-HTTP), `SimulationFailed` (nothing was sent), `TransactionExpired` (expired after signing;
+  signature preserved and nothing sent), `TransactionFailed` (the one
+  submission did not confirm; signature preserved), `UnsupportedAction`, `RpcError`. Domain errors exit
+  non-zero with `{ "error": { "code", ... } }` on stderr; results are JSON on stdout.
 
 ## Launch curve (Pump bonding curve)
 

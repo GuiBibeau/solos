@@ -3,7 +3,6 @@
 /** @typedef {import("./domain/types.js").WalletBalances} WalletBalances */
 /** @typedef {import("./ports/balance-reader.js").BalanceReaderShape} BalanceReaderShape */
 /** @typedef {import("./ports/signer.js").SignerShape} SignerShape */
-export { SignerUnavailable } from "./domain/errors.js";
 export { TokenBalanceSchema, WalletBalancesSchema } from "./domain/types.js";
 export { BalanceReader } from "./ports/balance-reader.js";
 export { Signer } from "./ports/signer.js";

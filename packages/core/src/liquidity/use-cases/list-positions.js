@@ -5,7 +5,7 @@ import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/e
 import { LiquidityListPositionsInputSchema } from "../domain/types.js";
 import { LiquidityVenue } from "../ports/liquidity-venue.js";
 
-/** @typedef {import("../domain/errors.js").LiquidityError | import("../../wallet/index.js").SignerUnavailable | import("../../shared/index.js").RpcError} ListPositionsError */
+/** @typedef {import("../domain/errors.js").LiquidityError | import("../../shared/index.js").SignerUnavailable | import("../../shared/index.js").RpcError} ListPositionsError */
 /** @typedef {import("../ports/liquidity-venue.js").LiquidityVenueShape | import("../../wallet/index.js").SignerShape} ListPositionsContext */
 
 /**

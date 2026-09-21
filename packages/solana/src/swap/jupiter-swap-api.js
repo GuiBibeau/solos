@@ -1,4 +1,5 @@
 // @ts-check
+import { boundedResponseText } from "./jupiter-swap-body.js";
 
 /** @typedef {(input: string, init?: RequestInit) => Promise<Response>} Fetch */
 
@@ -24,6 +25,7 @@
 /** @typedef {{ readonly status: number; readonly body: string }} JupiterSwapOutcome */
 
 export const SWAP_V2_ORDER_PATH = "/swap/v2/order";
+export const SWAP_V2_BUILD_PATH = "/swap/v2/build";
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
 /** Hops beyond this bound are a redirect loop and fail instead of being followed. */
@@ -80,43 +82,27 @@ const fetchHop = ({ fetchImpl, apiKey, signal }, url) =>
   });
 
 /**
- * The documented quote-only order query: required params, an explicit swapMode, a slippageBps
- * (the provider applies its own estimator when the param is absent, which would make the echoed
- * threshold unvalidatable), and the fixed Metis-only router exclusion. `taker` is never sent —
- * omitting it is the documented quote-only mode, so the response's transaction is null and no
- * executable artifact ever reaches solOS.
- * @param {URL} url
- * @param {SwapOrderParams} params
- */
-const orderUrl = (url, params) => {
-  url.searchParams.set("inputMint", params.inputMint);
-  url.searchParams.set("outputMint", params.outputMint);
-  url.searchParams.set("amount", params.amount);
-  url.searchParams.set("slippageBps", String(params.slippageBps));
-  url.searchParams.set("swapMode", "ExactIn");
-  url.searchParams.set("excludeRouters", EXCLUDED_ROUTERS);
-  return url;
-};
-
-/**
- * One quote-only GET to the Jupiter Swap V2 order endpoint, following redirects hop by hop.
- * Single attempt, no retries — a quote is indicative and stale the moment it lands. Because
- * fetch follows redirects by default, each hop's destination must pass the destination policy
- * before it is contacted: https (plain http only on loopback fixtures) and — because this
- * endpoint is fixed — the origin the request started from. A permitted endpoint or loopback
- * fixture therefore cannot bounce the request, and its key, onto another host, and a chain past
- * the hop bound is a loop that fails. One deadline, created here before the first hop, covers
- * every hop and the body read. Failures are fixed-message errors and are translated upstream.
+ * One GET to a fixed Jupiter Swap V2 endpoint, following redirects hop by hop. Single attempt,
+ * no retries. Because fetch follows redirects by default, each hop's destination must pass the
+ * destination policy before it is contacted: https (plain http only on loopback fixtures) and —
+ * because the endpoint is fixed — the origin the request started from. A permitted endpoint or
+ * loopback fixture therefore cannot bounce the request, and its key, onto another host, and a
+ * chain past the hop bound is a loop that fails. One deadline, created here before the first
+ * hop, covers every hop and the body read. Failures are fixed-message errors and are translated
+ * upstream.
  * @param {JupiterSwapConfig} config
- * @param {SwapOrderParams} params
+ * @param {string} path endpoint path under the configured base URL
+ * @param {Record<string, string>} query exact query parameters, already stringified
  * @returns {Promise<JupiterSwapOutcome>}
  */
-export const jupiterSwapOrder = async (
+export const jupiterGet = async (
   { baseUrl, apiKey, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch },
-  params,
+  path,
+  query,
 ) => {
   const signal = AbortSignal.timeout(timeoutMs);
-  const start = orderUrl(new URL(SWAP_V2_ORDER_PATH, baseUrl), params);
+  const start = new URL(path, baseUrl);
+  for (const [key, value] of Object.entries(query)) start.searchParams.set(key, value);
   const origin = start.origin;
   let destination = start;
   for (let hops = 0; hops <= MAX_REDIRECTS; hops++) {
@@ -128,9 +114,35 @@ export const jupiterSwapOrder = async (
     }
     const response = await fetchHop({ fetchImpl, apiKey, signal }, destination);
     if (!REDIRECT_STATUSES.has(response.status)) {
-      return { status: response.status, body: await response.text() };
+      return { status: response.status, body: await boundedResponseText(response) };
     }
     destination = redirectTarget(destination, response);
   }
   throw new Error("Jupiter exceeded the redirect hop limit");
 };
+
+/**
+ * The documented quote-only order query: required params, an explicit swapMode, a slippageBps
+ * (the provider applies its own estimator when the param is absent, which would make the echoed
+ * threshold unvalidatable), and the fixed Metis-only router exclusion. `taker` is never sent —
+ * omitting it is the documented quote-only mode, so the response's transaction is null and no
+ * executable artifact ever reaches solOS.
+ * @param {SwapOrderParams} params
+ */
+export const orderQuery = (params) => ({
+  inputMint: params.inputMint,
+  outputMint: params.outputMint,
+  amount: params.amount,
+  slippageBps: String(params.slippageBps),
+  swapMode: "ExactIn",
+  excludeRouters: EXCLUDED_ROUTERS,
+});
+
+/**
+ * One quote-only GET to the order endpoint through the shared transport.
+ * @param {JupiterSwapConfig} config
+ * @param {SwapOrderParams} params
+ * @returns {Promise<JupiterSwapOutcome>}
+ */
+export const jupiterSwapOrder = (config, params) =>
+  jupiterGet(config, SWAP_V2_ORDER_PATH, orderQuery(params));

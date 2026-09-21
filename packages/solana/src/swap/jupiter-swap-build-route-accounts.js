@@ -1,0 +1,186 @@
+// @ts-check
+import { derivedAta } from "./jupiter-swap-build-setup.js";
+import { swapRouteLayout } from "./jupiter-swap-build-swapdata.js";
+import {
+  JUP6_PROGRAM,
+  TOKEN_2022_PROGRAM,
+  TOKEN_PROGRAM,
+  WSOL_MINT,
+} from "./jupiter-swap-build-validate.js";
+
+export const JUPITER_EVENT_AUTHORITY = "D8cy77BBepLMngZx6ZukaTff5hCt1HrWyKk3Hnd9oitf";
+const SOURCE_REASON = "swap instruction did not spend the taker's source token account";
+const DESTINATION_REASON = "swap instruction did not credit the taker's destination token account";
+const INPUT_MINT_REASON = "swap instruction did not carry the input mint's market account";
+const OUTPUT_MINT_REASON = "swap instruction did not carry the output mint's market account";
+const AUTHORITY_REASON = "swap instruction did not bind the configured taker at its fixed account";
+const PROGRAM_REASON = "swap instruction carried an invalid fixed token or Jupiter program account";
+const ROLE_REASON = "swap instruction fixed accounts carried invalid signer or writable roles";
+const OPTIONAL_REASON = "swap instruction carried an invalid optional destination token account";
+
+/** @typedef {import("./jupiter-swap-build-response.js").RawInstruction["accounts"][number]} Meta */
+/** @typedef {{pubkey: string, writable: boolean, signer: boolean}} ExpectedMeta */
+/** @param {string} pubkey @param {boolean} writable @param {boolean} signer */
+const expected = (pubkey, writable, signer) => ({ pubkey, writable, signer });
+
+/** @param {Meta | undefined} meta @param {ExpectedMeta} wanted */
+const isMeta = (meta, wanted) =>
+  meta?.pubkey === wanted.pubkey &&
+  meta.isWritable === wanted.writable &&
+  meta.isSigner === wanted.signer;
+
+/** @param {Meta | undefined} meta */
+const isTokenProgram = (meta) =>
+  (meta?.pubkey === TOKEN_PROGRAM || meta?.pubkey === TOKEN_2022_PROGRAM) &&
+  meta.isWritable === false &&
+  meta.isSigner === false;
+
+/** @param {{meta: Meta | undefined, wanted: ExpectedMeta, reason: string}[]} checks */
+const fixedRejection = (checks) =>
+  checks.find((check) => !isMeta(check.meta, check.wanted))?.reason;
+
+/** @param {Meta | undefined} meta @param {boolean} writable */
+const selfExpected = (meta, writable) => expected(meta?.pubkey || "", writable, false);
+
+/**
+ * A wSOL route party must ride the classic token program: the wrap funds and the cleanup closes
+ * the classic-derived wSOL ATA, so a Token-2022 route party would derive a distinct empty
+ * account and fail only on-chain — burning fees under an explicit simulation skip.
+ * @param {import("@solos/actions").SwapAction} action
+ * @param {Meta | undefined} sourceProgram @param {Meta | undefined} destinationProgram
+ */
+const wsolProgramRejection = (action, sourceProgram, destinationProgram) => {
+  if (action.inputMint === WSOL_MINT && sourceProgram?.pubkey !== TOKEN_PROGRAM) {
+    return "wSOL route source did not use the classic token program of its wrap and cleanup";
+  }
+  if (action.outputMint === WSOL_MINT && destinationProgram?.pubkey !== TOKEN_PROGRAM) {
+    return "wSOL route destination did not use the classic token program";
+  }
+  return undefined;
+};
+
+/** Anchor encodes None as the Jupiter placeholder and Some as the writable destination ATA.
+ * @param {Meta[]} accounts @param {string} destination */
+const directProgramRejection = (accounts, destination) => {
+  const event = expected(JUPITER_EVENT_AUTHORITY, false, false);
+  const optional = accounts[7];
+  const isPlaceholder = isMeta(optional, expected(JUP6_PROGRAM, false, false));
+  const isDestination = isMeta(optional, expected(destination, true, false));
+  if (!isPlaceholder && !isDestination) return OPTIONAL_REASON;
+  return fixedRejection([
+    { meta: accounts[8], wanted: event, reason: PROGRAM_REASON },
+    {
+      meta: accounts[9],
+      wanted: expected(JUP6_PROGRAM, false, false),
+      reason: PROGRAM_REASON,
+    },
+  ]);
+};
+
+/**
+ * The authority slot is the taker's only legitimate appearance in the swap instruction.
+ * Compilation coalesces duplicate addresses within one instruction to their strongest
+ * privileges, so any second occurrence — writable or read-only, fixed prefix or hop tail —
+ * would silently elevate the validated read-only-signer authority and hand the route broader
+ * wallet access than validation approved.
+ * @param {Meta[]} accounts @param {string} taker @param {number} authoritySlot
+ */
+const duplicateAuthorityRejection = (accounts, taker, authoritySlot) =>
+  accounts.some((meta, index) => index !== authoritySlot && meta.pubkey === taker)
+    ? "swap instruction repeated the taker outside its validated authority slot"
+    : undefined;
+
+/** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
+const directRejection = async (accounts, action, taker) => {
+  const sourceProgram = accounts[5];
+  const destinationProgram = accounts[6];
+  if (!sourceProgram || !destinationProgram) return PROGRAM_REASON;
+  if (!isTokenProgram(sourceProgram) || !isTokenProgram(destinationProgram)) return PROGRAM_REASON;
+  const wsolRejection = wsolProgramRejection(action, sourceProgram, destinationProgram);
+  if (wsolRejection) return wsolRejection;
+  const source = await derivedAta(taker, action.inputMint, sourceProgram.pubkey);
+  const destination = await derivedAta(taker, action.outputMint, destinationProgram.pubkey);
+  return (
+    fixedRejection([
+      { meta: accounts[0], wanted: expected(taker, false, true), reason: AUTHORITY_REASON },
+      { meta: accounts[1], wanted: expected(source, true, false), reason: SOURCE_REASON },
+      { meta: accounts[2], wanted: expected(destination, true, false), reason: DESTINATION_REASON },
+      {
+        meta: accounts[3],
+        wanted: expected(action.inputMint, false, false),
+        reason: INPUT_MINT_REASON,
+      },
+      {
+        meta: accounts[4],
+        wanted: expected(action.outputMint, false, false),
+        reason: OUTPUT_MINT_REASON,
+      },
+    ]) ??
+    directProgramRejection(accounts, destination) ??
+    duplicateAuthorityRejection(accounts, taker, 0)
+  );
+};
+
+/** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action
+ * @param {{taker: string, source: string, destination: string}} bound */
+const sharedBoundRejection = (accounts, action, bound) =>
+  fixedRejection([
+    { meta: accounts[1], wanted: expected(bound.taker, false, true), reason: AUTHORITY_REASON },
+    { meta: accounts[2], wanted: expected(bound.source, true, false), reason: SOURCE_REASON },
+    {
+      meta: accounts[5],
+      wanted: expected(bound.destination, true, false),
+      reason: DESTINATION_REASON,
+    },
+    {
+      meta: accounts[6],
+      wanted: expected(action.inputMint, false, false),
+      reason: INPUT_MINT_REASON,
+    },
+    {
+      meta: accounts[7],
+      wanted: expected(action.outputMint, false, false),
+      reason: OUTPUT_MINT_REASON,
+    },
+    {
+      meta: accounts[10],
+      wanted: expected(JUPITER_EVENT_AUTHORITY, false, false),
+      reason: PROGRAM_REASON,
+    },
+    { meta: accounts[11], wanted: expected(JUP6_PROGRAM, false, false), reason: PROGRAM_REASON },
+  ]);
+
+/** @param {Meta[]} accounts */
+const sharedRoleRejection = (accounts) =>
+  fixedRejection([
+    { meta: accounts[0], wanted: selfExpected(accounts[0], false), reason: ROLE_REASON },
+    { meta: accounts[3], wanted: selfExpected(accounts[3], true), reason: ROLE_REASON },
+    { meta: accounts[4], wanted: selfExpected(accounts[4], true), reason: ROLE_REASON },
+  ]);
+
+/** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
+const sharedRejection = async (accounts, action, taker) => {
+  const sourceProgram = accounts[8];
+  const destinationProgram = accounts[9];
+  if (!sourceProgram || !destinationProgram) return PROGRAM_REASON;
+  if (!isTokenProgram(sourceProgram) || !isTokenProgram(destinationProgram)) return PROGRAM_REASON;
+  const wsolRejection = wsolProgramRejection(action, sourceProgram, destinationProgram);
+  if (wsolRejection) return wsolRejection;
+  const source = await derivedAta(taker, action.inputMint, sourceProgram.pubkey);
+  const destination = await derivedAta(taker, action.outputMint, destinationProgram.pubkey);
+  return (
+    sharedBoundRejection(accounts, action, { taker, source, destination }) ??
+    sharedRoleRejection(accounts) ??
+    duplicateAuthorityRejection(accounts, taker, 1)
+  );
+};
+
+/** Validate the fixed V2 account prefix selected by the instruction discriminator.
+ * @param {import("./jupiter-swap-build-response.js").RawInstruction} swap
+ * @param {import("@solos/actions").SwapAction} action @param {string} taker */
+export const routeAccountsRejection = async (swap, action, taker) => {
+  const layout = swapRouteLayout(swap);
+  if (layout === "route-v2") return directRejection(swap.accounts, action, taker);
+  if (layout === "shared-accounts-route-v2") return sharedRejection(swap.accounts, action, taker);
+  return "swap instruction accounts used an unsupported Jupiter route layout";
+};

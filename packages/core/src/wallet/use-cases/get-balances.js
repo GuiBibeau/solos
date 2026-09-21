@@ -9,7 +9,8 @@ import { Signer } from "../ports/signer.js";
  * @param {import("../../shared/domain/address.js").Address | undefined} owner
  * @returns {import("effect").Effect.Effect<
  *   import("../domain/types.js").WalletBalances,
- *   import("../../shared/domain/errors.js").RpcError | import("../domain/errors.js").SignerUnavailable,
+ *   import("../../shared/domain/errors.js").RpcError |
+ *   import("../../shared/domain/errors.js").SignerUnavailable,
  *   import("../ports/balance-reader.js").BalanceReaderShape | import("../ports/signer.js").SignerShape
  * >}
  */

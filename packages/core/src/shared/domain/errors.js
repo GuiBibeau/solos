@@ -6,6 +6,13 @@ import { taggedError } from "./tagged-error.js";
 /** The RPC endpoint failed or returned an error. Shared because every slice talks to RPC. */
 export class RpcError extends /** @type {RpcErrorClass} */ (taggedError("RpcError")) {}
 
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"SignerUnavailable", SignerUnavailableProps>} SignerUnavailableClass */
+/** @typedef {{ readonly backend: string; readonly reason: string }} SignerUnavailableProps */
+/** The configured signer cannot sign right now (missing key, remote backend down). */
+export class SignerUnavailable extends /** @type {SignerUnavailableClass} */ (
+  taggedError("SignerUnavailable")
+) {}
+
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"ValidationError", ValidationErrorProps>} ValidationErrorClass */
 /** @typedef {{ readonly field: string; readonly value: unknown; readonly reason: string }} ValidationErrorProps */
 /** Input rejected by a domain rule before any I/O happened. */
@@ -34,6 +41,13 @@ export class TransactionFailed extends /** @type {TransactionFailedClass} */ (
   taggedError("TransactionFailed")
 ) {}
 
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"TransactionExpired", TransactionExpiredProps>} TransactionExpiredClass */
+/** @typedef {{ readonly signature: string; readonly reason: string }} TransactionExpiredProps */
+/** A signed transaction expired before submission. It was never sent. */
+export class TransactionExpired extends /** @type {TransactionExpiredClass} */ (
+  taggedError("TransactionExpired")
+) {}
+
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"UnsupportedAction", UnsupportedActionProps>} UnsupportedActionClass */
 /** @typedef {{ readonly actionType: string; readonly executor: string }} UnsupportedActionProps */
 /** The configured executor has no implementation for this action type. */
@@ -43,7 +57,7 @@ export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
 
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
 /** @typedef {{ readonly reason: string }} BuildRejectedProps */
-/** A transaction failed local policy before it reached a signer or RPC transport. */
+/** A transaction failed policy before signing; validation may include read-only RPC preflight. */
 export class BuildRejected extends /** @type {BuildRejectedClass} */ (
   taggedError("BuildRejected")
 ) {}

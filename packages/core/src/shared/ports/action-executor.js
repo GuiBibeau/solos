@@ -2,14 +2,16 @@
 import { Context } from "effect";
 
 /**
- * Errors any executor may raise. Local policy failures use `BuildRejected` before signing or RPC;
- * provider build failures use `BuildUnavailable` without changing this port's callers.
+ * Errors any executor may raise. Policy failures use `BuildRejected` before signing; a signed
+ * transaction that expires before submission uses `TransactionExpired`.
  * @typedef {import("../domain/errors.js").RpcError
  *   | import("../domain/errors.js").SimulationFailed
  *   | import("../domain/errors.js").TransactionFailed
+ *   | import("../domain/errors.js").TransactionExpired
  *   | import("../domain/errors.js").UnsupportedAction
  *   | import("../domain/errors.js").BuildRejected
- *   | import("../domain/errors.js").BuildUnavailable} ExecutorError
+ *   | import("../domain/errors.js").BuildUnavailable
+ *   | import("../domain/errors.js").SignerUnavailable} ExecutorError
  */
 
 /**

@@ -22,6 +22,7 @@ import { PerpVenueLive } from "./perp/perp-venue-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
+import { JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 
@@ -87,6 +88,9 @@ const prices = (jupiter) => JupiterPriceLive(jupiter ?? { baseUrl: DEFAULT_JUPIT
  * @param {SolanaEnv["jupiter"] | undefined} jupiter
  */
 const quotes = (jupiter) => JupiterSwapLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
+/** Executor swap builds: no JUPITER_API_KEY → swap twins fail pre-HTTP with BuildUnavailable.
+ * @param {SolanaEnv["jupiter"] | undefined} jupiter */
+const builds = (jupiter) => JupiterSwapBuildLive(jupiter ?? { baseUrl: DEFAULT_JUPITER_BASE_URL });
 
 /**
  * Phoenix Perps reads need no credential at all, so the layer is always constructible: the
@@ -112,6 +116,7 @@ export const SolanaLive = (env) =>
     Layer.merge(lending(env.kamino)),
     Layer.provideMerge(KitSignerLive(env.signer)),
     Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
+    Layer.provideMerge(builds(env.jupiter)),
     Layer.merge(intelligence(env.elfa)),
     Layer.merge(prices(env.jupiter)),
     Layer.merge(quotes(env.jupiter)),
@@ -137,6 +142,7 @@ export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, ka
     Layer.merge(lending(kamino)),
     Layer.provideMerge(KitSignerFromBytes(seed)),
     Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
+    Layer.provideMerge(builds(jupiter)),
     Layer.merge(intelligence(elfa)),
     Layer.merge(prices(jupiter)),
     Layer.merge(quotes(jupiter)),
