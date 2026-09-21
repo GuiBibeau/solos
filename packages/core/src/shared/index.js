@@ -8,6 +8,7 @@ export {
   BuildUnavailable,
   InternalError,
   RpcError,
+  SignerUnavailable,
   SimulationFailed,
   TransactionExpired,
   TransactionFailed,

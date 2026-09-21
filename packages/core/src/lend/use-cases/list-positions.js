@@ -5,7 +5,7 @@ import { LendingInputInvalid } from "../domain/errors.js";
 import { ListLendPositionsInputSchema } from "../domain/types.js";
 import { LendingVenue } from "../ports/lending-venue.js";
 
-/** @typedef {import("../domain/errors.js").LendingError | import("../../wallet/index.js").SignerUnavailable} ListLendPositionsError */
+/** @typedef {import("../domain/errors.js").LendingError | import("../../shared/index.js").SignerUnavailable} ListLendPositionsError */
 /** @typedef {import("../ports/lending-venue.js").LendingVenueShape | import("../../wallet/index.js").SignerShape} ListLendPositionsContext */
 
 /**

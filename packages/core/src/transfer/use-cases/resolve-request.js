@@ -5,7 +5,7 @@ import { transferLamports } from "../domain/amount.js";
 import { InsufficientFunds } from "../domain/errors.js";
 import { TRANSFER_FEE_RESERVE_LAMPORTS } from "../domain/fees.js";
 
-/** @typedef {InsufficientFunds | import("../../shared/domain/errors.js").ValidationError | import("../../shared/domain/errors.js").RpcError | import("../../wallet/index.js").SignerUnavailable} ResolveError */
+/** @typedef {InsufficientFunds | import("../../shared/domain/errors.js").ValidationError | import("../../shared/domain/errors.js").RpcError | import("../../shared/index.js").SignerUnavailable} ResolveError */
 /** @typedef {import("../../wallet/index.js").SignerShape | import("../../wallet/index.js").BalanceReaderShape} ResolveContext */
 
 /**

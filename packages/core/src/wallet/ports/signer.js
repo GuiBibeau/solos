@@ -8,7 +8,7 @@ import { Context } from "effect";
  *   readonly backend: string;
  *   readonly address: () => import("effect").Effect.Effect<
  *     import("../../shared/domain/address.js").Address,
- *     import("../domain/errors.js").SignerUnavailable
+ *     import("../../shared/domain/errors.js").SignerUnavailable
  *   >;
  * }} SignerShape
  */
