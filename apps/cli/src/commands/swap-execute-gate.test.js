@@ -34,7 +34,10 @@ const childEnv = async () => ({
 });
 
 describe("default swap execution gates through real child processes [integration]", () => {
-  test("native execute fails simulation after one build and sends nothing", async () => {
+  // bun 1.3 ignores bunfig `[test].timeout`, so slow child-process tests set their own budget.
+  test("native execute fails simulation after one build and sends nothing", {
+    timeout: 60_000,
+  }, async () => {
     const builds = fixture.requests.length;
     const sends = rpc.callsFor("sendTransaction").length;
     const { stderr, code } = await runSolos(["swap", "execute", ...swapArgs], await childEnv());
@@ -45,7 +48,9 @@ describe("default swap execution gates through real child processes [integration
     expect(rpc.callsFor("sendTransaction")).toHaveLength(sends);
   });
 
-  test("stdio MCP execute uses the default simulation gate and sends nothing", async () => {
+  test("stdio MCP execute uses the default simulation gate and sends nothing", {
+    timeout: 60_000,
+  }, async () => {
     const builds = fixture.requests.length;
     const sends = rpc.callsFor("sendTransaction").length;
     const args = JSON.stringify({ inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT });

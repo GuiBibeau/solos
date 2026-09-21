@@ -90,7 +90,10 @@ const cases = /** @type {const} */ ([
 ]);
 
 describe("swap RPC redaction through real child processes [integration]", () => {
-  test("native CLI redacts lifetime, simulation, and send provider failures", async () => {
+  // bun 1.3 ignores bunfig `[test].timeout`, so slow multi-child tests set their own budget.
+  test("native CLI redacts lifetime, simulation, and send provider failures", {
+    timeout: 60_000,
+  }, async () => {
     for (const [failureStage, tag] of cases) {
       stage = failureStage;
       const { stderr, code } = await runSolos(["swap", "execute", ...args], await childEnv());
@@ -100,7 +103,9 @@ describe("swap RPC redaction through real child processes [integration]", () => 
     }
   });
 
-  test("real stdio MCP redacts lifetime, simulation, and send provider failures", async () => {
+  test("real stdio MCP redacts lifetime, simulation, and send provider failures", {
+    timeout: 60_000,
+  }, async () => {
     const toolArgs = JSON.stringify({
       inputMint: INPUT_MINT,
       outputMint: OUTPUT_MINT,

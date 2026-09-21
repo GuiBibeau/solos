@@ -51,7 +51,10 @@ const childEnv = async ({ jupiter = true } = {}) => {
 };
 
 describe("`solos swap simulate/execute` through real child processes [integration]", () => {
-  test("swap simulate reaches the fixture and reports SimulationFailed without sending", async () => {
+  // bun 1.3 ignores bunfig `[test].timeout`, so slow child-process tests set their own budget.
+  test("swap simulate reaches the fixture and reports SimulationFailed without sending", {
+    timeout: 60_000,
+  }, async () => {
     const { env, taker } = await childEnv();
     const { stderr, code } = await runSolos(["swap", "simulate", ...swapArgs], env);
     expect(code).toBe(1);
@@ -66,7 +69,9 @@ describe("`solos swap simulate/execute` through real child processes [integratio
     expect(request?.url.includes(KEY)).toBe(false);
   });
 
-  test("swap execute --skip-simulation submits exactly once and preserves the signature", async () => {
+  test("swap execute --skip-simulation submits exactly once and preserves the signature", {
+    timeout: 60_000,
+  }, async () => {
     const { env, taker } = await childEnv();
     await surfnet.cheats.fundSol(taker, 1);
     const builds = fixture.requests.length;
@@ -83,7 +88,9 @@ describe("`solos swap simulate/execute` through real child processes [integratio
     expect(fixture.requests.at(-1)?.taker).toBe(taker);
   });
 
-  test("mcp call reaches the fixture through the real server child", async () => {
+  test("mcp call reaches the fixture through the real server child", {
+    timeout: 60_000,
+  }, async () => {
     const { env } = await childEnv();
     const before = fixture.requests.length;
     const { stdout, code } = await runSolos(
@@ -104,7 +111,9 @@ describe("`solos swap simulate/execute` through real child processes [integratio
     expect(fixture.requests.length).toBe(before + 1);
   });
 
-  test("a missing Jupiter key exits 1 pre-HTTP with zero build requests", async () => {
+  test("a missing Jupiter key exits 1 pre-HTTP with zero build requests", {
+    timeout: 60_000,
+  }, async () => {
     const { env } = await childEnv({ jupiter: false });
     const before = fixture.requests.length;
     const { stderr, code } = await runSolos(["swap", "execute", ...swapArgs], env);
