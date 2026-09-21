@@ -14,7 +14,7 @@ import { BuildRejected, RpcError, TRANSFER_PRIORITY_FEE_LAMPORTS } from "@solos/
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { assertV1WireForSubmission, beginV1Message, signV1Message } from "./transaction-v1.js";
-import { confirmSubmitted, isConfirmedLanded } from "./transfer-confirm.js";
+import { confirmationState, confirmSubmitted } from "./transfer-confirm.js";
 
 /**
  * @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc
@@ -94,25 +94,28 @@ export const simulateSigned = (ctx, signed) =>
 /**
  * @param {Rpc} ctx
  * @param {import("@solana/kit").Signature} signature
+ * @param {AbortSignal} abortSignal
  */
-const lookupLanded = async (ctx, signature) => {
+const lookupLanded = async (ctx, signature, abortSignal) => {
   const { value } = await ctx.rpc
     .getSignatureStatuses([signature], { searchTransactionHistory: true })
-    .send();
-  return isConfirmedLanded(value[0]);
+    .send({ abortSignal });
+  return confirmationState(value[0]);
 };
 
 /**
  * @param {Rpc} ctx
  * @param {Signed} signed
+ * @param {{ readonly deadlineMs?: number }} [confirm]
  */
-export const sendSigned = (ctx, signed) => {
+export const sendSigned = (ctx, signed, confirm) => {
   assertIsTransactionWithBlockhashLifetime(signed);
   const signature = getSignatureFromTransaction(signed);
   return Effect.flatMap(wireForRpc(signed), (wire) =>
     confirmSubmitted({
       signature,
-      lookup: () => lookupLanded(ctx, signature),
+      deadlineMs: confirm?.deadlineMs,
+      lookup: (abortSignal) => lookupLanded(ctx, signature, abortSignal),
       submit: async (abortSignal) => {
         await ctx.rpc
           .sendTransaction(wire, { encoding: "base64", preflightCommitment: "confirmed" })

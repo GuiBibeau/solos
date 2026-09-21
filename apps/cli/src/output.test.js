@@ -8,7 +8,7 @@ const SIGNATURE = "5".repeat(88);
 const MAY_HAVE_LANDED =
   "confirmation was not established before the deadline; the transaction may still have landed";
 
-describe("CLI execute reporting", () => {
+describe("CLI execute reporting of domain errors", () => {
   afterEach(() => {
     process.exitCode = 0;
   });
