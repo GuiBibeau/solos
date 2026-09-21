@@ -95,6 +95,7 @@ const submitOrRecover = async (deps, abort) => {
   } catch (error) {
     if (error instanceof TransactionFailed) throw error;
     if (await lookupOk(deps, abort)) return;
+    throw new Error("submit failed", { cause: error });
   }
 };
 

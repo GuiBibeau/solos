@@ -1,5 +1,6 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
+import { getSignatureFromTransaction } from "@solana/kit";
 import { EventBusInMemory, sendSol, TransactionFailed } from "@solos/core";
 import { Cause, Effect, Exit, Layer, Option } from "effect";
 import { SolanaTestLive } from "../index.js";
@@ -47,8 +48,21 @@ const hangUntilAbort = (opts) =>
     else abort.addEventListener("abort", fail, { once: true });
   });
 
-/** @param {Rpc} ctx */
-const dropAfterSend = (ctx) => ({
+/** @param {Rpc} ctx @param {import("@solana/kit").Signature} signature */
+const waitUntilLanded = async (ctx, signature) => {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const { value } = await ctx.rpc
+      .getSignatureStatuses([signature], { searchTransactionHistory: true })
+      .send();
+    if (confirmationState(value[0]) === "success") return;
+    await Bun.sleep(20);
+  }
+  throw new Error("Surfnet did not confirm the sent signature");
+};
+
+/** @param {Rpc} ctx @param {import("@solana/kit").Signature} signature */
+const dropAfterSend = (ctx, signature) => ({
   ...ctx,
   rpc: new Proxy(ctx.rpc, {
     get(target, prop, receiver) {
@@ -57,6 +71,7 @@ const dropAfterSend = (ctx) => ({
       return (/** @type {never} */ wire, /** @type {never} */ options) => ({
         send: async (/** @type {{ abortSignal?: AbortSignal }} */ opts) => {
           await sendTx(wire, options).send(opts);
+          await waitUntilLanded(ctx, signature);
           throw new Error("transport dropped after send");
         },
       });
@@ -113,7 +128,7 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
   test("a dropped send still reports the signature when Surfnet already has it", async () => {
     const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
     const exit = await Effect.runPromiseExit(
-      sendSigned(dropAfterSend(ctx), signed, { deadlineMs: 8000 }),
+      sendSigned(dropAfterSend(ctx, getSignatureFromTransaction(signed)), signed),
     );
     expect(Exit.isSuccess(exit)).toBe(true);
     if (!Exit.isSuccess(exit)) throw new Error("expected success");
