@@ -7,7 +7,7 @@ import {
   getTransactionDecoder,
   getU64Codec,
 } from "@solana/kit";
-import { EventBusInMemory, TransactionFailed, executeSwap } from "@solos/core";
+import { EventBusInMemory, executeSwap, TransactionFailed } from "@solos/core";
 import { Effect, Layer } from "effect";
 import { SolanaTestLive } from "../index.js";
 import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
@@ -58,6 +58,10 @@ let taker;
 
 beforeAll(async () => {
   surfnet = await ensureSurfnet();
+  // The preflight binds route token programs to each mint's on-chain owner, so both fixture
+  // mints must exist on the offline fork with their real classic-token owner.
+  await surfnet.cheats.ensureMint(INPUT_MINT, 9);
+  await surfnet.cheats.ensureMint(OUTPUT_MINT, 6);
   fixture = startBuildFixture();
   rpc = startRpcRecorder(surfnet.rpcUrl);
   const seed = randomSeed();

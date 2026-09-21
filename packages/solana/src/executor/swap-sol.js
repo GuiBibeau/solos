@@ -7,6 +7,7 @@ import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
 import { assertV1WireForSubmission } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
+
 export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
 
 /**
@@ -37,7 +38,11 @@ export const buildSignedSwap = ({ ctx, kit, build }, action) =>
       });
     }
     const envelope = yield* fetchValidatedBuild({ kit, build }, action);
-    const lifetime = yield* preflightSwapBuild(ctx, envelope, kit.signer.address);
+    const lifetime = yield* preflightSwapBuild(ctx, {
+      envelope,
+      action,
+      taker: kit.signer.address,
+    });
     const signed = yield* assembleAndSign({ kit, lifetime }, envelope);
     return { signed, envelope };
   });
