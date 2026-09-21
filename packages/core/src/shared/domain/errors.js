@@ -6,6 +6,13 @@ import { taggedError } from "./tagged-error.js";
 /** The RPC endpoint failed or returned an error. Shared because every slice talks to RPC. */
 export class RpcError extends /** @type {RpcErrorClass} */ (taggedError("RpcError")) {}
 
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"SignerUnavailable", SignerUnavailableProps>} SignerUnavailableClass */
+/** @typedef {{ readonly backend: string; readonly reason: string }} SignerUnavailableProps */
+/** The configured signer cannot sign right now (missing key, remote backend down). */
+export class SignerUnavailable extends /** @type {SignerUnavailableClass} */ (
+  taggedError("SignerUnavailable")
+) {}
+
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"ValidationError", ValidationErrorProps>} ValidationErrorClass */
 /** @typedef {{ readonly field: string; readonly value: unknown; readonly reason: string }} ValidationErrorProps */
 /** Input rejected by a domain rule before any I/O happened. */

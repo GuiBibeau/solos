@@ -1,7 +1,8 @@
 // @ts-check
 import { signTransactionMessageWithSigners } from "@solana/kit";
-import { BuildRejected } from "@solos/core";
+import { BuildRejected, SignerUnavailable } from "@solos/core";
 import { Effect } from "effect";
+import { describeError } from "../rpc/rpc-call.js";
 import { buildRejection } from "../swap/jupiter-swap-build-accounts.js";
 import {
   assembleSwapMessage,
@@ -59,7 +60,7 @@ export const fetchValidatedBuild = ({ kit, build }, action) =>
  * fixed size bounds before involving a signer.
  * @param {{ kit: Kit; lifetime: import("@solana/kit").BlockhashLifetimeConstraint }} deps
  * @param {JupiterBuildEnvelope} envelope
- * @returns {import("effect").Effect.Effect<Signed, BuildRejected>}
+ * @returns {import("effect").Effect.Effect<Signed, BuildRejected | SignerUnavailable>}
  */
 export const assembleAndSign = ({ kit, lifetime }, envelope) =>
   Effect.gen(function* () {
@@ -77,6 +78,8 @@ export const assembleAndSign = ({ kit, lifetime }, envelope) =>
           /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */
           (/** @type {unknown} */ (message)),
         ),
-      catch: () => new BuildRejected({ reason: "swap transaction could not be signed" }),
+      catch: (error) =>
+        // Signing I/O has been attempted, so this is the signer, not pre-sign policy.
+        new SignerUnavailable({ backend: kit.backend, reason: describeError(error) }),
     });
   });
