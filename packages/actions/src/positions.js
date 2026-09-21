@@ -46,7 +46,7 @@ export const PerpPositionSchema = z
     side: z.enum(["long", "short", "flat"]),
     amount: AmountSchema.describe("Absolute base exposure; direction is side"),
     decimals: PerpLotDecimalsSchema.describe(
-      "Lot-size exponent; uiAmount = amount x 10^decimals, negative is a lot smaller than one token",
+      "Lot-size exponent; uiAmount = amount x 10^-decimals, negative is a lot larger than one token",
     ),
     valueUsd: z.null().describe("Never notional; count shared account equity once instead"),
   })
