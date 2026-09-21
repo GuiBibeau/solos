@@ -1,38 +1,33 @@
 // @ts-check
 import { Effect } from "effect";
-import { TransactionFailed } from "../../shared/domain/errors.js";
 import { makeEvent } from "../../shared/domain/event.js";
-import { ActionExecutor } from "../../shared/ports/action-executor.js";
 import { EventBus } from "../../shared/ports/event-bus.js";
+import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { resolveRequest } from "./resolve-request.js";
 import { toTransferAction } from "./to-action.js";
 
 /**
  * Send SOL from the configured signer through whichever executor is configured (ADR-0013).
- * Simulates first unless told not to, then publishes `transfer.sent`.
+ * Simulates first unless told not to, then publishes `transfer.sent` with the slice's own
+ * receipt: the executor's result is the contract's; the receipt is transfer's vocabulary.
  * @param {import("../domain/types.js").TransferSolInput} input
  * @returns {import("effect").Effect.Effect<
  *   import("../domain/types.js").TransferReceipt,
- *   import("./resolve-request.js").ResolveError | import("../../shared/ports/action-executor.js").ExecutorError,
+ *   import("./resolve-request.js").ResolveError | import("../../shared/domain/errors.js").TransactionFailed | import("../../shared/ports/action-executor.js").ExecutorError,
  *   import("./resolve-request.js").ResolveContext | import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}
  */
 export const sendSol = (input) =>
   Effect.gen(function* () {
     const request = yield* resolveRequest(input);
-    const executor = yield* ActionExecutor;
-    const result = yield* executor.execute(toTransferAction(request), {
+    const result = yield* executeAction({
+      action: toTransferAction(request),
       skipSimulation: request.skipSimulation,
     });
-    if (result.status !== "confirmed" || result.signature === null) {
-      return yield* new TransactionFailed({
-        signature: result.signature,
-        reason: result.error ?? `executor ${executor.name} returned ${result.status}`,
-      });
-    }
     /** @type {import("../domain/types.js").TransferReceipt} */
     const receipt = {
-      signature: result.signature,
+      // executeAction's contract: a confirmed result always carries its signature.
+      signature: /** @type {string} */ (result.signature),
       from: request.from,
       to: request.to,
       lamports: request.lamports.toString(),

@@ -1,11 +1,9 @@
 // @ts-check
 import { Effect } from "effect";
-import { SimulationFailed } from "../../shared/domain/errors.js";
-import { ActionExecutor } from "../../shared/ports/action-executor.js";
+import { simulateAction } from "../../shared/use-cases/simulate-action.js";
 import { LiquidityInputInvalid } from "../domain/errors.js";
 import { LiquidityDepositInputSchema } from "../domain/types.js";
 import { toDepositAction, validateDepositInput } from "./validate-input.js";
-
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | import("../domain/errors.js").LiquidityUnsupportedProtocol | import("../../shared/domain/errors.js").SimulationFailed | import("../../shared/ports/action-executor.js").ExecutorError} SimulateDepositError */
 
 /**
@@ -29,13 +27,5 @@ export const simulateDeposit = (input) =>
         reason: "the request does not satisfy the add_liquidity Action contract",
       });
     }
-    const result = yield* (yield* ActionExecutor).simulate(action);
-    if (!result.ok) {
-      const reason = result.violations.map((v) => `${v.rule}: ${v.message}`).join("; ");
-      return yield* new SimulationFailed({
-        reason: reason || "simulation failed",
-        logs: result.logs,
-      });
-    }
-    return result;
+    return yield* simulateAction({ action });
   }).pipe(Effect.withSpan("liquidity.simulateDeposit"));

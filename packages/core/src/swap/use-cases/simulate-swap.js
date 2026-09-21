@@ -1,7 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
-import { SimulationFailed } from "../../shared/domain/errors.js";
-import { ActionExecutor } from "../../shared/ports/action-executor.js";
+import { simulateAction } from "../../shared/use-cases/simulate-action.js";
 import { toSwapAction } from "./to-action.js";
 import { validateSwapInput } from "./validate-input.js";
 
@@ -19,13 +18,5 @@ import { validateSwapInput } from "./validate-input.js";
 export const simulateSwap = (input) =>
   Effect.gen(function* () {
     const request = yield* validateSwapInput(input);
-    const result = yield* (yield* ActionExecutor).simulate(toSwapAction(request));
-    if (!result.ok) {
-      const reason = result.violations.map((v) => `${v.rule}: ${v.message}`).join("; ");
-      return yield* new SimulationFailed({
-        reason: reason || "simulation failed",
-        logs: result.logs,
-      });
-    }
-    return result;
+    return yield* simulateAction({ action: toSwapAction(request) });
   }).pipe(Effect.withSpan("swap.simulateSwap"));

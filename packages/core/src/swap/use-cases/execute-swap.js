@@ -1,9 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
-import { TransactionFailed } from "../../shared/domain/errors.js";
-import { makeEvent } from "../../shared/domain/event.js";
-import { ActionExecutor } from "../../shared/ports/action-executor.js";
-import { EventBus } from "../../shared/ports/event-bus.js";
+import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { toSwapAction } from "./to-action.js";
 import { validateSwapInput } from "./validate-input.js";
 
@@ -15,23 +12,16 @@ import { validateSwapInput } from "./validate-input.js";
  * @param {import("../domain/types.js").SwapQuoteRequest & { skipSimulation?: boolean }} input
  * @returns {import("effect").Effect.Effect<
  *   import("@solos/actions").ExecutionResult,
- *   import("../domain/errors.js").QuoteInputInvalid | import("../../shared/ports/action-executor.js").ExecutorError,
+ *   import("../domain/errors.js").QuoteInputInvalid | import("../../shared/domain/errors.js").TransactionFailed | import("../../shared/ports/action-executor.js").ExecutorError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}
  */
 export const executeSwap = (input) =>
   Effect.gen(function* () {
     const request = yield* validateSwapInput(input);
-    const executor = yield* ActionExecutor;
-    const result = yield* executor.execute(toSwapAction(request), {
+    return yield* executeAction({
+      action: toSwapAction(request),
       skipSimulation: input.skipSimulation === true,
+      event: "swap.executed",
     });
-    if (result.status !== "confirmed" || result.signature === null) {
-      return yield* new TransactionFailed({
-        signature: result.signature,
-        reason: result.error ?? `executor ${executor.name} returned ${result.status}`,
-      });
-    }
-    yield* (yield* EventBus).publish(makeEvent("swap.executed", result));
-    return result;
   }).pipe(Effect.withSpan("swap.executeSwap"));

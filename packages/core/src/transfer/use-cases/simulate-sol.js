@@ -1,7 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
-import { SimulationFailed } from "../../shared/domain/errors.js";
-import { ActionExecutor } from "../../shared/ports/action-executor.js";
+import { simulateAction } from "../../shared/use-cases/simulate-action.js";
 import { resolveRequest } from "./resolve-request.js";
 import { toTransferAction } from "./to-action.js";
 
@@ -17,14 +16,7 @@ import { toTransferAction } from "./to-action.js";
 export const simulateSol = (input) =>
   Effect.gen(function* () {
     const request = yield* resolveRequest(input);
-    const result = yield* (yield* ActionExecutor).simulate(toTransferAction(request));
-    if (!result.ok) {
-      const reason = result.violations.map((v) => `${v.rule}: ${v.message}`).join("; ");
-      return yield* new SimulationFailed({
-        reason: reason || "simulation failed",
-        logs: result.logs,
-      });
-    }
+    const result = yield* simulateAction({ action: toTransferAction(request) });
     return {
       from: request.from,
       to: request.to,

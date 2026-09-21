@@ -35,3 +35,5 @@ export { EventSink } from "./ports/event-sink.js";
 export { Store } from "./ports/store.js";
 export { annotationsForTier, defineTool, requiresUserInteraction } from "./tools/define-tool.js";
 export { validateTool } from "./tools/validate-tool.js";
+export { executeAction } from "./use-cases/execute-action.js";
+export { simulateAction } from "./use-cases/simulate-action.js";
