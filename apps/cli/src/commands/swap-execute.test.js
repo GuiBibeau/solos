@@ -28,6 +28,8 @@ let fixture;
 
 beforeAll(async () => {
   surfnet = await ensureSurfnet();
+  await surfnet.cheats.ensureMint(INPUT_MINT, 9);
+  await surfnet.cheats.ensureMint(OUTPUT_MINT, 6);
   fixture = startBuildFixture();
 });
 
