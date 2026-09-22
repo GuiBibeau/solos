@@ -6,6 +6,8 @@
 /** @typedef {import("./domain/types.js").ListLendPositionsInput} ListLendPositionsInput */
 /** @typedef {import("./domain/types.js").LendPosition} LendPosition */
 /** @typedef {import("./domain/types.js").LendEnumeration} LendEnumeration */
+
+export { formatApy } from "./domain/apy.js";
 export {
   LendingEnumerationIncomplete,
   LendingInputInvalid,
@@ -16,7 +18,6 @@ export {
   LendingTimeout,
   ReserveUnavailable,
 } from "./domain/errors.js";
-export { formatApy } from "./domain/apy.js";
 export {
   FractionalApySchema,
   GetLendPositionInputSchema,
@@ -26,18 +27,31 @@ export {
   ReserveSnapshotSchema,
 } from "./domain/types.js";
 export { LendingVenue } from "./ports/lending-venue.js";
-export { getReserve } from "./use-cases/get-reserve.js";
-export { getLendPosition } from "./use-cases/get-position.js";
-export { listLendPositions } from "./use-cases/list-positions.js";
-export { getReserveTool } from "./tools/get-reserve.js";
+export { executeDepositTool as executeLendDepositTool } from "./tools/execute-deposit.js";
 export { getLendPositionTool } from "./tools/get-position.js";
+export { getReserveTool } from "./tools/get-reserve.js";
+export { simulateDepositTool as simulateLendDepositTool } from "./tools/simulate-deposit.js";
+export { executeDeposit as executeLendDeposit } from "./use-cases/execute-deposit.js";
+export { getLendPosition } from "./use-cases/get-position.js";
+export { getReserve } from "./use-cases/get-reserve.js";
+export { listLendPositions } from "./use-cases/list-positions.js";
+// Use-case and tool names are prefixed for the package root, where the liquidity slice's
+// deposit twins already own the short names; inside the slice the domain names stand.
+export { simulateDeposit as simulateLendDeposit } from "./use-cases/simulate-deposit.js";
 
+import { executeDepositTool } from "./tools/execute-deposit.js";
 import { getLendPositionTool } from "./tools/get-position.js";
 import { getReserveTool } from "./tools/get-reserve.js";
+import { simulateDepositTool } from "./tools/simulate-deposit.js";
 
 /**
- * The lend slice's public verbs. Read-only today: one configured market's reserve rates and
- * available liquidity, no deposit, no withdraw, no rate routing.
+ * The lend slice's public verbs. Reads plus supply deposits into the one configured market;
+ * withdrawals follow in the next track (ADR-0019 gates funded deposits on a checked exit).
  * @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>}
  */
-export const lendTools = [getReserveTool, getLendPositionTool];
+export const lendTools = [
+  getReserveTool,
+  getLendPositionTool,
+  simulateDepositTool,
+  executeDepositTool,
+];

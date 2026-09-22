@@ -3,6 +3,7 @@ import { z } from "zod";
 export { LendPositionSchema } from "@solos/actions";
 import { AddressSchema } from "../../shared/domain/address.js";
 import { base58ByteLength } from "../../shared/domain/base58.js";
+
 /** @typedef {import("../../shared/domain/address.js").Address} Address */
 
 /**
@@ -91,6 +92,39 @@ export const GetLendPositionInputSchema = z.object({
   ),
 });
 
+/** A positive u64 base-unit amount: the exact underlying size of one deposit. */
+const PositiveU64AmountSchema = U64AmountSchema.refine(
+  (value) => /[1-9]/.test(value),
+  "the deposit amount must be positive",
+);
+
+/**
+ * One deposit intent: exact mint and positive underlying base units into the configured
+ * market. There is no owner argument — the signer owns the source account and the resulting
+ * supply position, because only the executor signs. Strict, so a stray owner key fails
+ * typed instead of being silently ignored.
+ */
+export const LendDepositInputSchema = z
+  .object({
+    mint: MintSchema.describe("Underlying token mint to supply in the configured Kamino market"),
+    amount: PositiveU64AmountSchema.describe(
+      "Exact underlying amount to deposit, in base units as a positive integer string",
+    ),
+  })
+  .strict();
+
+/** The execute twin: identical intent plus the pre-send simulation switch. */
+export const LendExecuteDepositInputSchema = z
+  .object({
+    mint: LendDepositInputSchema.shape.mint,
+    amount: LendDepositInputSchema.shape.amount,
+    skipSimulation: z
+      .boolean()
+      .default(false)
+      .describe("Skip the pre-send simulation of the exact transaction. Defaults to false"),
+  })
+  .strict();
+
 /** Resolve every supported Kamino supply position for one owner. */
 export const ListLendPositionsInputSchema = z.object({
   owner: MintSchema.optional().describe(
@@ -100,5 +134,7 @@ export const ListLendPositionsInputSchema = z.object({
 
 /** @typedef {z.infer<typeof GetLendPositionInputSchema>} GetLendPositionInput */
 /** @typedef {z.infer<typeof ListLendPositionsInputSchema>} ListLendPositionsInput */
+/** @typedef {z.infer<typeof LendDepositInputSchema>} LendDepositInput */
+/** @typedef {z.infer<typeof LendExecuteDepositInputSchema>} LendExecuteDepositInput */
 /** @typedef {z.infer<typeof import("@solos/actions").LendPositionSchema>} LendPosition */
 /** @typedef {{ readonly positions: LendPosition[]; readonly perpAccounts: []; readonly receiptMints: Address[] }} LendEnumeration */

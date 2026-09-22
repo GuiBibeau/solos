@@ -28,7 +28,6 @@ import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 
 export * from "./credentials/index.js";
-export * from "./privy/index.js";
 export {
   DEFAULT_ELFA_BASE_URL,
   DEFAULT_JUPITER_BASE_URL,
@@ -39,36 +38,42 @@ export {
   loadSolanaEnv,
   phoenixBaseUrl,
 } from "./env.js";
-export { KAMINO_MAIN_MARKET, KLEND_PROGRAM_ID } from "./lend/kamino-addresses.js";
-export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { LaunchVenueLive } from "./launch/launch-venue-live.js";
+export { KAMINO_MAIN_MARKET, KLEND_PROGRAM_ID } from "./lend/kamino-addresses.js";
 export { KaminoVenueLive } from "./lend/kamino-venue-live.js";
 export { LiquidityVenueLive } from "./liquidity/liquidity-venue-live.js";
-export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
+export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { TokenRegistryLive } from "./market/token-registry-live.js";
-export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 export { PerpVenueLive } from "./perp/perp-venue-live.js";
+export { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
+export * from "./privy/index.js";
+export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
+export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 export { BalanceReaderLive } from "./wallet/balance-reader-live.js";
-export { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 
 /**
  * Every core port this package implements over a KitSigner. `ActionExecutor` is the wallet
  * executor by default; an engine executor replaces this one Layer in vault mode (ADR-0013).
+ * The executor starts with the default configured market; composition merges a market-aware
+ * executor below, so the placeholder here provides the tag with no lend identity (the lend
+ * branch defaults to the pinned Main Market when composition does not override it).
+ * @param {{ readonly market?: string }} [executorConfig]
  */
-const adapters = Layer.mergeAll(
-  SignerLive,
-  BalanceReaderLive,
-  TokenRegistryLive(),
-  LaunchVenueLive(),
-  KaminoVenueLive(),
-  LiquidityVenueLive,
-  DirectSignerExecutor,
-);
+const adapters = (executorConfig) =>
+  Layer.mergeAll(
+    SignerLive,
+    BalanceReaderLive,
+    TokenRegistryLive(),
+    LaunchVenueLive(),
+    KaminoVenueLive(),
+    LiquidityVenueLive,
+    DirectSignerExecutor(executorConfig),
+  );
 
 /**
  * Iris needs no chain access, so its Layer rides along unprovided: without ELFA_API_KEY the
@@ -122,7 +127,7 @@ const withPortfolio = (base) => Layer.merge(base, PortfolioReaderLive().pipe(Lay
  */
 export const SolanaLive = (env) =>
   withPortfolio(
-    adapters.pipe(
+    adapters({ market: env.kamino.market }).pipe(
       Layer.merge(lending(env.kamino)),
       Layer.provideMerge(KitSignerLive(env.signer)),
       Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
@@ -150,7 +155,7 @@ export const SolanaLive = (env) =>
  */
 export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, kamino }) =>
   withPortfolio(
-    adapters.pipe(
+    adapters({ market: kamino?.market }).pipe(
       Layer.merge(lending(kamino)),
       Layer.provideMerge(KitSignerFromBytes(seed)),
       Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),

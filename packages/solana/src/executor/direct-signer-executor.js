@@ -1,6 +1,8 @@
 // @ts-check
 import { ActionExecutor, SimulationFailed, UnsupportedAction } from "@solos/core";
 import { Clock, Effect, Layer } from "effect";
+import { KAMINO_MAIN_MARKET } from "../lend/kamino-addresses.js";
+import { buildSignedLendDeposit, lendQuoteOf } from "../lend/kamino-deposit-build.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
@@ -20,7 +22,8 @@ export const EXECUTOR_NAME = "direct-signer";
  * @typedef {import("@solos/actions").Action} Action
  */
 
-/** @typedef {{ ctx: Rpc; kit: Kit; build: Build }} Deps */
+/** @typedef {{ ctx: Rpc; kit: Kit; build: Build; market: string }} Deps */
+/** @typedef {import("./transfer-sol.js").Signed} Signed */
 
 /**
  * Build and sign whatever the action asks for. One branch per supported action type; anything
@@ -28,7 +31,7 @@ export const EXECUTOR_NAME = "direct-signer";
  * @param {Deps} deps
  * @param {Action} action
  */
-const build = ({ ctx, kit, build: buildSwap }, action) => {
+const build = ({ ctx, kit, build: buildSwap, market }, action) => {
   if (action.type === "transfer_sol") return buildSignedTransfer(ctx, kit, action);
   if (action.type === "swap") {
     return Effect.map(
@@ -42,7 +45,46 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
   if (action.type === "remove_liquidity") {
     return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), ({ signed }) => signed);
   }
+  if (action.type === "lend") {
+    return Effect.map(buildSignedLendDeposit({ ctx, kit, market }, action), ({ signed }) => signed);
+  }
   return Effect.fail(new UnsupportedAction({ actionType: action.type, executor: EXECUTOR_NAME }));
+};
+
+/**
+ * Build and sign, keeping the plan's venueQuote for the venue branches: their quoted
+ * amounts and encoded bounds are what the caller records (ADR-0022 QA reconciliation).
+ * @param {Deps} deps
+ * @param {Action} action
+ * @returns {import("effect").Effect.Effect<{ signed: Signed; venueQuote: import("@solos/actions").VenueQuote | null }, import("@solos/core").ExecutorError>}
+ */
+const plannedSigned = ({ ctx, kit, build: buildSwap, market }, action) => {
+  switch (action.type) {
+    case "remove_liquidity": {
+      return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), (planned) => ({
+        signed: planned.signed,
+        venueQuote: withdrawQuoteOf(planned.plan),
+      }));
+    }
+    case "add_liquidity": {
+      return Effect.map(buildSignedLiquidityDeposit({ ctx, kit }, action), (planned) => ({
+        signed: planned.signed,
+        venueQuote: depositQuoteOf(planned.plan),
+      }));
+    }
+    case "lend": {
+      return Effect.map(buildSignedLendDeposit({ ctx, kit, market }, action), (planned) => ({
+        signed: planned.signed,
+        venueQuote: lendQuoteOf(planned.plan.quote),
+      }));
+    }
+    default: {
+      return Effect.map(build({ ctx, kit, build: buildSwap, market }, action), (signed) => ({
+        signed,
+        venueQuote: null,
+      }));
+    }
+  }
 };
 
 /**
@@ -50,24 +92,10 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
  * @param {Action} action
  * @returns {import("effect").Effect.Effect<import("@solos/actions").SimulationResult, import("@solos/core").ExecutorError>}
  */
-const simulate = ({ ctx, kit, build: buildSwap }, action) =>
+const simulate = (deps, action) =>
   Effect.gen(function* () {
-    // Liquidity twins keep their plan through simulation: its quoted amounts and encoded
-    // bounds are the venueQuote the caller records (ADR-0022 QA reconciliation).
-    /** @type {import("@solos/actions").VenueQuote} */
-    let venueQuote = null;
-    let signed;
-    if (action.type === "remove_liquidity") {
-      const planned = yield* buildSignedLiquidityWithdraw({ ctx, kit }, action);
-      signed = planned.signed;
-      venueQuote = withdrawQuoteOf(planned.plan);
-    } else if (action.type === "add_liquidity") {
-      const planned = yield* buildSignedLiquidityDeposit({ ctx, kit }, action);
-      signed = planned.signed;
-      venueQuote = depositQuoteOf(planned.plan);
-    } else {
-      signed = yield* build({ ctx, kit, build: buildSwap }, action);
-    }
+    const { ctx } = deps;
+    const { signed, venueQuote } = yield* plannedSigned(deps, action);
     if (action.type === "swap") {
       yield* assertSwapWireBeforeContact(signed);
       yield* recheckSignedSwapLifetime(ctx, signed);
@@ -109,7 +137,7 @@ const stringifySimError = (value) =>
  * @param {{ readonly skipSimulation: boolean }} options
  * @returns {import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, import("@solos/core").ExecutorError>}
  */
-const execute = ({ ctx, kit, build: buildSwap }, action, options) =>
+const execute = ({ ctx, kit, build: buildSwap, market }, action, options) =>
   Effect.gen(function* () {
     if (action.type === "swap") {
       const swap = yield* buildSignedSwap({ ctx, kit, build: buildSwap }, action);
@@ -128,7 +156,7 @@ const execute = ({ ctx, kit, build: buildSwap }, action, options) =>
         error: null,
       };
     }
-    const signed = yield* build({ ctx, kit, build: buildSwap }, action);
+    const signed = yield* build({ ctx, kit, build: buildSwap, market }, action);
     const signature = yield* submitSimulated({ ctx, signed }, options.skipSimulation);
     return {
       action,
@@ -160,14 +188,24 @@ const submitSimulated = ({ ctx, signed }, skipSimulation) =>
 /**
  * The default executor: the configured keypair signs and sends directly (ADR-0013).
  * Right for wallet mode, paper mode on Surfpool, and dev. A vault engine is a different Layer.
+ * The configured Kamino market (ADR-0019) rides along so `lend` actions are revalidated
+ * against the exact market the reads advertise.
+ * @param {{ readonly market?: string }} [config]
  */
-export const DirectSignerExecutor = Layer.effect(
-  ActionExecutor,
-  Effect.all([SolanaRpc, KitSigner, JupiterSwapBuild]).pipe(
-    Effect.map(([ctx, kit, build]) => ({
-      name: EXECUTOR_NAME,
-      simulate: (action) => simulate({ ctx, kit, build }, action),
-      execute: (action, options) => execute({ ctx, kit, build }, action, options),
-    })),
-  ),
-);
+export const DirectSignerExecutor = (config) =>
+  Layer.effect(
+    ActionExecutor,
+    Effect.all([SolanaRpc, KitSigner, JupiterSwapBuild]).pipe(
+      Effect.map(([ctx, kit, build]) => ({
+        name: EXECUTOR_NAME,
+        simulate: (action) =>
+          simulate({ ctx, kit, build, market: config?.market ?? KAMINO_MAIN_MARKET }, action),
+        execute: (action, options) =>
+          execute(
+            { ctx, kit, build, market: config?.market ?? KAMINO_MAIN_MARKET },
+            action,
+            options,
+          ),
+      })),
+    ),
+  );

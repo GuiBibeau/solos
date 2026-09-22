@@ -75,4 +75,5 @@ export const validateReserveCandidates = async (rpc, target, sdk) => {
       throw new KaminoAccountLayoutError(candidate.pubkey);
     }
   }
+  return candidates;
 };

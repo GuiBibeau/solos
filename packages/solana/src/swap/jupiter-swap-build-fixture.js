@@ -9,17 +9,17 @@ import {
   ALT_ADDRESS,
   AMOUNT,
   BLOCKHASH_BYTES,
+  cleanupInstruction,
+  cuPriceInstruction,
+  destinationCreateInstruction,
   INPUT_MINT,
   INPUT_VAULT,
   LAST_VALID_BLOCK_HEIGHT,
+  minOutFor,
   OUT_AMOUNT,
   OUTPUT_MINT,
   OUTPUT_VAULT,
   POOL_AUTHORITY,
-  cleanupInstruction,
-  destinationCreateInstruction,
-  cuPriceInstruction,
-  minOutFor,
   syncNativeInstruction,
   temporaryAtaCreateInstruction,
   wsolFundingInstruction,
@@ -113,7 +113,7 @@ const DEAD_WS_URL = "ws://127.0.0.1:2";
  * @param {Layer.Layer<import("./jupiter-swap-build-live.js").JupiterSwapBuildShape>} buildLayer
  */
 export const executorLayer = (seed, buildLayer) =>
-  DirectSignerExecutor.pipe(
+  DirectSignerExecutor().pipe(
     Layer.provide(
       Layer.mergeAll(
         KitSignerFromBytes(seed),

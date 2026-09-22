@@ -2,7 +2,13 @@
 import { z } from "zod";
 import { ActionSchema } from "./action.js";
 import { PortfolioStateSchema } from "./portfolio.js";
-import { AmountSchema, SignatureSchema, TimestampSchema } from "./primitives.js";
+import {
+  AddressSchema,
+  AmountSchema,
+  DecimalSchema,
+  SignatureSchema,
+  TimestampSchema,
+} from "./primitives.js";
 
 export const ViolationSchema = z.object({
   rule: z.string().min(1),
@@ -49,9 +55,40 @@ export const LiquidityDepositQuoteSchema = z.object({
   ),
 });
 
+/** The venue quote of one planned lend deposit, or null for actions without one. */
+export const LendDepositQuoteSchema = z.object({
+  kind: z.literal("lend_deposit"),
+  reserve: AddressSchema.describe("The reserve the deposit targets in the configured market"),
+  obligation: AddressSchema.describe(
+    "The signer's plain supply obligation receiving the collateral",
+  ),
+  liquidityAmount: AmountSchema.describe(
+    "Exact underlying base units encoded in the deposit instruction",
+  ),
+  estimatedCollateral: AmountSchema.describe(
+    "Collateral base units the deposit is predicted to mint at the read-time reserve exchange rate, rounded down; the on-chain outcome may differ",
+  ),
+  exchangeRate: DecimalSchema.describe(
+    "Reserve collateral exchange rate observed at read time, collateral per liquidity as a decimal string",
+  ),
+  initializeObligation: z
+    .boolean()
+    .describe("Whether the transaction initializes the obligation (and its user metadata)"),
+  rentLamports: AmountSchema.describe(
+    "Rent-exempt lamports for accounts the transaction initializes, zero when none",
+  ),
+  feeLamports: AmountSchema.describe(
+    "Transaction fee at the flat per-signature rate, before priority fees",
+  ),
+});
+
 /** The venue quote of one planned liquidity action, or null for actions without one. */
 export const VenueQuoteSchema = z
-  .discriminatedUnion("kind", [LiquidityRemovalQuoteSchema, LiquidityDepositQuoteSchema])
+  .discriminatedUnion("kind", [
+    LiquidityRemovalQuoteSchema,
+    LiquidityDepositQuoteSchema,
+    LendDepositQuoteSchema,
+  ])
   .nullable()
   .default(null);
 
@@ -63,7 +100,7 @@ export const SimulationResultSchema = z.object({
   logs: z.array(z.string()),
   projectedPortfolio: PortfolioStateSchema.nullable(),
   venueQuote: VenueQuoteSchema.describe(
-    "For liquidity actions: the plan's quoted amounts and the exact bounds encoded in the instruction, at the pre-send pool price; null for every other action",
+    "For liquidity and lend actions: the plan's quoted amounts, the exact bounds encoded in the instruction, and pre-send rent/fee evidence, at the pre-send state; null for every other action",
   ),
   violations: z.array(ViolationSchema),
 });
@@ -84,4 +121,5 @@ export const ExecutionResultSchema = z.object({
 
 /** @typedef {z.infer<typeof LiquidityRemovalQuoteSchema>} LiquidityRemovalQuote */
 /** @typedef {z.infer<typeof LiquidityDepositQuoteSchema>} LiquidityDepositQuote */
+/** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
 /** @typedef {z.infer<typeof VenueQuoteSchema>} VenueQuote */
