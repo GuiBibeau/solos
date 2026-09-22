@@ -13,7 +13,7 @@ import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
 const BASE_MINT_SIZE = 82;
 const tokenDecoder = getTokenDecoder();
 
-/** @typedef {{ readonly owner: string; readonly bytes: Uint8Array }} FetchedRow */
+/** @typedef {{ readonly owner: string; readonly bytes: Uint8Array; readonly state?: ObligationState }} FetchedRow */
 /** @typedef {{ readonly status: "reject"; readonly reason: string }} DepositPlanReject */
 /** @typedef {{ owner: string; lendingMarket: string; tag: number; borrows: unknown[]; deposits?: { depositReserve: string; depositedAmount: { toString: () => string } }[] }} DecodedObligation */
 /** @typedef {DecodedObligation | undefined} ObligationState */
@@ -88,6 +88,8 @@ const plainSupplyRejection = (state, intent) => {
 
 /**
  * Guard the obligation row when present: decode it and enforce the plain-supply constraint.
+ * A kLend-owned row whose bytes do not decode as an obligation (the seam yields no state)
+ * is rejected, never dereferenced.
  * @param {FetchedRow | null | undefined} row @param {{ owner: string; market: string }} intent
  * @returns {{ readonly state: ObligationState } | DepositPlanReject}
  */
@@ -98,7 +100,12 @@ export const guardObligationRow = (row, intent) => {
       "the account at the signer's plain-supply obligation address is not owned by the pinned lending program",
     );
   }
-  const state = /** @type {DecodedObligation} */ (/** @type {any} */ (row).state);
+  const state = /** @type {FetchedRow} */ (row).state;
+  if (state === undefined) {
+    return reject(
+      "the account at the signer's plain-supply obligation address does not decode as a Kamino obligation",
+    );
+  }
   const rejection = plainSupplyRejection(state, intent);
   return rejection ?? { state };
 };

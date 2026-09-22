@@ -22,7 +22,7 @@ export const USER_METADATA_ACCOUNT_SIZE = 1032;
 /** v0/v1 flat per-signature base fee; priority fees are executor policy, not a venue quote. */
 const TRANSACTION_FEE_LAMPORTS = 5000n;
 
-/** @typedef {{ readonly owner: string; readonly bytes: Uint8Array }} FetchedRow */
+/** @typedef {{ readonly owner: string; readonly bytes: Uint8Array; readonly state?: import("./kamino-deposit-guards.js").ObligationState }} FetchedRow */
 /** @typedef {{ readonly rows: (accounts: readonly string[]) => import("effect").Effect.Effect<ReadonlyArray<FetchedRow | null>, import("@solos/core").RpcError>; readonly rent: (sizes: readonly number[]) => import("effect").Effect.Effect<ReadonlyArray<bigint>, import("@solos/core").RpcError> }} DepositReader */
 /** @typedef {{ readonly market: string; readonly mint: string; readonly amount: bigint; readonly owner: string }} DepositIntent */
 /** @typedef {{ readonly reserve: string; readonly liquidityMint: string; readonly liquiditySupplyVault: string; readonly liquidityTokenProgram: string; readonly collateralMint: string; readonly collateralSupplyVault: string; readonly lendingMarketAuthority: string; readonly estimatedCollateral: string; readonly exchangeRate: string }} ReserveFacts */

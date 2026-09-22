@@ -16,7 +16,8 @@ import { beginV1Message, signV1Message } from "../executor/transaction-v1.js";
 import { base64AccountData } from "../market/mint-account.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
-import { depositFacts } from "./kamino-deposit-facts.js";
+import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
+import { depositFacts, kaminoDepositSdk } from "./kamino-deposit-facts.js";
 import { depositPlan } from "./kamino-deposit-plan.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
@@ -33,6 +34,33 @@ export const KAMINO_DEPOSIT_V1_CONFIG = Object.freeze({
 });
 
 const READ_TIMEOUT_MS = 15_000;
+
+/**
+ * The plain obligation state the plan's guards check, decoded here at the seam so the plan
+ * stays SDK-free. Only active borrows (nonzero debt) survive the mapping; a body that does
+ * not decode as a klend obligation yields `undefined` state, which the guard rejects.
+ * @param {any} sdk @param {import("./kamino-deposit-plan.js").FetchedRow} row
+ * @returns {import("./kamino-deposit-plan.js").ObligationState}
+ */
+const decodedObligationState = (sdk, row) => {
+  try {
+    const state = sdk.Obligation.decode(Buffer.from(row.bytes));
+    return {
+      owner: state.owner.toString(),
+      lendingMarket: state.lendingMarket.toString(),
+      tag: Number(state.tag),
+      deposits: state.deposits.map((/** @type {any} */ d) => ({
+        depositReserve: d.depositReserve.toString(),
+        depositedAmount: d.depositedAmount,
+      })),
+      borrows: state.borrows
+        .filter((/** @type {any} */ b) => BigInt(b.borrowedAmountSf?.toString?.() ?? 0n) > 0n)
+        .map((/** @type {any} */ b) => b.borrowReserve.toString()),
+    };
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * The plan's reader over real RPC: batched account rows and rent-exempt minimums. Transport
@@ -62,27 +90,31 @@ const chainReader = (ctx) => {
  * @returns {import("effect").Effect.Effect<ReadonlyArray<import("./kamino-deposit-plan.js").FetchedRow | null>, import("@solos/core").RpcError>}
  */
 const fetchRows = (read, accounts) =>
-  rpcCall("getMultipleAccounts", read.origin, () =>
-    read.rpc
-      .getMultipleAccounts(
-        accounts.map((a) => /** @type {any} */ (a)),
-        {
-          encoding: "base64",
-        },
-      )
-      .send({ abortSignal: AbortSignal.timeout(read.timeoutMs) }),
-  ).pipe(
-    Effect.map((result) =>
-      result.value.map((account) =>
-        account === null
-          ? null
-          : {
-              owner: /** @type {any} */ (account).owner,
-              bytes: base64AccountData(/** @type {any} */ (account).data),
-            },
-      ),
-    ),
-  );
+  Effect.gen(function* () {
+    const sdk = yield* Effect.promise(() => kaminoDepositSdk());
+    const result = yield* rpcCall("getMultipleAccounts", read.origin, () =>
+      read.rpc
+        .getMultipleAccounts(
+          accounts.map((a) => /** @type {any} */ (a)),
+          {
+            encoding: "base64",
+          },
+        )
+        .send({ abortSignal: AbortSignal.timeout(read.timeoutMs) }),
+    );
+    return result.value.map((/** @type {any} */ account) => {
+      if (account === null) return null;
+      const row = {
+        owner: account.owner,
+        bytes: base64AccountData(account.data),
+      };
+      // klend-owned rows (the obligation, the user metadata) carry their decoded state;
+      // accounts of other programs come as raw rows.
+      return row.owner === KLEND_PROGRAM_ID
+        ? { ...row, state: decodedObligationState(sdk, row) }
+        : row;
+    });
+  });
 
 /**
  * Build and sign one Kamino deposit. The action's market must be this executor's configured

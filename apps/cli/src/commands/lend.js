@@ -48,32 +48,30 @@ const skipSimulation = Options.boolean("skip-simulation").pipe(
   ),
 );
 
-const simulateDeposit = Command.make("simulate-deposit", { mint, amount, owner }, (options) =>
+const simulateDeposit = Command.make("simulate-deposit", { mint, amount }, (options) =>
   withSolos(
     simulateLendDeposit({
       mint: options.mint,
       amount: options.amount,
-      owner: Option.getOrUndefined(options.owner),
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate a bounded Kamino supply deposit without submitting anything: shows the reserve, the exact encoded amount, the predicted collateral and the accounts the executor would initialize",
+    "Simulate supplying the signer's own tokens into the configured Kamino market without submitting anything: shows the reserve, the exact encoded amount, the predicted collateral and the accounts the executor would initialize",
   ),
 );
 
-const deposit = Command.make("deposit", { mint, amount, owner, skipSimulation }, (options) =>
+const deposit = Command.make("deposit", { mint, amount, skipSimulation }, (options) =>
   withSolos(
     executeLendDeposit({
       mint: options.mint,
       amount: options.amount,
-      owner: Option.getOrUndefined(options.owner),
       skipSimulation: options.skipSimulation,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Supply an exact underlying amount to the configured Kamino market and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+    "Supply the signer's own tokens to the configured Kamino market and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
   ),
 );
 

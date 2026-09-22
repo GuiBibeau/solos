@@ -31,6 +31,7 @@ import { vanillaObligationAddress } from "./kamino-deposit-addresses.js";
 import { buildSignedLendDeposit } from "./kamino-deposit-build.js";
 import {
   positionMarketBytes,
+  positionObligationBytes,
   positionReserveBytes,
   seedKaminoAccount,
 } from "./kamino-position-fixture.js";
@@ -56,6 +57,8 @@ let surfnet;
 let rpc;
 /** @type {string} */
 let market;
+/** @type {string} */
+let reserve;
 /** @type {Uint8Array} */
 let signerSeed;
 
@@ -63,7 +66,7 @@ beforeAll(async () => {
   surfnet = await ensureOfflineSurfnet();
   rpc = startRpcRecorder(surfnet.rpcUrl);
   signerSeed = randomSeed();
-  const reserve = await seedAddress(randomSeed());
+  reserve = await seedAddress(randomSeed());
   market = await seedAddress(randomSeed());
   // A distinct synthetic receipt mint so the collateral-mint row is a real classic mint.
   const receipt = getBase58Codec().decode(new Uint8Array(32).fill(7));
@@ -217,5 +220,53 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
       role: 1,
     });
     expect(metas.accounts).toContainEqual({ address: await seedAddress(signerSeed), role: 3 });
+  });
+
+  test("an on-chain obligation is decoded at the seam and the plan skips its init", async () => {
+    const owner = await seedAddress(signerSeed);
+    const obligation = await vanillaObligationAddress(owner, market);
+    await seedKaminoAccount(
+      surfnet.rpcUrl,
+      obligation,
+      positionObligationBytes({
+        market,
+        owner,
+        deposits: [{ reserve, amount: 5n }],
+      }),
+    );
+    const exit = await Effect.runPromiseExit(
+      Effect.provide(
+        Effect.all([SolanaRpc, KitSigner]).pipe(
+          Effect.flatMap(([ctx, kit]) =>
+            buildSignedLendDeposit(
+              { ctx, kit, market },
+              { type: "lend", protocol: "kamino", market, mint: USDC_MINT, amount: "1000000" },
+            ),
+          ),
+        ),
+        depositLayer(signerSeed),
+      ),
+    );
+    if (exit._tag !== "Success") {
+      const f = Cause.failureOption(exit.cause);
+      const reason = Option.isSome(f) ? JSON.stringify(Option.getOrThrow(f)) : "defect";
+      throw new Error(`expected a signed build: ${reason}`);
+    }
+    const { signed, plan } = exit.value;
+    // The obligation exists on chain with a nonzero deposit, so no obligation init and no
+    // obligation rent; the user metadata is still absent and is initialized.
+    expect(plan.quote.initializeObligation).toBe(false);
+    expect(plan.quote.rentLamports).not.toBe("0");
+    const compiled = getCompiledTransactionMessageDecoder().decode(signed.messageBytes);
+    const decoded = decompileTransactionMessage(compiled);
+    // refreshReserve, initUserMetadata, refreshObligation, deposit — no initObligation.
+    expect(decoded.instructions.length).toBe(4);
+    // The refresh carries the obligation's existing deposit reserve as a writable remaining.
+    const refresh = decoded.instructions[2];
+    const remaining = /** @type {{ accounts: { address: string; role: number }[] }} */ (
+      refresh
+    ).accounts.slice(2);
+    expect(remaining.map((meta) => meta.address)).toContain(reserve);
+    for (const meta of remaining) expect(meta.role).toBe(1);
   });
 });

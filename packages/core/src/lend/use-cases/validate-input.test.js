@@ -25,7 +25,7 @@ describe("lend deposit input validation", () => {
   });
 
   test("a validated request becomes the shared lend Action with the configured market", () => {
-    const request = { mint: MINT, amount: "1000000", owner: undefined };
+    const request = { mint: MINT, amount: "1000000" };
     const action = toDepositAction(
       /** @type {import("../domain/types.js").LendDepositInput} */ (request),
       MARKET,

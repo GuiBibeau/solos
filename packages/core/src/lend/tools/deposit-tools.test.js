@@ -12,7 +12,7 @@ describe("lend deposit tools", () => {
     expect(simulateDepositTool.name).toBe("solana_lend_simulate_deposit");
     expect(simulateDepositTool.group).toBe("lend");
     expect(simulateDepositTool.tier).toBe("simulate");
-    for (const key of ["mint", "amount", "owner"]) {
+    for (const key of ["mint", "amount"]) {
       expect(simulateDepositTool.input.shape[key]?.description, key).toBeTruthy();
     }
   });

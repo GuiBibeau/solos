@@ -19,12 +19,14 @@ describe("lend deposit input", () => {
     );
   });
 
-  test("an optional owner must decode to a 32-byte address when given", () => {
+  test("there is no owner argument: a stray owner key fails typed, never silently strips", () => {
+    const stray = LendDepositInputSchema.safeParse({ mint: MINT, amount: "1", owner: OWNER });
+    expect(stray.success).toBe(false);
+    if (!stray.success) {
+      expect(stray.error.issues.some((issue) => issue.code === "unrecognized_keys")).toBe(true);
+    }
     expect(
-      LendDepositInputSchema.safeParse({ mint: MINT, amount: "1", owner: OWNER }).success,
-    ).toBe(true);
-    expect(
-      LendDepositInputSchema.safeParse({ mint: MINT, amount: "1", owner: "short" }).success,
+      LendExecuteDepositInputSchema.safeParse({ mint: MINT, amount: "1", owner: OWNER }).success,
     ).toBe(false);
   });
 

@@ -128,7 +128,15 @@ const factsOf = async ({ reserve, instant, market, amount }) => {
 export const depositFacts = (read, action) =>
   Effect.gen(function* () {
     const reserve = yield* reserveFor(read, action);
-    const instant = yield* Effect.promise(() => sdkLedgerInstant(read.rpc));
+    const instant = yield* Effect.tryPromise({
+      try: () => sdkLedgerInstant(read.rpc),
+      catch: (error) =>
+        new RpcError({
+          method: "getSlot",
+          url: read.url,
+          reason: error instanceof Error ? error.message : "unknown read failure",
+        }),
+    });
     return yield* Effect.promise(() =>
       factsOf({ reserve, instant, market: action.market, amount: action.amount }),
     );

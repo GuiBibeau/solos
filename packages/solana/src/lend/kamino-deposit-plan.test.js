@@ -196,6 +196,27 @@ describe("kamino deposit plan", () => {
     }
   });
 
+  test("a kLend-owned obligation row that yields no decoded state is rejected, never dereferenced", async () => {
+    const ata = await sourceAta();
+    const obligation = await vanillaObligationAddress(OWNER, MARKET);
+    const rows = rowsFor({
+      [obligation]: { owner: KLEND_PROGRAM_ID, bytes: new Uint8Array(8) },
+      [ata]: ataRow(OWNER, 2_000_000n),
+    });
+    const plan = await runOf(
+      depositPlan({
+        signer: /** @type {any} */ ({ address: OWNER }),
+        reader: reader(rows),
+        intent,
+        facts: facts(),
+      }),
+    );
+    expect(plan.status).toBe("reject");
+    if (plan.status === "reject") {
+      expect(plan.reason).toContain("does not decode as a Kamino obligation");
+    }
+  });
+
   test("a missing or underfunded source token account is rejected without planning a send", async () => {
     const ata = await sourceAta();
     const short = await runOf(
