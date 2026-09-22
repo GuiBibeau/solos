@@ -1,6 +1,6 @@
 {
   "name": "@solos/actions",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared action and state schemas between solOS (finance-harness) and any executor, vault-engine included",
   "license": "Apache-2.0",
   "type": "module",
