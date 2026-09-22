@@ -47,6 +47,9 @@ export const WithdrawLendActionSchema = z.object({
   ...lendingIntent,
 });
 
+/** @typedef {z.infer<typeof LendActionSchema>} LendAction */
+/** @typedef {z.infer<typeof WithdrawLendActionSchema>} WithdrawLendAction */
+
 export const AddLiquidityActionSchema = z
   .object({
     type: z.literal("add_liquidity"),

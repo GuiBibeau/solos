@@ -31,11 +31,14 @@ const kaminoSdk = () => {
 /** The exact base-unit availability, BN in the SDK's state, mapped by `toString` only. */
 /** @typedef {{ readonly toString: () => string }} ExactAmount */
 const KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
-import { validateMarketAccount, validateReserveCandidates } from "./kamino-account-validation.js";
-export {
-  KaminoAccountLayoutError,
+
+import {
   KaminoMarketOwnerError,
+  validateMarketAccount,
+  validateReserveCandidates,
 } from "./kamino-account-validation.js";
+
+export { KaminoAccountLayoutError, KaminoMarketOwnerError } from "./kamino-account-validation.js";
 
 /**
  * Pass this package's kit-8 RPC to klend-sdk code typed against its own kit major, and load
@@ -65,6 +68,56 @@ export const sdkLoadMarket = async (rpc, marketAddress) => {
 export const sdkValidateReserveCandidates = async (rpc, market, mint) => {
   const sdk = await kaminoSdk();
   await validateReserveCandidates(rpc, { market, mint }, sdk);
+};
+
+/**
+ * The float-rate reserve for a mint under one market, constructed directly from the
+ * candidate's decoded bytes — no market-wide scan, so an unconfigured oracle on an
+ * unrelated reserve never gates the read. Null when the market account is missing,
+ * undefined when the market has no float-rate reserve for the mint.
+ * @param {import("@solana/kit").Rpc<import("@solana/kit").SolanaRpcApi>} rpc
+ * @param {string} marketAddress
+ * @param {string} mint
+ * @returns {Promise<KaminoReserveInstance | null | undefined>}
+ */
+export const sdkFloatRateReserveForMint = async (rpc, marketAddress, mint) => {
+  const sdk = await kaminoSdk();
+  const market = await rpc
+    .getAccountInfo(/** @type {any} */ (marketAddress), { encoding: "base64" })
+    .send();
+  if (market.value === null) return null;
+  if (market.value.owner !== KLEND_PROGRAM) throw new KaminoMarketOwnerError();
+  const marketState = sdk.LendingMarket.decode(Buffer.from(market.value.data[0], "base64"));
+  const candidates = /** @type {any[]} */ (
+    /** @type {any} */ (await validateReserveCandidates(rpc, { market: marketAddress, mint }, sdk))
+  );
+  const candidate = candidates[0];
+  if (candidate === undefined) return undefined;
+  const reserve = new sdk.KaminoReserve(
+    sdk.Reserve.decode(Buffer.from(candidate.account.data[0], "base64")),
+    candidate.pubkey,
+    /** @type {any} */ (undefined),
+    /** @type {any} */ (rpc),
+    sdk.DEFAULT_RECENT_SLOT_DURATION_MS,
+    marketState.reserveRewardsMaxAprBps,
+    undefined,
+    /** @type {any} */ (KLEND_PROGRAM),
+  );
+  return reserve.getKind().isFloatRate() ? reserve : undefined;
+};
+
+/**
+ * The lending market authority PDA for one market under the pinned program.
+ * @param {string} marketAddress
+ * @returns {Promise<string>}
+ */
+export const sdkLendingMarketAuthority = async (marketAddress) => {
+  const { lendingMarketAuthPda } = await kaminoSdk();
+  const [authority] = await lendingMarketAuthPda(
+    /** @type {any} */ (marketAddress),
+    /** @type {any} */ (KLEND_PROGRAM),
+  );
+  return authority;
 };
 
 /**

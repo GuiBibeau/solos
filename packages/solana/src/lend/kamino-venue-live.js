@@ -92,6 +92,10 @@ export const KaminoVenueLive = (config) =>
         market: config?.market ?? KAMINO_MAIN_MARKET,
         timeoutMs: config?.timeoutMs ?? READ_TIMEOUT_MS,
       };
-      return { getReserve: (mint) => readReserve(deps, mint), ...makePositionReads(deps) };
+      return {
+        market: deps.market,
+        getReserve: (mint) => readReserve(deps, mint),
+        ...makePositionReads(deps),
+      };
     }),
   );

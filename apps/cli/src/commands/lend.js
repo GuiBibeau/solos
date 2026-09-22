@@ -1,6 +1,6 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { getLendPosition, getReserve } from "@solos/core";
+import { executeLendDeposit, getLendPosition, getReserve, simulateLendDeposit } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
@@ -35,7 +35,51 @@ const position = Command.make("position", { mint, owner }, (options) =>
   ),
 );
 
+const amount = Options.text("amount").pipe(
+  Options.withDescription(
+    "Underlying amount to supply in base units of the mint, as a positive integer string",
+  ),
+);
+
+const skipSimulation = Options.boolean("skip-simulation").pipe(
+  Options.withDefault(false),
+  Options.withDescription(
+    "Skip the pre-send simulation of the exact transaction. Defaults to false.",
+  ),
+);
+
+const simulateDeposit = Command.make("simulate-deposit", { mint, amount, owner }, (options) =>
+  withSolos(
+    simulateLendDeposit({
+      mint: options.mint,
+      amount: options.amount,
+      owner: Option.getOrUndefined(options.owner),
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Simulate a bounded Kamino supply deposit without submitting anything: shows the reserve, the exact encoded amount, the predicted collateral and the accounts the executor would initialize",
+  ),
+);
+
+const deposit = Command.make("deposit", { mint, amount, owner, skipSimulation }, (options) =>
+  withSolos(
+    executeLendDeposit({
+      mint: options.mint,
+      amount: options.amount,
+      owner: Option.getOrUndefined(options.owner),
+      skipSimulation: options.skipSimulation,
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Supply an exact underlying amount to the configured Kamino market and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+  ),
+);
+
 export const lend = Command.make("lend").pipe(
-  Command.withDescription("Kamino lending reserve and owner supply reads (read-only)"),
-  Command.withSubcommands([reserve, position]),
+  Command.withDescription(
+    "Kamino lending: reserve and owner-supply reads, bounded supply deposits (simulation and execution)",
+  ),
+  Command.withSubcommands([reserve, position, simulateDeposit, deposit]),
 );
