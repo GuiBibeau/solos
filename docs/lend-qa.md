@@ -1,53 +1,59 @@
-# Kamino Lend reserve and supply reads live QA
+# Kamino lending live QA
 
-Offline tests exercise the real adapter, CLI, and MCP server against a seeded offline Surfnet:
-synthetic Kamino Market and Reserve accounts encoded from the klend-sdk's own bundled IDL and
-written under the pinned program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` with the
-`surfnet_setAccount` cheatcode. They prove the market selection, mapping, decode/guard, and
-units behavior, not what a live market holds. The owner-position fixture covers zero, one and
-multiple decoded obligations through the native CLI and a real stdio MCP child. Live QA compares
-one solOS reserve and owner supply snapshot with the same named Kamino market in a second client.
+Offline tests exercise the real adapter, CLI, and MCP server against a seeded offline
+Surfnet: Market ( 2424 bytes), Reserve (8624 bytes), Obligation and UserMetadata accounts
+written under the pinned lending program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` with
+the `surfnet_setAccount` cheatcode, decoded by the pinned `@kamino-finance/klend-sdk`. They
+prove the decode/guard/derivation/instruction-order behavior, not what the configured live
+market holds. Live QA compares solOS output with the same market state seen through a second
+client (Kamino's own app or a block explorer).
 
-**Status: blocked.** A live read needs an operator RPC endpoint with the Kamino lending program
-in its history; reusable tests and CI do not receive one. solOS lend reads are public — no
-credential is provisioned anywhere; the only
-configuration is `SOLANA_RPC_URL` plus the optional `KAMINO_LENDING_MARKET`. Live credentials
-and endpoints belong only in the operator or approved QA environment.
+**Status: blocked by design.** Live deposit QA stays blocked until the matching withdrawal
+exists and is checked (#23): the deposit-only intermediate state is never funded. A live run
+also needs operator prerequisites CI does not have: an RPC endpoint and a funded signer whose
+config selects Kamino Main Market. The venue configuration is `KAMINO_LENDING_MARKET` (env)
+or the solOS default; credentials stay only in the operator environment, never in issue
+comments, tool inputs, or implementation sandboxes.
 
-## What to compare once an operator endpoint exists
+## What the offline suites already prove
 
-1. Pick the mint (USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` on Main Market) and
-   record the UTC time of the read. Run both surfaces:
+- Reserve selection follows the configured market only: the facts seam loads the
+  float-rate reserve for the mint from the configured market's own accounts, and the
+  executor revalidates the action's market against its configuration (ADR-0019).
+- The signed wire decodes to the pinned SDK sequence — refreshReserve,
+  initUserMetadata, initObligation, refreshObligation, then the combined deposit whose
+  data is the discriminator plus the exact u64 base-unit amount, little-endian.
+- Authority, obligation, and source selection: the derived market-authority PDA is
+  read-only, the signer's vanilla obligation PDA is the writable destination, and the
+  source is the signer's own associated token account.
+- A failed simulation sends nothing; rejected plans never even simulate; ambiguous
+  submissions keep their signature in a structured failure.
+
+## What an operator compares once #23 allows funding
+
+1. Simulate first (never moves funds), with a small stated USDC amount in base units:
 
    ```sh
-   SOLANA_RPC_URL=... bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-   SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_reserve --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}'
-   SOLANA_RPC_URL=... bun run solos lend position --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --owner <owner>
-   SOLANA_RPC_URL=... bun run solos mcp call solana_lend_get_position --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","owner":"<owner>"}'
+   SOLANA_RPC_URL=... bun run solos lend simulate-deposit --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --amount <base-units>
+   SOLANA_RPC_URL=... bun run solos mcp call solana_lend_simulate_deposit --args '{"mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"<base-units>"}'
    ```
 
-2. Compare against the same market on a block explorer or the Kamino UI, at the recorded time:
-   - `market` is the configured market (default Main Market
-     `7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF`), `reserve` is that market's float-rate
-     reserve PDA for the mint, and `mint` echoes the request.
-   - `liquidity` equals the reserve's available underlying token amount in **base units** (the
-     on-chain `liquidity.totalAvailableAmount`), not TVL, not USD, not `totalSupply -
-     totalBorrow`; a UI dollar figure is never comparable.
-   - `decimals` equals the USDC mint's decimals (6).
-   - `supplyApy`/`borrowApy` are fractional decimal strings (`0.05` = 5%) without incentive
-     rewards; they are observations that move every slot, so only same-slot comparisons are
-     meaningful. Record time and units with the numbers.
-   - The CLI and MCP surfaces must return identical JSON for the same mint and slot.
-   - The position amount equals the floor of total supplied collateral units divided by the
-     current collateral-per-liquidity exchange rate. `positions` contains each contributing
-     obligation once, and outstanding borrows do not reduce this supply amount.
-   - A mint with no reserve in the configured market must exit non-zero with
-     `ReserveUnavailable`; an existing reserve with zero available liquidity must succeed with
-     `liquidity: "0"`.
+   Check the venueQuote: `liquidityAmount` equals the request exactly, `estimatedCollateral`
+   is the read-time exchange-rate prediction (not a fill promise), `initializeObligation`
+   matches the signer's history in the market, and `rentLamports`/`feeLamports` are present.
 
-## Reporting
+2. Deposit the same amount, recording the signature:
 
-Record live QA as `blocked` until the prerequisites above exist. Never report it as passed
-from fixture runs: seeded-surfnet suites prove adapter behavior, not venue state. The first
-live QA round runs from the operator environment against a real RPC; no funded transaction is
-involved (read-only slice).
+   ```sh
+   SOLANA_RPC_URL=... bun run solos lend deposit --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --amount <base-units>
+   ```
+
+3. Compare before/after with a second client: underlying token balance decreased by
+   exactly the amount (plus fees), the obligation shows the collateral at the filled
+   rate, and `solos lend position` and `solos market price` agree with that state.
+
+4. Withdraw the full position through #23's flow and confirm the round trip: underlying
+   returned minus deposit and withdraw fees, and rent/fee totals from both signatures.
+
+Record signatures, actual balance changes, and remaining exposure in the issue; live
+amounts stay small and each spend is stated before it happens.

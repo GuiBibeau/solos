@@ -27,12 +27,14 @@ import {
 import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
 import { TOKEN_PROGRAM } from "../wallet/parse-token-accounts.js";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
+import { vanillaObligationAddress } from "./kamino-deposit-addresses.js";
 import { buildSignedLendDeposit } from "./kamino-deposit-build.js";
 import {
   positionMarketBytes,
   positionReserveBytes,
   seedKaminoAccount,
 } from "./kamino-position-fixture.js";
+import { sdkLendingMarketAuthority } from "./kamino-rpc-seam.js";
 
 /**
  * The Kamino deposit twins through the real ActionExecutor over the offline Surfnet:
@@ -204,5 +206,16 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     const data = /** @type {Uint8Array} */ (deposit?.data);
     expect(data.length).toBe(16);
     expect(new DataView(data.buffer, data.byteOffset).getBigUint64(8, true)).toBe(1_000_000n);
+    // Authority, obligation and source selection: the market authority PDA is a read-only
+    // custodian, the vanilla obligation PDA moves (writable) for the signer, funded from
+    // the signer's own associated token account.
+    const authority = await sdkLendingMarketAuthority(market);
+    const metas = /** @type {{ accounts: { address: string; role: number }[] }} */ (deposit);
+    expect(metas.accounts).toContainEqual({ address: authority, role: 0 });
+    expect(metas.accounts).toContainEqual({
+      address: await vanillaObligationAddress(await seedAddress(signerSeed), market),
+      role: 1,
+    });
+    expect(metas.accounts).toContainEqual({ address: await seedAddress(signerSeed), role: 3 });
   });
 });
