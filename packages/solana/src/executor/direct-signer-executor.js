@@ -81,9 +81,27 @@ const simulate = ({ ctx, kit, build: buildSwap }, action) =>
       logs: raw.logs,
       projectedPortfolio: null,
       venueQuote,
-      violations: isOk ? [] : [{ rule: "simulation", message: JSON.stringify(raw.err) }],
+      violations: isOk ? [] : [{ rule: "simulation", message: stringifySimError(raw.err) }],
     };
   });
+
+/**
+ * @param {Deps} deps
+ * @param {Action} action
+ * @param {{ readonly skipSimulation: boolean }} options
+ * @returns {import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, import("@solos/core").ExecutorError>}
+ */
+/**
+ * Sim error payloads carry BigInt lamport/size values on live chains; a plain
+ * JSON.stringify throws on them and would turn a typed simulation failure into an
+ * internal crash. BigInts serialize as their decimal-string form.
+ * @param {unknown} value
+ * @returns {string}
+ */
+const stringifySimError = (value) =>
+  JSON.stringify(value, (/** @type {string} */ key, /** @type {unknown} */ v) =>
+    typeof v === "bigint" ? v.toString() : v,
+  );
 
 /**
  * @param {Deps} deps

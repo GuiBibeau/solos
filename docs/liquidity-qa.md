@@ -58,9 +58,10 @@ failure), and locally decoded fixture transactions prove the encoded max spends 
 pool/position/authority/tick-array accounts. What they cannot prove is live pool behavior;
 that is what this QA round is for.
 
-**Status: blocked until #31 (bounded removals) is live and checked.** ADR-0022 forbids a
-live deposit/open without a checked exit path. Once #31 ships, run this round with a tiny
-stated budget on an operator-provisioned test position:
+**Status: live-checked (#97 QA round).** ADR-0022 forbade a live deposit/open without a
+checked exit path; the #97 QA round deposited 0.05 SOL into an operator-provisioned test
+position and removed it again through the #31 tools (signatures and reconciliation in PR
+#97). Rerun this round with a tiny stated budget on an operator-provisioned test position:
 
 1. Read the position before (`solos liquidity position`) and record both token balances of
    the signer.

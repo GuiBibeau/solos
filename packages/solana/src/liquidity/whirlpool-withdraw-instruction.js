@@ -30,7 +30,9 @@ export const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
  */
 export const WHIRLPOOL_V1_CONFIG = Object.freeze({
   computeUnitLimit: 300_000,
-  loadedAccountsDataSizeLimit: 8_388_608,
+  loadedAccountsDataSizeLimit: 67_108_864,
+  // Mainnet Whirlpool loads > 8 MiB of account data; the limit is the chain max, so live
+  // simulation exercises the real program instead of failing policy pre-flight.
   priorityFeeLamports: 1000n,
 });
 
