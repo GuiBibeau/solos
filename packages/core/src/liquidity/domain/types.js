@@ -96,6 +96,44 @@ const DepositInputBaseSchema = z.object({
  * least one budget must be positive lives in the use case, beside the schema. */
 export const LiquidityDepositInputSchema = DepositInputBaseSchema;
 
+/** One removal request: a percentage of the position's current liquidity, with explicit
+ * slippage-bounded minimum receipts. The bounds live here and in the Action contract. */
+export const LiquidityWithdrawInputSchema = z.object({
+  protocol: LiquidityProtocolSchema.describe(
+    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+  ),
+  position: AddressSchema.describe(
+    "Protocol position-account address (the Whirlpool position PDA), never the NFT mint and never the pool; the position is never closed and its NFT is never burned",
+  ),
+  bps: z
+    .number()
+    .int()
+    .min(1)
+    .max(10_000)
+    .describe(
+      "Percentage of the position's CURRENT liquidity to remove, in basis points: 1..10000, where 10000 removes all liquidity now held. Fractional units are rounded down; a removal that computes to zero liquidity is rejected",
+    ),
+  maxSlippageBps: z
+    .number()
+    .int()
+    .min(0)
+    .max(9999)
+    .default(50)
+    .describe(
+      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). The on-chain minimum token receipts are the quoted amounts minus this tolerance; a price move that would pay a side under its minimum aborts on chain",
+    ),
+});
+
+/** The execute twin adds the explicit simulation bypass, default false. */
+export const LiquidityExecuteWithdrawInputSchema = LiquidityWithdrawInputSchema.extend({
+  skipSimulation: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Skip the pre-send simulation of the exact transaction. Defaults to false; bypassing only skips simulation, never validation",
+    ),
+});
+
 /** The execute twin adds the explicit simulation bypass, default false. */
 export const LiquidityExecuteDepositInputSchema = DepositInputBaseSchema.extend({
   skipSimulation: z
@@ -108,6 +146,8 @@ export const LiquidityExecuteDepositInputSchema = DepositInputBaseSchema.extend(
 
 /** @typedef {z.infer<typeof LiquidityDepositInputSchema>} LiquidityDepositInput */
 /** @typedef {z.infer<typeof LiquidityExecuteDepositInputSchema>} LiquidityExecuteDepositInput */
+/** @typedef {z.infer<typeof LiquidityWithdrawInputSchema>} LiquidityWithdrawInput */
+/** @typedef {z.infer<typeof LiquidityExecuteWithdrawInputSchema>} LiquidityExecuteWithdrawInput */
 
 /**
  * Complete owner enumeration (ADR-0018): every supported LP position plus the receipt mints

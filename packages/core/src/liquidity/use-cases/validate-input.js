@@ -1,5 +1,5 @@
 // @ts-check
-import { AddLiquidityActionSchema } from "@solos/actions";
+import { AddLiquidityActionSchema, RemoveLiquidityActionSchema } from "@solos/actions";
 import { Effect } from "effect";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
 
@@ -51,6 +51,52 @@ export const toDepositAction = (request) => {
     position: request.position,
     amountA: request.amountA,
     amountB: request.amountB,
+    maxSlippageBps: request.maxSlippageBps,
+  });
+  return parsed.success ? parsed.data : null;
+};
+
+/** @typedef {import("../domain/types.js").LiquidityWithdrawInput} LiquidityWithdrawInput */
+
+/**
+ * Validate one removal intent identically for every entry point — tool, CLI, harness —
+ * before any executor access: schema first (the bps 1..10000 and slippage 0..9999 bounds
+ * are schema rules), then the protocol gate, so meteora and raydium fail before the network
+ * and before any Layer that could reach one is built.
+ * @template {{ protocol: "orca" | "meteora" | "raydium"; bps: number }} T
+ * @param {{ safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } } }} schema
+ * @param {unknown} input
+ * @returns {import("effect").Effect.Effect<T, DepositValidationError>}
+ */
+export const validateWithdrawInput = (schema, input) =>
+  Effect.gen(function* () {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) {
+      return yield* new LiquidityInputInvalid({
+        reason:
+          "a removal needs protocol orca|meteora|raydium, a position base58 address, bps in " +
+          "1..10000, and maxSlippageBps in 0..9999 when given",
+      });
+    }
+    if (parsed.data.protocol !== "orca") {
+      return yield* new LiquidityUnsupportedProtocol({ protocol: parsed.data.protocol });
+    }
+    return parsed.data;
+  });
+
+/**
+ * The validated request becomes the shared contract's `remove_liquidity` Action. The
+ * re-parse is the identity guard: core and contract must agree byte for byte, and a drift
+ * fails here, before an executor is ever asked to act.
+ * @param {LiquidityWithdrawInput} request
+ * @returns {import("@solos/actions").RemoveLiquidityAction | null}
+ */
+export const toWithdrawAction = (request) => {
+  const parsed = RemoveLiquidityActionSchema.safeParse({
+    type: "remove_liquidity",
+    protocol: request.protocol,
+    position: request.position,
+    bps: request.bps,
     maxSlippageBps: request.maxSlippageBps,
   });
   return parsed.success ? parsed.data : null;

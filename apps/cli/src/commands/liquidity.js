@@ -4,6 +4,7 @@ import { executeDeposit, getLpPosition, simulateDeposit } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.js";
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
@@ -113,7 +114,13 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
 
 export const liquidity = Command.make("liquidity").pipe(
   Command.withDescription(
-    "Liquidity venues: Orca Whirlpool position reads plus deposits into explicitly identified existing positions",
+    "Liquidity venues: Orca Whirlpool position reads, deposits into and bounded removals from explicitly identified existing positions",
   ),
-  Command.withSubcommands([positionCommand, simulateDepositCommand, depositCommand]),
+  Command.withSubcommands([
+    positionCommand,
+    simulateDepositCommand,
+    depositCommand,
+    simulateWithdrawCommand,
+    withdrawCommand,
+  ]),
 );

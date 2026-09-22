@@ -4,7 +4,8 @@ import { Clock, Effect, Layer } from "effect";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
-import { buildSignedLiquidityDeposit } from "./liquidity-deposit-build.js";
+import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
+import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
 import { submitSimulatedSwap } from "./swap-submit.js";
@@ -38,6 +39,9 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
   if (action.type === "add_liquidity") {
     return Effect.map(buildSignedLiquidityDeposit({ ctx, kit }, action), ({ signed }) => signed);
   }
+  if (action.type === "remove_liquidity") {
+    return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), ({ signed }) => signed);
+  }
   return Effect.fail(new UnsupportedAction({ actionType: action.type, executor: EXECUTOR_NAME }));
 };
 
@@ -48,7 +52,22 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
  */
 const simulate = ({ ctx, kit, build: buildSwap }, action) =>
   Effect.gen(function* () {
-    const signed = yield* build({ ctx, kit, build: buildSwap }, action);
+    // Liquidity twins keep their plan through simulation: its quoted amounts and encoded
+    // bounds are the venueQuote the caller records (ADR-0022 QA reconciliation).
+    /** @type {import("@solos/actions").VenueQuote} */
+    let venueQuote = null;
+    let signed;
+    if (action.type === "remove_liquidity") {
+      const planned = yield* buildSignedLiquidityWithdraw({ ctx, kit }, action);
+      signed = planned.signed;
+      venueQuote = withdrawQuoteOf(planned.plan);
+    } else if (action.type === "add_liquidity") {
+      const planned = yield* buildSignedLiquidityDeposit({ ctx, kit }, action);
+      signed = planned.signed;
+      venueQuote = depositQuoteOf(planned.plan);
+    } else {
+      signed = yield* build({ ctx, kit, build: buildSwap }, action);
+    }
     if (action.type === "swap") {
       yield* assertSwapWireBeforeContact(signed);
       yield* recheckSignedSwapLifetime(ctx, signed);
@@ -61,9 +80,28 @@ const simulate = ({ ctx, kit, build: buildSwap }, action) =>
       unitsConsumed: raw.unitsConsumed,
       logs: raw.logs,
       projectedPortfolio: null,
-      violations: isOk ? [] : [{ rule: "simulation", message: JSON.stringify(raw.err) }],
+      venueQuote,
+      violations: isOk ? [] : [{ rule: "simulation", message: stringifySimError(raw.err) }],
     };
   });
+
+/**
+ * @param {Deps} deps
+ * @param {Action} action
+ * @param {{ readonly skipSimulation: boolean }} options
+ * @returns {import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, import("@solos/core").ExecutorError>}
+ */
+/**
+ * Sim error payloads carry BigInt lamport/size values on live chains; a plain
+ * JSON.stringify throws on them and would turn a typed simulation failure into an
+ * internal crash. BigInts serialize as their decimal-string form.
+ * @param {unknown} value
+ * @returns {string}
+ */
+const stringifySimError = (value) =>
+  JSON.stringify(value, (/** @type {string} */ key, /** @type {unknown} */ v) =>
+    typeof v === "bigint" ? v.toString() : v,
+  );
 
 /**
  * @param {Deps} deps

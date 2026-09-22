@@ -12,10 +12,15 @@ import { getTickArrayStartTickIndex } from "@orca-so/whirlpools-core";
 import { address } from "@solana/kit";
 import { findAssociatedTokenPda } from "@solana-program/token";
 import { Effect } from "effect";
-import { decodePosition, decodeWhirlpool, positionAddress } from "./whirlpool-decode.js";
+import { positionAddress } from "./whirlpool-decode.js";
 import { TOKEN_PROGRAM, tickArrayAddress } from "./whirlpool-deposit-instruction.js";
 import { depositLiquidityForBudgets } from "./whirlpool-deposit-quote.js";
-import { WHIRLPOOL_PROGRAM } from "./whirlpool-program.js";
+import {
+  guardMints,
+  guardPool,
+  guardPosition as guardPositionShared,
+  reject,
+} from "./whirlpool-guards.js";
 
 /** @typedef {{ readonly owner: string; readonly bytes: Uint8Array }} FetchedRow */
 
@@ -41,67 +46,21 @@ import { WHIRLPOOL_PROGRAM } from "./whirlpool-program.js";
 
 /** @typedef {{ readonly layout: { readonly sqrtPrice: bigint; readonly tokenMintA: string; readonly tokenMintB: string; readonly tickSpacing: number; readonly tokenVaultA: string; readonly tokenVaultB: string } }} GuardedPool */
 
-/** Tick spacings the pinned program mints pools with; anything else is corrupt state. */
-const TICK_SPACINGS = new Set([1, 8, 16, 32, 64, 128, 256]);
-
-/** @param {string} reason @returns {DepositPlanReject} */
-const reject = (reason) => ({ status: "reject", reason });
-
 /**
  * Guard the position row: present, program-owned, decodable, inside the named pool, and
- * sitting at the position mint's derived PDA.
- * @param {FetchedRow | null | undefined} row @param {DepositIntent} action @returns {GuardedPosition | DepositPlanReject}
+ * sitting at the position mint's derived PDA is cross-checked later in the plan.
+ * @param {import("./whirlpool-guards.js").FetchedRow | null | undefined} row @param {DepositIntent} action @returns {import("./whirlpool-guards.js").GuardedPosition | DepositPlanReject}
  */
 const guardPosition = (row, action) => {
-  if (row === null || row === undefined) return reject("no account at the position address");
-  if (row.owner !== WHIRLPOOL_PROGRAM) {
-    return reject("position account is not owned by the pinned Whirlpool program");
-  }
-  const guarded = decodePosition(row.bytes);
-  if (guarded.status === "corrupt") {
-    return reject(`position account has the wrong layout: ${guarded.reason}`);
-  }
+  const guarded = guardPositionShared(row);
+  if ("reason" in guarded) return guarded;
   if (guarded.layout.whirlpool !== action.pool) {
-    return reject("the position belongs to a different pool; pool and position must match");
+    return {
+      status: "reject",
+      reason: "the position belongs to a different pool; pool and position must match",
+    };
   }
-  return { layout: guarded.layout };
-};
-
-/**
- * Guard the pool row: present, program-owned, decodable, with a real tick spacing (zero
- * would panic the pinned tick-array math instead of failing typed).
- * @param {FetchedRow | null | undefined} row @returns {GuardedPool | DepositPlanReject}
- */
-const guardPool = (row) => {
-  if (row === null || row === undefined) return reject("the position's pool is missing");
-  if (row.owner !== WHIRLPOOL_PROGRAM) {
-    return reject("the position's pool is not owned by the pinned Whirlpool program");
-  }
-  const guarded = decodeWhirlpool(row.bytes);
-  if (guarded.status === "corrupt") {
-    return reject(`the position's pool has the wrong layout: ${guarded.reason}`);
-  }
-  if (!TICK_SPACINGS.has(guarded.layout.tickSpacing)) {
-    return reject(`pool tick spacing ${guarded.layout.tickSpacing} is not a supported value`);
-  }
-  return { layout: guarded.layout };
-};
-
-/**
- * Guard the two mint rows: present and classic-SPL, so the fixed token program and the
- * quote math apply; token-2022 venues (including transfer-fee mints) are rejected.
- * @param {FetchedRow | null | undefined} a @param {FetchedRow | null | undefined} b @returns {DepositPlanReject | null}
- */
-const guardMints = (a, b) => {
-  if (a === null || a === undefined) return reject("token A mint is missing");
-  if (b === null || b === undefined) return reject("token B mint is missing");
-  if (a.owner !== TOKEN_PROGRAM) {
-    return reject("token A mint is not a classic SPL token mint; token-2022 is rejected");
-  }
-  if (b.owner !== TOKEN_PROGRAM) {
-    return reject("token B mint is not a classic SPL token mint; token-2022 is rejected");
-  }
-  return null;
+  return guarded;
 };
 
 /** @param {string} owner @param {string} mint @returns {Promise<string>} */

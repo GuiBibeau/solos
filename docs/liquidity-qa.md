@@ -58,15 +58,17 @@ failure), and locally decoded fixture transactions prove the encoded max spends 
 pool/position/authority/tick-array accounts. What they cannot prove is live pool behavior;
 that is what this QA round is for.
 
-**Status: blocked until #31 (bounded removals) is live and checked.** ADR-0022 forbids a
-live deposit/open without a checked exit path. Once #31 ships, run this round with a tiny
-stated budget on an operator-provisioned test position:
+**Status: live-checked (#97 QA round).** ADR-0022 forbade a live deposit/open without a
+checked exit path; the #97 QA round deposited 0.05 SOL into an operator-provisioned test
+position and removed it again through the #31 tools (signatures and reconciliation in PR
+#97). Rerun this round with a tiny stated budget on an operator-provisioned test position:
 
 1. Read the position before (`solos liquidity position`) and record both token balances of
    the signer.
-2. `simulate-deposit` with the chosen budgets; record the quoted liquidity, the required
-   amounts, and the encoded spend bounds (quoted amounts plus slippage, capped by the
-   budgets), then `deposit` and record the signature, fees paid, and compute units.
+2. `simulate-deposit` with the chosen budgets; record the `venueQuote` — the quoted
+   liquidity, the required amounts, and the encoded spend bounds (quoted amounts plus
+   slippage, capped by the budgets) — then `deposit` and record the signature, fees paid,
+   and compute units.
 3. Read the position after: raw liquidity must have grown by exactly the quoted amount, and
    the underlying amounts by at most the budgets (delta per token = spent). Both signer
    balances must have dropped by no more than the budgets; unused funds stay in the wallet.
@@ -75,3 +77,46 @@ stated budget on an operator-provisioned test position:
 
 Never report a deposit QA as passed from fixture runs, and never spend beyond the stated
 budget.
+
+## Bounded removals from an existing position (#31)
+
+`solana_liquidity_simulate_withdraw` / `solana_liquidity_execute_withdraw` and
+`solos liquidity simulate-withdraw` / `withdraw` remove a bounded percentage of one
+explicitly identified existing position's current liquidity. Prerequisites are the read
+prerequisites **plus** a funded signer: the signer must hold the position NFT, and token
+accounts must exist for every side the position is quoted to pay (a missing receiving
+account for a side owed nothing is created idempotently by the driver; one owed tokens is a
+typed rejection). `bps` is the fraction of the position's CURRENT liquidity: 1..10000, where
+10000 removes all liquidity now held. Fractional liquidity units round down; a removal that
+computes to zero liquidity is rejected before anything is built.
+
+Offline coverage: seeded Surfnet suites drive the real executor over the real RPC (guards,
+custody, bps fraction, slippage-bounded minimums, instruction assembly, exact-transaction
+simulation, zero sends on failure), and the decoded simulated wire instruction proves the
+removed liquidity amount and both minimum receipts the caller signed up for. What they
+cannot prove is live pool behavior; that is what this QA round is for.
+
+Reconciliation for the QA report — every removal round records:
+
+1. **Before**: the position read (raw liquidity, underlying A/B amounts) and the signer's
+   token A and B balances, plus SOL balance.
+2. **Intent**: `bps` and `maxSlippageBps`; the simulate output's `venueQuote` — the
+   planned liquidity and quoted amounts, plus the exact minimum receipts encoded in the
+   instruction (these are the reconciliation floor for step 3).
+3. **After**: the signature, fees paid, compute units; the position read (raw liquidity
+   must have dropped by exactly the planned amount); the signer's token A/B balances (delta
+   per token must meet the encoded minimum recorded in step 2. A side may pay MORE than the
+   pre-send quote — the instruction encodes no maximum, and a favorable price move between
+   quote and send is a valid removal, not a failure: record the pre-send quote and the
+   actual deltas side by side and explain any excess by the price move).
+4. **Nonprincipal receipts, distinct from principal**: transaction fee(s) and priority fee
+   (SOL), plus — only when the driver created a missing receiving account — the ATA rent
+   (documented in the tool descriptions as a protocol-mandated transfer). Fees and rewards
+   accrued inside the position are NOT claimed by these tools and must not be counted as
+   removed principal; #29 reads exclude them.
+5. **Remaining exposure**: what is still in the position (e.g. a partial removal's leftover
+   liquidity, or any unclaimed fee/reward balance), stated explicitly.
+
+A full removal (10000 bps) must leave a valid zero-liquidity position — still readable by
+`solos liquidity position`, NFT intact, never closed. Never report a removal QA as passed
+from fixture runs, and never spend beyond the stated budget.
