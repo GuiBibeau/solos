@@ -64,9 +64,10 @@ stated budget on an operator-provisioned test position:
 
 1. Read the position before (`solos liquidity position`) and record both token balances of
    the signer.
-2. `simulate-deposit` with the chosen budgets; record the quoted liquidity, the required
-   amounts, and the encoded spend bounds (quoted amounts plus slippage, capped by the
-   budgets), then `deposit` and record the signature, fees paid, and compute units.
+2. `simulate-deposit` with the chosen budgets; record the `venueQuote` — the quoted
+   liquidity, the required amounts, and the encoded spend bounds (quoted amounts plus
+   slippage, capped by the budgets) — then `deposit` and record the signature, fees paid,
+   and compute units.
 3. Read the position after: raw liquidity must have grown by exactly the quoted amount, and
    the underlying amounts by at most the budgets (delta per token = spent). Both signer
    balances must have dropped by no more than the budgets; unused funds stay in the wallet.
@@ -98,11 +99,15 @@ Reconciliation for the QA report — every removal round records:
 
 1. **Before**: the position read (raw liquidity, underlying A/B amounts) and the signer's
    token A and B balances, plus SOL balance.
-2. **Intent**: `bps` and `maxSlippageBps`; the simulate output's quoted amounts.
+2. **Intent**: `bps` and `maxSlippageBps`; the simulate output's `venueQuote` — the
+   planned liquidity and quoted amounts, plus the exact minimum receipts encoded in the
+   instruction (these are the reconciliation floor for step 3).
 3. **After**: the signature, fees paid, compute units; the position read (raw liquidity
    must have dropped by exactly the planned amount); the signer's token A/B balances (delta
-   per token must be at least the encoded minimum and at most the quoted amount at the
-   pre-send price — price drift in between is the slippage tolerance at work).
+   per token must meet the encoded minimum recorded in step 2. A side may pay MORE than the
+   pre-send quote — the instruction encodes no maximum, and a favorable price move between
+   quote and send is a valid removal, not a failure: record the pre-send quote and the
+   actual deltas side by side and explain any excess by the price move).
 4. **Nonprincipal receipts, distinct from principal**: transaction fee(s) and priority fee
    (SOL), plus — only when the driver created a missing receiving account — the ATA rent
    (documented in the tool descriptions as a protocol-mandated transfer). Fees and rewards

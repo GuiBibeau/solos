@@ -187,6 +187,21 @@ const signDeposit = ({ ctx, kit, plan, creates }) =>
   });
 
 /**
+ * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
+ * decimal strings, at the pre-send pool price.
+ * @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
+ * @returns {import("@solos/actions").LiquidityDepositQuote}
+ */
+export const depositQuoteOf = (plan) => ({
+  kind: "deposit",
+  liquidity: String(plan.liquidity),
+  requiredA: String(plan.requiredA),
+  requiredB: String(plan.requiredB),
+  tokenMaxA: String(plan.tokenMaxA),
+  tokenMaxB: String(plan.tokenMaxB),
+});
+
+/**
  * Build and sign one deposit. Refuses anything but an Orca position before any RPC.
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {AddLiquidityAction} action
  * @returns {import("effect").Effect.Effect<PlannedDeposit, import("@solos/core").ExecutorError>}

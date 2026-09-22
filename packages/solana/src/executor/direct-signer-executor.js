@@ -4,8 +4,8 @@ import { Clock, Effect, Layer } from "effect";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
-import { buildSignedLiquidityDeposit } from "./liquidity-deposit-build.js";
-import { buildSignedLiquidityWithdraw } from "./liquidity-withdraw-build.js";
+import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
+import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
 import { submitSimulatedSwap } from "./swap-submit.js";
@@ -52,7 +52,22 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
  */
 const simulate = ({ ctx, kit, build: buildSwap }, action) =>
   Effect.gen(function* () {
-    const signed = yield* build({ ctx, kit, build: buildSwap }, action);
+    // Liquidity twins keep their plan through simulation: its quoted amounts and encoded
+    // bounds are the venueQuote the caller records (ADR-0022 QA reconciliation).
+    /** @type {import("@solos/actions").VenueQuote} */
+    let venueQuote = null;
+    let signed;
+    if (action.type === "remove_liquidity") {
+      const planned = yield* buildSignedLiquidityWithdraw({ ctx, kit }, action);
+      signed = planned.signed;
+      venueQuote = withdrawQuoteOf(planned.plan);
+    } else if (action.type === "add_liquidity") {
+      const planned = yield* buildSignedLiquidityDeposit({ ctx, kit }, action);
+      signed = planned.signed;
+      venueQuote = depositQuoteOf(planned.plan);
+    } else {
+      signed = yield* build({ ctx, kit, build: buildSwap }, action);
+    }
     if (action.type === "swap") {
       yield* assertSwapWireBeforeContact(signed);
       yield* recheckSignedSwapLifetime(ctx, signed);
@@ -65,6 +80,7 @@ const simulate = ({ ctx, kit, build: buildSwap }, action) =>
       unitsConsumed: raw.unitsConsumed,
       logs: raw.logs,
       projectedPortfolio: null,
+      venueQuote,
       violations: isOk ? [] : [{ rule: "simulation", message: JSON.stringify(raw.err) }],
     };
   });

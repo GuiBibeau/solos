@@ -12,7 +12,10 @@
 /** @typedef {import("./primitives.js").Amount} Amount */
 /** @typedef {import("./primitives.js").Signature} Signature */
 /** @typedef {import("./results.js").ExecutionResult} ExecutionResult */
+/** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
+/** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
+/** @typedef {import("./results.js").VenueQuote} VenueQuote */
 /** @typedef {import("./results.js").Violation} Violation */
 /** @typedef {import("./vault.js").VaultState} VaultState */
 export {
@@ -37,6 +40,11 @@ export {
   TimestampSchema,
 } from "./primitives.js";
 export { ExecutionResultSchema, SimulationResultSchema, ViolationSchema } from "./results.js";
+export {
+  LiquidityDepositQuoteSchema,
+  LiquidityRemovalQuoteSchema,
+  VenueQuoteSchema,
+} from "./results.js";
 export { VaultStateSchema } from "./vault.js";
 export {
   LendPositionSchema,

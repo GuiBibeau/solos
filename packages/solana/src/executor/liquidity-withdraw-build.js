@@ -182,6 +182,21 @@ const signWithdraw = ({ ctx, kit, plan, creates }) =>
   });
 
 /**
+ * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
+ * decimal strings, at the pre-send pool price.
+ * @param {import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk} plan
+ * @returns {import("@solos/actions").LiquidityRemovalQuote}
+ */
+export const withdrawQuoteOf = (plan) => ({
+  kind: "removal",
+  liquidity: String(plan.liquidity),
+  estA: String(plan.estA),
+  estB: String(plan.estB),
+  minA: String(plan.minA),
+  minB: String(plan.minB),
+});
+
+/**
  * Build and sign one removal. Refuses anything but an Orca position before any RPC.
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {RemoveLiquidityAction} action
  * @returns {import("effect").Effect.Effect<PlannedWithdraw, import("@solos/core").ExecutorError>}
