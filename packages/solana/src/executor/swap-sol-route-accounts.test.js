@@ -173,8 +173,15 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
     expect(shared.requests).toHaveLength(1);
   });
 
-  test("the taker duplicated inside the shared prefix is refused for privilege elevation", async () => {
-    for (const slot of [0, 3, 4]) {
+  test("the taker duplicated read-only inside the shared prefix reaches the first RPC gate", async () => {
+    const { error } = await runBranch("execute", (envelope) =>
+      withTakerAt(0)(sharedEnvelope(envelope)),
+    );
+    expect(error).toBeInstanceOf(RpcError);
+  });
+
+  test("the taker duplicated with authority inside the shared prefix is refused for elevation", async () => {
+    for (const slot of [3, 4]) {
       const { error, requests } = await runBranch("execute", (envelope) =>
         withTakerAt(slot)(sharedEnvelope(envelope)),
       );

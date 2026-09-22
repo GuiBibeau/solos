@@ -77,17 +77,22 @@ const directProgramRejection = (accounts, destination) => {
   ]);
 };
 
+/** @param {string} taker @param {number} authoritySlot @returns {(meta: Meta, index: number) => boolean} */
+const elevatedRepeat = (taker, authoritySlot) => (meta, index) =>
+  index !== authoritySlot && meta.pubkey === taker && (meta.isWritable || meta.isSigner);
+
 /**
- * The authority slot is the taker's only legitimate appearance in the swap instruction.
- * Compilation coalesces duplicate addresses within one instruction to their strongest
- * privileges, so any second occurrence — writable or read-only, fixed prefix or hop tail —
- * would silently elevate the validated read-only-signer authority and hand the route broader
- * wallet access than validation approved.
+ * The authority slot is the taker's only elevated appearance (read-only signer in both V2
+ * layouts). Compilation coalesces duplicate addresses by unioning privileges, so a further
+ * occurrence of the taker is safe exactly when it is a pure data reference: a read-only repeat
+ * grants the route nothing the authority slot did not, while a writable or signer repeat
+ * anywhere would elevate the route's authority over the wallet beyond what validation approved
+ * (ADR-0023).
  * @param {Meta[]} accounts @param {string} taker @param {number} authoritySlot
  */
 const duplicateAuthorityRejection = (accounts, taker, authoritySlot) =>
-  accounts.some((meta, index) => index !== authoritySlot && meta.pubkey === taker)
-    ? "swap instruction repeated the taker outside its validated authority slot"
+  accounts.some(elevatedRepeat(taker, authoritySlot))
+    ? "swap instruction repeated the taker with authority beyond its validated slot"
     : undefined;
 
 /** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
