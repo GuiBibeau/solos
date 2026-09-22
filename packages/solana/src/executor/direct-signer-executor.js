@@ -5,6 +5,7 @@ import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
 import { buildSignedLiquidityDeposit } from "./liquidity-deposit-build.js";
+import { buildSignedLiquidityWithdraw } from "./liquidity-withdraw-build.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
 import { submitSimulatedSwap } from "./swap-submit.js";
@@ -37,6 +38,9 @@ const build = ({ ctx, kit, build: buildSwap }, action) => {
   }
   if (action.type === "add_liquidity") {
     return Effect.map(buildSignedLiquidityDeposit({ ctx, kit }, action), ({ signed }) => signed);
+  }
+  if (action.type === "remove_liquidity") {
+    return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), ({ signed }) => signed);
   }
   return Effect.fail(new UnsupportedAction({ actionType: action.type, executor: EXECUTOR_NAME }));
 };
