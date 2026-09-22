@@ -26,3 +26,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0020](0020-launch-slice.md) | Explicit Jupiter or Pump swap execution |
 | [0021](0021-perp-slice.md) | Phoenix account scope and finite-price IOC bounds |
 | [0022](0022-liquidity-slice.md) | Identified LP positions and deterministic bin allocation |
+| [0023](0023-swap-guard-taker-repeats.md) | Swap guard admits read-only taker repeats and nothing more |
