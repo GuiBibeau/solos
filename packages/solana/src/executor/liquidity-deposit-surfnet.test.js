@@ -150,7 +150,7 @@ describe("liquidity deposit executor against Surfnet [integration]", () => {
     const reads = rpc.callsFor("getMultipleAccounts").length;
     const failure = await failureOf(
       simulateDeposit({
-        ...intent("1".repeat(44), "2".repeat(44)),
+        ...intent("3".repeat(44), "2".repeat(44)),
         protocol: /** @type {"orca"} */ ("meteora"),
       }),
       seed,
