@@ -7,7 +7,8 @@ import { runSolos, stderrJson } from "./swap-quote-fixture.js";
 
 const SECRET = "qa-synthetic-swap-rpc-secret";
 const REQUEST_FAILED = "the configured RPC endpoint failed the request";
-const SUBMISSION_FAILED = "the configured RPC endpoint failed transaction submission";
+const MAY_HAVE_LANDED =
+  "confirmation was not established before the deadline; the transaction may still have landed";
 /** The fixture mints exist on chain under the classic token program; the fresh wSOL ATA does
  * not, which the preflight cleanup check relies on. */
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -100,7 +101,7 @@ const expectRedacted = (error, expected) => {
   if (expected === "RpcError") {
     expect(error).toMatchObject({ url: `http://127.0.0.1:${rpc.port}`, reason: REQUEST_FAILED });
   } else {
-    expect(error).toMatchObject({ reason: SUBMISSION_FAILED });
+    expect(error).toMatchObject({ reason: MAY_HAVE_LANDED });
   }
 };
 

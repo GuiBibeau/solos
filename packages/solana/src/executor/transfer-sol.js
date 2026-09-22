@@ -7,19 +7,14 @@ import {
   getSignatureFromTransaction,
   lamports,
   pipe,
-  sendAndConfirmTransactionFactory,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import {
-  BuildRejected,
-  RpcError,
-  TransactionFailed,
-  TRANSFER_PRIORITY_FEE_LAMPORTS,
-} from "@solos/core";
+import { BuildRejected, RpcError, TRANSFER_PRIORITY_FEE_LAMPORTS } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { assertV1WireForSubmission, beginV1Message, signV1Message } from "./transaction-v1.js";
+import { confirmationState, confirmSubmitted } from "./transfer-confirm.js";
 
 /**
  * @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc
@@ -33,8 +28,6 @@ export const TRANSFER_V1_CONFIG = Object.freeze({
   loadedAccountsDataSizeLimit: 8_388_608,
   priorityFeeLamports: TRANSFER_PRIORITY_FEE_LAMPORTS,
 });
-
-export const RPC_SUBMISSION_FAILED = "the configured RPC endpoint failed transaction submission";
 
 /**
  * Fetch a blockhash, build a policy-configured v1 SOL transfer, and sign it.
@@ -99,21 +92,35 @@ export const simulateSigned = (ctx, signed) =>
   );
 
 /**
- * Send and wait for confirmation.
+ * @param {Rpc} ctx
+ * @param {import("@solana/kit").Signature} signature
+ * @param {AbortSignal} abortSignal
+ */
+const lookupLanded = async (ctx, signature, abortSignal) => {
+  const { value } = await ctx.rpc
+    .getSignatureStatuses([signature], { searchTransactionHistory: true })
+    .send({ abortSignal });
+  return confirmationState(value[0]);
+};
+
+/**
  * @param {Rpc} ctx
  * @param {Signed} signed
+ * @param {{ readonly deadlineMs?: number }} [confirm]
  */
-export const sendSigned = (ctx, signed) => {
+export const sendSigned = (ctx, signed, confirm) => {
   assertIsTransactionWithBlockhashLifetime(signed);
   const signature = getSignatureFromTransaction(signed);
-  return Effect.flatMap(wireForRpc(signed), () => {
-    const confirm = sendAndConfirmTransactionFactory({
-      rpc: ctx.rpc,
-      rpcSubscriptions: ctx.rpcSubscriptions,
-    });
-    return Effect.tryPromise({
-      try: () => confirm(signed, { commitment: "confirmed" }),
-      catch: () => new TransactionFailed({ signature, reason: RPC_SUBMISSION_FAILED }),
-    });
-  }).pipe(Effect.as(signature), Effect.withSpan("rpc.sendAndConfirmTransaction"));
+  return Effect.flatMap(wireForRpc(signed), (wire) =>
+    confirmSubmitted({
+      signature,
+      deadlineMs: confirm?.deadlineMs,
+      lookup: (abortSignal) => lookupLanded(ctx, signature, abortSignal),
+      submit: async (abortSignal) => {
+        await ctx.rpc
+          .sendTransaction(wire, { encoding: "base64", preflightCommitment: "confirmed" })
+          .send({ abortSignal });
+      },
+    }),
+  ).pipe(Effect.withSpan("rpc.sendAndConfirmTransaction"));
 };
