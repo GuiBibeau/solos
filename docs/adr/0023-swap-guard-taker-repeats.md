@@ -28,6 +28,13 @@ could not already read at the authority slot, and holds no authority over the wa
 validation did not approve. A signer repeat outside the slot would place a signed authority
 position the validator never reviewed; a writable repeat would elevate it.
 
+The runtime enforces the same boundary from below, so the proof does not rest on provider
+metadata alone. An occurrence the instruction declares read-only fails the transaction on any
+write attempt (`ReadonlyLamportChange`, `ReadonlyDataModified`), and a CPI cannot grant an
+account writability the top-level instruction did not declare (`PrivilegeEscalation`). An
+occurrence's position carries no semantic weight — only the union does — and the taker's
+signature is transaction-level, present regardless of how many times the key repeats.
+
 Premise of sufficiency: the guard sees every key. This holds because the executor enforces
 transaction v1 (ADR-0019 lineage, #69), whose messages carry all account keys inline — no
 address-lookup-table indirection can hide an occurrence from the validator.
