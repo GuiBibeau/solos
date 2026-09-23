@@ -41,6 +41,25 @@ test("Phoenix onboarding status [integration] distinguishes absent and active ac
     },
   });
   expect((await Effect.runPromise(read(fixture.url))).state).toBe("ready");
+  fixture.stop();
+  fixture = startPhoenixFixture({
+    trader: {
+      authority: owner,
+      traderPdaIndex: 0,
+      snapshot: {
+        capabilities: {
+          state: "cold",
+          capabilities: {
+            placeMarketOrder: { immediate: true },
+            riskIncreasingTrade: { immediate: true },
+            depositCollateral: { immediate: true },
+          },
+        },
+        subaccounts: [{ subaccountIndex: 0, collateral: "0" }],
+      },
+    },
+  });
+  expect((await Effect.runPromise(read(fixture.url))).state).toBe("ready");
 });
 
 test("Phoenix onboarding status [integration] keeps cold and mismatched traders out of ready", async () => {
@@ -60,7 +79,10 @@ test("Phoenix onboarding status [integration] keeps cold and mismatched traders 
     Effect.flatMap(PerpOnboarder, (port) => port.status(owner)).pipe(
       Effect.provide(PerpOnboarderLive({ baseUrl: url })),
     );
-  expect((await Effect.runPromise(read(fixture.url))).state).toBe("partial");
+  expect((await Effect.runPromise(read(fixture.url))).missing).toEqual([
+    "trader.placeMarketOrder",
+    "trader.riskIncreasingTrade",
+  ]);
   fixture.stop();
   const rootReadyChildCold = {
     ...snapshot,
@@ -77,7 +99,20 @@ test("Phoenix onboarding status [integration] keeps cold and mismatched traders 
   fixture = startPhoenixFixture({
     trader: { authority: owner, traderPdaIndex: 0, snapshot: rootReadyChildCold },
   });
-  expect((await Effect.runPromise(read(fixture.url))).state).toBe("partial");
+  expect((await Effect.runPromise(read(fixture.url))).missing).toEqual([
+    "subaccount0.placeMarketOrder",
+    "subaccount0.riskIncreasingTrade",
+  ]);
+  fixture.stop();
+  const frozen = {
+    ...rootReadyChildCold,
+    capabilities: { ...rootReadyChildCold.capabilities, state: "frozen" },
+    subaccounts: [{ subaccountIndex: 0 }],
+  };
+  fixture = startPhoenixFixture({
+    trader: { authority: owner, traderPdaIndex: 0, snapshot: frozen },
+  });
+  expect((await Effect.runPromise(read(fixture.url))).missing).toEqual(["trader.state.frozen"]);
   fixture.stop();
   fixture = startPhoenixFixture({
     trader: { authority: "WrongOwner", traderPdaIndex: 0, snapshot },

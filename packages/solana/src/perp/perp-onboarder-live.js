@@ -68,12 +68,24 @@ const decodeStatus = (outcome, owner) =>
     return { account: parsed.data.snapshot.capabilities, subaccount: sub.capabilities };
   });
 
-/** @param {z.infer<typeof Capabilities>} access */
-const isReady = (access) =>
-  access.state === "active" &&
-  access.capabilities.placeMarketOrder.immediate &&
-  access.capabilities.riskIncreasingTrade.immediate &&
-  access.capabilities.depositCollateral.immediate;
+/** @param {z.infer<typeof Capabilities>} access @param {string} scope */
+const missingFor = (access, scope) =>
+  [
+    // Phoenix's cold trader is registered; immediate permissions may already be enabled.
+    // Collateral is a separate prerequisite, not an enrollment permission.
+    {
+      ready: access.state === "active" || access.state === "cold",
+      label: `${scope}.state.${access.state}`,
+    },
+    { ready: access.capabilities.placeMarketOrder.immediate, label: `${scope}.placeMarketOrder` },
+    {
+      ready: access.capabilities.riskIncreasingTrade.immediate,
+      label: `${scope}.riskIncreasingTrade`,
+    },
+    { ready: access.capabilities.depositCollateral.immediate, label: `${scope}.depositCollateral` },
+  ]
+    .filter(({ ready }) => !ready)
+    .map(({ label }) => label);
 
 /** @param {import("./phoenix-api.js").PhoenixConfig} config @param {string} owner */
 export const readOnboardingStatus = (config, owner) =>
@@ -85,12 +97,17 @@ export const readOnboardingStatus = (config, owner) =>
     if (outcome.status === 404)
       return { state: /** @type {const} */ ("unregistered"), trader: null };
     const { account, subaccount } = yield* decodeStatus(outcome, owner);
-    const ready = isReady(account) && (subaccount === undefined || isReady(subaccount));
+    const missing = [
+      ...missingFor(account, "trader"),
+      ...(subaccount ? missingFor(subaccount, "subaccount0") : []),
+    ];
     const trader = yield* Effect.tryPromise({
       try: () => traderAddress(owner),
       catch: () => new PerpAccountCorrupt({ account: owner, reason: "invalid trader authority" }),
     });
-    return { state: /** @type {"partial" | "ready"} */ (ready ? "ready" : "partial"), trader };
+    return missing.length === 0
+      ? { state: /** @type {const} */ ("ready"), trader }
+      : { state: /** @type {const} */ ("partial"), trader, missing };
   });
 
 /** @param {import("./phoenix-api.js").PhoenixConfig} config */

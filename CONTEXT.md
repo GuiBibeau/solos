@@ -82,6 +82,8 @@ credited underlying can differ when the rate moves before inclusion. _Avoid_: ex
 **Collateral input** — the receipt-token units actually encoded in a Kamino withdrawal;
 underlying output is estimated at the read-time rate and measured after confirmation.
 
+**Phoenix onboarding-ready** — the configured trader is registered with immediate permissions to place market orders, increase risk and deposit collateral. A registered `cold` trader can be ready while unfunded; ready never implies sufficient equity to open a position.
+
 **Perp account equity** — signed USD collateral plus PnL/funding under the pinned venue math,
 counted once per trader account in PortfolioState.perpAccounts. It is never leveraged notional.
 Per-market Position.valueUsd is null and its amount is absolute exposure with explicit side.
