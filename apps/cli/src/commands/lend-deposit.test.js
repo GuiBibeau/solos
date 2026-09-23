@@ -4,6 +4,7 @@ import {
   positionMarketBytes,
   positionReserveBytes,
   seedKaminoAccount,
+  seedVanillaObligation,
 } from "@solos/solana/lend/position-fixture";
 import {
   ensureSurfnet,
@@ -57,6 +58,11 @@ beforeAll(async () => {
   await cheats.ensureMint(USDC_MINT, 6);
   await cheats.setMint(receipt, 6);
   await cheats.setTokenAccount(owner, USDC_MINT, 10n ** 9n);
+  await seedVanillaObligation(surfnet.rpcUrl, {
+    market,
+    owner,
+    deposits: [{ reserve, amount: 2_000_000n }],
+  });
 });
 
 /** @param {string} stderr */
@@ -115,11 +121,45 @@ describe("`solos lend deposit` gates sends on its own simulation [integration]",
   });
 });
 
-describe("`solos mcp list` exposes the deposit twins [integration]", () => {
+describe("`solos lend withdraw` and real MCP child [integration]", () => {
+  test("CLI withdrawal fails typed before execution when supply is insufficient", async () => {
+    const { stderr, code } = await runSolos(
+      ["lend", "withdraw", "--mint", USDC_MINT, "--amount", "3000000"],
+      env,
+    );
+    expect(code).not.toBe(0);
+    expect(stderrError(stderr)?.code).toBe("BuildRejected");
+  });
+
+  test("simulation CLI and real stdio MCP tool reach the signed protocol path", async () => {
+    const cli = await runSolos(
+      ["lend", "simulate-withdraw", "--mint", USDC_MINT, "--amount", "1000000"],
+      env,
+    );
+    expect(cli.code).not.toBe(0);
+    expect(stderrError(cli.stderr)?.code).toBe("SimulationFailed");
+    const mcp = await runSolos(
+      [
+        "mcp",
+        "call",
+        "solana_lend_simulate_withdraw",
+        "--args",
+        JSON.stringify({ mint: USDC_MINT, amount: "1000000" }),
+      ],
+      env,
+    );
+    expect(mcp.code).not.toBe(0);
+    expect(mcp.stdout).toContain("SimulationFailed");
+  });
+});
+
+describe("`solos mcp list` exposes the deposit and withdrawal twins [integration]", () => {
   test("both tools are registered", async () => {
     const { stdout, code } = await runSolos(["mcp", "list"], env);
     expect(code).toBe(0);
     expect(stdout).toContain("solana_lend_simulate_deposit");
     expect(stdout).toContain("solana_lend_execute_deposit");
+    expect(stdout).toContain("solana_lend_simulate_withdraw");
+    expect(stdout).toContain("solana_lend_execute_withdraw");
   });
 });

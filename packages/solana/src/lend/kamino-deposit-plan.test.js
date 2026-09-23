@@ -30,6 +30,7 @@ const facts = () => ({
   lendingMarketAuthority: OTHER_ADDRESS,
   estimatedCollateral: "999000",
   exchangeRate: "1.001",
+  availableLiquidity: "1000000000000",
 });
 
 const addressEncoder = getAddressEncoder();

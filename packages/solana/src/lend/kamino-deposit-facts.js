@@ -115,6 +115,7 @@ const factsOf = async ({ reserve, instant, market, amount }) => {
     lendingMarketAuthority: await sdkLendingMarketAuthority(market),
     estimatedCollateral: estimatedCollateral.toString(),
     exchangeRate: exchangeRate.toString(),
+    availableLiquidity: reserve.state.liquidity.totalAvailableAmount.toString(),
   };
 };
 

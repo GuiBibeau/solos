@@ -69,7 +69,7 @@ const decodedObligationState = (sdk, row) => {
  * @param {Rpc} ctx
  * @returns {import("./kamino-deposit-plan.js").DepositReader}
  */
-const chainReader = (ctx) => {
+export const chainReader = (ctx) => {
   const read = { rpc: ctx.rpc, origin: rpcOrigin(ctx.url), timeoutMs: READ_TIMEOUT_MS };
   return {
     rows: (accounts) => fetchRows(read, accounts),
@@ -156,21 +156,29 @@ export const buildSignedLendDeposit = ({ ctx, kit, market }, action) =>
     if (plan.status === "reject") {
       return yield* new BuildRejected({ reason: plan.reason });
     }
-    const signed = yield* signDeposit({ ctx, kit, instructions: plan.instructions });
+    const signed = yield* signLendInstructions({ ctx, kit, instructions: plan.instructions });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildLendDeposit"));
 
 /**
- * Assemble and sign the deposit under the local v1 policy: a fresh blockhash lifetime and
- * the plan's instructions. Nothing here can send anything.
+ * Assemble and sign either lending plan under the local v1 policy: a fresh blockhash
+ * lifetime and the plan's instructions. Nothing here can send anything.
  * @param {{ ctx: Rpc; kit: Kit; instructions: readonly { programAddress: string }[] }} parts
  * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").BuildRejected | import("@solos/core").RpcError>}
  */
-const signDeposit = ({ ctx, kit, instructions }) =>
+export const signLendInstructions = ({ ctx, kit, instructions }) =>
   Effect.gen(function* () {
     const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
       ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
     );
+    const height = yield* rpcCall("getBlockHeight", ctx.url, () =>
+      ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
+    );
+    if (height > lifetime.lastValidBlockHeight) {
+      return yield* new BuildRejected({
+        reason: "Kamino transaction lifetime expired before signing",
+      });
+    }
     const message = setTransactionMessageLifetimeUsingBlockhash(
       lifetime,
       beginV1Message({ feePayerSigner: kit.signer, config: KAMINO_DEPOSIT_V1_CONFIG }),

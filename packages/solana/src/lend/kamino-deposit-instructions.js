@@ -20,7 +20,7 @@ const SYSTEM_PROGRAM = "11111111111111111111111111111111";
  * u64 field is handed over in the wire form it writes (bigint amounts are the domain norm).
  * @param {bigint} value
  */
-const u64ForSdkLayout = (value) => ({
+export const u64ForSdkLayout = (value) => ({
   /** @param {any} _bufferCtor @param {any} _encoding @param {number} length */
   toArrayLike: (_bufferCtor, _encoding, length) => {
     if (value < 0n || value >= 1n << 64n) throw new RangeError("u64 out of range");

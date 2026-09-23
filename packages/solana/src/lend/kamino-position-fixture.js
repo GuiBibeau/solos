@@ -2,6 +2,7 @@
 import { address, getAddressEncoder } from "@solana/kit";
 import { jsonRpc } from "../surfnet/index.js";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
+import { vanillaObligationAddress } from "./kamino-deposit-addresses.js";
 
 const MARKET_SIZE = 4664;
 const RESERVE_SIZE = 8624;
@@ -78,10 +79,19 @@ export const positionObligationBytes = (input) => {
   }
   if (input.borrowReserve) {
     putAddress(bytes, 1208, input.borrowReserve);
+    putU128(bytes, 1296, 1n << 60n);
     bytes[2287] = 1;
   }
   return bytes;
 };
+
+/** @param {string} rpcUrl @param {{ market: string; owner: string; deposits: ReadonlyArray<{ reserve: string; amount: bigint }> }} input */
+export const seedVanillaObligation = async (rpcUrl, { market, owner, deposits }) =>
+  seedKaminoAccount(
+    rpcUrl,
+    await vanillaObligationAddress(owner, market),
+    positionObligationBytes({ market, owner, deposits }),
+  );
 
 /** @param {string} rpcUrl @param {string} account @param {Uint8Array} bytes */
 export const seedKaminoAccount = (rpcUrl, account, bytes) =>

@@ -1,5 +1,5 @@
 // @ts-check
-import { LendActionSchema } from "@solos/actions";
+import { LendActionSchema, WithdrawLendActionSchema } from "@solos/actions";
 import { Effect } from "effect";
 import { LendingInputInvalid } from "../domain/errors.js";
 
@@ -39,6 +39,35 @@ export const validateDepositInput = (schema, input) =>
 export const toDepositAction = (request, market) => {
   const parsed = LendActionSchema.safeParse({
     type: "lend",
+    protocol: "kamino",
+    market,
+    mint: request.mint,
+    amount: request.amount,
+  });
+  return parsed.success ? parsed.data : null;
+};
+
+/**
+ * @template {{ mint: string; amount: string }} T
+ * @param {{ safeParse: (input: unknown) => { success: true; data: T } | { success: false } }} schema
+ * @param {unknown} input
+ * @returns {import("effect").Effect.Effect<T, LendingInputInvalid>}
+ */
+export const validateWithdrawInput = (schema, input) => {
+  const parsed = schema.safeParse(input);
+  return parsed.success
+    ? Effect.succeed(parsed.data)
+    : Effect.fail(
+        new LendingInputInvalid({
+          reason: "a withdrawal needs a valid mint and a positive u64 underlying base-unit amount",
+        }),
+      );
+};
+
+/** @param {{ mint: string; amount: string }} request @param {string} market */
+export const toWithdrawAction = (request, market) => {
+  const parsed = WithdrawLendActionSchema.safeParse({
+    type: "withdraw_lend",
     protocol: "kamino",
     market,
     mint: request.mint,

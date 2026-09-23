@@ -7,9 +7,11 @@ describe("tool registry", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_launch_get_curve",
       "solana_lend_execute_deposit",
+      "solana_lend_execute_withdraw",
       "solana_lend_get_position",
       "solana_lend_get_reserve",
       "solana_lend_simulate_deposit",
+      "solana_lend_simulate_withdraw",
       "solana_liquidity_execute_deposit",
       "solana_liquidity_execute_withdraw",
       "solana_liquidity_get_position",
@@ -139,10 +141,12 @@ describe("tool registry", () => {
     expect(tool?.input.shape.owner?.description).toBeTruthy();
   });
 
-  test("the lend slice advertises no deposit or withdraw tools yet", () => {
+  test("the lend slice advertises paired deposit and withdrawal tools", () => {
     const names = allTools.map((t) => t.name);
-    expect(names).not.toContain("solana_lend_deposit");
-    expect(names).not.toContain("solana_lend_withdraw");
+    for (const verb of ["deposit", "withdraw"]) {
+      expect(names).toContain(`solana_lend_simulate_${verb}`);
+      expect(names).toContain(`solana_lend_execute_${verb}`);
+    }
   });
 
   test("the liquidity position tool is a read-tier liquidity tool with described arguments", () => {
