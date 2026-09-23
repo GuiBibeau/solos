@@ -1,35 +1,40 @@
 # Kamino lending live QA
 
 Offline tests exercise the real adapter, CLI, and MCP server against a seeded offline
-Surfnet: Market ( 2424 bytes), Reserve (8624 bytes), Obligation and UserMetadata accounts
+Surfnet: Market (4664 bytes), Reserve (8624 bytes), Obligation and UserMetadata accounts
 written under the pinned lending program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` with
 the `surfnet_setAccount` cheatcode, decoded by the pinned `@kamino-finance/klend-sdk`. They
 prove the decode/guard/derivation/instruction-order behavior, not what the configured live
 market holds. Live QA compares solOS output with the same market state seen through a second
 client (Kamino's own app or a block explorer).
 
-**Status: deposit simulation passed; live round trip not yet run (2026-09-23).** The mainnet QA
-wallet `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f` simulated a 100,000-base-unit
-(0.0001 wSOL) deposit through the native CLI and real stdio MCP child with the operator's
-private QuickNode RPC. Both returned `ok: true`: farm-user initialization, contiguous
-reserve/obligation/collateral-farm refreshes, combined deposit, and trailing farm stake
-refresh all succeeded in simulation. The quote included 28,854,400 lamports of account rent
-and a 5,000-lamport signature fee; this was only a quote, not a debit. Earlier simulations
-failed on oracle accounts, empty-obligation refresh and then `IncorrectInstructionInPosition`
-(6051) until those issues and instruction ordering were fixed. No RPC credentials were
-recorded. **Zero transactions were sent; no SOL/wSOL or rent was spent; there is no signature.**
-The position is still zero, so a withdrawal against this wallet cannot yet simulate.
-Funded entry/exit, actual credited units and rent recovery are NOT verified. Obtain fresh,
-specific operator approval and validate the exit before treating this as a completed QA round. Live deposit/withdrawal QA
-needs an operator-provided RPC endpoint and a funded signer whose config selects Kamino Main Market. The offline fixture
-does not execute the actual lending program and cannot establish that the funded exit works.
-Do not deposit funds for QA until the operator checks that a matching exit is available, sets a
-small explicit budget, and accepts the exchange-rate movement risk. The protocol withdrawal
-instruction encodes collateral units, not an on-chain minimum underlying receipt; solOS checks
-that the read-time predicted underlying equals the request and simulates signed bytes, but a
-later state change can result in a different actual credit. Confirmation is not a fill claim. The venue configuration is `KAMINO_LENDING_MARKET` (env)
-or the solOS default; credentials stay only in the operator environment, never in issue
-comments, tool inputs, or implementation sandboxes.
+**Status: funded mainnet round trip completed (2026-09-23).** Operator approved wallet
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`, mainnet, a 100,000-base-unit
+(0.0001 wSOL) deposit and at most 0.05 SOL combined fees/rent. With the private QA RPC,
+CLI deposit simulation succeeded (farm-user initialization, contiguous reserve/obligation/farm
+refreshes, combined deposit and trailing farm-stake refresh). A real stdio MCP child also
+simulated the entry successfully. CLI deposit confirmed with signature
+`5wTjnjHsZiSVxYTuDiQuijNq8YBVZn4sZqvLofQSg5NFQ77GjLcRBGH6Jpt3vkMYFKw7qgSDcNhLXwoD1eVgxFrr`;
+the wallet lost exactly 100,000 wSOL base units and the position read 99,999 underlying base
+units. CLI and MCP then both simulated an exit of 99,999 base units successfully (86,718
+receipt units, zero new rent). CLI withdrawal confirmed with signature
+`3879VpQdTXP6MUT5xy9pRCdfbbuHDR1uLB2MdqECLFVLxDVZ5r7sm5zKjHLY7Sn3qBfNnbFQmtaqK6ybRfSdRjcP`.
+Afterwards the wallet had received 99,999 wSOL base units and the position read zero.
+
+Observed balances (lamports, wSOL base units): before entry `1,832,102,216 / 49,999,999`;
+after entry `1,803,241,816 / 49,899,999`; after exit
+`1,820,873,576 / 49,999,998`. The SOL changes were −28,860,400 at entry and +17,631,760
+at exit, net −11,228,640 lamports (0.01122864 SOL), below the approved 0.05 SOL cap.
+The entry quote included 28,854,400 lamports rent and a 5,000-lamport base fee, before
+priority fees. Some SOL returned during withdrawal, but balance reads alone cannot allocate
+that return precisely between rent refunds and other transfers or identify any still-locked
+rent. The net wSOL difference was one base unit (one-billionth wSOL); the position was zero.
+No RPC credentials were recorded or committed, and no retry or skipped simulation occurred.
+
+The instruction still encodes collateral units, not an on-chain minimum underlying receipt:
+read-time exactness and simulation do not guarantee a future fill if the exchange rate moves
+before inclusion. The venue configuration is `KAMINO_LENDING_MARKET` (env) or the solOS default;
+operator credentials remain private. Future funded rounds require their own specific approval.
 
 ## What the offline suites already prove
 
