@@ -34,6 +34,23 @@ The SDK example uses v0 and Bun >=1.4.2; the solOS path constructs and validates
 server acceptance of v1 and a successful funded registration remain **unverified**. Do not
 claim live onboarding passed from the offline tests, and do not auto-retry ambiguous submission.
 
+### 2026-09-23 mainnet onboarding attempt
+
+Operator approved up to $20 of SOL for #101 only. The configured signer was
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`; its starting balance was
+1,820,873,576 lamports and its Phoenix status was `unregistered`. A public price read gave
+$117/SOL (about 170,940,170 lamports under the cap). Simulation against the configured
+`SOLANA_RPC_URL` in the existing `.env.local` succeeded at 28,426 units and estimated a wallet
+debit of **27,899,040 lamports** including a 10,000-lamport signature-fee cushion (about $3.26
+at that read-time price). This estimate is not an on-chain spend limit.
+
+A **single** `solos perp onboard` attempt returned an ambiguous confirmation timeout with expected
+wallet signature `3cDMjM6m3GRPYudp1nUBFTPbTTaaPGaxsXMmLncFsDxxMYNHYZhBKyoJ7m83FSrx4272zt3nRTFFag4qHwvdmqjB`.
+Read-only transaction inspection found no confirmed transaction on the configured RPC. Both an
+immediate status/balance read and a second read 45 seconds later reported `unregistered` and
+1,820,873,576 lamports. **No expenditure or registration was observed; the server-side cause is
+unknown. Do not retry a funded send until the response and signature status are diagnosed.**
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:

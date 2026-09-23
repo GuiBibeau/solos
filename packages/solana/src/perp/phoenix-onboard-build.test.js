@@ -167,8 +167,16 @@ test("Phoenix onboarding [integration] submits a preflighted partially signed v1
     rpc: {
       ...rpc,
       getBlockHeight: () => ({ send: async () => 1n }),
+      getBalance: () => ({ send: async () => ({ value: 2_000_000_000n }) }),
       simulateTransaction: () => ({
-        send: async () => ({ value: { err: null, logs: [], unitsConsumed: 123n } }),
+        send: async () => ({
+          value: {
+            err: null,
+            logs: [],
+            unitsConsumed: 123n,
+            accounts: [{ lamports: 1_980_000_000n }],
+          },
+        }),
       }),
       getSignatureStatuses: () => ({
         send: async () => ({ value: [{ confirmationStatus: "confirmed", err: null }] }),
@@ -194,16 +202,58 @@ test("Phoenix onboarding [integration] submits a preflighted partially signed v1
       return fetch(url, options);
     },
   };
+  const action = {
+    type: /** @type {const} */ ("onboard_perp"),
+    traderPdaIndex: 0,
+    traderSubaccountIndex: 0,
+  };
+  const simulation = await Effect.runPromise(
+    simulateEnrollment({ config, ctx: /** @type {any} */ (ctx), kit }, action),
+  );
+  expect(simulation.venueQuote).toEqual({
+    kind: "perp_onboard",
+    estimatedSpendLamports: "20010000",
+  });
   const result = await Effect.runPromise(
-    executeEnrollment(
-      { config, ctx: /** @type {any} */ (ctx), kit },
-      { type: "onboard_perp", traderPdaIndex: 0, traderSubaccountIndex: 0 },
-    ),
+    executeEnrollment({ config, ctx: /** @type {any} */ (ctx), kit }, action),
   );
   expect(result.status).toBe("confirmed");
   expect(result.signature).toBe(expectedSignature);
   expect(submits).toBe(1);
   expect(sentWire).toBe(planned.wire);
+});
+
+test("Phoenix onboarding [integration] refuses a successful simulation without a wallet spend estimate", async () => {
+  const signer = await createMemorySignerFromBytes(randomSeed());
+  fixture = startPhoenixFixture({
+    onboardBuild: buildFor(signer.address, await traderAddress(signer.address)),
+  });
+  const ctx = {
+    ...fakeRpc(),
+    rpc: {
+      ...fakeRpc().rpc,
+      getBlockHeight: () => ({ send: async () => 1n }),
+      getBalance: () => ({ send: async () => ({ value: 2_000_000_000n }) }),
+      simulateTransaction: () => ({
+        send: async () => ({ value: { err: null, logs: [], accounts: [null] } }),
+      }),
+    },
+  };
+  const exit = await Effect.runPromiseExit(
+    executeEnrollment(
+      {
+        config: { baseUrl: fixture.url },
+        ctx: /** @type {any} */ (ctx),
+        kit: { backend: "memory", signer },
+      },
+      { type: "onboard_perp", traderPdaIndex: 0, traderSubaccountIndex: 0 },
+    ),
+  );
+  expect(Exit.isFailure(exit)).toBe(true);
+  expect(JSON.stringify(exit)).toContain("wallet spend could not be estimated");
+  expect(fixture.requests.map((request) => request.path)).not.toContain(
+    "/v1/exchange/send-register-ixs",
+  );
 });
 
 test("Phoenix onboarding [integration] refuses a failed Surfpool simulation with no provider submission", async () => {

@@ -1,5 +1,10 @@
 // @ts-check
-import { assertIsTransactionWithBlockhashLifetime, getBase58Decoder, signature } from "@solana/kit";
+import {
+  address,
+  assertIsTransactionWithBlockhashLifetime,
+  getBase58Decoder,
+  signature,
+} from "@solana/kit";
 import { BuildRejected, TransactionFailed } from "@solos/core";
 import { Clock, Effect } from "effect";
 import { simulationErrorText } from "../executor/simulation-error-text.js";
@@ -20,6 +25,18 @@ const ownerSignature = (planned) => {
   return signature(getBase58Decoder().decode(bytes));
 };
 
+/** @param {bigint | undefined} post @param {bigint} balance @param {unknown} error */
+const estimateSpend = (post, balance, error) => {
+  if (error !== null) return Effect.succeed(null);
+  if (post === undefined || post > balance)
+    return Effect.fail(
+      new BuildRejected({
+        reason: "Phoenix enrollment wallet spend could not be estimated; nothing was submitted",
+      }),
+    );
+  return Effect.succeed((balance - post + 10_000n).toString());
+};
+
 /** @param {Deps} deps @param {Plan} planned */
 const preflight = (deps, planned) =>
   Effect.gen(function* () {
@@ -33,15 +50,28 @@ const preflight = (deps, planned) =>
         reason: "Phoenix enrollment transaction expired before submission",
       });
     }
+    const { value: balance } = yield* rpcCall("getBalance", deps.ctx.url, () =>
+      deps.ctx.rpc.getBalance(address(planned.owner), { commitment: "confirmed" }).send(),
+    );
     const { value } = yield* rpcCall("simulateTransaction", deps.ctx.url, () =>
       deps.ctx.rpc
-        .simulateTransaction(planned.wire, { encoding: "base64", sigVerify: false })
+        .simulateTransaction(planned.wire, {
+          encoding: "base64",
+          sigVerify: false,
+          accounts: { addresses: [address(planned.owner)], encoding: "base64" },
+        })
         .send(),
+    );
+    const estimatedSpendLamports = yield* estimateSpend(
+      value.accounts?.[0]?.lamports,
+      balance,
+      value.err,
     );
     return {
       err: value.err,
       logs: [...(value.logs ?? [])],
       unitsConsumed: (value.unitsConsumed ?? 0n).toString(),
+      estimatedSpendLamports,
     };
   });
 
@@ -57,7 +87,13 @@ export const simulateEnrollment = (deps, action) =>
       unitsConsumed: raw.unitsConsumed,
       logs: raw.logs,
       projectedPortfolio: null,
-      venueQuote: null,
+      venueQuote:
+        raw.estimatedSpendLamports === null
+          ? null
+          : {
+              kind: /** @type {const} */ ("perp_onboard"),
+              estimatedSpendLamports: raw.estimatedSpendLamports,
+            },
       violations: isOk ? [] : [{ rule: "simulation", message: simulationErrorText(raw.err) }],
     };
   });

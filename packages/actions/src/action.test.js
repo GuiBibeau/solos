@@ -23,6 +23,26 @@ describe("@solos/actions", () => {
     ).toBe(false);
   });
 
+  test("onboarding simulation preserves the estimated wallet debit as a decimal lamport string", () => {
+    const action = ACTION_SAMPLES.find((sample) => sample.type === "onboard_perp");
+    const simulation = {
+      action,
+      ok: true,
+      unitsConsumed: "28426",
+      logs: [],
+      projectedPortfolio: null,
+      venueQuote: { kind: "perp_onboard", estimatedSpendLamports: "27899040" },
+      violations: [],
+    };
+    expect(SimulationResultSchema.parse(simulation).venueQuote).toEqual(simulation.venueQuote);
+    expect(
+      SimulationResultSchema.safeParse({
+        ...simulation,
+        venueQuote: { kind: "perp_onboard", estimatedSpendLamports: 27_899_040 },
+      }).success,
+    ).toBe(false);
+  });
+
   test("result schemas preserve every bounded action", () => {
     for (const action of ACTION_SAMPLES) {
       expect(
