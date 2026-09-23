@@ -28,7 +28,7 @@ const facts = () => ({
   collateralMint: OTHER_ADDRESS,
   collateralSupplyVault: OTHER_ADDRESS,
   lendingMarketAuthority: OTHER_ADDRESS,
-  estimatedCollateral: "999000",
+  estimatedCollateral: "1001000",
   exchangeRate: "1.001",
   availableLiquidity: "1000000000000",
 });
@@ -126,7 +126,7 @@ describe("kamino deposit plan", () => {
       reserve: RESERVE,
       obligation: plan.quote.obligation,
       liquidityAmount: "1000000",
-      estimatedCollateral: "999000",
+      estimatedCollateral: "1001000",
       exchangeRate: "1.001",
       initializeObligation: true,
       rentLamports: "4376",

@@ -27,6 +27,7 @@ import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
 import { TOKEN_PROGRAM } from "../wallet/parse-token-accounts.js";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
 import { vanillaObligationAddress } from "./kamino-deposit-addresses.js";
+import { kaminoDepositSdk } from "./kamino-deposit-facts.js";
 import {
   positionMarketBytes,
   positionObligationBytes,
@@ -34,6 +35,7 @@ import {
   seedKaminoAccount,
 } from "./kamino-position-fixture.js";
 import { buildSignedLendWithdraw } from "./kamino-withdraw-build.js";
+import { exactCollateralForWithdrawal } from "./kamino-withdraw-math.js";
 
 let surfnet;
 let rpc;
@@ -110,6 +112,31 @@ const failureOf = async (effect) => {
 };
 
 describe("Kamino withdrawal over offline Surfnet [integration]", () => {
+  test("receipt conversion agrees with the pinned SDK on both sides of par", async () => {
+    const sdk = await kaminoDepositSdk();
+    const liquidity = 1_000_000n;
+    for (const [rate, expected] of [
+      ["1.001", 1_001_000n],
+      ["0.999", 999_000n],
+    ]) {
+      const collateral = exactCollateralForWithdrawal(liquidity, rate);
+      expect(collateral).toBe(expected);
+      const sdkRate = sdk.numberToLamportsDecimal(rate, 0);
+      const sdkLiquidity = sdk.KaminoReserve.cTokensToLiquidity(
+        sdk.numberToLamportsDecimal(collateral?.toString() ?? "0", 0),
+        sdkRate,
+      ).floor();
+      expect(sdkLiquidity.toString()).toBe(liquidity.toString());
+      expect(
+        sdk.KaminoReserve.liquidityToCTokens(
+          sdk.numberToLamportsDecimal(liquidity.toString(), 0),
+          sdkRate,
+        )
+          .ceil()
+          .toString(),
+      ).toBe(collateral?.toString());
+    }
+  });
   test("builds a real collateral redemption directed to the signer's underlying ATA", async () => {
     const exit = await Effect.runPromiseExit(
       Effect.provide(
