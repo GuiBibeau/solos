@@ -40,9 +40,20 @@ add a `solos` command instead.
 
 - **Reusable tests never touch mainnet.** They run against Surfpool, offline by default, started
   automatically by `ensureSurfnet()` and torn down by the test preload.
-- **Live verification rounds may spend real SOL.** When asked to verify against mainnet, Claude Code
-  has the go-ahead: set `SOLANA_RPC_URL` and a funded signer, run the `solos` commands, report
-  signatures and amounts exactly. Keep amounts small and say what was spent.
+- **Real-fund mainnet QA is allowed, and expected for execute paths when the operator authorizes
+  a round.** Use the operator's funded local wallet and real RPC, not Surfpool, for that round.
+  Before signing or sending, ask the operator to approve the wallet, cluster, token/amount cap,
+  and SOL fee/rent cap. This guide is not standing permission to spend. Show the proposed transaction,
+  simulate it first, never use `--skip-simulation` for QA, and stop on any failed simulation or
+  missing/unchecked exit path. Keep amounts small; reconcile before/after balances, positions,
+  signatures, fees, locked rent, and residual exposure. Report zero spend when nothing was sent.
+- **Use the operator's real RPC for live checks.** `SOLANA_RPC_URL` may be provided in local
+  environment files (for example `.env.local` or `~/.config/solos/qa/quicknode.env`), not in
+  the agent's inherited shell or the saved profile. Locate and load the operator-provisioned
+  variable without displaying its value; confirm the endpoint's cluster with read-only `solos`
+  commands before a funded test. Never commit RPC URLs, credentials, keypairs, or local env files,
+  and never paste their values into issues, PRs, logs, or tool arguments. Use native CLI and a
+  real stdio MCP child for live QA; do not substitute offline fixtures for a funded round.
 - Mainnet is the default. There is no network enum; the RPC URL is the only switch. Startup fails
   without an RPC URL from `SOLANA_RPC_URL` or the active profile.
 - Wallets come from `solos login --provider privy|local|pay|privy-server`, stored as profiles in
