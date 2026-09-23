@@ -88,7 +88,7 @@ const simulateWithdraw = Command.make("simulate-withdraw", { mint, amount }, (op
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate withdrawing underlying from the signer's existing plain Kamino supply position without submitting",
+    "Simulate a fixed-collateral redemption selected by target underlying base units; output is estimated, not an on-chain minimum. Does not submit",
   ),
 );
 
@@ -102,7 +102,7 @@ const withdraw = Command.make("withdraw", { mint, amount, skipSimulation }, (opt
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Withdraw from the signer's existing plain Kamino supply position, simulating the signed transaction before sending by default",
+    "Redeem fixed collateral selected by target underlying base units; actual credit can differ. Simulates before sending by default",
   ),
 );
 

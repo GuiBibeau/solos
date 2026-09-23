@@ -45,6 +45,9 @@ export const LendActionSchema = z.object({ type: z.literal("lend"), ...lendingIn
 export const WithdrawLendActionSchema = z.object({
   type: z.literal("withdraw_lend"),
   ...lendingIntent,
+  amount: PositiveAmountSchema.describe(
+    "Target underlying base units at the read-time exchange rate; execution redeems fixed collateral units and cannot guarantee the credited underlying amount",
+  ),
 });
 
 /** @typedef {z.infer<typeof LendActionSchema>} LendAction */

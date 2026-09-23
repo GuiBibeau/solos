@@ -9,12 +9,11 @@ export const executeWithdrawTool = defineTool({
   tier: "execute",
   title: "Execute Kamino withdrawal",
   description:
-    "Redeem the requested underlying base-unit amount from the configured signer's plain " +
-    "Kamino supply obligation. The executor checks the reserve, position, receipt conversion " +
-    "and liquidity before signing. Simulates the exact signed transaction first unless " +
-    "skipSimulation is true; a failed simulation sends nothing. Confirmation is not proof " +
-    "of exact credited tokens: read the wallet and remaining position after execution. " +
-    "Never retries an ambiguous submission.",
+    "Redeem fixed collateral units chosen from a target underlying base-unit amount at the " +
+    "read-time rate. The target is NOT a guaranteed minimum or exact on-chain output: the " +
+    "reserve can change before inclusion. Check the estimated output and encoded collateral " +
+    "in simulation; read the wallet and position after execution. Simulates before sending " +
+    "unless skipSimulation is true; failed simulations send nothing. Never retries ambiguous sends.",
   input: LendExecuteWithdrawInputSchema,
   run: (input) => executeWithdraw(input),
 });

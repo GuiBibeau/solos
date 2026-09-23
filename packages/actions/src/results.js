@@ -87,12 +87,14 @@ export const LendWithdrawQuoteSchema = z.object({
   kind: z.literal("lend_withdraw"),
   reserve: AddressSchema.describe("Validated reserve in the configured Kamino market"),
   obligation: AddressSchema.describe("Signer's validated plain supply obligation"),
-  requestedLiquidity: AmountSchema.describe("Requested underlying base units"),
+  requestedLiquidity: AmountSchema.describe(
+    "Target underlying base units at the read-time rate, not an on-chain guaranteed output",
+  ),
   collateralAmount: AmountSchema.describe(
     "Exact receipt units encoded in the withdrawal instruction",
   ),
   estimatedLiquidity: AmountSchema.describe(
-    "Predicted underlying units at the observed exchange rate",
+    "Estimated underlying output for the fixed collateral input; actual credited units can differ at inclusion",
   ),
   exchangeRate: DecimalSchema.describe("Observed collateral per underlying exchange rate"),
   rentLamports: AmountSchema.describe(

@@ -5,8 +5,8 @@ Surfnet: Market (4664 bytes), Reserve (8624 bytes), Obligation and UserMetadata 
 written under the pinned lending program `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` with
 the `surfnet_setAccount` cheatcode, decoded by the pinned `@kamino-finance/klend-sdk`. They
 prove the decode/guard/derivation/instruction-order behavior, not what the configured live
-market holds. Live QA compares solOS output with the same market state seen through a second
-client (Kamino's own app or a block explorer).
+market holds. Live QA uses confirmed transaction fee/account deltas and the remaining live
+accounts; a block explorer provides an optional independent cross-check.
 
 **Status: funded mainnet round trip completed (2026-09-23).** Operator approved wallet
 `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`, mainnet, a 100,000-base-unit
@@ -25,15 +25,23 @@ Observed balances (lamports, wSOL base units): before entry `1,832,102,216 / 49,
 after entry `1,803,241,816 / 49,899,999`; after exit
 `1,820,873,576 / 49,999,998`. The SOL changes were −28,860,400 at entry and +17,631,760
 at exit, net −11,228,640 lamports (0.01122864 SOL), below the approved 0.05 SOL cap.
-The entry quote included 28,854,400 lamports rent and a 5,000-lamport base fee, before
-priority fees. Some SOL returned during withdrawal, but balance reads alone cannot allocate
-that return precisely between rent refunds and other transfers or identify any still-locked
-rent. The net wSOL difference was one base unit (one-billionth wSOL); the position was zero.
-No RPC credentials were recorded or committed, and no retry or skipped simulation occurred.
+Finalized transaction evidence from `solos dev inspect transaction` shows a 6,000-lamport
+fee for **each** transaction (5,000 base + 1,000 priority), totaling 12,000 lamports. Deposit
+created user metadata `CpuM3sp6bHf1DBpEAn5RAE1J1AcBsbrkoiQFbWzphmwi` with 5,892,800 lamports,
+collateral-farm user state `EiA3ccea1jS9Hkn3mdfSXNd5BUVoKTB42edE9uTj3Sr9` with 5,323,840,
+and obligation `EoBPDzqwXttvu6hLNDdm7CQPkjcNUd2w8CUZHVoiXy8Z` with 17,637,760;
+total account funding 28,854,400 lamports. Withdrawal's account deltas show the obligation
+returned its full 17,637,760 lamports to the wallet. Finalized `solos dev inspect account` reads
+show that obligation **absent** and both metadata (5,892,800) and farm user state (5,323,840)
+still present, owned by their respective programs: **11,216,640 lamports still locked**. No
+extra close instructions were requested; the lending program closed the emptied obligation.
+12,000 fees + 11,216,640 locked = the net 11,228,640 SOL-lamport wallet change. The net wSOL
+difference was one base unit (one-billionth wSOL); the position was zero. No RPC credentials
+were recorded or committed, and no retry or skipped simulation occurred.
 
 The instruction still encodes collateral units, not an on-chain minimum underlying receipt:
-read-time exactness and simulation do not guarantee a future fill if the exchange rate moves
-before inclusion. The venue configuration is `KAMINO_LENDING_MARKET` (env) or the solOS default;
+the underlying amount is only a **target** used to choose the collateral input at read time;
+actual credit can differ if the exchange rate moves before inclusion (ADR-0024). The venue configuration is `KAMINO_LENDING_MARKET` (env) or the solOS default;
 operator credentials remain private. Future funded rounds require their own specific approval.
 
 ## What the offline suites already prove
@@ -78,9 +86,9 @@ operator credentials remain private. Future funded rounds require their own spec
    <mint>`. Choose a positive base-unit amount no greater than the observed supply. The
    signer's underlying associated token account must exist. A request may fail when whole
    collateral units cannot predict precisely that underlying amount; choose an exactly
-   representable amount rather than using a withdraw-all sentinel. Simulate via CLI and real
-   stdio MCP child, inspecting `venueQuote` (receipt units, exchange rate and predicted
-   underlying), then withdraw **once**:
+   representable target rather than using a withdraw-all sentinel. Simulate via CLI and real
+   stdio MCP child, inspecting `venueQuote` (the fixed collateral input, exchange rate and
+   estimated underlying; **no guaranteed minimum**), then withdraw **once**:
 
    ```sh
    bun run solos lend simulate-withdraw --mint <mint> --amount <base-units>
@@ -88,9 +96,11 @@ operator credentials remain private. Future funded rounds require their own spec
    bun run solos lend withdraw --mint <mint> --amount <base-units>
    ```
 
-5. Read wallet balance and `solos lend position` again. Record both signatures, fees/rent,
-   actual credited base units and residual supply; compare with an independent client.
-   Any remaining supply or rounding dust is exposure, not a flat round trip. Do not retry
+5. Read wallet balance and `solos lend position` again. Inspect both signatures and rent
+   accounts with `solos dev inspect transaction <signature>` and `solos dev inspect account
+   <address>`. Record fees, deposits/refunds, locked rent, actual credited base units and
+   residual supply; optionally compare with an independent explorer. Any remaining supply
+   or rounding dust is exposure, not a flat round trip. Do not retry
    an ambiguous submission. A simulation or confirmation alone does not prove redemption.
 
 Record the budget and results in the issue without disclosing credentials. If operator RPC,

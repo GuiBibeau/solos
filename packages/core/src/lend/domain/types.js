@@ -125,12 +125,12 @@ export const LendExecuteDepositInputSchema = z
   })
   .strict();
 
-/** Exact underlying withdrawal request, with no implicit owner or withdraw-all sentinel. */
+/** Read-time underlying target; the resulting fixed collateral input has estimated output. */
 export const LendWithdrawInputSchema = z
   .object({
     mint: MintSchema.describe("Underlying token mint in the configured Kamino market"),
     amount: PositiveU64AmountSchema.describe(
-      "Requested underlying base units as a positive u64 integer string",
+      "Target underlying base units at the read-time rate. Redemption encodes fixed collateral units; actual underlying output can differ, with no on-chain minimum",
     ),
   })
   .strict();
