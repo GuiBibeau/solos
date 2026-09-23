@@ -158,9 +158,15 @@ export const SolanaLive = (env) =>
  *   kamino?: SolanaEnv["kamino"];
  * }} options
  */
-export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, kamino }) =>
-  withPortfolio(
-    adapters({ market: kamino?.market }).pipe(
+export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, kamino }) => {
+  const testPhoenix = phoenix ?? {
+    baseUrl: "http://127.0.0.1",
+    fetchImpl: async () => {
+      throw new Error("Phoenix fixture required for SolanaTestLive");
+    },
+  };
+  return withPortfolio(
+    adapters({ market: kamino?.market, phoenix: testPhoenix }).pipe(
       Layer.merge(lending(kamino)),
       Layer.provideMerge(KitSignerFromBytes(seed)),
       Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
@@ -168,6 +174,7 @@ export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, ka
       Layer.merge(intelligence(elfa)),
       Layer.merge(prices(jupiter)),
       Layer.merge(quotes(jupiter)),
-      Layer.merge(perp(phoenix)),
+      Layer.merge(perp(testPhoenix)),
     ),
   );
+};
