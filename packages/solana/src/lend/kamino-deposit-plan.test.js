@@ -31,6 +31,12 @@ const facts = () => ({
   estimatedCollateral: "1001000",
   exchangeRate: "1.001",
   availableLiquidity: "1000000000000",
+  oracles: {
+    pythOracle: null,
+    switchboardPriceOracle: null,
+    switchboardTwapOracle: null,
+    scopePrices: null,
+  },
 });
 
 const addressEncoder = getAddressEncoder();

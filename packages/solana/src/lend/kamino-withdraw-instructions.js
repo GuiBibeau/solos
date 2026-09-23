@@ -2,6 +2,7 @@
 import { none } from "@solana/kit";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
 import { u64ForSdkLayout } from "./kamino-deposit-instructions.js";
+import { refreshReserveInstruction } from "./kamino-refresh-reserve.js";
 
 const INSTRUCTIONS_SYSVAR = "Sysvar1nstructions1111111111111111111111111";
 
@@ -15,13 +16,10 @@ const INSTRUCTIONS_SYSVAR = "Sysvar1nstructions1111111111111111111111111";
 export const withdrawInstructions = (sdk, parts) => {
   const { intent, facts, signer, obligation, destination, collateral } = parts;
   return [
-    sdk.refreshReserve({
+    refreshReserveInstruction(sdk, {
+      market: intent.market,
       reserve: facts.reserve,
-      lendingMarket: intent.market,
-      pythOracle: none(),
-      switchboardPriceOracle: none(),
-      switchboardTwapOracle: none(),
-      scopePrices: none(),
+      oracles: facts.oracles,
     }),
     sdk.refreshObligation(
       { lendingMarket: intent.market, obligation },

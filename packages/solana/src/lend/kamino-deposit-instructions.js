@@ -9,6 +9,7 @@
  */
 import { none } from "@solana/kit";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
+import { refreshReserveInstruction } from "./kamino-refresh-reserve.js";
 
 const RENT_SYSVAR = "SysvarRent111111111111111111111111111111111";
 const INSTRUCTIONS_SYSVAR = "Sysvar1nstructions1111111111111111111111111";
@@ -117,17 +118,15 @@ const depositAccounts = (parts, reserve, sourceAta) => ({
  */
 export const depositInstructions = (sdk, parts) => {
   const { intent, reserve, obligation, sourceAta } = parts;
-  const refreshRemaining = [...new Set([reserve.reserve, ...parts.existingDeposits])].map(
-    (depositReserve) => ({ address: depositReserve, role: /** @type {const} */ (1) }),
-  );
+  const refreshRemaining = [...new Set(parts.existingDeposits)].map((depositReserve) => ({
+    address: depositReserve,
+    role: /** @type {const} */ (1),
+  }));
   return [
-    sdk.refreshReserve({
+    refreshReserveInstruction(sdk, {
+      market: intent.market,
       reserve: reserve.reserve,
-      lendingMarket: intent.market,
-      pythOracle: none(),
-      switchboardPriceOracle: none(),
-      switchboardTwapOracle: none(),
-      scopePrices: none(),
+      oracles: reserve.oracles,
     }),
     ...initInstructions(sdk, parts),
     sdk.refreshObligation(

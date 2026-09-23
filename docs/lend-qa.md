@@ -8,8 +8,20 @@ prove the decode/guard/derivation/instruction-order behavior, not what the confi
 market holds. Live QA compares solOS output with the same market state seen through a second
 client (Kamino's own app or a block explorer).
 
-**Status: live round trip not verified.** Live deposit/withdrawal QA needs an operator-provided
-RPC endpoint and a funded signer whose config selects Kamino Main Market. The offline fixture
+**Status: live round trip blocked (2026-09-23).** The operator-authorized mainnet QA wallet
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f` used public mainnet RPC, then the
+operator's local QuickNode QA RPC, to read the Kamino Main Market wSOL reserve and simulate a
+100,000-base-unit (0.0001 wSOL) deposit via CLI and a real stdio MCP child. Both CLI and MCP
+reported the same failure against QuickNode; withdrawal simulation correctly rejected the
+absent supply obligation. No RPC credentials were recorded. The oracle-account and empty-obligation refresh errors were
+found and fixed with regression coverage. The next simulation reached the combined deposit
+instruction and failed `IncorrectInstructionInPosition` (6051): the reserve requires a
+`RefreshFarmsForObligationForReserve` instruction before the obligation refresh. The simulator
+sent **zero transactions**; no SOL/wSOL or rent was spent, no signature exists, and the
+position is still zero. The farm refresh/initialization path, paired withdrawal and actual
+post-confirmation credits have NOT been verified. Do not deposit real funds until this is
+implemented, simulated successfully, and the exit path is checked. Live deposit/withdrawal QA
+needs an operator-provided RPC endpoint and a funded signer whose config selects Kamino Main Market. The offline fixture
 does not execute the actual lending program and cannot establish that the funded exit works.
 Do not deposit funds for QA until the operator checks that a matching exit is available, sets a
 small explicit budget, and accepts the exchange-rate movement risk. The protocol withdrawal

@@ -90,6 +90,13 @@ const reserveFor = (read, target) =>
     },
   );
 
+/** @param {string} value */
+const oracleOrNull = (value) =>
+  value === "11111111111111111111111111111111" ||
+  value === "nu11111111111111111111111111111111111111111"
+    ? null
+    : value;
+
 /**
  * The plain facts one deposit plan needs: derived reserve identities under the pinned
  * program, the authority PDA, and the pinned-math collateral estimate at the read instant.
@@ -116,6 +123,18 @@ const factsOf = async ({ reserve, instant, market, amount }) => {
     estimatedCollateral: estimatedCollateral.toString(),
     exchangeRate: exchangeRate.toString(),
     availableLiquidity: reserve.state.liquidity.totalAvailableAmount.toString(),
+    oracles: {
+      pythOracle: oracleOrNull(reserve.state.config.tokenInfo.pythConfiguration.price.toString()),
+      switchboardPriceOracle: oracleOrNull(
+        reserve.state.config.tokenInfo.switchboardConfiguration.priceAggregator.toString(),
+      ),
+      switchboardTwapOracle: oracleOrNull(
+        reserve.state.config.tokenInfo.switchboardConfiguration.twapAggregator.toString(),
+      ),
+      scopePrices: oracleOrNull(
+        reserve.state.config.tokenInfo.scopeConfiguration.priceFeed.toString(),
+      ),
+    },
   };
 };
 
