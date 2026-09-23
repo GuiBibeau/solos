@@ -29,6 +29,7 @@ export {
   ClosePerpActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
+  OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   SwapActionSchema,
   TransferSolActionSchema,

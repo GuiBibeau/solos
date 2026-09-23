@@ -4,16 +4,17 @@ import { Clock, Effect, Layer } from "effect";
 import { KAMINO_MAIN_MARKET } from "../lend/kamino-addresses.js";
 import { buildSignedLendDeposit, lendQuoteOf } from "../lend/kamino-deposit-build.js";
 import { buildSignedLendWithdraw } from "../lend/kamino-withdraw-build.js";
+import { simulateEnrollment, executeEnrollment } from "../perp/phoenix-onboard-send.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
+import { executeSwap } from "./execute-swap.js";
 import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
 import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { simulationErrorText } from "./simulation-error-text.js";
 import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
-import { submitSimulatedSwap } from "./swap-submit.js";
 import { buildSignedTransfer, simulateSigned } from "./transfer-sol.js";
 
 export const EXECUTOR_NAME = "direct-signer";
@@ -25,7 +26,7 @@ export const EXECUTOR_NAME = "direct-signer";
  * @typedef {import("@solos/actions").Action} Action
  */
 
-/** @typedef {{ ctx: Rpc; kit: Kit; build: Build; market: string }} Deps */
+/** @typedef {{ ctx: Rpc; kit: Kit; build: Build; market: string; phoenix: import("../perp/phoenix-api.js").PhoenixConfig }} Deps */
 /** @typedef {import("./transfer-sol.js").Signed} Signed */
 
 /**
@@ -61,7 +62,7 @@ const build = ({ ctx, kit, build: buildSwap, market }, action) => {
  * @param {Action} action
  * @returns {import("effect").Effect.Effect<{ signed: Signed; venueQuote: import("@solos/actions").VenueQuote | null }, import("@solos/core").ExecutorError>}
  */
-const plannedSigned = ({ ctx, kit, build: buildSwap, market }, action) => {
+const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) => {
   switch (action.type) {
     case "remove_liquidity": {
       return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), (planned) => ({
@@ -88,10 +89,13 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market }, action) => {
       }));
     }
     default: {
-      return Effect.map(build({ ctx, kit, build: buildSwap, market }, action), (signed) => ({
-        signed,
-        venueQuote: null,
-      }));
+      return Effect.map(
+        build({ ctx, kit, build: buildSwap, market, phoenix }, action),
+        (signed) => ({
+          signed,
+          venueQuote: null,
+        }),
+      );
     }
   }
 };
@@ -104,6 +108,9 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market }, action) => {
 const simulate = (deps, action) =>
   Effect.gen(function* () {
     const { ctx } = deps;
+    if (action.type === "onboard_perp") {
+      return yield* simulateEnrollment({ config: deps.phoenix, ctx, kit: deps.kit }, action);
+    }
     const { signed, venueQuote } = yield* plannedSigned(deps, action);
     if (action.type === "swap") yield* assertSwapWireBeforeContact(signed);
     if (action.type === "swap" || action.type === "withdraw_lend") {
@@ -128,26 +135,18 @@ const simulate = (deps, action) =>
  * @param {{ readonly skipSimulation: boolean }} options
  * @returns {import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, import("@solos/core").ExecutorError>}
  */
-const execute = ({ ctx, kit, build: buildSwap, market }, action, options) =>
+const execute = ({ ctx, kit, build: buildSwap, market, phoenix }, action, options) =>
   Effect.gen(function* () {
-    if (action.type === "swap") {
-      const swap = yield* buildSignedSwap({ ctx, kit, build: buildSwap }, action);
-      // Pre-submit boundary: the exact locally-lived bytes are proven v1 before simulation/send.
-      yield* assertSwapWireBeforeContact(swap.signed);
-      const signature = yield* submitSimulatedSwap(
-        { ctx, signed: swap.signed },
-        options.skipSimulation,
-      );
-      return {
-        action,
-        status: "confirmed",
-        signature,
-        executedAt: yield* Clock.currentTimeMillis,
-        simulated: !options.skipSimulation,
-        error: null,
-      };
+    if (action.type === "onboard_perp") {
+      return yield* executeEnrollment({ config: phoenix, ctx, kit }, action);
     }
-    const { signed } = yield* plannedSigned({ ctx, kit, build: buildSwap, market }, action);
+    if (action.type === "swap") {
+      return yield* executeSwap({ ctx, kit, build: buildSwap }, action, options.skipSimulation);
+    }
+    const { signed } = yield* plannedSigned(
+      { ctx, kit, build: buildSwap, market, phoenix },
+      action,
+    );
     const signature = yield* submitSimulated(
       { ctx, signed, checkLifetime: action.type === "withdraw_lend" },
       options.skipSimulation,
@@ -167,22 +166,25 @@ const execute = ({ ctx, kit, build: buildSwap, market }, action, options) =>
  * Right for wallet mode, paper mode on Surfpool, and dev. A vault engine is a different Layer.
  * The configured Kamino market (ADR-0019) rides along so `lend` actions are revalidated
  * against the exact market the reads advertise.
- * @param {{ readonly market?: string }} [config]
+ * @param {{ readonly market?: string; readonly phoenix?: import("../perp/phoenix-api.js").PhoenixConfig }} [config]
  */
 export const DirectSignerExecutor = (config) =>
   Layer.effect(
     ActionExecutor,
     Effect.all([SolanaRpc, KitSigner, JupiterSwapBuild]).pipe(
-      Effect.map(([ctx, kit, build]) => ({
-        name: EXECUTOR_NAME,
-        simulate: (action) =>
-          simulate({ ctx, kit, build, market: config?.market ?? KAMINO_MAIN_MARKET }, action),
-        execute: (action, options) =>
-          execute(
-            { ctx, kit, build, market: config?.market ?? KAMINO_MAIN_MARKET },
-            action,
-            options,
-          ),
-      })),
+      Effect.map(([ctx, kit, build]) => {
+        const deps = {
+          ctx,
+          kit,
+          build,
+          market: config?.market ?? KAMINO_MAIN_MARKET,
+          phoenix: config?.phoenix ?? { baseUrl: "https://perp-api.phoenix.trade" },
+        };
+        return {
+          name: EXECUTOR_NAME,
+          simulate: (action) => simulate(deps, action),
+          execute: (action, options) => execute(deps, action, options),
+        };
+      }),
     ),
   );

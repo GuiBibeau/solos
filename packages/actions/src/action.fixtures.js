@@ -59,6 +59,7 @@ export const ACTION_SAMPLES = [
   SWAP,
   OPEN,
   CLOSE,
+  { type: "onboard_perp", traderPdaIndex: 0, traderSubaccountIndex: 0 },
   LEND,
   { ...LEND, type: "withdraw_lend" },
   ADD,

@@ -13,6 +13,27 @@ production endpoint `https://perp-api.phoenix.trade`). Live credentials belong o
 operator or approved QA environment, never in issue comments, tool inputs, or implementation
 sandboxes.
 
+## Explicit trader onboarding (#101)
+
+The default trader scope is the configured signer with both Phoenix trader indices fixed to zero.
+The read-only `bun run solos perp onboarding-status` (or MCP
+`solana_perp_get_onboarding_status`) reports `unregistered`, `partial` (registered but
+not fully trading-enabled), or `ready`. On an already-ready trader, `onboard` returns
+`already_ready` without a registration transaction or fee. A ready trader is not necessarily
+funded: collateral deposit is a separate operation (#102).
+
+**Only with explicit operator authorization and an approved SOL fee/rent budget:** verify the
+signer and RPC endpoint, then run `bun run solos perp simulate-onboard` and inspect the
+on-chain program, trader PDA, fee payer, and simulation logs. A successful simulation is a
+prerequisite to `bun run solos perp onboard`. This operation calls Phoenix's official
+permissioned build and server co-sign/submit endpoints; if access is denied or its returned
+instructions do not match this wallet, it fails closed without sending. No raw API bodies or
+private keys are reported. Record the resulting signature, actual fee and rent, and a follow-up
+`onboarding-status` read. A confirmed transaction alone is not proof of enabled trading.
+The SDK example uses v0 and Bun >=1.4.2; the solOS path constructs and validates v1, but live
+server acceptance of v1 and a successful funded registration remain **unverified**. Do not
+claim live onboarding passed from the offline tests, and do not auto-retry ambiguous submission.
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:

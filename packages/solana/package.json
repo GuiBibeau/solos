@@ -17,6 +17,7 @@
     "./swap/build-bodies": "./src/swap/jupiter-swap-build-bodies.js"
   },
   "dependencies": {
+    "@ellipsis-labs/rise": "0.5.26",
     "@hpke/chacha20poly1305": "1.8.0",
     "@hpke/core": "1.9.0",
     "@kamino-finance/klend-sdk": "12.0.0",

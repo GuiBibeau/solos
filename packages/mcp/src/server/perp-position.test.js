@@ -69,6 +69,16 @@ describe("solos MCP perp position tool through a real server child [integration]
     expect(seen.some((entry) => entry.query.traderPdaIndex === "0")).toBe(true);
   });
 
+  test("enrollment twins and current-wallet status work through the real stdio child", async () => {
+    session = await startPerpMcp(surfnet, { traderStatus: 404 });
+    const tools = await session.mcp.listTools();
+    expect(tools.map((t) => t.name)).toContain("solana_perp_execute_onboard_trader");
+    expect(tools.map((t) => t.name)).toContain("solana_perp_simulate_onboard_trader");
+    const status = await session.mcp.callTool("solana_perp_get_onboarding_status", {});
+    expect(status.structuredContent).toMatchObject({ state: "unregistered", trader: null });
+    expect(session.fixture.requests).toHaveLength(1);
+  });
+
   test("an unknown market surfaces PerpMarketUnknown as a tool error", async () => {
     session = await startPerpMcp(surfnet, { trader: shortState() });
     const before = session.fixture.requests.length;
