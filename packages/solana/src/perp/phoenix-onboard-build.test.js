@@ -1,87 +1,22 @@
 // @ts-check
 import { afterEach, expect, test } from "bun:test";
-import {
-  getOnboardTraderDelegatedEncoder,
-  getRegisterTraderInstructionEncoder,
-  PHOENIX_GLOBAL_CONFIGURATION_ADDRESS,
-  PHOENIX_LOG_AUTHORITY_ADDRESS,
-} from "@ellipsis-labs/rise";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
-import { address, getBase58Decoder } from "@solana/kit";
+import { getBase58Decoder, getBase64Codec, getTransactionDecoder } from "@solana/kit";
+import { BuildRejected } from "@solos/core";
 import { Effect, Exit } from "effect";
 import { SolanaRpc, SolanaRpcLive } from "../rpc/solana-rpc.js";
 import { ensureSurfnet } from "../surfnet/index.js";
 import { randomSeed } from "../surfnet/test-surfnet.js";
 import { traderAddress } from "./perp-onboarder-live.js";
-import { PHOENIX_PERPS_PROGRAM } from "./phoenix-api.js";
 import { startPhoenixFixture } from "./phoenix-fixture.js";
 import { buildOnboarding } from "./phoenix-onboard-build.js";
+import { buildFor, fakeRpc } from "./phoenix-onboard-fixture.js";
 import { executeEnrollment, simulateEnrollment } from "./phoenix-onboard-send.js";
+import { assertPhoenixV0WireForSubmission } from "./phoenix-onboard-v0.js";
 
 /** @type {ReturnType<typeof startPhoenixFixture> | undefined} */
 let fixture;
 afterEach(() => fixture?.stop());
-/** @param {string} pubkey @param {boolean} [isSigner] @param {boolean} [isWritable] */
-const key = (pubkey, isSigner = false, isWritable = false) => ({ pubkey, isSigner, isWritable });
-/** @param {string} owner @param {string} trader */
-const buildFor = (owner, trader) => {
-  const onboarder = "SysvarRent111111111111111111111111111111111";
-  return {
-    traderPda: trader,
-    traderOnboarder: onboarder,
-    txFeePayer: owner,
-    maxPositions: 128,
-    includeRegisterTrader: true,
-    instructions: [
-      {
-        programId: PHOENIX_PERPS_PROGRAM,
-        data: [
-          ...getRegisterTraderInstructionEncoder().encode({
-            maxPositions: 128n,
-            traderPdaIndex: 0,
-            subaccountIndex: 0,
-          }),
-        ],
-        keys: [
-          key(PHOENIX_PERPS_PROGRAM),
-          key(PHOENIX_LOG_AUTHORITY_ADDRESS),
-          key(PHOENIX_GLOBAL_CONFIGURATION_ADDRESS),
-          key(owner, true, true),
-          key(owner),
-          key(trader, false, true),
-          key("11111111111111111111111111111111"),
-        ],
-      },
-      {
-        programId: PHOENIX_PERPS_PROGRAM,
-        data: [...getOnboardTraderDelegatedEncoder().encode(undefined)],
-        keys: [
-          key(PHOENIX_PERPS_PROGRAM),
-          key(PHOENIX_LOG_AUTHORITY_ADDRESS),
-          key(PHOENIX_GLOBAL_CONFIGURATION_ADDRESS),
-          key(onboarder, true),
-          key(onboarder, false, true),
-          key(trader, false, true),
-        ],
-      },
-    ],
-  };
-};
-
-const fakeRpc = () => ({
-  url: "http://127.0.0.1:1",
-  rpc: {
-    getLatestBlockhash: () => ({
-      send: async () => ({
-        value: {
-          blockhash: address("11111111111111111111111111111111"),
-          lastValidBlockHeight: 100n,
-        },
-      }),
-    }),
-  },
-});
-
 test("Phoenix onboarding build [integration] signs only the wallet's official enrollment instructions", async () => {
   const signer = await createMemorySignerFromBytes(randomSeed());
   const trader = await traderAddress(signer.address);
@@ -94,6 +29,15 @@ test("Phoenix onboarding build [integration] signs only the wallet's official en
   );
   expect(result.owner).toBe(signer.address);
   expect(result.trader).toBe(trader);
+  // The pinned Phoenix builder examples submit v0 (TS) or legacy (Rust), never v1.
+  const wire = getBase64Codec().encode(result.wire);
+  const decoded = getTransactionDecoder().decode(wire);
+  expect(decoded.messageBytes[0]).toBe(0x80);
+  const wrongVersion = Uint8Array.from(wire);
+  wrongVersion[wire.length - decoded.messageBytes.length] = 0x81;
+  expect(() => assertPhoenixV0WireForSubmission(getBase64Codec().decode(wrongVersion))).toThrow(
+    BuildRejected,
+  );
   expect(fixture.requests.map((request) => request.path)).toEqual([
     "/v1/exchange/build-register-ixs",
   ]);
@@ -156,7 +100,7 @@ test("Phoenix onboarding build [integration] rejects wrong programs, duplicate r
   }
 });
 
-test("Phoenix onboarding [integration] submits a preflighted partially signed v1 wire once through the official API", async () => {
+test("Phoenix onboarding [integration] submits a preflighted partially signed v0 wire once through the official API", async () => {
   const signer = await createMemorySignerFromBytes(randomSeed());
   const trader = await traderAddress(signer.address);
   const build = buildFor(signer.address, trader);
@@ -197,6 +141,10 @@ test("Phoenix onboarding [integration] submits a preflighted partially signed v1
         submits += 1;
         const sent = JSON.parse(options?.body);
         sentWire = sent.transaction;
+        if (
+          getTransactionDecoder().decode(getBase64Codec().encode(sentWire)).messageBytes[0] !== 0x80
+        )
+          return Response.json({ error: "unsupported version" }, { status: 422 });
         return Response.json({ ...build, instructions: undefined, signature: expectedSignature });
       }
       return fetch(url, options);

@@ -6,6 +6,7 @@
  * @typedef {{
  *   readonly baseUrl: string;
  *   readonly timeoutMs?: number;
+ *   readonly confirmDeadlineMs?: number;
  *   readonly fetchImpl?: Fetch;
  * }} PhoenixConfig
  */

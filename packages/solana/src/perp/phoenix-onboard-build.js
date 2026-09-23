@@ -10,17 +10,15 @@ import {
 } from "@solana/kit";
 import { BuildRejected, BuildUnavailable } from "@solos/core";
 import { Effect } from "effect";
-import { assertV1MessageForSigning, beginV1Message } from "../executor/transaction-v1.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { traderAddress } from "./perp-onboarder-live.js";
 import { RegisterBuild, phoenixPost } from "./phoenix-onboard-api.js";
 import { assertEnrollmentBuild } from "./phoenix-onboard-guards.js";
-
-const CONFIG = Object.freeze({
-  computeUnitLimit: 500_000,
-  loadedAccountsDataSizeLimit: 8_388_608,
-  priorityFeeLamports: 0n,
-});
+import {
+  assertPhoenixV0MessageForSigning,
+  assertPhoenixV0WireForSubmission,
+  beginPhoenixV0Message,
+} from "./phoenix-onboard-v0.js";
 
 /** @param {{pubkey:string,isSigner:boolean,isWritable:boolean}} key */
 const role = (key) => {
@@ -63,6 +61,21 @@ const fetchBuild = (config, owner, trader) =>
     });
   });
 
+/** @param {import("../signer/kit-signer.js").KitCompatibleSigner} signer @param {Parameters<typeof setTransactionMessageLifetimeUsingBlockhash>[0]} lifetime @param {import("zod").infer<typeof RegisterBuild>["instructions"]} instructions */
+const messageFor = (signer, lifetime, instructions) =>
+  pipe(
+    beginPhoenixV0Message(signer),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(lifetime, m),
+    (m) => appendTransactionMessageInstructions(instructions.map(instructionOf), m),
+  );
+
+/** @param {Parameters<typeof getBase64EncodedWireTransaction>[0]} signed */
+const encodeWire = (signed) => {
+  const wire = getBase64EncodedWireTransaction(signed);
+  assertPhoenixV0WireForSubmission(wire);
+  return wire;
+};
+
 /** @param {import("./phoenix-api.js").PhoenixConfig} config @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx @param {import("../signer/kit-signer.js").KitSignerShape} kit */
 export const buildOnboarding = (config, ctx, kit) =>
   Effect.gen(function* () {
@@ -76,28 +89,30 @@ export const buildOnboarding = (config, ctx, kit) =>
       ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
     );
     const message = yield* Effect.try({
-      try: () =>
-        pipe(
-          beginV1Message({ feePayerSigner: kit.signer, config: CONFIG }),
-          (m) => setTransactionMessageLifetimeUsingBlockhash(lifetime, m),
-          (m) => appendTransactionMessageInstructions(build.instructions.map(instructionOf), m),
-        ),
+      try: () => messageFor(kit.signer, lifetime, build.instructions),
       catch: () =>
         new BuildRejected({ reason: "Phoenix enrollment instructions could not be encoded" }),
     });
     const signed = yield* Effect.tryPromise({
       try: () => {
-        assertV1MessageForSigning(message);
+        assertPhoenixV0MessageForSigning(message);
         return partiallySignTransactionMessageWithSigners(message);
       },
       catch: () =>
         new BuildRejected({
-          reason: "Phoenix enrollment failed v1 signing policy; nothing was sent",
+          reason: "Phoenix enrollment failed v0 signing policy; nothing was sent",
         }),
     });
     const wire = yield* Effect.try({
-      try: () => getBase64EncodedWireTransaction(signed),
+      try: () => encodeWire(signed),
       catch: () => new BuildRejected({ reason: "Phoenix enrollment wire encoding failed" }),
     });
-    return { signed, wire, owner, trader };
+    return {
+      signed,
+      wire,
+      owner,
+      trader,
+      onboarder: build.traderOnboarder,
+      registered: build.includeRegisterTrader,
+    };
   });

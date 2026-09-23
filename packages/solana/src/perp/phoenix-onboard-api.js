@@ -22,6 +22,15 @@ export const RegisterSent = RegisterBuild.omit({ instructions: true }).extend({
   signature: z.string(),
 });
 
+/** Internal HTTP status only; response bodies are untrusted and never surfaced to agents. */
+export class PhoenixOnboardHttpError extends Error {
+  /** @param {number} status */
+  constructor(status) {
+    super(`Phoenix onboarding HTTP ${status}`);
+    this.status = status;
+  }
+}
+
 /** Bounded JSON response from the official Phoenix onboarding API; one attempt, no retries. */
 /** @param {Response} response */
 const boundedJson = async (response) => {
@@ -78,7 +87,7 @@ export const phoenixPost = async (config, path, request) => {
     signal: AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS),
   });
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`Phoenix onboarding HTTP ${response.status}`);
+    throw new PhoenixOnboardHttpError(response.status);
   }
   return await boundedJson(response);
 };

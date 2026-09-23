@@ -5,14 +5,14 @@ import {
   getBase58Decoder,
   signature,
 } from "@solana/kit";
-import { BuildRejected, TransactionFailed } from "@solos/core";
+import { BuildRejected } from "@solos/core";
 import { Clock, Effect } from "effect";
 import { simulationErrorText } from "../executor/simulation-error-text.js";
-import { assertV1WireForSubmission } from "../executor/transaction-v1.js";
 import { confirmationState, confirmSubmitted } from "../executor/transfer-confirm.js";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { RegisterSent, phoenixPost } from "./phoenix-onboard-api.js";
 import { buildOnboarding } from "./phoenix-onboard-build.js";
+import { submitEnrollment } from "./phoenix-onboard-submit.js";
+import { assertPhoenixV0WireForSubmission } from "./phoenix-onboard-v0.js";
 
 /** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape}} Deps */
 /** @typedef {import("@solos/actions").Action} Action */
@@ -40,7 +40,7 @@ const estimateSpend = (post, balance, error) => {
 /** @param {Deps} deps @param {Plan} planned */
 const preflight = (deps, planned) =>
   Effect.gen(function* () {
-    assertV1WireForSubmission(planned.wire);
+    assertPhoenixV0WireForSubmission(planned.wire);
     assertIsTransactionWithBlockhashLifetime(planned.signed);
     const height = yield* rpcCall("getBlockHeight", deps.ctx.url, () =>
       deps.ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
@@ -102,28 +102,8 @@ export const simulateEnrollment = (deps, action) =>
 const confirmEnrollment = (deps, planned, signature) =>
   confirmSubmitted({
     signature,
-    submit: async () => {
-      const response = RegisterSent.parse(
-        await phoenixPost(deps.config, "/v1/exchange/send-register-ixs", {
-          transaction: planned.wire,
-          traderAuthority: planned.owner,
-          txFeePayer: planned.owner,
-          maxPositions: 128,
-          traderPdaIndex: 0,
-          traderSubaccountIndex: 0,
-        }),
-      );
-      if (
-        response.signature !== signature ||
-        response.traderPda !== planned.trader ||
-        response.txFeePayer !== planned.owner
-      ) {
-        throw new TransactionFailed({
-          signature,
-          reason: "Phoenix enrollment response did not match the signed transaction",
-        });
-      }
-    },
+    deadlineMs: deps.config.confirmDeadlineMs,
+    submit: () => submitEnrollment(deps.config, planned, signature),
     lookup: async (abortSignal) => {
       const { value } = await deps.ctx.rpc
         .getSignatureStatuses([signature], { searchTransactionHistory: true })

@@ -30,9 +30,11 @@ permissioned build and server co-sign/submit endpoints; if access is denied or i
 instructions do not match this wallet, it fails closed without sending. No raw API bodies or
 private keys are reported. Record the resulting signature, actual fee and rent, and a follow-up
 `onboarding-status` read. A confirmed transaction alone is not proof of enabled trading.
-The SDK example uses v0 and Bun >=1.4.2; the solOS path constructs and validates v1, but live
-server acceptance of v1 and a successful funded registration remain **unverified**. Do not
-claim live onboarding passed from the offline tests, and do not auto-retry ambiguous submission.
+The pinned SDK TypeScript builder example uses v0 (Rust uses legacy) and declares Bun >=1.4.2.
+The original solOS v1 submission was inconclusive. The onboarding-only wire now follows the
+pinned v0 example under ADR-0025; live v0 acceptance and a successful funded registration
+remain **unverified**. Do not claim live onboarding passed from fixtures and never auto-retry
+an ambiguous submission.
 
 ### 2026-09-23 mainnet onboarding attempt
 
@@ -49,7 +51,12 @@ wallet signature `3cDMjM6m3GRPYudp1nUBFTPbTTaaPGaxsXMmLncFsDxxMYNHYZhBKyoJ7m83FS
 Read-only transaction inspection found no confirmed transaction on the configured RPC. Both an
 immediate status/balance read and a second read 45 seconds later reported `unregistered` and
 1,820,873,576 lamports. **No expenditure or registration was observed; the server-side cause is
-unknown. Do not retry a funded send until the response and signature status are diagnosed.**
+unknown. The new code preserves a Phoenix HTTP status or invalid-response signal if received;
+it uses the pinned v0 builder wire instead of v1, but neither change proves why this attempt
+failed. A subsequent **read-only** simulation of the pinned v0 wire on the configured RPC passed
+at 28,426 compute units with the same estimated debit; the server has not been asked to submit
+this v0 wire. Do not retry a funded send without fresh operator approval and a reconciled prior
+send.**
 
 ## What to compare once an operator account exists
 
