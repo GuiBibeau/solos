@@ -207,6 +207,32 @@ describe("Kamino withdrawal over offline Surfnet [integration]", () => {
     }
   });
 
+  test("an obligation with another active reserve is rejected before sending", async () => {
+    const signer = await seedAddress(seed);
+    const other = await seedAddress(randomSeed());
+    const sends = rpc.callsFor("sendTransaction").length;
+    try {
+      await seedKaminoAccount(
+        surfnet.rpcUrl,
+        await vanillaObligationAddress(signer, market),
+        positionObligationBytes({
+          market,
+          owner: signer,
+          deposits: [
+            { reserve, amount: 2_000_000n },
+            { reserve: other, amount: 10n },
+          ],
+        }),
+      );
+      const failure = await failureOf(executeLendWithdraw({ mint, amount: "1000000" }));
+      expect(failure).toBeInstanceOf(BuildRejected);
+      expect(/** @type {BuildRejected} */ (failure).reason).toContain("other active reserves");
+      expect(rpc.callsFor("sendTransaction").length).toBe(sends);
+    } finally {
+      await setObligation(signer, 2_000_000n);
+    }
+  });
+
   test("failed protocol simulation cannot submit", async () => {
     const sends = rpc.callsFor("sendTransaction").length;
     await failureOf(simulateLendWithdraw({ mint, amount: "1000000" }));
