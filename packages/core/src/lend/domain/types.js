@@ -95,7 +95,7 @@ export const GetLendPositionInputSchema = z.object({
 /** A positive u64 base-unit amount: the exact underlying size of one deposit. */
 const PositiveU64AmountSchema = U64AmountSchema.refine(
   (value) => /[1-9]/.test(value),
-  "the deposit amount must be positive",
+  "the amount must be positive",
 );
 
 /**
@@ -125,6 +125,27 @@ export const LendExecuteDepositInputSchema = z
   })
   .strict();
 
+/** Read-time underlying target; the resulting fixed collateral input has estimated output. */
+export const LendWithdrawInputSchema = z
+  .object({
+    mint: MintSchema.describe("Underlying token mint in the configured Kamino market"),
+    amount: PositiveU64AmountSchema.describe(
+      "Target underlying base units at the read-time rate. Redemption encodes fixed collateral units; actual underlying output can differ, with no on-chain minimum",
+    ),
+  })
+  .strict();
+
+export const LendExecuteWithdrawInputSchema = z
+  .object({
+    mint: LendWithdrawInputSchema.shape.mint,
+    amount: LendWithdrawInputSchema.shape.amount,
+    skipSimulation: z
+      .boolean()
+      .default(false)
+      .describe("Skip pre-send simulation; never skip validation"),
+  })
+  .strict();
+
 /** Resolve every supported Kamino supply position for one owner. */
 export const ListLendPositionsInputSchema = z.object({
   owner: MintSchema.optional().describe(
@@ -134,6 +155,8 @@ export const ListLendPositionsInputSchema = z.object({
 
 /** @typedef {z.infer<typeof GetLendPositionInputSchema>} GetLendPositionInput */
 /** @typedef {z.infer<typeof ListLendPositionsInputSchema>} ListLendPositionsInput */
+/** @typedef {z.infer<typeof LendWithdrawInputSchema>} LendWithdrawInput */
+/** @typedef {z.infer<typeof LendExecuteWithdrawInputSchema>} LendExecuteWithdrawInput */
 /** @typedef {z.infer<typeof LendDepositInputSchema>} LendDepositInput */
 /** @typedef {z.infer<typeof LendExecuteDepositInputSchema>} LendExecuteDepositInput */
 /** @typedef {z.infer<typeof import("@solos/actions").LendPositionSchema>} LendPosition */

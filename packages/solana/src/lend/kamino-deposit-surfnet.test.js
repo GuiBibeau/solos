@@ -199,8 +199,11 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     expect(plan.quote.rentLamports).not.toBe("0");
     const compiled = getCompiledTransactionMessageDecoder().decode(signed.messageBytes);
     const decoded = decompileTransactionMessage(compiled);
-    // refreshReserve, initUserMetadata, initObligation, refreshObligation, deposit
+    // initUserMetadata, initObligation, refreshReserve, refreshObligation, deposit
     expect(decoded.instructions.length).toBe(5);
+    // A newly initialized obligation has no deposits yet: refresh must not include the
+    // target reserve as a remaining account until the deposit has actually occurred.
+    expect(decoded.instructions[3]?.accounts.length).toBe(2);
     for (const ix of decoded.instructions) {
       expect(ix.programAddress).toBe(KLEND_PROGRAM_ID);
     }
@@ -259,7 +262,7 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     expect(plan.quote.rentLamports).not.toBe("0");
     const compiled = getCompiledTransactionMessageDecoder().decode(signed.messageBytes);
     const decoded = decompileTransactionMessage(compiled);
-    // refreshReserve, initUserMetadata, refreshObligation, deposit — no initObligation.
+    // initUserMetadata, refreshReserve, refreshObligation, deposit — no initObligation.
     expect(decoded.instructions.length).toBe(4);
     // The refresh carries the obligation's existing deposit reserve as a writable remaining.
     const refresh = decoded.instructions[2];

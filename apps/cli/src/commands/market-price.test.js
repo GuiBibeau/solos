@@ -72,9 +72,11 @@ describe("`solos market price` and `solos mcp` through real child processes [int
     expect(names).toEqual([
       "solana_launch_get_curve",
       "solana_lend_execute_deposit",
+      "solana_lend_execute_withdraw",
       "solana_lend_get_position",
       "solana_lend_get_reserve",
       "solana_lend_simulate_deposit",
+      "solana_lend_simulate_withdraw",
       "solana_liquidity_execute_deposit",
       "solana_liquidity_execute_withdraw",
       "solana_liquidity_get_position",

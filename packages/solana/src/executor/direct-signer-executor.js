@@ -1,17 +1,20 @@
 // @ts-check
-import { ActionExecutor, SimulationFailed, UnsupportedAction } from "@solos/core";
+import { ActionExecutor, UnsupportedAction } from "@solos/core";
 import { Clock, Effect, Layer } from "effect";
 import { KAMINO_MAIN_MARKET } from "../lend/kamino-addresses.js";
 import { buildSignedLendDeposit, lendQuoteOf } from "../lend/kamino-deposit-build.js";
+import { buildSignedLendWithdraw } from "../lend/kamino-withdraw-build.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
 import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
 import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
+import { simulationErrorText } from "./simulation-error-text.js";
+import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
 import { submitSimulatedSwap } from "./swap-submit.js";
-import { buildSignedTransfer, sendSigned, simulateSigned } from "./transfer-sol.js";
+import { buildSignedTransfer, simulateSigned } from "./transfer-sol.js";
 
 export const EXECUTOR_NAME = "direct-signer";
 
@@ -78,6 +81,12 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market }, action) => {
         venueQuote: lendQuoteOf(planned.plan.quote),
       }));
     }
+    case "withdraw_lend": {
+      return Effect.map(buildSignedLendWithdraw({ ctx, kit, market }, action), (planned) => ({
+        signed: planned.signed,
+        venueQuote: planned.plan.quote,
+      }));
+    }
     default: {
       return Effect.map(build({ ctx, kit, build: buildSwap, market }, action), (signed) => ({
         signed,
@@ -96,8 +105,8 @@ const simulate = (deps, action) =>
   Effect.gen(function* () {
     const { ctx } = deps;
     const { signed, venueQuote } = yield* plannedSigned(deps, action);
-    if (action.type === "swap") {
-      yield* assertSwapWireBeforeContact(signed);
+    if (action.type === "swap") yield* assertSwapWireBeforeContact(signed);
+    if (action.type === "swap" || action.type === "withdraw_lend") {
       yield* recheckSignedSwapLifetime(ctx, signed);
     }
     const raw = yield* simulateSigned(ctx, signed);
@@ -109,27 +118,9 @@ const simulate = (deps, action) =>
       logs: raw.logs,
       projectedPortfolio: null,
       venueQuote,
-      violations: isOk ? [] : [{ rule: "simulation", message: stringifySimError(raw.err) }],
+      violations: isOk ? [] : [{ rule: "simulation", message: simulationErrorText(raw.err) }],
     };
   });
-
-/**
- * @param {Deps} deps
- * @param {Action} action
- * @param {{ readonly skipSimulation: boolean }} options
- * @returns {import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, import("@solos/core").ExecutorError>}
- */
-/**
- * Sim error payloads carry BigInt lamport/size values on live chains; a plain
- * JSON.stringify throws on them and would turn a typed simulation failure into an
- * internal crash. BigInts serialize as their decimal-string form.
- * @param {unknown} value
- * @returns {string}
- */
-const stringifySimError = (value) =>
-  JSON.stringify(value, (/** @type {string} */ key, /** @type {unknown} */ v) =>
-    typeof v === "bigint" ? v.toString() : v,
-  );
 
 /**
  * @param {Deps} deps
@@ -156,8 +147,11 @@ const execute = ({ ctx, kit, build: buildSwap, market }, action, options) =>
         error: null,
       };
     }
-    const signed = yield* build({ ctx, kit, build: buildSwap, market }, action);
-    const signature = yield* submitSimulated({ ctx, signed }, options.skipSimulation);
+    const { signed } = yield* plannedSigned({ ctx, kit, build: buildSwap, market }, action);
+    const signature = yield* submitSimulated(
+      { ctx, signed, checkLifetime: action.type === "withdraw_lend" },
+      options.skipSimulation,
+    );
     return {
       action,
       status: "confirmed",
@@ -166,23 +160,6 @@ const execute = ({ ctx, kit, build: buildSwap, market }, action, options) =>
       simulated: !options.skipSimulation,
       error: null,
     };
-  });
-
-/**
- * Simulate the exact signed transaction (unless explicitly skipped) and send that identical
- * transaction once. A failed simulation fails here — nothing was ever sent.
- * @param {{ ctx: Rpc; signed: import("./swap-sol.js").SignedSwap["signed"] }} deps
- * @param {boolean} skipSimulation
- */
-const submitSimulated = ({ ctx, signed }, skipSimulation) =>
-  Effect.gen(function* () {
-    if (!skipSimulation) {
-      const raw = yield* simulateSigned(ctx, signed);
-      if (raw.err !== null) {
-        return yield* new SimulationFailed({ reason: JSON.stringify(raw.err), logs: raw.logs });
-      }
-    }
-    return yield* sendSigned(ctx, signed);
   });
 
 /**

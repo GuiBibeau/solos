@@ -15,6 +15,7 @@ import {
 import { kaminoDepositSdk } from "./kamino-deposit-facts.js";
 import { guardMintRow, guardObligationRow, guardSourceRow } from "./kamino-deposit-guards.js";
 import { depositInstructions } from "./kamino-deposit-instructions.js";
+import { farmRent, readCollateralFarm } from "./kamino-farm-instructions.js";
 
 /** Pinned account sizes (8-byte discriminator + the SDK's layout span) for rent evidence. */
 export const OBLIGATION_ACCOUNT_SIZE = 3344;
@@ -25,7 +26,7 @@ const TRANSACTION_FEE_LAMPORTS = 5000n;
 /** @typedef {{ readonly owner: string; readonly bytes: Uint8Array; readonly state?: import("./kamino-deposit-guards.js").ObligationState }} FetchedRow */
 /** @typedef {{ readonly rows: (accounts: readonly string[]) => import("effect").Effect.Effect<ReadonlyArray<FetchedRow | null>, import("@solos/core").RpcError>; readonly rent: (sizes: readonly number[]) => import("effect").Effect.Effect<ReadonlyArray<bigint>, import("@solos/core").RpcError> }} DepositReader */
 /** @typedef {{ readonly market: string; readonly mint: string; readonly amount: bigint; readonly owner: string }} DepositIntent */
-/** @typedef {{ readonly reserve: string; readonly liquidityMint: string; readonly liquiditySupplyVault: string; readonly liquidityTokenProgram: string; readonly collateralMint: string; readonly collateralSupplyVault: string; readonly lendingMarketAuthority: string; readonly estimatedCollateral: string; readonly exchangeRate: string }} ReserveFacts */
+/** @typedef {{ readonly reserve: string; readonly liquidityMint: string; readonly liquiditySupplyVault: string; readonly liquidityTokenProgram: string; readonly collateralMint: string; readonly collateralSupplyVault: string; readonly lendingMarketAuthority: string; readonly estimatedCollateral: string; readonly exchangeRate: string; readonly availableLiquidity: string; readonly farmCollateral?: string | null; readonly oracles: import("./kamino-refresh-reserve.js").ReserveOracles }} ReserveFacts */
 /** @typedef {{ readonly status: "ok"; readonly instructions: readonly { programAddress: string }[]; readonly quote: import("@solos/actions").LendDepositQuote }} DepositPlanOk */
 /** @typedef {{ readonly status: "reject"; readonly reason: string }} DepositPlanReject */
 /** @typedef {DepositPlanOk | DepositPlanReject} DepositPlan */
@@ -105,38 +106,63 @@ const quoteFor = ({ facts, obligation, amount, shouldInitializeObligation, rentL
   feeLamports: TRANSACTION_FEE_LAMPORTS.toString(),
 });
 
+/** @param {{ reader: DepositReader; metadataMissing: boolean; obligationMissing: boolean; farmMissing: boolean }} input */
+const depositRent = ({ reader, metadataMissing, obligationMissing, farmMissing }) =>
+  Effect.gen(function* () {
+    const sizes = [
+      ...(metadataMissing ? [USER_METADATA_ACCOUNT_SIZE] : []),
+      ...(obligationMissing ? [OBLIGATION_ACCOUNT_SIZE] : []),
+    ];
+    const accountRent =
+      sizes.length > 0 ? (yield* reader.rent(sizes)).reduce((sum, n) => sum + n, 0n) : 0n;
+    return accountRent + (yield* farmRent(reader, farmMissing));
+  });
+
+/** @typedef {{ readonly reader: DepositReader; readonly intent: DepositIntent; readonly facts: ReserveFacts; readonly signer: import("../signer/kit-signer.js").KitCompatibleSigner; readonly obligation: string; readonly metadata: string; readonly sourceAta: string; readonly collateralTokenProgram: string; readonly obligationState: ObligationState; readonly metadataMissing: boolean; readonly shouldInitializeObligation: boolean }} PlanParts */
+/** @param {any} sdk @param {PlanParts} parts @param {{ farmUser: string | null; initializeFarm: boolean }} farm */
+const planInstructions = (sdk, parts, farm) => {
+  const existingDeposits = (parts.obligationState?.deposits ?? [])
+    .filter((d) => BigInt(d.depositedAmount.toString()) > 0n)
+    .map((d) => d.depositReserve);
+  return depositInstructions(sdk, {
+    ...farm,
+    intent: parts.intent,
+    signer: parts.signer,
+    reserve: parts.facts,
+    obligation: parts.obligation,
+    metadata: parts.metadata,
+    sourceAta: parts.sourceAta,
+    collateralTokenProgram: parts.collateralTokenProgram,
+    existingDeposits,
+    initializeMetadata: parts.metadataMissing,
+    initializeObligation: parts.shouldInitializeObligation,
+  });
+};
+
 /**
  * The rent evidence, the refresh set and the signed-ready instruction sequence for one
  * planned deposit, from already-guarded rows.
- * @param {{ readonly reader: DepositReader; readonly intent: DepositIntent; readonly facts: ReserveFacts; readonly signer: import("../signer/kit-signer.js").KitCompatibleSigner; readonly obligation: string; readonly metadata: string; readonly sourceAta: string; readonly collateralTokenProgram: string; readonly obligationState: ObligationState; readonly metadataMissing: boolean; readonly shouldInitializeObligation: boolean }} parts
- * @returns {import("effect").Effect.Effect<DepositPlanOk, import("@solos/core").RpcError>}
+ * @param {PlanParts} parts
+ * @returns {import("effect").Effect.Effect<DepositPlan, import("@solos/core").RpcError>}
  */
 const assemblePlan = (parts) =>
   Effect.gen(function* () {
-    const { reader, intent, facts, obligationState, metadataMissing, shouldInitializeObligation } =
-      parts;
-    const sizes = [
-      ...(metadataMissing ? [USER_METADATA_ACCOUNT_SIZE] : []),
-      ...(shouldInitializeObligation ? [OBLIGATION_ACCOUNT_SIZE] : []),
-    ];
-    const rentLamports =
-      sizes.length === 0 ? 0n : (yield* reader.rent(sizes)).reduce((sum, n) => sum + n, 0n);
-    const existingDeposits = (obligationState?.deposits ?? [])
-      .filter((d) => BigInt(d.depositedAmount.toString()) > 0n)
-      .map((d) => d.depositReserve);
+    const { reader, intent, facts, metadataMissing, shouldInitializeObligation } = parts;
     const sdk = yield* Effect.promise(() => kaminoDepositSdk());
-    const instructions = depositInstructions(sdk, {
-      intent: parts.intent,
-      signer: parts.signer,
-      reserve: facts,
+    const farm = yield* readCollateralFarm({
+      reader,
+      sdk,
+      farm: facts.farmCollateral,
       obligation: parts.obligation,
-      metadata: parts.metadata,
-      sourceAta: parts.sourceAta,
-      collateralTokenProgram: parts.collateralTokenProgram,
-      existingDeposits,
-      initializeMetadata: metadataMissing,
-      initializeObligation: shouldInitializeObligation,
     });
+    if (farm.status === "reject") return farm;
+    const rentLamports = yield* depositRent({
+      reader,
+      metadataMissing,
+      obligationMissing: shouldInitializeObligation,
+      farmMissing: farm.initializeFarm,
+    });
+    const instructions = planInstructions(sdk, parts, farm);
     return {
       status: /** @type {const} */ ("ok"),
       instructions,

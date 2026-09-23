@@ -82,12 +82,34 @@ export const LendDepositQuoteSchema = z.object({
   ),
 });
 
+/** Read-time withdrawal conversion; the instruction encodes collateral, not underlying. */
+export const LendWithdrawQuoteSchema = z.object({
+  kind: z.literal("lend_withdraw"),
+  reserve: AddressSchema.describe("Validated reserve in the configured Kamino market"),
+  obligation: AddressSchema.describe("Signer's validated plain supply obligation"),
+  requestedLiquidity: AmountSchema.describe(
+    "Target underlying base units at the read-time rate, not an on-chain guaranteed output",
+  ),
+  collateralAmount: AmountSchema.describe(
+    "Exact receipt units encoded in the withdrawal instruction",
+  ),
+  estimatedLiquidity: AmountSchema.describe(
+    "Estimated underlying output for the fixed collateral input; actual credited units can differ at inclusion",
+  ),
+  exchangeRate: DecimalSchema.describe("Observed collateral per underlying exchange rate"),
+  rentLamports: AmountSchema.describe(
+    "Rent for a newly initialized obligation farm account, zero when already present",
+  ),
+  feeLamports: AmountSchema.describe("Flat signature fee before priority fees"),
+});
+
 /** The venue quote of one planned liquidity action, or null for actions without one. */
 export const VenueQuoteSchema = z
   .discriminatedUnion("kind", [
     LiquidityRemovalQuoteSchema,
     LiquidityDepositQuoteSchema,
     LendDepositQuoteSchema,
+    LendWithdrawQuoteSchema,
   ])
   .nullable()
   .default(null);
@@ -122,4 +144,5 @@ export const ExecutionResultSchema = z.object({
 /** @typedef {z.infer<typeof LiquidityRemovalQuoteSchema>} LiquidityRemovalQuote */
 /** @typedef {z.infer<typeof LiquidityDepositQuoteSchema>} LiquidityDepositQuote */
 /** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
+/** @typedef {z.infer<typeof LendWithdrawQuoteSchema>} LendWithdrawQuote */
 /** @typedef {z.infer<typeof VenueQuoteSchema>} VenueQuote */

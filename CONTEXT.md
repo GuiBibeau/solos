@@ -75,6 +75,13 @@ commit under review and `dirty` is false.
 record. Identity is per owner and mint, market/mint/obligations, trader/market, or LP account;
 see ADR-0018. Native SOL uses instrument `SOL`, distinct from the wSOL mint.
 
+**Withdrawal target** — the underlying base-unit amount used to select an exactly representable
+collateral input at the observed Kamino reserve rate. It is not a guaranteed on-chain output;
+credited underlying can differ when the rate moves before inclusion. _Avoid_: exact withdrawal.
+
+**Collateral input** — the receipt-token units actually encoded in a Kamino withdrawal;
+underlying output is estimated at the read-time rate and measured after confirmation.
+
 **Perp account equity** — signed USD collateral plus PnL/funding under the pinned venue math,
 counted once per trader account in PortfolioState.perpAccounts. It is never leveraged notional.
 Per-market Position.valueUsd is null and its amount is absolute exposure with explicit side.

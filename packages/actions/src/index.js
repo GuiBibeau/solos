@@ -15,6 +15,7 @@
 /** @typedef {import("./primitives.js").Signature} Signature */
 /** @typedef {import("./results.js").ExecutionResult} ExecutionResult */
 /** @typedef {import("./results.js").LendDepositQuote} LendDepositQuote */
+/** @typedef {import("./results.js").LendWithdrawQuote} LendWithdrawQuote */
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
 /** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
@@ -52,6 +53,7 @@ export {
 export {
   ExecutionResultSchema,
   LendDepositQuoteSchema,
+  LendWithdrawQuoteSchema,
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
   SimulationResultSchema,

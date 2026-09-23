@@ -1,6 +1,13 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { executeLendDeposit, getLendPosition, getReserve, simulateLendDeposit } from "@solos/core";
+import {
+  executeLendDeposit,
+  executeLendWithdraw,
+  getLendPosition,
+  getReserve,
+  simulateLendDeposit,
+  simulateLendWithdraw,
+} from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
@@ -37,7 +44,7 @@ const position = Command.make("position", { mint, owner }, (options) =>
 
 const amount = Options.text("amount").pipe(
   Options.withDescription(
-    "Underlying amount to supply in base units of the mint, as a positive integer string",
+    "Underlying amount to deposit or request for withdrawal, in base units of the mint, as a positive integer string",
   ),
 );
 
@@ -75,9 +82,40 @@ const deposit = Command.make("deposit", { mint, amount, skipSimulation }, (optio
   ),
 );
 
+const simulateWithdraw = Command.make("simulate-withdraw", { mint, amount }, (options) =>
+  withSolos(
+    simulateLendWithdraw({ mint: options.mint, amount: options.amount }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Simulate a fixed-collateral redemption selected by target underlying base units; output is estimated, not an on-chain minimum. Does not submit",
+  ),
+);
+
+const withdraw = Command.make("withdraw", { mint, amount, skipSimulation }, (options) =>
+  withSolos(
+    executeLendWithdraw({
+      mint: options.mint,
+      amount: options.amount,
+      skipSimulation: options.skipSimulation,
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Redeem fixed collateral selected by target underlying base units; actual credit can differ. Simulates before sending by default",
+  ),
+);
+
 export const lend = Command.make("lend").pipe(
   Command.withDescription(
-    "Kamino lending: reserve and owner-supply reads, bounded supply deposits (simulation and execution)",
+    "Kamino lending: reserve and owner-supply reads, bounded deposit and withdrawal twins",
   ),
-  Command.withSubcommands([reserve, position, simulateDeposit, deposit]),
+  Command.withSubcommands([
+    reserve,
+    position,
+    simulateDeposit,
+    deposit,
+    simulateWithdraw,
+    withdraw,
+  ]),
 );
