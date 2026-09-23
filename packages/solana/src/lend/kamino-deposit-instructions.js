@@ -1,14 +1,15 @@
 // @ts-check
 /**
  * The pinned SDK instruction sequence for one Kamino deposit, in protocol order: refresh
- * the reserve, initialize the user metadata and the plain obligation when absent, refresh
- * the obligation across every reserve it touches, then the combined deposit that transfers
+ * initialize metadata, obligation and farm account when absent; refresh the reserve,
+ * obligation and collateral farm contiguously before the combined deposit that transfers
  * the exact underlying amount and mints the collateral straight into the reserve's supply
- * vault. Only builders from the pinned klend-sdk are used; the one value the SDK's borsh
+ * vault; refresh the farm again afterwards to sync its stake. Only builders from the pinned klend-sdk are used; the one value the SDK's borsh
  * layouts take in a foreign shape is the u64 amount, handed over in its exact wire form.
  */
 import { none } from "@solana/kit";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
+import { collateralFarmInstructions } from "./kamino-farm-instructions.js";
 import { refreshReserveInstruction } from "./kamino-refresh-reserve.js";
 
 const RENT_SYSVAR = "SysvarRent111111111111111111111111111111111";
@@ -118,25 +119,29 @@ const depositAccounts = (parts, reserve, sourceAta) => ({
  */
 export const depositInstructions = (sdk, parts) => {
   const { intent, reserve, obligation, sourceAta } = parts;
+  const farm = collateralFarmInstructions(sdk, parts);
   const refreshRemaining = [...new Set(parts.existingDeposits)].map((depositReserve) => ({
     address: depositReserve,
     role: /** @type {const} */ (1),
   }));
   return [
+    ...initInstructions(sdk, parts),
+    ...farm.init,
     refreshReserveInstruction(sdk, {
       market: intent.market,
       reserve: reserve.reserve,
       oracles: reserve.oracles,
     }),
-    ...initInstructions(sdk, parts),
     sdk.refreshObligation(
       { lendingMarket: intent.market, obligation },
       refreshRemaining,
       /** @type {any} */ (KLEND_PROGRAM_ID),
     ),
+    ...farm.refresh,
     sdk.depositReserveLiquidityAndObligationCollateral(
       { liquidityAmount: u64ForSdkLayout(intent.amount) },
       depositAccounts(parts, reserve, sourceAta),
     ),
+    ...farm.refresh,
   ];
 };

@@ -138,7 +138,7 @@ describe("kamino deposit plan", () => {
       rentLamports: "4376",
       feeLamports: "5000",
     });
-    // refreshReserve, initUserMetadata, initObligation, refreshObligation, deposit
+    // initUserMetadata, initObligation, refreshReserve, refreshObligation, deposit
     expect(plan.instructions.length).toBe(5);
     for (const ix of plan.instructions) expect(ix.programAddress).toBe(KLEND_PROGRAM_ID);
   });
@@ -165,7 +165,7 @@ describe("kamino deposit plan", () => {
     expect(plan.instructions.length).toBe(4);
     expect(plan.quote.initializeObligation).toBe(false);
     expect(plan.quote.rentLamports).toBe("0");
-    // No initObligation: the only init left is the user-metadata setup, one refresh before it.
+    // No initObligation: only user metadata initializes before the reserve refresh.
     expect(plan.instructions[1].data.length).toBeGreaterThan(0);
     // refreshObligation carries the deposit reserve and the obligation's existing reserves.
     const refresh = plan.instructions[2];

@@ -95,6 +95,9 @@ export const LendWithdrawQuoteSchema = z.object({
     "Predicted underlying units at the observed exchange rate",
   ),
   exchangeRate: DecimalSchema.describe("Observed collateral per underlying exchange rate"),
+  rentLamports: AmountSchema.describe(
+    "Rent for a newly initialized obligation farm account, zero when already present",
+  ),
   feeLamports: AmountSchema.describe("Flat signature fee before priority fees"),
 });
 

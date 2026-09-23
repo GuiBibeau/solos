@@ -2,6 +2,7 @@
 import { Effect } from "effect";
 import { associatedTokenAccount, vanillaObligationAddress } from "./kamino-deposit-addresses.js";
 import { kaminoDepositSdk } from "./kamino-deposit-facts.js";
+import { farmRent, readCollateralFarm } from "./kamino-farm-instructions.js";
 import { checkedWithdrawRows } from "./kamino-withdraw-guards.js";
 import { withdrawInstructions } from "./kamino-withdraw-instructions.js";
 import { exactCollateralForWithdrawal } from "./kamino-withdraw-math.js";
@@ -15,8 +16,8 @@ import { exactCollateralForWithdrawal } from "./kamino-withdraw-math.js";
 /** @param {string} reason @returns {Rejection} */
 const reject = (reason) => ({ status: "reject", reason });
 
-/** @param {{ intent: Intent; facts: Facts; obligation: string; collateral: bigint }} parts @returns {import("@solos/actions").LendWithdrawQuote} */
-const withdrawalQuote = ({ intent, facts, obligation, collateral }) => ({
+/** @param {{ intent: Intent; facts: Facts; obligation: string; collateral: bigint; rentLamports: bigint }} parts @returns {import("@solos/actions").LendWithdrawQuote} */
+const withdrawalQuote = ({ intent, facts, obligation, collateral, rentLamports }) => ({
   kind: "lend_withdraw",
   reserve: facts.reserve,
   obligation,
@@ -24,8 +25,16 @@ const withdrawalQuote = ({ intent, facts, obligation, collateral }) => ({
   collateralAmount: collateral.toString(),
   estimatedLiquidity: intent.amount.toString(),
   exchangeRate: facts.exchangeRate,
+  rentLamports: rentLamports.toString(),
   feeLamports: "5000",
 });
+
+/** @param {Intent} intent @param {Facts} facts */
+const withdrawAddresses = (intent, facts) =>
+  Promise.all([
+    vanillaObligationAddress(intent.owner, intent.market),
+    associatedTokenAccount(intent.owner, intent.mint, facts.liquidityTokenProgram),
+  ]);
 
 /**
  * Preflight the signer's existing vanilla position against a pinned read-time reserve rate.
@@ -42,18 +51,17 @@ export const withdrawPlan = ({ reader, intent, facts, signer }) =>
     const collateral = exactCollateralForWithdrawal(intent.amount, facts.exchangeRate);
     if (collateral === null)
       return reject("the requested underlying amount cannot be redeemed exactly in receipt units");
-    const [obligation, destination] = yield* Effect.promise(() =>
-      Promise.all([
-        vanillaObligationAddress(intent.owner, intent.market),
-        associatedTokenAccount(intent.owner, intent.mint, facts.liquidityTokenProgram),
-      ]),
-    );
+    const [obligation, destination] = yield* Effect.promise(() => withdrawAddresses(intent, facts));
     const rows = yield* checkedWithdrawRows({ reader, intent, facts, obligation, destination });
     if ("reason" in rows) return rows;
     if (collateral > rows.balance)
       return reject("insufficient collateral in the plain supply obligation");
     const sdk = yield* Effect.promise(() => kaminoDepositSdk());
+    const farm = yield* readCollateralFarm({ reader, sdk, farm: facts.farmCollateral, obligation });
+    if (farm.status === "reject") return farm;
+    const rentLamports = yield* farmRent(reader, farm.initializeFarm);
     const instructions = withdrawInstructions(sdk, {
+      ...farm,
       intent,
       signer,
       facts,
@@ -67,6 +75,6 @@ export const withdrawPlan = ({ reader, intent, facts, signer }) =>
       status: /** @type {const} */ ("ok"),
       instructions,
       destination,
-      quote: withdrawalQuote({ intent, facts, obligation, collateral }),
+      quote: withdrawalQuote({ intent, facts, obligation, collateral, rentLamports }),
     };
   }).pipe(Effect.withSpan("lend.withdrawPlan"));

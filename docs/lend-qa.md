@@ -8,19 +8,19 @@ prove the decode/guard/derivation/instruction-order behavior, not what the confi
 market holds. Live QA compares solOS output with the same market state seen through a second
 client (Kamino's own app or a block explorer).
 
-**Status: live round trip blocked (2026-09-23).** The operator-authorized mainnet QA wallet
-`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f` used public mainnet RPC, then the
-operator's local QuickNode QA RPC, to read the Kamino Main Market wSOL reserve and simulate a
-100,000-base-unit (0.0001 wSOL) deposit via CLI and a real stdio MCP child. Both CLI and MCP
-reported the same failure against QuickNode; withdrawal simulation correctly rejected the
-absent supply obligation. No RPC credentials were recorded. The oracle-account and empty-obligation refresh errors were
-found and fixed with regression coverage. The next simulation reached the combined deposit
-instruction and failed `IncorrectInstructionInPosition` (6051): the reserve requires a
-`RefreshFarmsForObligationForReserve` instruction before the obligation refresh. The simulator
-sent **zero transactions**; no SOL/wSOL or rent was spent, no signature exists, and the
-position is still zero. The farm refresh/initialization path, paired withdrawal and actual
-post-confirmation credits have NOT been verified. Do not deposit real funds until this is
-implemented, simulated successfully, and the exit path is checked. Live deposit/withdrawal QA
+**Status: deposit simulation passed; live round trip not yet run (2026-09-23).** The mainnet QA
+wallet `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f` simulated a 100,000-base-unit
+(0.0001 wSOL) deposit through the native CLI and real stdio MCP child with the operator's
+private QuickNode RPC. Both returned `ok: true`: farm-user initialization, contiguous
+reserve/obligation/collateral-farm refreshes, combined deposit, and trailing farm stake
+refresh all succeeded in simulation. The quote included 28,854,400 lamports of account rent
+and a 5,000-lamport signature fee; this was only a quote, not a debit. Earlier simulations
+failed on oracle accounts, empty-obligation refresh and then `IncorrectInstructionInPosition`
+(6051) until those issues and instruction ordering were fixed. No RPC credentials were
+recorded. **Zero transactions were sent; no SOL/wSOL or rent was spent; there is no signature.**
+The position is still zero, so a withdrawal against this wallet cannot yet simulate.
+Funded entry/exit, actual credited units and rent recovery are NOT verified. Obtain fresh,
+specific operator approval and validate the exit before treating this as a completed QA round. Live deposit/withdrawal QA
 needs an operator-provided RPC endpoint and a funded signer whose config selects Kamino Main Market. The offline fixture
 does not execute the actual lending program and cannot establish that the funded exit works.
 Do not deposit funds for QA until the operator checks that a matching exit is available, sets a
@@ -36,9 +36,10 @@ comments, tool inputs, or implementation sandboxes.
 - Reserve selection follows the configured market only: the facts seam loads the
   float-rate reserve for the mint from the configured market's own accounts, and the
   executor revalidates the action's market against its configuration (ADR-0019).
-- The signed wire decodes to the pinned SDK sequence — refreshReserve,
-  initUserMetadata, initObligation, refreshObligation, then the combined deposit whose
-  data is the discriminator plus the exact u64 base-unit amount, little-endian.
+- The signed wire decodes to the pinned SDK sequence — optional metadata, obligation and
+  farm initialization; then contiguous reserve, obligation and collateral-farm refreshes;
+  the combined deposit with the exact u64 base-unit amount, little-endian; then a trailing
+  farm stake refresh. Without a configured farm, the farm instructions are omitted.
 - Authority, obligation, and source selection: the derived market-authority PDA is
   read-only, the signer's vanilla obligation PDA is the writable destination, and the
   source is the signer's own associated token account.

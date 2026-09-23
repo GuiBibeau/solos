@@ -123,6 +123,7 @@ const factsOf = async ({ reserve, instant, market, amount }) => {
     estimatedCollateral: estimatedCollateral.toString(),
     exchangeRate: exchangeRate.toString(),
     availableLiquidity: reserve.state.liquidity.totalAvailableAmount.toString(),
+    farmCollateral: oracleOrNull(reserve.state.farmCollateral.toString()),
     oracles: {
       pythOracle: oracleOrNull(reserve.state.config.tokenInfo.pythConfiguration.price.toString()),
       switchboardPriceOracle: oracleOrNull(
