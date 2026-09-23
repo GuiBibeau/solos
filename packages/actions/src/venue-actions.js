@@ -14,6 +14,11 @@ const traderScope = {
   traderSubaccountIndex: z.literal(0),
 };
 
+export const OnboardPerpActionSchema = z.object({
+  type: z.literal("onboard_perp"),
+  ...traderScope,
+});
+
 export const OpenPerpActionSchema = z.object({
   type: z.literal("open_perp"),
   market: z.string().min(1).describe("Canonical Phoenix perpetual market symbol"),

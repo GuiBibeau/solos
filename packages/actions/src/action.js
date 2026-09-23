@@ -7,6 +7,7 @@ import {
   ClosePerpActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
+  OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   WithdrawLendActionSchema,
 } from "./venue-actions.js";
@@ -61,6 +62,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   SwapActionSchema,
   OpenPerpActionSchema,
   ClosePerpActionSchema,
+  OnboardPerpActionSchema,
   LendActionSchema,
   WithdrawLendActionSchema,
   AddLiquidityActionSchema,
@@ -78,6 +80,7 @@ export const ACTION_TYPES = [
   "swap",
   "open_perp",
   "close_perp",
+  "onboard_perp",
   "lend",
   "withdraw_lend",
   "add_liquidity",
@@ -89,6 +92,7 @@ export {
   ClosePerpActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
+  OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   WithdrawLendActionSchema,
 } from "./venue-actions.js";

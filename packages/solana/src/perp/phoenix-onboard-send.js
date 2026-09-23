@@ -1,0 +1,137 @@
+// @ts-check
+import {
+  address,
+  assertIsTransactionWithBlockhashLifetime,
+  getBase58Decoder,
+  signature,
+} from "@solana/kit";
+import { BuildRejected } from "@solos/core";
+import { Clock, Effect } from "effect";
+import { simulationErrorText } from "../executor/simulation-error-text.js";
+import { confirmationState, confirmSubmitted } from "../executor/transfer-confirm.js";
+import { rpcCall } from "../rpc/rpc-call.js";
+import { buildOnboarding } from "./phoenix-onboard-build.js";
+import { submitEnrollment } from "./phoenix-onboard-submit.js";
+import { assertPhoenixV0WireForSubmission } from "./phoenix-onboard-v0.js";
+
+/** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape}} Deps */
+/** @typedef {import("@solos/actions").Action} Action */
+
+/** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof import("./phoenix-onboard-build.js").buildOnboarding>>} Plan */
+/** @param {Plan} planned */
+const ownerSignature = (planned) => {
+  const bytes = planned.signed.signatures[planned.owner];
+  if (!bytes) throw new BuildRejected({ reason: "wallet did not sign Phoenix enrollment" });
+  return signature(getBase58Decoder().decode(bytes));
+};
+
+/** @param {bigint | undefined} post @param {bigint} balance @param {unknown} error */
+const estimateSpend = (post, balance, error) => {
+  if (error !== null) return Effect.succeed(null);
+  if (post === undefined || post > balance)
+    return Effect.fail(
+      new BuildRejected({
+        reason: "Phoenix enrollment wallet spend could not be estimated; nothing was submitted",
+      }),
+    );
+  return Effect.succeed((balance - post + 10_000n).toString());
+};
+
+/** @param {Deps} deps @param {Plan} planned */
+const preflight = (deps, planned) =>
+  Effect.gen(function* () {
+    assertPhoenixV0WireForSubmission(planned.wire);
+    assertIsTransactionWithBlockhashLifetime(planned.signed);
+    const height = yield* rpcCall("getBlockHeight", deps.ctx.url, () =>
+      deps.ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
+    );
+    if (height > planned.signed.lifetimeConstraint.lastValidBlockHeight) {
+      return yield* new BuildRejected({
+        reason: "Phoenix enrollment transaction expired before submission",
+      });
+    }
+    const { value: balance } = yield* rpcCall("getBalance", deps.ctx.url, () =>
+      deps.ctx.rpc.getBalance(address(planned.owner), { commitment: "confirmed" }).send(),
+    );
+    const { value } = yield* rpcCall("simulateTransaction", deps.ctx.url, () =>
+      deps.ctx.rpc
+        .simulateTransaction(planned.wire, {
+          encoding: "base64",
+          sigVerify: false,
+          accounts: { addresses: [address(planned.owner)], encoding: "base64" },
+        })
+        .send(),
+    );
+    const estimatedSpendLamports = yield* estimateSpend(
+      value.accounts?.[0]?.lamports,
+      balance,
+      value.err,
+    );
+    return {
+      err: value.err,
+      logs: [...(value.logs ?? [])],
+      unitsConsumed: (value.unitsConsumed ?? 0n).toString(),
+      estimatedSpendLamports,
+    };
+  });
+
+/** @param {Deps} deps @param {Action} action */
+export const simulateEnrollment = (deps, action) =>
+  Effect.gen(function* () {
+    const planned = yield* buildOnboarding(deps.config, deps.ctx, deps.kit);
+    const raw = yield* preflight(deps, planned);
+    const isOk = raw.err === null;
+    return {
+      action,
+      ok: isOk,
+      unitsConsumed: raw.unitsConsumed,
+      logs: raw.logs,
+      projectedPortfolio: null,
+      venueQuote:
+        raw.estimatedSpendLamports === null
+          ? null
+          : {
+              kind: /** @type {const} */ ("perp_onboard"),
+              estimatedSpendLamports: raw.estimatedSpendLamports,
+            },
+      violations: isOk ? [] : [{ rule: "simulation", message: simulationErrorText(raw.err) }],
+    };
+  });
+
+/** @param {Deps} deps @param {Plan} planned @param {import("@solana/kit").Signature} signature */
+const confirmEnrollment = (deps, planned, signature) =>
+  confirmSubmitted({
+    signature,
+    deadlineMs: deps.config.confirmDeadlineMs,
+    submit: () => submitEnrollment(deps.config, planned, signature),
+    lookup: async (abortSignal) => {
+      const { value } = await deps.ctx.rpc
+        .getSignatureStatuses([signature], { searchTransactionHistory: true })
+        .send({ abortSignal });
+      return confirmationState(value[0]);
+    },
+  });
+
+/** The server co-signs, simulates, and submits the partially signed transaction. Simulate
+ * identical locally signed bytes without signature verification (server signature pending).
+ * @param {Deps} deps @param {Action} action
+ */
+export const executeEnrollment = (deps, action) =>
+  Effect.gen(function* () {
+    const planned = yield* buildOnboarding(deps.config, deps.ctx, deps.kit);
+    const raw = yield* preflight(deps, planned);
+    if (raw.err !== null)
+      return yield* new BuildRejected({
+        reason: "Phoenix enrollment simulation failed; nothing was submitted",
+      });
+    const signature = ownerSignature(planned);
+    yield* confirmEnrollment(deps, planned, signature);
+    return {
+      action,
+      status: /** @type {const} */ ("confirmed"),
+      signature,
+      executedAt: yield* Clock.currentTimeMillis,
+      simulated: true,
+      error: null,
+    };
+  });

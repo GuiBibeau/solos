@@ -38,11 +38,32 @@ export {
   PerpPositionSchema,
 } from "./domain/types.js";
 export { PerpVenue } from "./ports/perp-venue.js";
+export { PerpOnboarder } from "./ports/perp-onboarder.js";
+export {
+  getOnboardingStatus,
+  simulateOnboardTrader,
+  executeOnboardTrader,
+} from "./use-cases/onboard-trader.js";
+export {
+  getOnboardingStatusTool,
+  simulateOnboardTraderTool,
+  executeOnboardTraderTool,
+} from "./tools/onboarding-tools.js";
 export { getPosition } from "./use-cases/get-position.js";
 export { listPositions } from "./use-cases/list-positions.js";
 export { getPositionTool } from "./tools/get-position.js";
 
 import { getPositionTool } from "./tools/get-position.js";
+import {
+  getOnboardingStatusTool,
+  simulateOnboardTraderTool,
+  executeOnboardTraderTool,
+} from "./tools/onboarding-tools.js";
 
 /** @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>} */
-export const perpTools = [getPositionTool];
+export const perpTools = [
+  getPositionTool,
+  getOnboardingStatusTool,
+  simulateOnboardTraderTool,
+  executeOnboardTraderTool,
+];

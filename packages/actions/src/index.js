@@ -16,6 +16,7 @@
 /** @typedef {import("./results.js").ExecutionResult} ExecutionResult */
 /** @typedef {import("./results.js").LendDepositQuote} LendDepositQuote */
 /** @typedef {import("./results.js").LendWithdrawQuote} LendWithdrawQuote */
+/** @typedef {import("./results.js").PerpOnboardQuote} PerpOnboardQuote */
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
 /** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
@@ -29,6 +30,7 @@ export {
   ClosePerpActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
+  OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   SwapActionSchema,
   TransferSolActionSchema,
@@ -56,6 +58,7 @@ export {
   LendWithdrawQuoteSchema,
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
+  PerpOnboardQuoteSchema,
   SimulationResultSchema,
   VenueQuoteSchema,
   ViolationSchema,

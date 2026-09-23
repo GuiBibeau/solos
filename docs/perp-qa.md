@@ -4,14 +4,83 @@ Offline tests exercise the real adapter, CLI, and MCP server against loopback HT
 `PHOENIX_BASE_URL`. They cannot establish what a live registered account holds. Live QA
 compares solOS output with the Phoenix UI for an operator account.
 
-**Status: blocked.** A funded, registered read needs operator prerequisites that CI does not have:
-a Phoenix Perps account registered for the operator's signer
-(traderPdaIndex 0, activated), collateral deposited, and — before the later funded open/close
-QA (#27/#28) — enough equity to hold a position. Reads themselves are public, so no credential
+**Status: #101 onboarding validated on mainnet; funded trading QA remains blocked.** The operator's
+trader (PDA index 0, subaccount 0) is registered with immediate trading and deposit permissions,
+but has zero equity. Collateral funding (#102) and a verified exit path (#27/#28) are separate
+prerequisites for live trading QA. Reads themselves are public, so no credential
 is provisioned anywhere; the only configuration is `PHOENIX_BASE_URL` (leave it unset for the
 production endpoint `https://perp-api.phoenix.trade`). Live credentials belong only in the
 operator or approved QA environment, never in issue comments, tool inputs, or implementation
 sandboxes.
+
+## Explicit trader onboarding (#101)
+
+The default trader scope is the configured signer with both Phoenix trader indices fixed to zero.
+The read-only `bun run solos perp onboarding-status` (or MCP
+`solana_perp_get_onboarding_status`) reports `unregistered`, `partial` (registered but
+not fully trading-enabled), or `ready`. On an already-ready trader, `onboard` returns
+`already_ready` without a registration transaction or fee. A ready trader is not necessarily
+funded: collateral deposit is a separate operation (#102).
+
+**Only with explicit operator authorization and an approved SOL fee/rent budget:** verify the
+signer and RPC endpoint, then run `bun run solos perp simulate-onboard` and inspect the
+on-chain program, trader PDA, fee payer, and simulation logs. A successful simulation is a
+prerequisite to `bun run solos perp onboard`. This operation calls Phoenix's official
+permissioned build and server co-sign/submit endpoints; if access is denied or its returned
+instructions do not match this wallet, it fails closed without sending. No raw API bodies or
+private keys are reported. Record the resulting signature, actual fee and rent, and a follow-up
+`onboarding-status` read. A confirmed transaction alone is not proof of enabled trading.
+The pinned SDK TypeScript builder example uses v0 (Rust uses legacy) and declares Bun >=1.4.2.
+The original solOS v1 submission was inconclusive. The onboarding-only wire follows the pinned
+v0 example under ADR-0025; a subsequent permissioned v0 submission **confirmed on mainnet**.
+A `cold` registered trader with immediate permissions is onboarding-ready even without collateral;
+`ready` never means its balance suffices to trade. Never auto-retry an ambiguous submission.
+
+### 2026-09-23 mainnet onboarding attempt
+
+Operator approved up to $20 of SOL for #101 only. The configured signer was
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`; its starting balance was
+1,820,873,576 lamports and its Phoenix status was `unregistered`. A public price read gave
+$117/SOL (about 170,940,170 lamports under the cap). Simulation against the configured
+`SOLANA_RPC_URL` in the existing `.env.local` succeeded at 28,426 units and estimated a wallet
+debit of **27,899,040 lamports** including a 10,000-lamport signature-fee cushion (about $3.26
+at that read-time price). This estimate is not an on-chain spend limit.
+
+A **single** `solos perp onboard` attempt returned an ambiguous confirmation timeout with expected
+wallet signature `3cDMjM6m3GRPYudp1nUBFTPbTTaaPGaxsXMmLncFsDxxMYNHYZhBKyoJ7m83FSrx4272zt3nRTFFag4qHwvdmqjB`.
+Read-only transaction inspection found no confirmed transaction on the configured RPC. Both an
+immediate status/balance read and a second read 45 seconds later reported `unregistered` and
+1,820,873,576 lamports. **No expenditure or registration was observed; the server-side cause is
+unknown. The new code preserves a Phoenix HTTP status or invalid-response signal if received;
+it uses the pinned v0 builder wire instead of v1, but neither change proves why this attempt
+failed. A subsequent **read-only** simulation of the pinned v0 wire on the configured RPC passed
+at 28,426 compute units with the same estimated debit; the server has not been asked to submit
+this v0 wire. Do not retry a funded send without fresh operator approval and a reconciled prior
+send.**
+
+### 2026-09-23 mainnet enrollment validated
+
+With fresh authorization capped at $50, the configured mainnet signer remained at
+**1,820,873,576 lamports**, `unregistered`; the earlier v1 signature was still unavailable on
+the configured RPC. Jupiter quoted SOL at $116.68750674921928. The explicit v0 simulation
+passed (28,426 compute units) and estimated **27,899,040 lamports** wallet debit. One `solos perp
+onboard` call confirmed as
+[`5gsKNcnPk4gncgFk1F7aYUz9jrcnMF9d5wsxGdNKmRyCDsimfMZYrBpCar5QUgMUujrnpU6BaNJ7WfGLAqTijpoc`](https://explorer.solana.com/tx/5gsKNcnPk4gncgFk1F7aYUz9jrcnMF9d5wsxGdNKmRyCDsimfMZYrBpCar5QUgMUujrnpU6BaNJ7WfGLAqTijpoc),
+slot **449719124**, on-chain error `null`. Read-only transaction inspection reconciled the
+wallet's **−27,889,040 lamports** to **10,000 transaction fees** and **27,879,040 lamports rent**
+credited to Phoenix-owned trader `DnNrzdydJpFhtwxZpebGF5ozCajsqpXbPJMKYBvkyWuS` (5,360
+bytes). The final wallet balance was **1,792,984,536 lamports**, about **$3.2543** less at the
+read-time price, far below the approved $50 ceiling. No USDC was deposited and no position was
+opened.
+
+The first status read reported `partial` only because the unfunded account was `cold`; its
+required `immediate` permissions were already enabled (Phoenix's pinned capability verifier
+checks permissions independently of the activity state). After correcting that readiness test,
+`onboarding-status` returned `ready` for the same trader. `perp position --market SOL` returned
+flat/zero equity. A second invocation of `onboard` returned `already_ready` and the wallet
+balance stayed **1,792,984,536 lamports**: no duplicate transaction or fee. The real stdio
+MCP `solana_perp_get_onboarding_status` also returned `ready`; its simulate twin returned
+`already_ready` without submitting.
 
 ## What to compare once an operator account exists
 
@@ -39,7 +108,6 @@ sandboxes.
 
 ## Reporting
 
-Record live QA as `blocked` until the prerequisites above exist. Never report it as passed
-from fixture runs: fixture-backed suites say `mode: fixture` implicitly and prove adapter
-behavior, not venue state. The first funded QA round belongs with the #27/#28 prerequisites,
-after registration and collateral, run from the operator environment.
+Enrollment #101 is validated by the funded confirmation and reconciliation above. Keep funded
+trading QA blocked until #102 collateral and #27/#28 open/close/exit prerequisites exist. Never
+claim mainnet trading passed from fixture-backed tests or an unfunded `ready` account.

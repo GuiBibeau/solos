@@ -17,6 +17,8 @@ export const SECRET_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
  *   readonly trader?: unknown;
  *   readonly traderStatus?: number;
  *   readonly rawTraderBody?: string;
+ *   readonly onboardBuild?: unknown;
+ *   readonly onboardSend?: unknown;
  * }} PhoenixScript
  */
 
@@ -73,8 +75,17 @@ const traderResponse = (script, authority, bodyDelayMs) => {
   return delayedBody(JSON.stringify(body ?? coldState(authority)), status, bodyDelayMs);
 };
 
+/** @param {PhoenixScript} script @param {URL} url */
+const onboardResponse = (script, url) => {
+  if (url.pathname === "/v1/exchange/build-register-ixs")
+    return json(script.onboardBuild ?? { error: "not found" }, script.onboardBuild ? 200 : 404);
+  if (url.pathname === "/v1/exchange/send-register-ixs")
+    return json(script.onboardSend ?? { error: "not found" }, script.onboardSend ? 200 : 404);
+  return null;
+};
+
 /** @param {PhoenixScript} script @param {URL} url @param {number} bodyDelayMs */
-const respond = (script, url, bodyDelayMs) => {
+const readResponse = (script, url, bodyDelayMs) => {
   if (url.pathname === MARKETS_PATH) return json(script.markets ?? DEFAULT_MARKETS);
   if (url.pathname.startsWith(`${MARKET_PATH}/`)) {
     return marketResponse(script, decodeURIComponent(url.pathname.slice(MARKET_PATH.length + 1)));
@@ -88,6 +99,10 @@ const respond = (script, url, bodyDelayMs) => {
   }
   return json({ error: "not found" }, 404);
 };
+
+/** @param {PhoenixScript} script @param {URL} url @param {number} bodyDelayMs */
+const respond = (script, url, bodyDelayMs) =>
+  onboardResponse(script, url) ?? readResponse(script, url, bodyDelayMs);
 
 /**
  * Offline loopback Phoenix Perps fixture over `Bun.serve`. Records every request (path plus

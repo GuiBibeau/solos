@@ -103,9 +103,18 @@ export const LendWithdrawQuoteSchema = z.object({
   feeLamports: AmountSchema.describe("Flat signature fee before priority fees"),
 });
 
+/** Read-time wallet debit estimate for one Phoenix trader registration, including a fee cushion. */
+export const PerpOnboardQuoteSchema = z.object({
+  kind: z.literal("perp_onboard"),
+  estimatedSpendLamports: AmountSchema.describe(
+    "Read-time wallet balance debit from the simulated transaction, plus 10000 lamports for up to two signatures; not an on-chain cap",
+  ),
+});
+
 /** The venue quote of one planned liquidity action, or null for actions without one. */
 export const VenueQuoteSchema = z
   .discriminatedUnion("kind", [
+    PerpOnboardQuoteSchema,
     LiquidityRemovalQuoteSchema,
     LiquidityDepositQuoteSchema,
     LendDepositQuoteSchema,
@@ -145,4 +154,5 @@ export const ExecutionResultSchema = z.object({
 /** @typedef {z.infer<typeof LiquidityDepositQuoteSchema>} LiquidityDepositQuote */
 /** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
 /** @typedef {z.infer<typeof LendWithdrawQuoteSchema>} LendWithdrawQuote */
+/** @typedef {z.infer<typeof PerpOnboardQuoteSchema>} PerpOnboardQuote */
 /** @typedef {z.infer<typeof VenueQuoteSchema>} VenueQuote */
