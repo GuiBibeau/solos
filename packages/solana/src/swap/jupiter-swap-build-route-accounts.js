@@ -16,6 +16,8 @@ const OUTPUT_MINT_REASON = "swap instruction did not carry the output mint's mar
 const AUTHORITY_REASON = "swap instruction did not bind the configured taker at its fixed account";
 const PROGRAM_REASON = "swap instruction carried an invalid fixed token or Jupiter program account";
 const ROLE_REASON = "swap instruction fixed accounts carried invalid signer or writable roles";
+export const WRITABLE_TAKER_REPEAT_REASON =
+  "swap instruction repeated the taker with writable authority beyond its validated slot";
 const OPTIONAL_REASON = "swap instruction carried an invalid optional destination token account";
 
 /** @typedef {import("./jupiter-swap-build-response.js").RawInstruction["accounts"][number]} Meta */
@@ -78,22 +80,17 @@ const directProgramRejection = (accounts, destination) => {
 };
 
 /** @param {string} taker @param {number} authoritySlot @returns {(meta: Meta, index: number) => boolean} */
-const elevatedRepeat = (taker, authoritySlot) => (meta, index) =>
-  index !== authoritySlot && meta.pubkey === taker && (meta.isWritable || meta.isSigner);
+const writableRepeat = (taker, authoritySlot) => (meta, index) =>
+  index !== authoritySlot && meta.pubkey === taker && meta.isWritable;
 
 /**
- * The authority slot is the taker's only elevated appearance (read-only signer in both V2
- * layouts). Compilation coalesces duplicate addresses by unioning privileges, so a further
- * occurrence of the taker is safe exactly when it is a pure data reference: a read-only repeat
- * grants the route nothing the authority slot did not, while a writable or signer repeat
- * anywhere would elevate the route's authority over the wallet beyond what validation approved
- * (ADR-0023).
+ * Compilation unions duplicate address roles. The fixed authority is already a read-only signer,
+ * so a read-only repeat does not grant new privileges even when marked signer. A writable repeat
+ * would elevate that authority and is never allowed (ADR-0023).
  * @param {Meta[]} accounts @param {string} taker @param {number} authoritySlot
  */
 const duplicateAuthorityRejection = (accounts, taker, authoritySlot) =>
-  accounts.some(elevatedRepeat(taker, authoritySlot))
-    ? "swap instruction repeated the taker with authority beyond its validated slot"
-    : undefined;
+  accounts.some(writableRepeat(taker, authoritySlot)) ? WRITABLE_TAKER_REPEAT_REASON : undefined;
 
 /** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
 const directRejection = async (accounts, action, taker) => {

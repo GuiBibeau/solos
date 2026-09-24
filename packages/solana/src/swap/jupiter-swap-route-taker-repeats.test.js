@@ -56,12 +56,12 @@ describe("taker repeats in route hop accounts", () => {
     expect(rejection).toContain("repeated the taker");
   });
 
-  test("a hop may not take the taker as an extra signer", async () => {
+  test("a read-only signer repeat does not elevate the already-signed taker", async () => {
     const rejection = await buildRejection(
       { ...envelope, swapInstruction: swapWithTailAccount({ isWritable: false, isSigner: true }) },
       action,
       taker,
     );
-    expect(rejection).toBeTruthy();
+    expect(rejection).toBeUndefined();
   });
 });

@@ -149,6 +149,41 @@ describe("the swap executor against Surfnet [integration]", () => {
     expect(fixture.requests[0]?.taker).toBe(taker);
   });
 
+  test("a fresh safe route is simulated once but a failed simulation never sends", async () => {
+    const seed = randomSeed();
+    taker = await seedAddress(seed);
+    let builds = 0;
+    const rerouted = startBuildFixture({
+      responder: async (params) => {
+        const envelope = await buildEnvelope({ taker: params.get("taker") ?? "" });
+        if (++builds !== 1) return envelope;
+        return {
+          ...envelope,
+          swapInstruction: {
+            ...envelope.swapInstruction,
+            accounts: [
+              ...envelope.swapInstruction.accounts,
+              { pubkey: taker, isWritable: true, isSigner: false },
+            ],
+          },
+        };
+      },
+    });
+    try {
+      const sends = rpc.callsFor("sendTransaction").length;
+      const simulations = rpc.callsFor("simulateTransaction").length;
+      const error = await failureOf(
+        executeSwap(intent).pipe(Effect.provide(swapLayer(rerouted.url, seed, KEY))),
+      );
+      expect(error).toBeInstanceOf(SimulationFailed);
+      expect(rerouted.requests).toHaveLength(2);
+      expect(rpc.callsFor("simulateTransaction").length).toBe(simulations + 1);
+      expect(rpc.callsFor("sendTransaction").length).toBe(sends);
+    } finally {
+      rerouted.stop();
+    }
+  });
+
   test("an explicitly un-simulated execution is sent once and fails honestly on chain", async () => {
     const seed = randomSeed();
     taker = await seedAddress(seed);

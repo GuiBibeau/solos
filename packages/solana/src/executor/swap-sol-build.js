@@ -7,6 +7,7 @@ import {
   assembleSwapMessage,
   assertSwapMessageBounds,
 } from "../swap/jupiter-swap-build-assemble.js";
+import { WRITABLE_TAKER_REPEAT_REASON } from "../swap/jupiter-swap-build-route-accounts.js";
 
 export const SWAP_AMOUNT_U64_MAX = 18_446_744_073_709_551_615n;
 const AMOUNT_BOUND_REASON = "swap amount exceeded the u64 bound the executor can assemble";
@@ -15,6 +16,7 @@ const IDENTICAL_MINTS_REASON = "swap inputMint and outputMint must differ";
 const VALIDATION_GUARD_REASON =
   "build validation could not be completed; nothing was signed or sent";
 const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed or sent";
+const MAX_ROUTE_BUILD_ATTEMPTS = 3;
 
 /**
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
@@ -50,19 +52,26 @@ export const fetchValidatedBuild = ({ kit, build }, action) =>
   Effect.gen(function* () {
     const overBound = intentRejection(action);
     if (overBound) return yield* new BuildRejected({ reason: overBound });
-    const envelope = yield* build.build({
-      inputMint: action.inputMint,
-      outputMint: action.outputMint,
-      amount: action.amount,
-      slippageBps: action.maxSlippageBps,
-      taker: kit.signer.address,
-    });
-    const rejection = yield* Effect.tryPromise({
-      try: () => buildRejection(envelope, action, kit.signer.address),
-      catch: () => new BuildRejected({ reason: VALIDATION_GUARD_REASON }),
-    });
-    if (rejection) return yield* new BuildRejected({ reason: rejection });
-    return envelope;
+    for (let attempt = 1; attempt <= MAX_ROUTE_BUILD_ATTEMPTS; attempt++) {
+      const envelope = yield* build.build({
+        inputMint: action.inputMint,
+        outputMint: action.outputMint,
+        amount: action.amount,
+        slippageBps: action.maxSlippageBps,
+        taker: kit.signer.address,
+      });
+      const rejection = yield* Effect.tryPromise({
+        try: () => buildRejection(envelope, action, kit.signer.address),
+        catch: () => new BuildRejected({ reason: VALIDATION_GUARD_REASON }),
+      });
+      if (!rejection) return envelope;
+      // Only a route-specific, pre-sign refusal merits a fresh candidate. Each build is
+      // independently checked; no retry occurs after signing, simulation, or submission.
+      if (rejection !== WRITABLE_TAKER_REPEAT_REASON || attempt === MAX_ROUTE_BUILD_ATTEMPTS) {
+        return yield* new BuildRejected({ reason: rejection });
+      }
+    }
+    return yield* new BuildRejected({ reason: WRITABLE_TAKER_REPEAT_REASON });
   });
 
 /**

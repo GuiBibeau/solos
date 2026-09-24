@@ -6,12 +6,13 @@ assembly and wire decoding, zero-send guarantees on every refusal, and honest do
 They prove what solOS builds and refuses, not what a funded swap earns. Live QA spends real SOL
 and belongs to the maintainer, after `solos swap simulate` says the exact transaction is sound.
 
-**Status: blocked.** A live swap needs operator prerequisites that do not exist in the factory
-or CI sandboxes: a funded signer (`SOLOS_SIGNER_PRIVATE_KEY` / `SOLOS_SIGNER_KEYPAIR_PATH` /
-`SOLOS_PROFILE`) and a mainnet `SOLANA_RPC_URL` — the factory holds no signer, RPC URL, or
-`JUPITER_API_KEY`. The stored Jupiter credential must also carry `/swap/v2/build` permission
-(keyless access returns 200 while a stored key has answered 403; reconcile the endpoint
-permission before QA). Live QA is reported blocked, never passed.
+**Status: funded reliability round pending.** Offline integration proves the bounded pre-sign
+route rebuilds and zero-send safety; it cannot prove live fill reliability. The 2026-09-24
+0.19 SOL mainnet attempt did not send: one signed simulation exceeded the old 16 MiB loaded-data
+cap, and another execute obtained a new build with an elevated taker repeat that pre-sign
+validation rejected. Local tests cover both fixes, but live acceptance must be recorded here
+separately, with confirmed signatures and reconciled balances, before calling them verified.
+Factory/CI sandboxes never contain a mainnet signer, RPC URL, or Jupiter build credential.
 
 ## Protocol: small-budget SOL -> USDC -> SOL, simulate first
 
@@ -69,5 +70,6 @@ permission before QA). Live QA is reported blocked, never passed.
 - Never pass `--skip-simulation` in QA: simulation is the zero-send safety gate.
 - Never run the two hops from a stored quote — there is no such path; every call builds fresh.
 - Never put keys in tool arguments or shell history beyond the temporary export shown above.
-- Never retry a failed submission by hand without re-simulating; a `TransactionFailed`
-  signature may still land.
+- The bounded fresh-build retry is **before signing only** and only for a writable taker repeat.
+  A malformed build, failed simulation, or ambiguous submission does not retry. Never retry a
+  failed submission by hand without investigating its signature; it may still land.

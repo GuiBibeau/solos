@@ -153,11 +153,25 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
     }
   });
 
-  test("the taker duplicated into the hop tail is refused for privilege elevation", async () => {
+  test("a read-only signer repeat in either route reaches the first RPC gate", async () => {
+    for (const mutation of [withTakerInTail(0), sharedTakerInTail]) {
+      const { error } = await runBranch("execute", (envelope) => {
+        const repeated = mutation(envelope);
+        return withAccounts((accounts) =>
+          accounts.map((meta, at) =>
+            at === accounts.length - 1 ? { ...meta, isWritable: false, isSigner: true } : meta,
+          ),
+        )(repeated);
+      });
+      expect(error).toBeInstanceOf(RpcError);
+    }
+  });
+
+  test("the taker duplicated writable into the hop tail stays refused after fresh builds", async () => {
     for (const mutation of [withTakerInTail(0), sharedTakerInTail]) {
       const { error, requests } = await runBranch("execute", mutation);
       expect(reasonOf(error)).toContain("repeated the taker");
-      expect(requests).toHaveLength(1);
+      expect(requests).toHaveLength(3);
     }
   });
 
@@ -186,8 +200,23 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
         withTakerAt(slot)(sharedEnvelope(envelope)),
       );
       expect(reasonOf(error)).toContain("repeated the taker");
-      expect(requests).toHaveLength(1);
+      expect(requests).toHaveLength(3);
     }
+  });
+
+  test("a rejected writable route can be replaced by a fresh validated build before signing", async () => {
+    let builds = 0;
+    const { error, requests } = await runBranch("execute", (envelope) =>
+      ++builds === 1 ? withTakerInTail(0)(envelope) : envelope,
+    );
+    expect(error).toBeInstanceOf(RpcError);
+    expect(requests).toHaveLength(2);
+  });
+
+  test("persistent writable routes fail closed after a bounded number of builds", async () => {
+    const { error, requests } = await runBranch("execute", withTakerInTail(0));
+    expect(reasonOf(error)).toContain("repeated the taker");
+    expect(requests).toHaveLength(3);
   });
 
   test("a hop tail without the taker still reaches the first RPC gate", async () => {

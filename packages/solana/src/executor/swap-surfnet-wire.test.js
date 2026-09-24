@@ -117,9 +117,8 @@ describe("the exact submitted swap wire [integration]", () => {
       loadedAccountsDataSizeLimit: SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
       priorityFeeLamports: SWAP_MAX_PRIORITY_FEE_LAMPORTS,
     });
-    // Pinned to the verified literal: the submitted wire carries the 16 MiB bound the real
-    // Metis route simulation required.
-    expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(16_777_216);
+    // Pinned to the protocol ceiling: a 16 MiB local cap failed larger real mainnet routes.
+    expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(67_108_864);
     expect(decompiled.lifetimeConstraint.blockhash).toBe(latest.value.blockhash);
     expect(decompiled.instructions.map((ix) => ix.programAddress)).toEqual([
       ATA_PROGRAM,

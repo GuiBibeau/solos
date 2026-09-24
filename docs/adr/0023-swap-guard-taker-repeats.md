@@ -1,6 +1,6 @@
 # 0023 — Swap guard admits read-only taker repeats and nothing more
 
-Status: accepted, 2026-09-22. Maintainer contract for issue #90.
+Status: accepted, 2026-09-22; amended for bounded pre-sign route rebuilds.
 
 ## Context
 
@@ -17,16 +17,17 @@ move lamports or authorize token debits against the taker beyond what the quote 
 
 ## Decision
 
-The taker's pubkey may appear any number of times in the swap instruction, but exactly once with
-elevated privileges — the validated authority slot (read-only signer in both V2 layouts). Every
-other occurrence must be a pure data reference: not writable and not a signer. A writable or
-signer occurrence anywhere else rejects with `BuildRejected` before signing.
+The taker's pubkey may appear any number of times in the swap instruction, but may never be
+writable. The validated authority slot is already a read-only signer in both V2 layouts. Other
+occurrences may be read-only references or read-only signers: compilation unions their roles with
+the already-signed authority and gains no new privilege. Any writable occurrence outside the
+fixed authority slot rejects with `BuildRejected` before signing.
 
-This is provably sufficient under the coalescing rule: a read-only repeat contributes neither
-writability nor a signature requirement, so the union is unchanged — the route learns nothing it
-could not already read at the authority slot, and holds no authority over the wallet that
-validation did not approve. A signer repeat outside the slot would place a signed authority
-position the validator never reviewed; a writable repeat would elevate it.
+The rejection may trigger at most two fresh build requests (three candidates total) for this
+route-specific condition only. Every candidate is validated independently, and no build is
+retried after signing, simulation, or submission. A repeated writable taker stays rejected if
+all three candidates carry it; unrelated invalid builds fail immediately. This preserves the
+security boundary while allowing Jupiter to choose a different route.
 
 The runtime enforces the same boundary from below, so the proof does not rest on provider
 metadata alone. An occurrence the instruction declares read-only fails the transaction on any
@@ -41,9 +42,9 @@ address-lookup-table indirection can hide an occurrence from the validator.
 
 ## Consequences
 
-- Jupiter execute builds with read-only hop repeats sign and land; a mainnet SOL -> USDC -> SOL
-  round trip is the acceptance proof for the rule.
-- The malicious-build negative test stays: a hop account that takes the taker writable — or as
-  an extra signer — must still fail `BuildRejected`, and the test pins it.
+- Jupiter execute builds with read-only hop repeats, including signer-only repeats, may sign and
+  land; funded swaps remain an acceptance requirement, not a result inferred from tests.
+- The malicious-build negative test stays: a hop account that takes the taker writable must fail
+  `BuildRejected` with zero signer/RPC contact, even across the bounded rebuilds.
 - If a future Jupiter layout needs the taker writable in a declared, reviewed slot, that is a
   new decision record, not a loosening of this rule.
