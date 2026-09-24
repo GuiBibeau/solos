@@ -15,21 +15,21 @@ import {
 import { address } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 
-/** @typedef {{owner:string;trader:string;exchange:{perpAssetMap:string;globalTraderIndex:string[];activeTraderBuffer:string[]};market:{marketAddress:string;splineCollection:string};order:{side:"long" | "short";priceInTicks:bigint;numBaseLots:bigint;numQuoteLots:bigint;lastValidSlot:bigint}}} Input */
+/** @typedef {{owner:string;trader:string;exchange:{perpAssetMap:string;globalTraderIndex:string[];activeTraderBuffer:string[]};market:{marketAddress:string;splineCollection:string};order:{side:"long" | "short";priceInTicks:bigint;numBaseLots:bigint;numQuoteLots:bigint|null;lastValidSlot:bigint}}} Input */
 
-/** @param {Input["order"]} order */
-const orderPacket = (order) => ({
+/** @param {Input["order"]} order @param {OrderFlags} flags */
+const orderPacket = (order, flags) => ({
   side: order.side === "long" ? Side.Bid : Side.Ask,
   priceInTicks: ticks(order.priceInTicks),
   numBaseLots: baseLots(order.numBaseLots),
-  numQuoteLots: quoteLots(order.numQuoteLots),
+  numQuoteLots: order.numQuoteLots === null ? null : quoteLots(order.numQuoteLots),
   minBaseLotsToFill: baseLots(1n),
   minQuoteLotsToFill: quoteLots(1n),
   selfTradeBehavior: SelfTradeBehavior.Abort,
   matchLimit: null,
   clientOrderId: 0n,
   lastValidSlot: order.lastValidSlot,
-  orderFlags: OrderFlags.None,
+  orderFlags: flags,
   cancelExisting: false,
 });
 
@@ -43,11 +43,11 @@ const isPriceBounded = (packet, order) =>
 const isQuantityBounded = (packet, order) =>
   packet.numBaseLots === order.numBaseLots && packet.numQuoteLots === order.numQuoteLots;
 
-/** @param {import("@ellipsis-labs/rise").ImmediateOrCancelOrderPacket} packet */
-const isIocSafe = (packet) =>
+/** @param {import("@ellipsis-labs/rise").ImmediateOrCancelOrderPacket} packet @param {OrderFlags} flags */
+const isIocSafe = (packet, flags) =>
   packet.minBaseLotsToFill === 1n &&
   packet.minQuoteLotsToFill === 1n &&
-  packet.orderFlags === OrderFlags.None &&
+  packet.orderFlags === flags &&
   !packet.cancelExisting &&
   packet.selfTradeBehavior === SelfTradeBehavior.Abort &&
   packet.matchLimit === null &&
@@ -71,14 +71,14 @@ const isAccountBounded = (ix, input) => {
   );
 };
 
-/** @param {import("@ellipsis-labs/rise").InstructionsWithAccountsAndData} ix @param {Input} input */
-const assertInstruction = (ix, input) => {
+/** @param {import("@ellipsis-labs/rise").InstructionsWithAccountsAndData} ix @param {Input} input @param {OrderFlags} flags */
+const assertInstruction = (ix, input, flags) => {
   const packet = getPlaceMarketOrderDecoder().decode(ix.data);
   if (
     ix.programAddress !== PHOENIX_PROGRAM_ADDRESS ||
     !isPriceBounded(packet, input.order) ||
     !isQuantityBounded(packet, input.order) ||
-    !isIocSafe(packet) ||
+    !isIocSafe(packet, flags) ||
     !isAccountBounded(ix, input)
   )
     throw new BuildRejected({
@@ -88,8 +88,8 @@ const assertInstruction = (ix, input) => {
 
 /** Pinned Rise 0.5.26 builds the actual IOC program instruction; a raw API instruction is
  * never accepted. Decode every bounded field and signer before signing.
- * @param {Input} input */
-export const buildOpenInstruction = (input) => {
+ * @param {Input} input @param {OrderFlags} flags */
+export const buildPhoenixIocInstruction = (input, flags) => {
   const resolved =
     /** @type {import("@ellipsis-labs/rise").BuildPlaceMarketOrderIxResolvedInput} */ (
       /** @type {unknown} */ ({
@@ -103,14 +103,17 @@ export const buildOpenInstruction = (input) => {
         },
         market: input.market,
         trader: { authority: input.owner, traderAccount: input.trader },
-        orderPacket: orderPacket(input.order),
+        orderPacket: orderPacket(input.order, flags),
       })
     );
   const ix = buildPlaceMarketOrderIxResolved(resolved);
-  assertInstruction(ix, input);
+  assertInstruction(ix, input, flags);
   return {
     programAddress: address(ix.programAddress),
     accounts: ix.accounts.map((meta) => ({ address: address(meta.address), role: meta.role })),
     data: Uint8Array.from(ix.data),
   };
 };
+
+/** @param {Input} input */
+export const buildOpenInstruction = (input) => buildPhoenixIocInstruction(input, OrderFlags.None);

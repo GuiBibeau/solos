@@ -21,6 +21,7 @@ export const EXECUTOR_NAME = "direct-signer";
 const PERP_ACTIONS = new Set([
   "onboard_perp",
   "open_perp",
+  "close_perp",
   "deposit_perp_collateral",
   "withdraw_perp_collateral",
 ]);

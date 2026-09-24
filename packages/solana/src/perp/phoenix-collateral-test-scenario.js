@@ -6,17 +6,28 @@ import { collateralAtas } from "./phoenix-collateral-tokens.js";
 import { startPhoenixFixture } from "./phoenix-fixture.js";
 import { coldState, positionRow, subaccount } from "./phoenix-scenarios.js";
 
-/** @param {string} authority @param {{collateral:bigint; slot:number; exposure:boolean; tradingRestricted:boolean; depositDisabled:boolean; withdrawDisabled:boolean; spotExposure:boolean}} snapshot */
+/** @param {boolean} exposure @param {bigint} positionLots @param {boolean} otherFunding */
+const positionRows = (exposure, positionLots, otherFunding) => {
+  const rows = [];
+  if (positionLots !== 0n) rows.push(positionRow("SOL", positionLots.toString()));
+  else if (exposure) rows.push(positionRow("SOL", "100"));
+  if (otherFunding) rows.push({ ...positionRow("ETH", "0"), unsettledFundingQuoteLots: "1" });
+  return rows;
+};
+
+/** @param {string} authority @param {{collateral:bigint; slot:number; exposure:boolean; positionLots:bigint; tradingRestricted:boolean; depositDisabled:boolean; withdrawDisabled:boolean; spotExposure:boolean;otherFunding:boolean}} snapshot */
 const traderState = (
   authority,
   {
     collateral,
     slot,
     exposure,
+    positionLots,
     tradingRestricted,
     depositDisabled,
     withdrawDisabled,
     spotExposure,
+    otherFunding,
   },
 ) => {
   const state = coldState(authority);
@@ -29,7 +40,7 @@ const traderState = (
   state.snapshot.subaccounts = [
     subaccount(0, {
       collateral: collateral.toString(),
-      positions: exposure ? [positionRow("SOL", "100")] : [],
+      positions: positionRows(exposure, positionLots, otherFunding),
       spotCollaterals: spotExposure ? [{ balance: "1" }] : [],
     }),
   ];
@@ -51,7 +62,7 @@ const exchange = (global) => ({
   withdrawalsAvailable: true,
 });
 
-/** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean; spotExposure?: boolean; market?:Record<string,unknown> }} [options] */
+/** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; positionLots?:bigint; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean; spotExposure?: boolean; otherFunding?: boolean; market?:Record<string,unknown> }} [options] */
 export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
   const owner = await seedAddress(seed);
   const collateral = options.collateral ?? 0n;
@@ -69,10 +80,12 @@ export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
         collateral,
         slot: options.staleRisk ? slot - 13 : slot,
         exposure: options.exposure ?? false,
+        positionLots: options.positionLots ?? 0n,
         tradingRestricted: options.tradingRestricted ?? false,
         depositDisabled: options.depositDisabled ?? false,
         withdrawDisabled: options.withdrawDisabled ?? false,
         spotExposure: options.spotExposure ?? false,
+        otherFunding: Boolean(options.otherFunding),
       }),
     exchangeSnapshot: { slot: String(slot), exchange: exchange(global) },
     market: options.market,

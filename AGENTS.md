@@ -102,7 +102,7 @@ dev check` — do not edit the table by hand:
 | `lend` | 6 | read, simulate, execute |
 | `liquidity` | 5 | read, simulate, execute |
 | `market` | 6 | read |
-| `perp` | 10 | read, simulate, execute |
+| `perp` | 12 | read, simulate, execute |
 | `portfolio` | 1 | read |
 | `signals` | 0 | ports only |
 | `swap` | 3 | read, simulate, execute |

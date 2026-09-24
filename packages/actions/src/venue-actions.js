@@ -52,9 +52,9 @@ export const OpenPerpActionSchema = z.object({
 
 export const ClosePerpActionSchema = z.object({
   type: z.literal("close_perp"),
-  market: z.string().min(1),
+  market: z.string().regex(/^[A-Z][A-Z0-9]{1,15}(?:-PERP)?$/),
   ...traderScope,
-  limitPriceUsd: PositiveDecimalSchema.describe(
+  limitPriceUsd: PositiveDecimalSchema.pipe(z.string().max(40)).describe(
     "Minimum sell or maximum buy price for reduce-only close",
   ),
 });
