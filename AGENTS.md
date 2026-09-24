@@ -92,8 +92,27 @@ add a `solos` command instead.
 | `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
 | `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. |
 
-Slices today: `wallet`, `transfer`, `market` (Elfa Chat + discovery/news/summaries + Jupiter prices + on-chain token
-metadata implemented), `swap` (ports + use cases, no adapters), `signals` (ports only).
+Slices today, generated from the registry by `solos dev docs check --write` and gated by `solos
+dev check` — do not edit the table by hand:
+
+<!-- generated: slices -->
+| Slice | Tools | Tiers |
+|---|---|---|
+| `launch` | 1 | read |
+| `lend` | 6 | read, simulate, execute |
+| `liquidity` | 5 | read, simulate, execute |
+| `market` | 6 | read |
+| `perp` | 8 | read, simulate, execute |
+| `portfolio` | 1 | read |
+| `signals` | 0 | ports only |
+| `swap` | 3 | read, simulate, execute |
+| `transfer` | 2 | simulate, execute |
+| `wallet` | 2 | read |
+<!-- /generated: slices -->
+
+A slice with tools has adapters behind them in `packages/solana/src/<slice>/`; a ports-only slice
+has a port tag and domain types and nothing wired. `market` covers Elfa Chat, discovery, news and
+summaries, Jupiter prices and on-chain token metadata.
 
 ## Conventions that lint will enforce
 

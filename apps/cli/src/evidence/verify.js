@@ -25,6 +25,7 @@ const script = (name) => ({
  */
 const SCRIPT_FOR_STEP = {
   "line-limit": "check:lines",
+  docs: "docs:check",
   format: "format:check",
   lint: "lint",
   depcruise: "depcruise",
