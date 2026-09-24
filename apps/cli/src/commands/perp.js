@@ -15,6 +15,7 @@ import {
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { close, simulateClose } from "./perp-close-commands.js";
 
 const market = Options.text("market").pipe(
   Options.withDescription(
@@ -147,5 +148,7 @@ export const perp = Command.make("perp").pipe(
     withdraw,
     simulateOpen,
     open,
+    simulateClose,
+    close,
   ]),
 );

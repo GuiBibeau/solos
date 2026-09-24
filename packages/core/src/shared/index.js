@@ -7,6 +7,7 @@ export {
   BuildRejected,
   BuildUnavailable,
   InternalError,
+  NoPositionToClose,
   RpcError,
   SignerUnavailable,
   SimulationFailed,

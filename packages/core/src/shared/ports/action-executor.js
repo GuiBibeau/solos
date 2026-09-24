@@ -9,6 +9,7 @@ import { Context } from "effect";
  *   | import("../domain/errors.js").TransactionFailed
  *   | import("../domain/errors.js").TransactionExpired
  *   | import("../domain/errors.js").UnsupportedAction
+ *   | import("../domain/errors.js").NoPositionToClose
  *   | import("../domain/errors.js").BuildRejected
  *   | import("../domain/errors.js").BuildUnavailable
  *   | import("../domain/errors.js").SignerUnavailable} ExecutorError

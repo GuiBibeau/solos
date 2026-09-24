@@ -63,10 +63,13 @@ export {
 } from "./tools/collateral-tools.js";
 export { simulatePerpOpen, executePerpOpen } from "./use-cases/open.js";
 export { simulatePerpOpenTool, executePerpOpenTool } from "./tools/open-tools.js";
+export { simulatePerpClose, executePerpClose } from "./use-cases/close.js";
+export { simulatePerpCloseTool, executePerpCloseTool } from "./tools/close-tools.js";
 export { getPosition } from "./use-cases/get-position.js";
 export { listPositions } from "./use-cases/list-positions.js";
 export { getPositionTool } from "./tools/get-position.js";
 
+import { simulatePerpCloseTool, executePerpCloseTool } from "./tools/close-tools.js";
 import {
   simulatePerpDepositTool,
   executePerpDepositTool,
@@ -93,4 +96,6 @@ export const perpTools = [
   executePerpWithdrawalTool,
   simulatePerpOpenTool,
   executePerpOpenTool,
+  simulatePerpCloseTool,
+  executePerpCloseTool,
 ];

@@ -169,6 +169,42 @@ The limit is a maximum buy or minimum sell price, rounded inward to the venue ti
 
 Offline Surfpool tests decode the real signed v1 Rise 0.5.26 IOC packet and test no-send on stale/incomplete state, existing exposure, and absent collateral. **Do not run a funded `perp open` yet**: #28's reduce-only close must be implemented and checked first, then an operator must separately approve a small funded budget and an exit plan. The collateral-only QA above did not authorize a trading order. For any future live/provider-backed CLI or MCP check, source both the repo `.env` and `.env.local`, in that order, in the **same shell**, without printing credentials. Do not retry an ambiguous submission. Record signatures and actual exposure/fees from subsequent reads.
 
+## Reduce-only Phoenix IOC closes (#28) — offline verification only
+
+`perp simulate-close --market SOL --limit-price-usd <exact-USD>` and `perp close` (same flags,
+optionally `--skip-simulation`) map to MCP twins `solana_perp_simulate_close` /
+`solana_perp_execute_close`. Both require a fresh matching Phoenix API and on-chain position
+for the configured signer at trader PDA 0 / subaccount 0; zero size is `NoPositionToClose`.
+An existing position in another market or outstanding risk fails closed. For a long, the
+opposite-side IOC sell is bounded by a **minimum** USD price; for a short, the IOC buy is
+bounded by a **maximum** USD price. Ticks round inward and the signed order specifies
+`ReduceOnly` plus an exact base-lot cap no greater than the observed absolute exposure.
+Simulation uses the same signed wire that execution would submit; failed simulation, changed
+position, expired blockhash or expired observed slot cannot send. Skipping simulation never
+skips these checks. No fill quantity is returned by `close`.
+
+For a separately approved small funded open/read/close/read test, load both local env files in
+order in the **same shell** as each CLI/MCP command (without printing credentials). First record
+the signer, RPC/network, balance, SOL fee cap and approved trade budget; read the entire account
+and `perp position --market SOL`. Deposit only the explicit approved collateral amount using
+`simulate-deposit` then `deposit`, and re-read balances. Simulate bounded open, inspect logs,
+then explicitly submit once. **After the open**, read `perp position --market SOL` and all-market
+exposure/orders/equity: zero fill means there is nothing to close. For nonzero exposure, choose
+an operator-approved limit price; run `simulate-close`, inspect direction, base lots and the
+`ReduceOnly` flag, then explicitly `close` once. Immediately read the position **again**, and
+all markets and pending orders. Record the signature, confirmed on-chain fee and actual before/
+after exposure and equity. `confirmed` is not a fill; a zero or partial fill leaves the recorded
+residual. Do not auto-resubmit or claim flat until a subsequent read shows zero exposure and
+no outstanding risk. If a signature is known but submission/confirmation is ambiguous, read
+its status and state manually; **never retry** until reconciliation. Only consider a separately
+simulated collateral withdrawal after fresh all-market flat-risk reconciliation.
+
+Offline Surfpool tests decode the signed v1 SDK instruction and its protocol `ReduceOnly` bit,
+check long/short, no-send rejections and simulation races. Scripted confirmation outcomes for
+zero/partial/full fills exercise follow-up reads, but **do not execute the Phoenix program** and
+cannot prove a funded close on mainnet. Do not perform funded trading until both #27 and #28
+are reviewed, merged and checked and a specific live exit plan is confirmed.
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:

@@ -40,7 +40,7 @@ const checkLeverage = (input, equity, exposure) => {
 };
 
 /** @param {{tickSize:bigint;baseLotDecimals:number}} market @param {string} price */
-const pricePerLot = (market, price) => {
+export const pricePerLot = (market, price) => {
   const { value, scale } = decimalParts(price);
   if (market.tickSize <= 0n || Math.abs(market.baseLotDecimals) > 18)
     throw new BuildRejected({ reason: "Phoenix market tick or lot size is unsupported" });
@@ -51,7 +51,7 @@ const pricePerLot = (market, price) => {
 };
 
 /** @param {"long" | "short"} side @param {bigint} numerator @param {bigint} denominator */
-const priceTicks = (side, numerator, denominator) =>
+export const priceTicks = (side, numerator, denominator) =>
   side === "long" ? numerator / denominator : ceilDiv(numerator, denominator);
 
 /** Convert exact USD to finite IOC ticks and conservative base lots; quote cap is the input.
