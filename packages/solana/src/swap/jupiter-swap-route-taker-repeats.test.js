@@ -47,13 +47,16 @@ describe("taker repeats in route hop accounts", () => {
     expect(rejection).toBeUndefined();
   });
 
-  test("a hop may not take the taker writable", async () => {
+  // Manifest funds the trader's seat from the wallet, so every Jupiter route through it lists
+  // the taker writable. The shape is admitted; what it can cost is bounded by measurement in
+  // swap-spend-bound.js instead (ADR-0024).
+  test("a hop may take the taker writable, as a Manifest hop does", async () => {
     const rejection = await buildRejection(
       { ...envelope, swapInstruction: swapWithTailAccount({ isWritable: true, isSigner: false }) },
       action,
       taker,
     );
-    expect(rejection).toContain("repeated the taker");
+    expect(rejection).toBeUndefined();
   });
 
   test("a hop may not take the taker as an extra signer", async () => {

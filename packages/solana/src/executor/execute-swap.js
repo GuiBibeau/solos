@@ -9,7 +9,7 @@ export const executeSwap = (deps, action, skipSimulation) =>
     const swap = yield* buildSignedSwap(deps, action);
     yield* assertSwapWireBeforeContact(swap.signed);
     const signature = yield* submitSimulatedSwap(
-      { ctx: deps.ctx, signed: swap.signed },
+      { ctx: deps.ctx, signed: swap.signed, taker: deps.kit.signer.address, action },
       skipSimulation,
     );
     return {

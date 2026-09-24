@@ -15,7 +15,8 @@ import { simulationErrorText } from "./simulation-error-text.js";
 import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
-import { buildSignedTransfer, simulateSigned } from "./transfer-sol.js";
+import { simulateForAction } from "./swap-spend-bound.js";
+import { buildSignedTransfer } from "./transfer-sol.js";
 
 export const EXECUTOR_NAME = "direct-signer";
 const PERP_ACTIONS = new Set([
@@ -122,7 +123,7 @@ const simulate = (deps, action) =>
     if (action.type === "swap" || action.type === "withdraw_lend") {
       yield* recheckSignedSwapLifetime(ctx, signed);
     }
-    const raw = yield* simulateSigned(ctx, signed);
+    const raw = yield* simulateForAction({ ctx, taker: deps.kit.signer.address }, action, signed);
     const isOk = raw.err === null;
     return {
       action,
