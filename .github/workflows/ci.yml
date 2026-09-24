@@ -9,64 +9,33 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  SURFPOOL_VERSION: "1.5.0"
-  # eslint over the whole repo peaks above Node's default heap
-  NODE_OPTIONS: --max-old-space-size=6144
-
 jobs:
-  # Scope `check`: format, lint, dependency rules, types. Emits Evidence (ADR-0016).
-  check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-      - name: solos dev verify --scope check
-        run: bun run solos dev verify --scope check --json > "$RUNNER_TEMP/evidence-check.json"
-      - uses: ./.github/actions/evidence-summary
-        if: always()
-        with:
-          name: evidence-check
-          file: ${{ runner.temp }}/evidence-check.json
-
-  # Scope `unit`: pure domain tests, no Surfpool.
-  unit:
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-      - name: solos dev verify --scope unit
-        run: bun run solos dev verify --scope unit --json > "$RUNNER_TEMP/evidence-unit.json"
-      - uses: ./.github/actions/evidence-summary
-        if: always()
-        with:
-          name: evidence-unit
-          file: ${{ runner.temp }}/evidence-unit.json
-
-  # Scope `full`: integration tests on Surfpool, offline. No RPC key, no mainnet, no secrets.
-  integration:
-    needs: check
+  # One job at scope `full`: line limits, docs gate, format, lint, dependency rules, types, unit
+  # tests, then integration tests on Surfpool (offline; no RPC key, no mainnet, no secrets).
+  #
+  # This used to be three jobs, one per scope. The scopes are cumulative (REQUIRED_STEPS in
+  # apps/cli/src/evidence/schema.js), so `unit` re-ran every static step to add ~10s of tests and
+  # `full` re-ran all of them again — roughly 3m30s of duplicated work per push. Splitting bought
+  # no earlier signal either: `runSteps` stops at the first failing step, so a lint break still
+  # reports here in ~90s and never reaches the integration tests.
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
+          # check:lines needs the merge-base with origin/main.
           fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
           surfpool: "true"
+      # stdout is the Evidence JSON. stderr streams to this log and already carries the failing
+      # step's full output, redacted and bounded to 64KB (apps/cli/src/evidence/diagnostics.js),
+      # so there is nothing to recover by re-running the suite.
       - name: solos dev verify --scope full
+        env:
+          SURFNET_DIAGNOSTICS: "1"
         run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-full.json"
-      - name: Show integration failure details
-        if: failure()
-        run: bun run solos dev test --filter '\[integration\]'
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:

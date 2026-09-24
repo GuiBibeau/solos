@@ -7,11 +7,6 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
-env:
-  SURFPOOL_VERSION: "1.5.0"
-  # eslint over the whole repo peaks above Node's default heap
-  NODE_OPTIONS: --max-old-space-size=6144
-
 jobs:
   mainnet-fork:
     runs-on: ubuntu-latest

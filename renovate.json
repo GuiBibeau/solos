@@ -33,9 +33,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Surfpool version pinned in workflows",
-      "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
-      "matchStrings": ["SURFPOOL_VERSION: \"(?<currentValue>[0-9.]+)\""],
+      "description": "Surfpool version pinned for repository tooling",
+      "fileMatch": ["^\\.surfpool-version$"],
+      "matchStrings": ["^(?<currentValue>[0-9.]+)\\s*$"],
       "depNameTemplate": "solana-foundation/surfpool",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
