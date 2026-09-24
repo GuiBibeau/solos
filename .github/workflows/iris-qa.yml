@@ -30,9 +30,6 @@ jobs:
     environment: iris-qa
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SURFPOOL_VERSION: "1.5.0"
-      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:

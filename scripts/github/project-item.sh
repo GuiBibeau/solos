@@ -5,7 +5,7 @@ set -euo pipefail
 COMMAND="${1:-}"
 
 if [[ -z "$COMMAND" ]]; then
-  echo "Usage: scripts/github/project-item.sh <add|set-stage|add-and-stage>"
+  echo "Usage: scripts/github/project-item.sh <add|set-stage>"
   exit 1
 fi
 
@@ -84,9 +84,6 @@ case "$COMMAND" in
     ensure_item >/dev/null
     ;;
   set-stage)
-    set_stage
-    ;;
-  add-and-stage)
     set_stage
     ;;
   *)

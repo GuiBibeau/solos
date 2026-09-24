@@ -1,9 +1,9 @@
 name: setup
-description: Bun from .bun-version, cached dependencies, optionally a pinned Surfpool.
+description: Bun from .bun-version, cached dependencies, optionally Surfpool from .surfpool-version.
 
 inputs:
   surfpool:
-    description: Install Surfpool at $SURFPOOL_VERSION
+    description: Install Surfpool at the version in .surfpool-version
     required: false
     default: "false"
 
@@ -25,14 +25,38 @@ runs:
       shell: bash
       run: bun install --frozen-lockfile
 
-    - name: Install Surfpool ${{ env.SURFPOOL_VERSION }}
+    # The version lives in a file, like .bun-version, so callers cannot forget to set it and
+    # Renovate has one place to bump.
+    - name: Resolve Surfpool version
       if: inputs.surfpool == 'true'
+      id: surfpool
       shell: bash
+      run: echo "version=$(tr -d '[:space:]' < .surfpool-version)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Surfpool
+      if: inputs.surfpool == 'true'
+      id: surfpool-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/bin/surfpool
+        key: surfpool-${{ runner.os }}-${{ steps.surfpool.outputs.version }}
+
+    - name: Install Surfpool ${{ steps.surfpool.outputs.version }}
+      if: inputs.surfpool == 'true' && steps.surfpool-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        SURFPOOL_VERSION: ${{ steps.surfpool.outputs.version }}
       run: |
         set -euo pipefail
         url="https://github.com/solana-foundation/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
         mkdir -p "$HOME/.local/bin"
         curl -fsSL "$url" | tar -xz -C "$HOME/.local/bin"
+
+    - name: Put Surfpool on PATH
+      if: inputs.surfpool == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
         chmod +x "$HOME/.local/bin/surfpool"
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
         "$HOME/.local/bin/surfpool" --version

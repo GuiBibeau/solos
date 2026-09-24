@@ -1,9 +1,12 @@
 name: project-stage-sync
 
-# Moves Project cards as issues and PRs change.
+# Adds issues and PRs to the solOS Project and moves their cards as they change. `set-stage`
+# creates the item when it is missing (ensure_item in project-item.sh), so intake is just the
+# first stage move — it does not need a workflow of its own.
+# Skips silently until the GH_PROJECT_* variables and GH_PROJECT_TOKEN secret exist.
 on:
   issues:
-    types: [reopened, labeled, closed]
+    types: [opened, reopened, transferred, labeled, closed]
   pull_request_target:
     types: [opened, reopened, ready_for_review, review_requested, converted_to_draft, closed]
 
@@ -21,8 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Reopened issue → Inbox
-        if: github.event_name == 'issues' && github.event.action == 'reopened'
+      - name: New or reopened issue → Inbox
+        if: github.event_name == 'issues' && contains(fromJSON('["opened","reopened","transferred"]'), github.event.action)
         env: { STAGE_OPTION_ID: "${{ vars.GH_PROJECT_STAGE_INBOX_OPTION_ID }}" }
         run: bash scripts/github/project-item.sh set-stage
 

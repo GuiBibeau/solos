@@ -16,7 +16,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint:fix": "NODE_OPTIONS=--max-old-space-size=8192 eslint . --fix",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.cjs",
     "depcruise:graph": "depcruise packages apps --config .dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
     "typecheck": "tsc -p tsconfig.json",
