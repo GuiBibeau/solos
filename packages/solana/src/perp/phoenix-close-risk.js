@@ -14,7 +14,9 @@ const hasOtherChainRisk = (trader, assetId) =>
   trader.positions.entries.some(
     ({ key, value }) =>
       key !== BigInt(assetId) &&
-      (value.baseLotPosition !== 0n || value.virtualQuoteLotPosition !== 0n),
+      (value.baseLotPosition !== 0n ||
+        value.virtualQuoteLotPosition !== 0n ||
+        value.accumulatedFundingForActivePosition !== 0n),
   );
 
 /** @param {Trader} trader @param {number} assetId @param {string} symbol */
@@ -59,7 +61,9 @@ const hasOtherApiPosition = (sub, symbol) =>
   sub.positions.some(
     (row) =>
       row.symbol !== symbol &&
-      (BigInt(row.basePositionLots) !== 0n || BigInt(row.virtualQuotePositionLots) !== 0n),
+      (BigInt(row.basePositionLots) !== 0n ||
+        BigInt(row.virtualQuotePositionLots) !== 0n ||
+        BigInt(row.unsettledFundingQuoteLots) !== 0n),
   );
 
 /** @param {{snapshot:Snapshot;symbol:string;position:import("@ellipsis-labs/rise").TraderPosition;trader:Trader}} facts */

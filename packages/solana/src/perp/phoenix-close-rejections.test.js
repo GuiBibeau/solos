@@ -17,6 +17,39 @@ const action = {
   limitPriceUsd: "110.25",
 };
 
+test("Phoenix close rejections [integration] reject other-market funding-only exposure before simulation", async () => {
+  const surfnet = await ensureOfflineSurfnet();
+  const seed = randomSeed();
+  const { market } = await seedOpenMarket(surfnet.rpcUrl);
+  const scenario = await startCollateralScenario(surfnet.rpcUrl, seed, {
+    collateral: 30_000_000n,
+    market,
+    positionLots: 100n,
+    otherFunding: true,
+  });
+  await seedClosePosition(surfnet.rpcUrl, scenario.trader, 100n);
+  const recorder = startRpcRecorder(surfnet.rpcUrl);
+  try {
+    const layer = SolanaTestLive({
+      rpcUrl: recorder.url,
+      wsUrl: surfnet.wsUrl,
+      seed,
+      phoenix: { baseUrl: scenario.fixture.url },
+    });
+    const result = await Effect.runPromiseExit(
+      Effect.flatMap(ActionExecutor, (executor) => executor.simulate(action)).pipe(
+        Effect.provide(layer),
+      ),
+    );
+    expect(result._tag).toBe("Failure");
+    expect(recorder.callsFor("simulateTransaction")).toHaveLength(0);
+    expect(recorder.callsFor("sendTransaction")).toHaveLength(0);
+  } finally {
+    scenario.fixture.stop();
+    recorder.stop();
+  }
+}, 20_000);
+
 test("Phoenix close rejections [integration] fail before simulation and send for unknown market, disagreeing accounts and invalid limit", async () => {
   const surfnet = await ensureOfflineSurfnet();
   for (const variant of ["unknown", "mismatch", "invalid"]) {
