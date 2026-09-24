@@ -25,6 +25,7 @@ const reject = async (layer, type, amount) => {
   if (exit._tag !== "Failure") return;
   const error = Cause.failureOption(exit.cause);
   expect(Option.isSome(error) && error.value).toBeInstanceOf(BuildRejected);
+  return Option.isSome(error) ? /** @type {BuildRejected} */ (error.value) : undefined;
 };
 
 /** @param {ReturnType<typeof startRpcRecorder>} recorder */
@@ -78,12 +79,15 @@ for (const failure of /** @type {const} */ ([
           "deposit_perp_collateral",
           failure === "insufficient" ? "3000000" : "1000000",
         );
-      if (failure !== "deposit_disabled")
-        await reject(
+      if (failure !== "deposit_disabled") {
+        const error = await reject(
           layer,
           "withdraw_perp_collateral",
           failure === "insufficient" ? "3000000" : "1000000",
         );
+        if (failure === "stale_risk")
+          expect(error?.reason).toBe("Phoenix withdrawal risk snapshot is stale");
+      }
       noSend(recorder);
     } finally {
       scenario.fixture.stop();

@@ -11,16 +11,20 @@ const Subaccount = z.object({
   capabilities: Access.optional(),
   subaccountIndex: z.number().int(),
   collateral: Integer,
-  positions: z.array(
-    z.object({
-      basePositionLots: Signed,
-      virtualQuotePositionLots: Signed,
-      unsettledFundingQuoteLots: Signed,
-    }),
-  ),
-  orders: z.array(z.object({ orders: z.array(z.unknown()) })),
-  splines: z.array(z.unknown()),
-  triggers: z.array(z.unknown()),
+  // Rise 0.5.26 TraderStateSubaccountSnapshotSchema defaults omitted arrays to [].
+  // The caller independently checks on-chain positions, conditional bits and spline count.
+  positions: z
+    .array(
+      z.object({
+        basePositionLots: Signed,
+        virtualQuotePositionLots: Signed,
+        unsettledFundingQuoteLots: Signed,
+      }),
+    )
+    .default([]),
+  orders: z.array(z.object({ orders: z.array(z.unknown()) })).default([]),
+  splines: z.array(z.unknown()).default([]),
+  triggers: z.array(z.unknown()).default([]),
 });
 const Snapshot = z.object({
   authority: z.string(),
@@ -32,8 +36,16 @@ const Snapshot = z.object({
 /** @param {unknown} body @param {string} owner */
 const readSnapshot = (body, owner) => {
   const parsed = Snapshot.safeParse(body);
-  if (!parsed.success || parsed.data.authority !== owner)
-    throw new PerpStateIncomplete({ reason: "Phoenix withdrawal risk snapshot is incomplete" });
+  if (!parsed.success) {
+    const field = parsed.error.issues[0]?.path.join(".").slice(0, 80) || "unknown";
+    throw new PerpStateIncomplete({
+      reason: `Phoenix withdrawal risk snapshot is incomplete at ${field}`,
+    });
+  }
+  if (parsed.data.authority !== owner)
+    throw new PerpStateIncomplete({
+      reason: "Phoenix withdrawal risk snapshot authority is inconsistent",
+    });
   return parsed.data;
 };
 

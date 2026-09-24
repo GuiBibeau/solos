@@ -83,7 +83,10 @@ const fetchExchange = (config, ctx) =>
       });
     const exchange = yield* Effect.try({
       try: () => validatedExchange(outcome.body, slot),
-      catch: () => new BuildRejected({ reason: "Phoenix exchange snapshot is untrusted or stale" }),
+      catch: (error) =>
+        error instanceof BuildRejected
+          ? error
+          : new BuildRejected({ reason: "Phoenix exchange snapshot is untrusted or stale" }),
     });
     return exchange;
   });

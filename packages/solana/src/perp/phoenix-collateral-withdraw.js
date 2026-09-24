@@ -1,5 +1,5 @@
 // @ts-check
-import { BuildRejected, BuildUnavailable } from "@solos/core";
+import { BuildRejected, BuildUnavailable, PerpStateIncomplete } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { TRADER_STATE_PATH } from "./phoenix-api.js";
@@ -58,9 +58,12 @@ export const assertWithdrawalReady = (facts) =>
           currentSlot: Number(currentSlot),
           withdrawQueueNode: facts.trader.withdrawQueueNode,
         }),
-      catch: () =>
+      catch: (error) =>
         new BuildRejected({
-          reason: "Phoenix risk snapshot cannot prove a flat and settled trader",
+          reason:
+            error instanceof BuildRejected || error instanceof PerpStateIncomplete
+              ? error.reason
+              : "Phoenix risk snapshot cannot prove a flat and settled trader",
         }),
     });
     if (BigInt(collateral) !== BigInt(facts.trader.state.quoteLotCollateral))

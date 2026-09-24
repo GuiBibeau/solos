@@ -117,6 +117,26 @@ post-trade residual exposure, wallet USDC and on-chain trader collateral before 
 to withdraw. Record each signature, on-chain fees/rent, pre/post wallet USDC and trader collateral;
 do not trade until the separately approved close/exit path exists.
 
+### 2026-09-24 live collateral QA attempt — no transfer submitted
+
+The configured non-loopback RPC returned the known #101 mainnet enrollment signature. The
+configured signer was `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`, registered and
+flat on SOL, with 1,792,984,536 lamports and **zero wallet USDC**. Funding 1 USDC from its
+existing wSOL through the repo's Jupiter swap lever was blocked before a quote by missing
+`JUPITER_API_KEY`; no swap was sent. Initial read-only collateral simulations identified a
+stale **exchange metadata** snapshot; its account keys are now verified against current on-chain
+configuration and SDK derivations instead of requiring metadata refreshed within 12 slots. The
+independent **trader-risk** snapshot still requires a fresh, complete all-market view and the
+on-chain trader must have no positions, conditional orders or splines. The live API omits empty
+position/order/spline/trigger arrays, exactly as Rise 0.5.26 defaults; these omissions are now
+handled only after the independent on-chain flatness check. After those corrections, read-only
+`simulate-deposit --amount 1` correctly rejects insufficient wallet USDC and
+`simulate-withdraw-collateral --amount 1` correctly rejects insufficient trader collateral.
+The wallet still held **1,792,984,536 lamports, zero USDC and 49,999,998 wSOL base units** after
+all probes: no collateral transfer, swap, fee, or trade occurred. Do not infer live execution
+from the offline scripted-program fixtures. To resume QA, the same wallet needs spendable USDC
+(or a configured Jupiter funding route); recheck status, exposure and balances before any send.
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:

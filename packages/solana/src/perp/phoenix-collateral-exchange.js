@@ -40,7 +40,10 @@ export const validatedExchange = (body, chainSlot) => {
       reason: "Phoenix exchange program or USDC mint is not the pinned venue",
     });
   const observed = BigInt(slot);
-  if (observed > chainSlot || chainSlot - observed > 12n)
-    throw new BuildRejected({ reason: "Phoenix exchange snapshot is stale" });
+  if (observed > chainSlot)
+    throw new BuildRejected({ reason: "Phoenix exchange snapshot is ahead of the configured RPC" });
+  // Exchange keys are verified against live on-chain configuration and derived accounts by
+  // readCollateralExchange, then against the exact transaction simulation. Unlike the separate
+  // trader-risk snapshot, old exchange metadata alone cannot authorize a withdrawal.
   return exchange;
 };

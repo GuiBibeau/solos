@@ -1,5 +1,6 @@
 // @ts-check
 import { expect, test } from "bun:test";
+import { PerpStateIncomplete } from "@solos/core";
 import { validateWithdrawalState } from "./phoenix-collateral-risk.js";
 import { DEFAULT_AUTHORITY, flatState, longState, subaccount } from "./phoenix-scenarios.js";
 
@@ -34,12 +35,29 @@ test("withdrawal risk rejects zero-lot positions with unsettled quote exposure",
   expect(() => validateWithdrawalState(state, facts)).toThrow();
 });
 
-test("withdrawal risk rejects missing order and settlement fields", () => {
+test("withdrawal snapshot may omit flat positions only when caller separately checks on-chain state", () => {
+  const state = permitted(flatState());
+  Reflect.deleteProperty(state.snapshot.subaccounts[0], "positions");
+  expect(validateWithdrawalState(state, facts)).toBe("250000000");
+});
+
+test("pinned Rise snapshot omissions are empty, but malformed or unknown order state is rejected", () => {
   const state = permitted(flatState());
   const sub = state.snapshot.subaccounts[0];
   if (sub === undefined) throw new Error("fixture missing subaccount");
   Reflect.deleteProperty(sub, "orders");
-  expect(() => validateWithdrawalState(state, facts)).toThrow();
+  Reflect.deleteProperty(sub, "splines");
+  Reflect.deleteProperty(sub, "triggers");
+  expect(validateWithdrawalState(state, facts)).toBe("250000000");
+  Reflect.set(sub, "orders", null);
+  let error;
+  try {
+    validateWithdrawalState(state, facts);
+  } catch (error_) {
+    error = error_;
+  }
+  expect(error).toBeInstanceOf(PerpStateIncomplete);
+  expect(/** @type {PerpStateIncomplete} */ (error).reason).toContain("subaccounts.0.orders");
 });
 
 test("withdrawal risk rejects an unknown queue status and pending withdrawal", () => {
