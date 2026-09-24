@@ -70,9 +70,6 @@ const verifyDerived = async (exchange) => {
  * @param {Config} config @param {Rpc} ctx */
 const fetchExchange = (config, ctx) =>
   Effect.gen(function* () {
-    const slot = yield* rpcCall("getSlot", ctx.url, () =>
-      ctx.rpc.getSlot({ commitment: "confirmed" }).send(),
-    );
     const outcome = yield* Effect.tryPromise({
       try: () => phoenixOnboardGet(config, "/v1/exchange/snapshot"),
       catch: () => new BuildUnavailable({ reason: "Phoenix exchange snapshot is unavailable" }),
@@ -81,6 +78,10 @@ const fetchExchange = (config, ctx) =>
       return yield* new BuildUnavailable({
         reason: `Phoenix exchange snapshot HTTP ${outcome.status}`,
       });
+    // Compare the API's snapshot against an RPC slot read after the HTTP response, not before it.
+    const slot = yield* rpcCall("getSlot", ctx.url, () =>
+      ctx.rpc.getSlot({ commitment: "confirmed" }).send(),
+    );
     const exchange = yield* Effect.try({
       try: () => validatedExchange(outcome.body, slot),
       catch: (error) =>

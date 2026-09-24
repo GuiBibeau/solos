@@ -1,12 +1,15 @@
 // @ts-check
 import { beforeAll, expect, test } from "bun:test";
+import { decodeTrader } from "@ellipsis-labs/rise";
 import { getBase16Decoder } from "@solana/kit";
 import { ActionExecutor, BuildRejected } from "@solos/core";
 import { Cause, Effect, Option } from "effect";
-import { SolanaTestLive } from "../index.js";
+import { SolanaRpc, SolanaRpcLive, SolanaTestLive } from "../index.js";
 import { ensureOfflineSurfnet, jsonRpc, randomSeed } from "../surfnet/index.js";
 import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
+import { TRADER_STATE_PATH } from "./phoenix-api.js";
 import { startCollateralScenario } from "./phoenix-collateral-test-scenario.js";
+import { assertWithdrawalReady } from "./phoenix-collateral-withdraw.js";
 
 /** @type {Awaited<ReturnType<typeof ensureOfflineSurfnet>>} */
 let surfnet;
@@ -48,6 +51,48 @@ const corruptAtaOwner = async (url, key) => {
     },
   ]);
 };
+
+test("Phoenix risk [integration] reads its comparison slot after the all-market snapshot", async () => {
+  const scenario = await startCollateralScenario(surfnet.rpcUrl, randomSeed(), {
+    collateral: 2_000_000n,
+  });
+  const slot = await jsonRpc(surfnet.rpcUrl, "getSlot", [{ commitment: "confirmed" }]);
+  /** @type {boolean[]} */
+  const snapshotSeen = [];
+  const recorder = startRpcRecorder(surfnet.rpcUrl, {
+    getSlot: () => {
+      snapshotSeen.push(
+        scenario.fixture.requests.some(({ path }) => path.startsWith(`${TRADER_STATE_PATH}/`)),
+      );
+      return slot + 1;
+    },
+  });
+  try {
+    const { value } = await jsonRpc(surfnet.rpcUrl, "getAccountInfo", [
+      scenario.trader,
+      { encoding: "base64" },
+    ]);
+    if (!value) throw new Error("expected seeded Phoenix trader");
+    const trader = decodeTrader(Uint8Array.from(Buffer.from(value.data[0], "base64")));
+    const check = Effect.flatMap(SolanaRpc, (ctx) =>
+      assertWithdrawalReady({
+        config: { baseUrl: scenario.fixture.url },
+        ctx,
+        owner: scenario.owner,
+        trader,
+      }),
+    );
+    expect(
+      await Effect.runPromise(
+        check.pipe(Effect.provide(SolanaRpcLive(recorder.url, surfnet.wsUrl))),
+      ),
+    ).toBe(2_000_000n);
+    expect(snapshotSeen).toEqual([true]);
+  } finally {
+    recorder.stop();
+    scenario.fixture.stop();
+  }
+});
 
 for (const failure of /** @type {const} */ ([
   "insufficient",

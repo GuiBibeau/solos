@@ -27,9 +27,6 @@ const assertOnchainFlat = (trader) => {
 /** @param {Facts} facts */
 const fetchRisk = ({ config, ctx, owner }) =>
   Effect.gen(function* () {
-    const currentSlot = yield* rpcCall("getSlot", ctx.url, () =>
-      ctx.rpc.getSlot({ commitment: "confirmed" }).send(),
-    );
     const outcome = yield* Effect.tryPromise({
       try: () => phoenixOnboardGet(config, `${TRADER_STATE_PATH}/${encodeURIComponent(owner)}`),
       catch: () =>
@@ -39,6 +36,10 @@ const fetchRisk = ({ config, ctx, owner }) =>
       return yield* new BuildUnavailable({
         reason: `Phoenix risk snapshot HTTP ${outcome.status}`,
       });
+    // Read the comparison slot after the risk snapshot so normal slot advances do not look unsafe.
+    const currentSlot = yield* rpcCall("getSlot", ctx.url, () =>
+      ctx.rpc.getSlot({ commitment: "confirmed" }).send(),
+    );
     return { currentSlot, body: outcome.body };
   });
 

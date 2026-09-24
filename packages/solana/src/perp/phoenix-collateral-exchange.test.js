@@ -9,6 +9,7 @@ import { BuildRejected } from "@solos/core";
 import { Cause, Effect, Option } from "effect";
 import { SolanaRpc, SolanaRpcLive } from "../index.js";
 import { ensureOfflineSurfnet } from "../surfnet/index.js";
+import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
 import { readCollateralExchange } from "./phoenix-collateral-exchange-live.js";
 import { validatedExchange } from "./phoenix-collateral-exchange.js";
 import { startPhoenixFixture } from "./phoenix-fixture.js";
@@ -55,6 +56,32 @@ test("Phoenix exchange [integration] preserves a safe future-slot rejection thro
     }
   } finally {
     fixture.stop();
+  }
+});
+
+test("Phoenix exchange [integration] reads its comparison slot after the snapshot response", async () => {
+  const surfnet = await ensureOfflineSurfnet();
+  const fixture = startPhoenixFixture({ exchangeSnapshot: { ...snapshot, slot: "102" } });
+  /** @type {number[]} */
+  const requestsSeen = [];
+  const recorder = startRpcRecorder(surfnet.rpcUrl, {
+    getSlot: () => {
+      requestsSeen.push(fixture.requests.length);
+      return 102;
+    },
+  });
+  try {
+    const read = Effect.flatMap(SolanaRpc, (ctx) =>
+      readCollateralExchange({ baseUrl: fixture.url }, ctx),
+    );
+    // The mocked account list cannot pass on-chain verification; ordering is what matters here.
+    await Effect.runPromiseExit(
+      read.pipe(Effect.provide(SolanaRpcLive(recorder.url, surfnet.wsUrl))),
+    );
+    expect(requestsSeen).toEqual([1]);
+  } finally {
+    fixture.stop();
+    recorder.stop();
   }
 });
 
