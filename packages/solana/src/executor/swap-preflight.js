@@ -9,7 +9,7 @@ import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { ownerBindingRejection } from "../swap/jupiter-swap-build-owner-binding.js";
 import { derivedAta } from "../swap/jupiter-swap-build-setup-account.js";
-import { WSOL_MINT } from "../swap/jupiter-swap-build-validate.js";
+import { ATA_PROGRAM, WSOL_MINT } from "../swap/jupiter-swap-build-validate.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} Envelope */
@@ -59,12 +59,32 @@ const discoverMintOwner = (ctx, mint) =>
     return value.owner;
   });
 
-/** @param {Rpc} ctx @param {import("@solos/actions").SwapAction} action */
-const discoverMintOwners = (ctx, action) =>
+/**
+ * Every mint whose on-chain owner the build's checks need: the requested pair, plus any mint a
+ * setup ATA create names. A multi-hop route opens the taker's account for its intermediate
+ * token, and `ownerBindingRejection` compares each create's token program against
+ * `owners[mint]` — discovering only the pair leaves that `undefined` and refuses the build.
+ * @param {Envelope} envelope @param {import("@solos/actions").SwapAction} action
+ */
+const mintsToDiscover = (envelope, action) => {
+  const named = envelope.setupInstructions
+    .filter((ix) => ix.programId === ATA_PROGRAM)
+    .map((ix) => ix.accounts[3]?.pubkey)
+    .filter((mint) => typeof mint === "string");
+  return [...new Set([action.inputMint, action.outputMint, ...named])];
+};
+
+/** @param {Rpc} ctx @param {Envelope} envelope @param {import("@solos/actions").SwapAction} action */
+const discoverMintOwners = (ctx, envelope, action) =>
   Effect.gen(function* () {
-    const input = yield* discoverMintOwner(ctx, action.inputMint);
-    const output = yield* discoverMintOwner(ctx, action.outputMint);
-    return { [action.inputMint]: input, [action.outputMint]: output };
+    const mints = mintsToDiscover(envelope, action);
+    const owners = yield* Effect.all(
+      mints.map((mint) => discoverMintOwner(ctx, mint)),
+      { concurrency: mints.length },
+    );
+    return /** @type {Record<string, string>} */ (
+      Object.fromEntries(mints.map((mint, index) => [mint, owners[index]]))
+    );
   });
 
 /**
@@ -79,7 +99,7 @@ const discoverMintOwners = (ctx, action) =>
 export const preflightSwapBuild = (ctx, { envelope, action, taker }) =>
   Effect.gen(function* () {
     if (envelope.cleanupInstruction) yield* requireAbsentTemporaryWsol(ctx, taker);
-    const owners = yield* discoverMintOwners(ctx, action);
+    const owners = yield* discoverMintOwners(ctx, envelope, action);
     const rejection = ownerBindingRejection(envelope, action, owners);
     if (rejection) return yield* new BuildRejected({ reason: rejection });
     return yield* freshLifetime(ctx);
