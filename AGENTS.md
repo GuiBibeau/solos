@@ -4,6 +4,26 @@ solOS is a thin Solana execution layer for LLM agents: an MCP server exposing we
 plus a harness that runs its own agent loop and routes tasks across model providers. Policy,
 approval, and guardrails live upstream in a separate agentic app. Not here.
 
+## STEP 0 — load the environment before live/provider-backed work
+
+**MANDATORY: before EVERY LIVE/PROVIDER-BACKED QA TEST or live `solos` CLI/stdio MCP
+command, source BOTH `.env` and `.env.local`. `bun run solos` does NOT load these files
+automatically.** On this workstation `.env` contains `JUPITER_API_KEY`;
+`.env.local` contains the live `SOLANA_RPC_URL`. Sourcing only `.env.local` falsely reports
+that the Jupiter key is missing. Each agent tool call starts a fresh shell: **source both
+files again in each invocation that needs them.** In a separate worktree use the
+**original checkout's** files, not the worktree (which has only `.env.example`):
+
+```sh
+set -a
+. /Users/guillaume/Github/solos/.env
+. /Users/guillaume/Github/solos/.env.local
+set +a
+# Now run the live/provider-backed solos command in this same shell.
+```
+
+**Never print, commit or paste the contents or values of either file.** This step is for live/provider-backed work only: reusable offline Surfpool tests and `solos dev verify` must not use live credentials.
+
 ## Verify with the lever, never with ad-hoc scripts
 
 `solos` is the repo CLI and the verification tool. Every command prints JSON and exits non-zero
