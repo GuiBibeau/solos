@@ -4,10 +4,10 @@ Offline tests exercise the real adapter, CLI, and MCP server against loopback HT
 `PHOENIX_BASE_URL`. They cannot establish what a live registered account holds. Live QA
 compares solOS output with the Phoenix UI for an operator account.
 
-**Status: #101 onboarding validated on mainnet; funded trading QA remains blocked.** The operator's
+**Status: #101 onboarding and #102 collateral-only round trip validated on mainnet; funded trading QA remains blocked.** The operator's
 trader (PDA index 0, subaccount 0) is registered with immediate trading and deposit permissions,
-but has zero equity. Collateral funding (#102) and a verified exit path (#27/#28) are separate
-prerequisites for live trading QA. Reads themselves are public, so no credential
+but currently has zero equity. A fresh, separately approved collateral top-up and a verified
+#28 reduce-only exit path are prerequisites for any funded open/read/close/read QA. Reads themselves are public, so no credential
 is provisioned anywhere; the only configuration is `PHOENIX_BASE_URL` (leave it unset for the
 production endpoint `https://perp-api.phoenix.trade`). Live credentials belong only in the
 operator or approved QA environment, never in issue comments, tool inputs, or implementation
@@ -82,7 +82,7 @@ balance stayed **1,792,984,536 lamports**: no duplicate transaction or fee. The 
 MCP `solana_perp_get_onboarding_status` also returned `ready`; its simulate twin returned
 `already_ready` without submitting.
 
-## Explicit collateral transfers (#102) — not yet funded-QA verified
+## Explicit collateral transfers (#102) — funded round trip verified
 
 `perp simulate-deposit --amount <USDC-base-units>` and `perp deposit --amount
 <USDC-base-units>` use an exact wallet USDC input. `perp simulate-withdraw-collateral
@@ -161,6 +161,14 @@ for USDC; the 1,488,440 lamports of old wSOL ATA rent released were replaced by 
 of retained Phoenix-token ATA rent. No leveraged trade was placed. The real stdio MCP simulate
 deposit twin also returned an estimated, non-guaranteed output without sending.
 
+## Bounded Phoenix IOC opens (#27) — offline verification only
+
+`perp simulate-open --market SOL --side long --notional-usd <USD-base-units> --max-leverage <integer> --limit-price-usd <exact-USD>` and `perp open` (same flags, optionally `--skip-simulation`) map to MCP twins `solana_perp_simulate_open` / `solana_perp_execute_open`. Both require a registered, ready trader PDA 0 / subaccount 0 with collateral deposited **separately**. No funding, onboarding or persistent order is hidden in an open. By design this initial safe subset also requires the **entire account** to have zero existing exposure or pending risk; other-market positions and nonzero spot collateral fail closed. The on-chain asset map and orderbook must agree with the Phoenix API; the risk snapshot is checked after the API response against the current RPC slot. Builds older than 5 seconds or orders expiring beyond 32 observed slots are not sent.
+
+The limit is a maximum buy or minimum sell price, rounded inward to the venue tick. Base-lot quantity rounds down using the *rounded executable price* and the exact 1e6 USD quote-lot cap is encoded in the IOC packet. Requested leverage is checked against both the on-chain market tier and signed, fully-flat trader collateral. Insufficient collateral and absent access reject without sending; **there is no silent leverage clamp**. The CLI and MCP return the existing execution envelope: `confirmed` means the transaction landed, **not** that any base lots filled. An IOC may fill partially or zero; immediately read `perp position --market SOL`, all-market exposure, orders and equity, then compare the observed position to the pre-trade read. Never infer a fill, a closed position or an automatic retry from the signature alone.
+
+Offline Surfpool tests decode the real signed v1 Rise 0.5.26 IOC packet and test no-send on stale/incomplete state, existing exposure, and absent collateral. **Do not run a funded `perp open` yet**: #28's reduce-only close must be implemented and checked first, then an operator must separately approve a small funded budget and an exit plan. The collateral-only QA above did not authorize a trading order. For any future live/provider-backed CLI or MCP check, source both the repo `.env` and `.env.local`, in that order, in the **same shell**, without printing credentials. Do not retry an ambiguous submission. Record signatures and actual exposure/fees from subsequent reads.
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:
@@ -188,5 +196,6 @@ deposit twin also returned an estimated, non-guaranteed output without sending.
 ## Reporting
 
 Enrollment #101 and explicit collateral #102 are validated by the funded confirmations and
-reconciliations above. Funded **trading** QA still requires #27 open and #28 close/exit. Never
+reconciliations above. #27 open is implemented and tested offline; funded **trading** QA still requires
+#28 close/exit and separate operator approval. Never
 claim mainnet trading passed from a collateral-only round trip.

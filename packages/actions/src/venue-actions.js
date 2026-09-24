@@ -37,12 +37,15 @@ export const WithdrawPerpCollateralActionSchema = z.object({
 
 export const OpenPerpActionSchema = z.object({
   type: z.literal("open_perp"),
-  market: z.string().min(1).describe("Canonical Phoenix perpetual market symbol"),
+  market: z
+    .string()
+    .regex(/^[A-Z][A-Z0-9]{1,15}(?:-PERP)?$/)
+    .describe("Phoenix perpetual symbol, e.g. SOL or SOL-PERP"),
   ...traderScope,
   side: z.enum(["long", "short"]),
   notionalUsd: PositiveAmountSchema.describe("Maximum notional in 1e6 USD units"),
-  maxLeverage: z.number().min(1).max(100),
-  limitPriceUsd: PositiveDecimalSchema.describe(
+  maxLeverage: z.number().int().min(1).max(100),
+  limitPriceUsd: PositiveDecimalSchema.pipe(z.string().max(40)).describe(
     "Maximum buy or minimum sell price, USD per base token",
   ),
 });

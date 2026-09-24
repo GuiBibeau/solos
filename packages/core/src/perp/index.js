@@ -61,6 +61,8 @@ export {
   simulatePerpWithdrawalTool,
   executePerpWithdrawalTool,
 } from "./tools/collateral-tools.js";
+export { simulatePerpOpen, executePerpOpen } from "./use-cases/open.js";
+export { simulatePerpOpenTool, executePerpOpenTool } from "./tools/open-tools.js";
 export { getPosition } from "./use-cases/get-position.js";
 export { listPositions } from "./use-cases/list-positions.js";
 export { getPositionTool } from "./tools/get-position.js";
@@ -77,6 +79,7 @@ import {
   simulateOnboardTraderTool,
   executeOnboardTraderTool,
 } from "./tools/onboarding-tools.js";
+import { simulatePerpOpenTool, executePerpOpenTool } from "./tools/open-tools.js";
 
 /** @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>} */
 export const perpTools = [
@@ -88,4 +91,6 @@ export const perpTools = [
   executePerpDepositTool,
   simulatePerpWithdrawalTool,
   executePerpWithdrawalTool,
+  simulatePerpOpenTool,
+  executePerpOpenTool,
 ];
