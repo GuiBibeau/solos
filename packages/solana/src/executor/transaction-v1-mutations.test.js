@@ -21,6 +21,16 @@ import {
 } from "./transaction-v1.js";
 
 const COMPUTE_BUDGET = "ComputeBudget111111111111111111111111111111";
+
+/** BuildRejected carries its text in `reason`, not `message`. @param {() => unknown} run */
+const reasonOf = (run) => {
+  try {
+    run();
+  } catch (error) {
+    return /** @type {BuildRejected} */ (error).reason;
+  }
+  throw new Error("expected a rejection");
+};
 const V1_CONFIG = {
   computeUnitLimit: 10_000,
   loadedAccountsDataSizeLimit: 65_536,
@@ -76,12 +86,20 @@ describe("transaction v1 mutation guards [integration]", () => {
 
   test("refuses invalid local resource configuration before signing", async () => {
     const { signer, calls } = await countingSigner();
-    for (const config of [
-      { ...V1_CONFIG, computeUnitLimit: 0 },
-      { ...V1_CONFIG, loadedAccountsDataSizeLimit: 0 },
-      { ...V1_CONFIG, priorityFeeLamports: 100_001n },
+    // The reason names the clause that failed. Flattening every policy breach into one sentence
+    // meant a refused build said nothing an operator could act on — a heavy route over the
+    // account ceiling read exactly like a malformed config (#116).
+    for (const [config, clause] of [
+      [{ ...V1_CONFIG, computeUnitLimit: 0 }, "compute unit limit"],
+      [{ ...V1_CONFIG, loadedAccountsDataSizeLimit: 0 }, "loaded accounts data size limit"],
+      [{ ...V1_CONFIG, priorityFeeLamports: 100_001n }, "priority fee"],
     ]) {
       expect(() => beginV1Message({ feePayerSigner: signer, config })).toThrow(BuildRejected);
+      try {
+        beginV1Message({ feePayerSigner: signer, config });
+      } catch (error) {
+        expect(/** @type {BuildRejected} */ (error).reason).toContain(clause);
+      }
     }
     expect(calls.count).toBe(0);
   });
@@ -103,6 +121,11 @@ describe("transaction v1 mutation guards [integration]", () => {
       v1MessageFor(signer),
     );
     expect(() => assertV1MessageForSigning(oversized)).toThrow(BuildRejected);
+    // The two breaches must be told apart: this is the pair that read identically before.
+    expect(reasonOf(() => assertV1MessageForSigning(crowded))).toContain(
+      "more unique accounts than the 64",
+    );
+    expect(reasonOf(() => assertV1MessageForSigning(oversized))).toContain("serialized size over");
   });
 
   test("accepts the exact 4096-byte boundary", async () => {
