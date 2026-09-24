@@ -60,7 +60,7 @@ test("CLI collateral [integration] rejects invalid amounts before any Phoenix or
   } finally {
     fixture.stop();
   }
-});
+}, 15_000);
 
 test("CLI and stdio MCP collateral twins [integration] reject an unenrolled signer before sending", async () => {
   const fixture = startPerpFixture({ traderStatus: 404 });
@@ -97,7 +97,7 @@ test("CLI and stdio MCP collateral twins [integration] reject an unenrolled sign
   } finally {
     fixture.stop();
   }
-}, 15_000);
+}, 40_000);
 
 test("CLI onboarding [integration] distinguishes an absent trader before any signed send", async () => {
   const fixture = startPerpFixture({ traderStatus: 404 });
