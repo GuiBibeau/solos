@@ -9,6 +9,8 @@ import {
   executePerpDeposit,
   simulatePerpWithdrawal,
   executePerpWithdrawal,
+  simulatePerpOpen,
+  executePerpOpen,
 } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
@@ -104,6 +106,32 @@ const withdraw = Command.make("withdraw-collateral", { amount: withdrawalAmount 
   ),
 );
 
+const openInput = {
+  market,
+  side: Options.choice("side", ["long", "short"]).pipe(
+    Options.withDescription("Open long (buy) or short (sell)"),
+  ),
+  notionalUsd: Options.text("notional-usd").pipe(
+    Options.withDescription("Maximum order notional in integer 1e6 USD units"),
+  ),
+  maxLeverage: Options.float("max-leverage").pipe(
+    Options.withDescription("Maximum leverage (1 through 100)"),
+  ),
+  limitPriceUsd: Options.text("limit-price-usd").pipe(
+    Options.withDescription("Maximum buy or minimum sell price, decimal USD per base token"),
+  ),
+};
+
+const simulateOpen = Command.make("simulate-open", openInput, (options) =>
+  withSolos(simulatePerpOpen(options).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(Command.withDescription("Preview a bounded Phoenix IOC open; never send an order"));
+
+const open = Command.make(
+  "open",
+  { ...openInput, skipSimulation: Options.boolean("skip-simulation") },
+  (options) => withSolos(executePerpOpen(options).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(Command.withDescription("Submit a bounded Phoenix IOC open; confirmation is not a fill"));
+
 export const perp = Command.make("perp").pipe(
   Command.withDescription(
     "Phoenix Perps: positions, enrollment, and explicit collateral management",
@@ -117,5 +145,7 @@ export const perp = Command.make("perp").pipe(
     deposit,
     simulateWithdraw,
     withdraw,
+    simulateOpen,
+    open,
   ]),
 );

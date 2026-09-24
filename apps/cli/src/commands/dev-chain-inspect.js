@@ -1,6 +1,6 @@
 // @ts-check
 /** Read-only on-chain evidence for reconciling confirmed transactions and remaining rent. */
-import { Args, Command } from "@effect/cli";
+import { Args, Command, Options } from "@effect/cli";
 import { AddressSchema } from "@solos/actions";
 import { SolanaRpc } from "@solos/solana";
 import { Effect } from "effect";
@@ -95,11 +95,14 @@ export const inspectAccount = (ctx, account) =>
     catch: () => new Error("account inspection failed on the configured RPC"),
   });
 
-/** Explicitly inspect public raw account bytes for offline protocol fixtures, capped at 65 KiB.
- * @param {import("effect").Context.Tag.Service<typeof SolanaRpc>} ctx @param {string} account */
-export const inspectAccountData = (ctx, account) =>
+/** Explicitly inspect public raw account bytes for offline protocol fixtures. Default 65 KiB,
+ * with a bounded opt-in for the pinned Phoenix asset map (1.6 MiB).
+ * @param {import("effect").Context.Tag.Service<typeof SolanaRpc>} ctx @param {string} account @param {number} [maxBytes] */
+export const inspectAccountData = (ctx, account, maxBytes = 65_536) =>
   Effect.tryPromise({
     try: async () => {
+      if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 2_097_152)
+        throw new Error("invalid public account data cap");
       const row = (
         await ctx.rpc
           .getAccountInfo(/** @type {any} */ (checkedAddress(account)), {
@@ -109,7 +112,8 @@ export const inspectAccountData = (ctx, account) =>
           .send()
       ).value;
       if (!row) throw new Error("account absent");
-      if (row.data[0].length > 87_384) throw new Error("account too large for public fixture");
+      if (Buffer.from(row.data[0], "base64").length > maxBytes)
+        throw new Error("account too large for public fixture");
       return { account, owner: row.owner, dataBase64: row.data[0] };
     },
     catch: () => new Error("public account data unavailable or too large on configured RPC"),
@@ -139,10 +143,14 @@ const accountCommand = Command.make("account", { account }, (o) =>
   ),
 );
 
-const accountData = Command.make("account-data", { account }, (o) =>
+const maxBytes = Options.integer("max-bytes").pipe(
+  Options.withDefault(65_536),
+  Options.withDescription("Maximum public account bytes to export (default 65536, max 2097152)"),
+);
+const accountData = Command.make("account-data", { account, maxBytes }, (o) =>
   withSolos(
     Effect.flatMap(SolanaRpc, (ctx) =>
-      inspectAccountData(ctx, o.account).pipe(Effect.flatMap(emit)),
+      inspectAccountData(ctx, o.account, o.maxBytes).pipe(Effect.flatMap(emit)),
     ),
   ).pipe(exitOnFailure),
 ).pipe(

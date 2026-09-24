@@ -41,6 +41,12 @@ describe("read-only chain inspection via the Surfpool RPC adapter [integration]"
     expect(result.dataBase64).toBe("");
   });
 
+  test("bounds optional large public fixtures to two mebibytes", async () => {
+    const result = await rpc((ctx) => inspectAccountData(ctx, owner, 2_000_000));
+    expect(result.account).toBe(owner);
+    await expect(rpc((ctx) => inspectAccountData(ctx, owner, 2_097_153))).rejects.toThrow();
+  });
+
   test("reads the finalized transaction fee and lamport deltas", async () => {
     const tx = await rpc((ctx) => inspectTransaction(ctx, airdropSignature));
     expect(tx.signature).toBe(airdropSignature);

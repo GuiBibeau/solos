@@ -67,7 +67,7 @@ export function subaccount(subaccountIndex, overrides = {}) {
     subaccountIndex,
     sequence: 0,
     collateral: overrides.collateral ?? "250000000",
-    spotCollaterals: overrides.spotCollaterals,
+    spotCollaterals: overrides.spotCollaterals ?? [],
     positions: overrides.positions ?? [],
     orders: [],
     splines: [],

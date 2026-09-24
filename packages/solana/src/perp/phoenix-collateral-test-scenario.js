@@ -6,10 +6,18 @@ import { collateralAtas } from "./phoenix-collateral-tokens.js";
 import { startPhoenixFixture } from "./phoenix-fixture.js";
 import { coldState, positionRow, subaccount } from "./phoenix-scenarios.js";
 
-/** @param {string} authority @param {{collateral:bigint; slot:number; exposure:boolean; tradingRestricted:boolean; depositDisabled:boolean; withdrawDisabled:boolean}} snapshot */
+/** @param {string} authority @param {{collateral:bigint; slot:number; exposure:boolean; tradingRestricted:boolean; depositDisabled:boolean; withdrawDisabled:boolean; spotExposure:boolean}} snapshot */
 const traderState = (
   authority,
-  { collateral, slot, exposure, tradingRestricted, depositDisabled, withdrawDisabled },
+  {
+    collateral,
+    slot,
+    exposure,
+    tradingRestricted,
+    depositDisabled,
+    withdrawDisabled,
+    spotExposure,
+  },
 ) => {
   const state = coldState(authority);
   state.snapshot.capabilities.capabilities = {
@@ -22,6 +30,7 @@ const traderState = (
     subaccount(0, {
       collateral: collateral.toString(),
       positions: exposure ? [positionRow("SOL", "100")] : [],
+      spotCollaterals: spotExposure ? [{ balance: "1" }] : [],
     }),
   ];
   state.slot = slot;
@@ -42,7 +51,7 @@ const exchange = (global) => ({
   withdrawalsAvailable: true,
 });
 
-/** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean }} [options] */
+/** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean; spotExposure?: boolean; market?:Record<string,unknown> }} [options] */
 export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
   const owner = await seedAddress(seed);
   const collateral = options.collateral ?? 0n;
@@ -63,8 +72,10 @@ export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
         tradingRestricted: options.tradingRestricted ?? false,
         depositDisabled: options.depositDisabled ?? false,
         withdrawDisabled: options.withdrawDisabled ?? false,
+        spotExposure: options.spotExposure ?? false,
       }),
     exchangeSnapshot: { slot: String(slot), exchange: exchange(global) },
+    market: options.market,
   });
   return {
     owner,
