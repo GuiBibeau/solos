@@ -73,12 +73,14 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_market_get_token` | read | `market` |
 | `solana_market_get_token_news` | read | `market` |
 | `solana_market_get_trending_tokens` | read | `market` |
+| `solana_perp_execute_close` | execute | `perp` |
 | `solana_perp_execute_deposit_collateral` | execute | `perp` |
 | `solana_perp_execute_onboard_trader` | execute | `perp` |
 | `solana_perp_execute_open` | execute | `perp` |
 | `solana_perp_execute_withdraw_collateral` | execute | `perp` |
 | `solana_perp_get_onboarding_status` | read | `perp` |
 | `solana_perp_get_position` | read | `perp` |
+| `solana_perp_simulate_close` | simulate | `perp` |
 | `solana_perp_simulate_deposit_collateral` | simulate | `perp` |
 | `solana_perp_simulate_onboard_trader` | simulate | `perp` |
 | `solana_perp_simulate_open` | simulate | `perp` |
