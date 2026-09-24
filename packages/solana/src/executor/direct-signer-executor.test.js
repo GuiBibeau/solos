@@ -16,13 +16,11 @@ describe("DirectSignerExecutor", () => {
     const program = Effect.gen(function* () {
       const executor = yield* ActionExecutor;
       const exit = yield* Effect.exit(
-        executor.simulate({
-          type: "close_perp",
-          market: "SOL-PERP",
-          traderPdaIndex: 0,
-          traderSubaccountIndex: 0,
-          limitPriceUsd: "100",
-        }),
+        executor.simulate(
+          /** @type {import("@solos/actions").Action} */ (
+            /** @type {unknown} */ ({ type: "future_action" })
+          ),
+        ),
       );
       return { name: executor.name, exit };
     }).pipe(Effect.provide(layer));
@@ -31,6 +29,6 @@ describe("DirectSignerExecutor", () => {
     expect(name).toBe("direct-signer");
     expect(Exit.isFailure(exit)).toBe(true);
     expect(JSON.stringify(exit)).toContain("UnsupportedAction");
-    expect(JSON.stringify(exit)).toContain("close_perp");
+    expect(JSON.stringify(exit)).toContain("future_action");
   });
 });
