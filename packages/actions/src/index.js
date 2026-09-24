@@ -5,6 +5,7 @@
 /** @typedef {import("./action.js").SwapAction} SwapAction */
 /** @typedef {import("./venue-actions.js").AddLiquidityAction} AddLiquidityAction */
 /** @typedef {import("./venue-actions.js").LendAction} LendAction */
+/** @typedef {import("./action.js").Action & { type: "deposit_perp_collateral" | "withdraw_perp_collateral" }} PerpCollateralAction */
 /** @typedef {import("./venue-actions.js").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {import("./venue-actions.js").WithdrawLendAction} WithdrawLendAction */
 /** @typedef {import("./mandate.js").Mandate} Mandate */
@@ -17,6 +18,8 @@
 /** @typedef {import("./results.js").LendDepositQuote} LendDepositQuote */
 /** @typedef {import("./results.js").LendWithdrawQuote} LendWithdrawQuote */
 /** @typedef {import("./results.js").PerpOnboardQuote} PerpOnboardQuote */
+/** @typedef {import("./results.js").PerpCollateralQuote} PerpCollateralQuote */
+/** @typedef {import("./results.js").PerpCollateralReconciliation} PerpCollateralReconciliation */
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
 /** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
@@ -28,6 +31,7 @@ export {
   ActionSchema,
   AddLiquidityActionSchema,
   ClosePerpActionSchema,
+  DepositPerpCollateralActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
   OnboardPerpActionSchema,
@@ -35,6 +39,7 @@ export {
   SwapActionSchema,
   TransferSolActionSchema,
   WithdrawLendActionSchema,
+  WithdrawPerpCollateralActionSchema,
 } from "./action.js";
 export { MandateSchema } from "./mandate.js";
 export { PortfolioStateSchema, PositionSchema } from "./portfolio.js";
@@ -59,6 +64,8 @@ export {
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
   PerpOnboardQuoteSchema,
+  PerpCollateralQuoteSchema,
+  PerpCollateralReconciliationSchema,
   SimulationResultSchema,
   VenueQuoteSchema,
   ViolationSchema,

@@ -19,6 +19,7 @@ export const SECRET_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
  *   readonly rawTraderBody?: string;
  *   readonly onboardBuild?: unknown;
  *   readonly onboardSend?: unknown;
+ *   readonly exchangeSnapshot?: unknown;
  * }} PhoenixScript
  */
 
@@ -86,6 +87,11 @@ const onboardResponse = (script, url) => {
 
 /** @param {PhoenixScript} script @param {URL} url @param {number} bodyDelayMs */
 const readResponse = (script, url, bodyDelayMs) => {
+  if (url.pathname === "/v1/exchange/snapshot")
+    return json(
+      script.exchangeSnapshot ?? { error: "not found" },
+      script.exchangeSnapshot ? 200 : 404,
+    );
   if (url.pathname === MARKETS_PATH) return json(script.markets ?? DEFAULT_MARKETS);
   if (url.pathname.startsWith(`${MARKET_PATH}/`)) {
     return marketResponse(script, decodeURIComponent(url.pathname.slice(MARKET_PATH.length + 1)));

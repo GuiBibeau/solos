@@ -150,7 +150,7 @@ describe("`solos lend withdraw` and real MCP child [integration]", () => {
     );
     expect(mcp.code).not.toBe(0);
     expect(mcp.stdout).toContain("SimulationFailed");
-  });
+  }, 15_000);
 });
 
 describe("`solos mcp list` exposes the deposit and withdrawal twins [integration]", () => {

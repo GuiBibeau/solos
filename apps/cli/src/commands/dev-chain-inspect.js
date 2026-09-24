@@ -95,6 +95,26 @@ export const inspectAccount = (ctx, account) =>
     catch: () => new Error("account inspection failed on the configured RPC"),
   });
 
+/** Explicitly inspect public raw account bytes for offline protocol fixtures, capped at 65 KiB.
+ * @param {import("effect").Context.Tag.Service<typeof SolanaRpc>} ctx @param {string} account */
+export const inspectAccountData = (ctx, account) =>
+  Effect.tryPromise({
+    try: async () => {
+      const row = (
+        await ctx.rpc
+          .getAccountInfo(/** @type {any} */ (checkedAddress(account)), {
+            encoding: "base64",
+            commitment: "finalized",
+          })
+          .send()
+      ).value;
+      if (!row) throw new Error("account absent");
+      if (row.data[0].length > 87_384) throw new Error("account too large for public fixture");
+      return { account, owner: row.owner, dataBase64: row.data[0] };
+    },
+    catch: () => new Error("public account data unavailable or too large on configured RPC"),
+  });
+
 const signature = Args.text({ name: "signature" });
 const transaction = Command.make("transaction", { signature }, (o) =>
   withSolos(
@@ -119,7 +139,19 @@ const accountCommand = Command.make("account", { account }, (o) =>
   ),
 );
 
+const accountData = Command.make("account-data", { account }, (o) =>
+  withSolos(
+    Effect.flatMap(SolanaRpc, (ctx) =>
+      inspectAccountData(ctx, o.account).pipe(Effect.flatMap(emit)),
+    ),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Export bounded public account bytes as base64 for offline protocol fixtures; read-only",
+  ),
+);
+
 export const inspect = Command.make("inspect").pipe(
   Command.withDescription("Read-only chain evidence for QA reconciliation"),
-  Command.withSubcommands([transaction, accountCommand]),
+  Command.withSubcommands([transaction, accountCommand, accountData]),
 );

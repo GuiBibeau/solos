@@ -23,6 +23,56 @@ describe("@solos/actions", () => {
     ).toBe(false);
   });
 
+  test("Phoenix collateral intents encode exact fixed input, not an output promise", () => {
+    for (const type of ["deposit_perp_collateral", "withdraw_perp_collateral"]) {
+      const action = { type, traderPdaIndex: 0, traderSubaccountIndex: 0, amount: "1000000" };
+      expect(ActionSchema.parse(action)).toEqual(action);
+      expect(ActionSchema.safeParse({ ...action, amount: "0" }).success).toBe(false);
+      expect(ActionSchema.safeParse({ ...action, amount: "18446744073709551616" }).success).toBe(
+        false,
+      );
+      expect(ActionSchema.safeParse({ ...action, traderPdaIndex: 1 }).success).toBe(false);
+    }
+  });
+
+  test("Phoenix collateral previews mark receipts as estimates and execution reports actual deltas", () => {
+    const action = ACTION_SAMPLES.find((sample) => sample.type === "withdraw_perp_collateral");
+    const quote = {
+      kind: "perp_collateral",
+      direction: "withdraw",
+      inputAmount: "1000000",
+      estimatedOutput: "999999",
+      estimatedFeeLamports: "5000",
+      guaranteedMinimumOutput: false,
+    };
+    const preview = SimulationResultSchema.parse({
+      action,
+      ok: true,
+      unitsConsumed: "100",
+      logs: [],
+      projectedPortfolio: null,
+      venueQuote: quote,
+      violations: [],
+    });
+    expect(preview.venueQuote).toEqual(quote);
+    const reconciliation = {
+      kind: "perp_collateral",
+      walletUsdcDelta: "999999",
+      traderCollateralDelta: "-1000000",
+      payerLamportsDelta: "-5000",
+    };
+    const result = ExecutionResultSchema.parse({
+      action,
+      status: "confirmed",
+      signature: "1".repeat(64),
+      executedAt: 1,
+      simulated: true,
+      error: null,
+      reconciliation,
+    });
+    expect(result.reconciliation).toEqual(reconciliation);
+  });
+
   test("onboarding simulation preserves the estimated wallet debit as a decimal lamport string", () => {
     const action = ACTION_SAMPLES.find((sample) => sample.type === "onboard_perp");
     const simulation = {

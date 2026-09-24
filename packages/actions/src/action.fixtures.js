@@ -60,6 +60,18 @@ export const ACTION_SAMPLES = [
   OPEN,
   CLOSE,
   { type: "onboard_perp", traderPdaIndex: 0, traderSubaccountIndex: 0 },
+  {
+    type: "deposit_perp_collateral",
+    traderPdaIndex: 0,
+    traderSubaccountIndex: 0,
+    amount: "1000000",
+  },
+  {
+    type: "withdraw_perp_collateral",
+    traderPdaIndex: 0,
+    traderSubaccountIndex: 0,
+    amount: "1000000",
+  },
   LEND,
   { ...LEND, type: "withdraw_lend" },
   ADD,

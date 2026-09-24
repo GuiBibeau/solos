@@ -4,6 +4,7 @@ import { Clock, Effect, Layer } from "effect";
 import { KAMINO_MAIN_MARKET } from "../lend/kamino-addresses.js";
 import { buildSignedLendDeposit, lendQuoteOf } from "../lend/kamino-deposit-build.js";
 import { buildSignedLendWithdraw } from "../lend/kamino-withdraw-build.js";
+import { simulateCollateral, executeCollateral } from "../perp/phoenix-collateral-send.js";
 import { simulateEnrollment, executeEnrollment } from "../perp/phoenix-onboard-send.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
@@ -111,6 +112,9 @@ const simulate = (deps, action) =>
     if (action.type === "onboard_perp") {
       return yield* simulateEnrollment({ config: deps.phoenix, ctx, kit: deps.kit }, action);
     }
+    if (action.type === "deposit_perp_collateral" || action.type === "withdraw_perp_collateral") {
+      return yield* simulateCollateral({ config: deps.phoenix, ctx, kit: deps.kit }, action);
+    }
     const { signed, venueQuote } = yield* plannedSigned(deps, action);
     if (action.type === "swap") yield* assertSwapWireBeforeContact(signed);
     if (action.type === "swap" || action.type === "withdraw_lend") {
@@ -139,6 +143,9 @@ const execute = ({ ctx, kit, build: buildSwap, market, phoenix }, action, option
   Effect.gen(function* () {
     if (action.type === "onboard_perp") {
       return yield* executeEnrollment({ config: phoenix, ctx, kit }, action);
+    }
+    if (action.type === "deposit_perp_collateral" || action.type === "withdraw_perp_collateral") {
+      return yield* executeCollateral({ config: phoenix, ctx, kit }, action);
     }
     if (action.type === "swap") {
       return yield* executeSwap({ ctx, kit, build: buildSwap }, action, options.skipSimulation);
