@@ -36,9 +36,17 @@ Bound the effect, not the shape.
 
 2. **The spend is bounded by measurement.** `simulateSwapBounded` simulates the exact signed
    transaction, reads the taker's lamports before and after, and refuses to send when the wallet
-   would lose more than the swap's own input plus `SWAP_OVERHEAD_LAMPORTS_MAX` (0.01 SOL). The
+   would lose more than the swap's own input plus `SWAP_OVERHEAD_LAMPORTS_MAX` (0.02 SOL). The
    balance read and the simulation are issued together: both observe the same recent bank, and
    the allowance dwarfs a one-slot skew.
+
+3. **The bound is two-sided when the output is SOL.** Netting alone is not enough there: the
+   proceeds land as lamports, so a crafted route can debit the wallet for as much as it is about
+   to credit and the net barely moves — the trade's own output masks the theft, and the wallet
+   ends up short its input tokens with nothing to show. The build's `otherAmountThreshold` is
+   subtracted from the allowance, so the balance must end at least `credit - allowance` above
+   where it started rather than merely near it. A token output needs no such term: the route
+   program enforces its minimum on chain.
 
 This is strictly stronger than what it replaces. The shape guard bounded nothing — it refused
 certain account layouts and said nothing about what an admitted layout could cost. The spend

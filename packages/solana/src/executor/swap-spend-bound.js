@@ -47,22 +47,40 @@ const overspent = (spent, allowed) =>
   "(its input plus the overhead allowance); nothing was sent";
 
 /**
- * The most this swap may take from the wallet. A non-SOL input never debits lamports for the
- * swap itself, so only the overhead is allowed.
+ * The lamports a swap owes the wallet back: its minimum output, when that output is SOL. Zero
+ * for a token output, which the route program bounds on chain instead.
+ * @param {{ otherAmountThreshold?: string }} envelope
  * @param {import("@solos/actions").SwapAction} action
  */
-export const maxSpendLamports = (action) =>
-  (action.inputMint === WSOL_MINT ? BigInt(action.amount) : 0n) + SWAP_OVERHEAD_LAMPORTS_MAX;
+export const minSolCredit = (envelope, action) =>
+  action.outputMint === WSOL_MINT ? BigInt(envelope.otherAmountThreshold ?? "0") : 0n;
 
 /**
- * @param {bigint | number | string} pre
- * @param {bigint | number | null | undefined} post
+ * The most this swap may take from the wallet, net.
+ *
+ * Netting alone is not enough when the output is SOL. The proceeds land as lamports, so a
+ * crafted route can debit the wallet for as much as it is about to credit and the net barely
+ * moves — the trade's own output masks the theft, and the wallet ends up short its input
+ * tokens with nothing to show. Subtracting the credit the swap owes turns the check two-sided:
+ * the balance must end at least `credit - allowance` above where it started.
+ *
+ * A non-SOL input never debits lamports for the swap itself, so only the overhead is allowed.
  * @param {import("@solos/actions").SwapAction} action
+ * @param {bigint} [credit] lamports the swap must return, from `minSolCredit`
  */
-const spendRejection = (pre, post, action) => {
+export const maxSpendLamports = (action, credit = 0n) =>
+  (action.inputMint === WSOL_MINT ? BigInt(action.amount) : 0n) +
+  SWAP_OVERHEAD_LAMPORTS_MAX -
+  credit;
+
+/**
+ * @param {{ pre: bigint | number | string; post: bigint | number | null | undefined;
+ *   action: import("@solos/actions").SwapAction; credit: bigint }} observed
+ */
+const spendRejection = ({ pre, post, action, credit }) => {
   if (post === undefined || post === null) return UNREADABLE;
   const spent = BigInt(pre) - BigInt(post);
-  const allowed = maxSpendLamports(action);
+  const allowed = maxSpendLamports(action, credit);
   return spent > allowed ? overspent(spent, allowed) : undefined;
 };
 
@@ -71,9 +89,10 @@ const spendRejection = (pre, post, action) => {
  * simulation run together: both observe the same recent bank, and the allowance dwarfs a
  * one-slot skew from unrelated activity.
  * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
- * @param {{ signed: import("./swap-sol-build.js").Signed; taker: string; action: import("@solos/actions").SwapAction }} bound
+ * @param {{ signed: import("./swap-sol-build.js").Signed; taker: string;
+ *   action: import("@solos/actions").SwapAction; credit: bigint }} bound
  */
-export const simulateSwapBounded = (ctx, { signed, taker, action }) =>
+export const simulateSwapBounded = (ctx, { signed, taker, action, credit }) =>
   Effect.gen(function* () {
     const wire = yield* wireForRpc(signed);
     const [pre, simulated] = yield* Effect.all(
@@ -96,18 +115,19 @@ export const simulateSwapBounded = (ctx, { signed, taker, action }) =>
       unitsConsumed: (simulated.value.unitsConsumed ?? 0n).toString(),
     };
     if (raw.err !== null) return raw;
-    const rejection = spendRejection(pre.value, simulated.value.accounts?.[0]?.lamports, action);
+    const post = simulated.value.accounts?.[0]?.lamports;
+    const rejection = spendRejection({ pre: pre.value, post, action, credit });
     if (rejection) return yield* new SimulationFailed({ reason: rejection, logs: raw.logs });
     return raw;
   });
 
 /**
  * Dispatch one action's simulation: swaps carry the spend bound, everything else does not.
- * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape; taker: string }} deps
+ * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape; taker: string; credit?: bigint }} deps
  * @param {import("@solos/actions").Action} action
  * @param {import("./swap-sol-build.js").Signed} signed
  */
-export const simulateForAction = ({ ctx, taker }, action, signed) =>
+export const simulateForAction = ({ ctx, taker, credit = 0n }, action, signed) =>
   action.type === "swap"
-    ? simulateSwapBounded(ctx, { signed, taker, action })
+    ? simulateSwapBounded(ctx, { signed, taker, action, credit })
     : simulateSigned(ctx, signed);

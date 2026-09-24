@@ -16,14 +16,15 @@ import { sendSigned } from "./transfer-sol.js";
  *   signed: import("./swap-sol.js").SignedSwap["signed"];
  *   taker: string;
  *   action: import("@solos/actions").SwapAction;
+ *   credit: bigint;
  * }} deps
  * @param {boolean} skipSimulation
  */
-export const submitSimulatedSwap = ({ ctx, signed, taker, action }, skipSimulation) =>
+export const submitSimulatedSwap = ({ ctx, signed, taker, action, credit }, skipSimulation) =>
   Effect.gen(function* () {
     yield* recheckSignedSwapLifetime(ctx, signed);
     if (!skipSimulation) {
-      const raw = yield* simulateSwapBounded(ctx, { signed, taker, action });
+      const raw = yield* simulateSwapBounded(ctx, { signed, taker, action, credit });
       if (raw.err !== null) {
         return yield* new SimulationFailed({ reason: JSON.stringify(raw.err), logs: raw.logs });
       }

@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { SWAP_OVERHEAD_LAMPORTS_MAX, maxSpendLamports } from "./swap-spend-bound.js";
+import { SWAP_OVERHEAD_LAMPORTS_MAX, maxSpendLamports, minSolCredit } from "./swap-spend-bound.js";
 
 const WSOL = "So11111111111111111111111111111111111111112";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -53,6 +53,38 @@ describe("swap spend bound", () => {
     expect(maxSpendLamports(action(WSOL, "18446744073709551615"))).toBe(
       18_446_744_073_709_551_615n + SWAP_OVERHEAD_LAMPORTS_MAX,
     );
+  });
+
+  describe("SOL output", () => {
+    const toSol = action(USDC, "1000000");
+    const quotedOut = 97_000_000n;
+    const envelope = { otherAmountThreshold: String(quotedOut) };
+
+    test("the minimum output is what a SOL-output swap owes back", () => {
+      expect(minSolCredit(envelope, toSol)).toBe(quotedOut);
+      expect(minSolCredit(envelope, action(WSOL, "10000000"))).toBe(0n);
+    });
+
+    test("a swap owing SOL must end above where it started, not merely near it", () => {
+      // The allowed net spend goes negative: the balance has to rise by at least
+      // credit - allowance, so standing still is a failure rather than a pass.
+      const allowed = maxSpendLamports(toSol, quotedOut);
+      expect(allowed).toBe(SWAP_OVERHEAD_LAMPORTS_MAX - quotedOut);
+      expect(allowed).toBeLessThan(0n);
+    });
+
+    test("a route that debits what it is about to credit no longer nets out to a pass", () => {
+      // The masking attack: credit the quoted 0.097 SOL, drain the same amount, net zero.
+      const spentWhenMasked = 0n;
+      expect(spentWhenMasked > maxSpendLamports(toSol, quotedOut)).toBe(true);
+      // Without the credit term this was the old behaviour, and it passed.
+      expect(spentWhenMasked > maxSpendLamports(toSol)).toBe(false);
+    });
+
+    test("an honest SOL-output swap still passes", () => {
+      const spentWhenHonest = -(quotedOut - 105_000n); // proceeds in, fee out
+      expect(spentWhenHonest > maxSpendLamports(toSol, quotedOut)).toBe(false);
+    });
   });
 
   test("the bound does not scale with notional: overhead is account rent and fees", () => {

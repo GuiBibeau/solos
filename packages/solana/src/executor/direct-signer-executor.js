@@ -14,7 +14,7 @@ import { simulatePerpAction, executePerpAction } from "./perp-dispatch.js";
 import { simulationErrorText } from "./simulation-error-text.js";
 import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
-import { assertSwapWireBeforeContact, buildSignedSwap } from "./swap-sol.js";
+import { assertSwapWireBeforeContact, buildSignedSwap, plannedSwap } from "./swap-sol.js";
 import { simulateForAction } from "./swap-spend-bound.js";
 import { buildSignedTransfer } from "./transfer-sol.js";
 
@@ -68,7 +68,7 @@ const build = ({ ctx, kit, build: buildSwap, market }, action) => {
  * amounts and encoded bounds are what the caller records (ADR-0022 QA reconciliation).
  * @param {Deps} deps
  * @param {Action} action
- * @returns {import("effect").Effect.Effect<{ signed: Signed; venueQuote: import("@solos/actions").VenueQuote | null }, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<{ signed: Signed; venueQuote: import("@solos/actions").VenueQuote | null; credit?: bigint }, import("@solos/core").ExecutorError>}
  */
 const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) => {
   switch (action.type) {
@@ -96,13 +96,13 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) 
         venueQuote: planned.plan.quote,
       }));
     }
+    case "swap": {
+      return plannedSwap({ ctx, kit, build: buildSwap }, action);
+    }
     default: {
       return Effect.map(
         build({ ctx, kit, build: buildSwap, market, phoenix }, action),
-        (signed) => ({
-          signed,
-          venueQuote: null,
-        }),
+        (signed) => ({ signed, venueQuote: null }),
       );
     }
   }
@@ -118,12 +118,13 @@ const simulate = (deps, action) =>
     const { ctx } = deps;
     if (PERP_ACTIONS.has(action.type))
       return yield* simulatePerpAction({ config: deps.phoenix, ctx, kit: deps.kit }, action);
-    const { signed, venueQuote } = yield* plannedSigned(deps, action);
+    const { signed, venueQuote, credit } = yield* plannedSigned(deps, action);
     if (action.type === "swap") yield* assertSwapWireBeforeContact(signed);
     if (action.type === "swap" || action.type === "withdraw_lend") {
       yield* recheckSignedSwapLifetime(ctx, signed);
     }
-    const raw = yield* simulateForAction({ ctx, taker: deps.kit.signer.address }, action, signed);
+    const bound = { ctx, taker: deps.kit.signer.address, credit };
+    const raw = yield* simulateForAction(bound, action, signed);
     const isOk = raw.err === null;
     return {
       action,
