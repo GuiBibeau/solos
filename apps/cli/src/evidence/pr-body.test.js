@@ -16,6 +16,13 @@ const sampleEvidence = {
       summary: "physical line gate passed",
     },
     {
+      name: "docs",
+      command: "bun run docs:check",
+      ok: true,
+      ms: 240,
+      summary: '{"ok":true,"write":false}',
+    },
+    {
       name: "format",
       command: "bun run format:check",
       ok: true,
@@ -104,7 +111,9 @@ describe("pr-body evidence check", () => {
     const skipped = checkPrBody(
       bodyWith({
         ...sampleEvidence,
-        steps: sampleEvidence.steps.map((step, i) => (i === 5 ? { ...step, ok: null } : step)),
+        steps: sampleEvidence.steps.map((step) =>
+          step.name === "test:unit" ? { ...step, ok: null } : step,
+        ),
       }),
       SHA,
     );
