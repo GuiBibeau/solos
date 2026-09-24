@@ -58,19 +58,31 @@ const ataRoleRejection = (ix) => {
 };
 
 /**
- * Bind an idempotent ATA create to the taker and requested swap mints.
+ * Bind an idempotent ATA create to the taker.
+ *
+ * The mint is deliberately not restricted to the requested pair. A multi-hop route settles
+ * through an intermediate token and needs the taker's account for it — a SOL to USDC route
+ * hopping via USD1 opens a USD1 ATA — so requiring the pair refused real routes before signing.
+ *
+ * What an unrequested mint can actually cost is rent, and three checks already bound that: the
+ * taker both pays and owns, the account must be the canonical ATA derived for that mint and
+ * token program so it can never be an attacker's account, and the build may touch at most 64
+ * unique addresses. The cost itself is measured rather than proxied — `simulateSwapBounded`
+ * refuses a build whose lamport debit exceeds the swap's input plus the overhead allowance
+ * (ADR-0024), which is roughly nine ATAs' worth of rent.
  * @param {RawInstruction} ix
- * @param {import("@solos/actions").SwapAction} action @param {string} taker
+ * @param {import("@solos/actions").SwapAction} _action
+ * @param {string} taker
  */
-export const ataCreateRejection = async (ix, action, taker) => {
+export const ataCreateRejection = async (ix, _action, taker) => {
   const programRejection = ataProgramRejection(ix);
   if (programRejection) return programRejection;
   const [payer, account, owner, mint, , tokenProgram] = ix.accounts.map((a) => a.pubkey);
   if (payer !== taker) return "setup ATA create payer was not the taker";
   if (owner !== taker) return "setup ATA create owner was not the taker";
-  if (mint !== action.inputMint && mint !== action.outputMint) {
-    return "setup ATA create mint was not one of the requested swap mints";
-  }
+  // The pair check used to narrow this; without it a malformed create must be refused outright
+  // rather than derived against an absent mint.
+  if (mint === undefined) return "setup ATA create named no mint";
   const expected = await derivedAta(taker, mint, tokenProgram);
   if (account !== expected) {
     return "setup ATA create did not target the taker's derived associated token account";

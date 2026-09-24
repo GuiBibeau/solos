@@ -56,9 +56,14 @@ describe("the executor swap branch refuses before any contact [integration]", ()
     expect(reasonOf(error)).toBe("setup ATA create owner was not the taker");
   });
 
-  test("an ATA create for an unrequested mint is refused", async () => {
+  // A multi-hop route opens the taker's account for its intermediate token, so the mint is not
+  // restricted to the requested pair. Substituting one still has to survive the derivation: the
+  // account must be the canonical ATA for whatever mint is named (ADR-0024 lineage).
+  test("an ATA create for another mint must still target that mint's derived account", async () => {
     const { error } = await runBranch("execute", rebindCreate(3, { pubkey: attacker }));
-    expect(reasonOf(error)).toBe("setup ATA create mint was not one of the requested swap mints");
+    expect(reasonOf(error)).toBe(
+      "setup ATA create did not target the taker's derived associated token account",
+    );
   });
 
   test("a Token-2022 program paired with a classic-token ATA is refused", async () => {

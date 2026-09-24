@@ -5,6 +5,7 @@ import { getBase64Codec } from "@solana/kit";
 import { buildRejection } from "./jupiter-swap-build-accounts.js";
 import { AMOUNT, INPUT_MINT, OUTPUT_MINT } from "./jupiter-swap-build-bodies.js";
 import { buildEnvelope } from "./jupiter-swap-build-fixture.js";
+import { derivedAta } from "./jupiter-swap-build-setup-account.js";
 import {
   ATA_PROGRAM,
   COMPUTE_BUDGET_PROGRAM,
@@ -48,6 +49,20 @@ const rejectionFor = async (overrides) =>
 /** The documented setup plus one extra instruction. */
 const withExtraSetup = async (ix) =>
   rejectionFor({ setupInstructions: [...envelope.setupInstructions, ix] });
+
+/** A well-formed idempotent ATA create for any mint. @param {string} mint @param {string} account */
+const createFor = (mint, account) => ({
+  programId: ATA_PROGRAM,
+  accounts: [
+    { pubkey: taker, isWritable: true, isSigner: true },
+    { pubkey: account, isWritable: true, isSigner: false },
+    { pubkey: taker, isWritable: false, isSigner: false },
+    { pubkey: mint, isWritable: false, isSigner: false },
+    { pubkey: SYSTEM_PROGRAM, isWritable: false, isSigner: false },
+    { pubkey: TOKEN_PROGRAM, isWritable: false, isSigner: false },
+  ],
+  data: b64(1),
+});
 
 describe("instruction forms before signing", () => {
   test("the documented envelope passes every form check", async () => {
@@ -107,5 +122,30 @@ describe("instruction forms before signing", () => {
     expect(await rejectionFor({ cleanupInstruction: cleanup })).toContain(
       "not a token closeAccount",
     );
+  });
+});
+
+describe("intermediate-mint ATA creates", () => {
+  // A multi-hop route settles through a third token and opens the taker's account for it —
+  // a SOL to USDC route hopping via USD1 opens a USD1 ATA. Requiring the requested pair refused
+  // those builds before signing; what the mint can cost is rent, and that is bounded by the
+  // derivation below plus the measured spend bound (ADR-0024).
+  const USD1 = "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB";
+
+  test("a create for an unrequested mint passes when it targets that mint's derived account", async () => {
+    const account = await derivedAta(taker, USD1, TOKEN_PROGRAM);
+    expect(await withExtraSetup(createFor(USD1, account))).toBeUndefined();
+  });
+
+  test("a create for an unrequested mint is still bound to the canonical derivation", async () => {
+    const wrongAccount = await derivedAta(taker, INPUT_MINT, TOKEN_PROGRAM);
+    expect(await withExtraSetup(createFor(USD1, wrongAccount))).toBe(
+      "setup ATA create did not target the taker's derived associated token account",
+    );
+  });
+
+  test("a create naming no mint at all is refused rather than derived against nothing", async () => {
+    const ix = createFor(USD1, await derivedAta(taker, USD1, TOKEN_PROGRAM));
+    expect(await withExtraSetup({ ...ix, accounts: ix.accounts.slice(0, 3) })).toBeTruthy();
   });
 });

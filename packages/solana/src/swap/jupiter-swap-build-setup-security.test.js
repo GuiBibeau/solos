@@ -38,9 +38,12 @@ describe("setup and cleanup ownership bindings before signing", () => {
     );
   });
 
-  test("an ATA create for an unrequested mint is rejected", async () => {
+  // The mint is no longer restricted to the requested pair — a multi-hop route opens the taker's
+  // account for its intermediate token — but substituting one still has to survive the canonical
+  // derivation, so the account no longer matches the mint it names.
+  test("an ATA create for another mint must still target that mint's derived account", async () => {
     expect(await driver.withCreatedAccount(3, meta(POOL_AUTHORITY, false, false))).toContain(
-      "not one of the requested swap mints",
+      "did not target the taker's derived associated token account",
     );
   });
 
