@@ -62,6 +62,33 @@ const exchange = (global) => ({
   withdrawalsAvailable: true,
 });
 
+/**
+ * Track Surfnet's slot so the fixture can answer with a current one.
+ *
+ * `assertFreshSnapshot` rejects a risk snapshot more than 12 slots behind the chain. Surfnet
+ * advances about 18 slots a second, so that window closes in under 700ms — a slot read once at
+ * setup is already stale by the time the test has seeded its accounts and the executor has
+ * built. The freshness guard then fired instead of the behaviour under test, and the perp close
+ * suite flaked on unrelated pull requests (#111); measured 108 slots of drift over six seconds.
+ *
+ * Re-reading per request keeps the window open by construction, and `staleRisk` still subtracts
+ * a fixed 13 so the stale case stays deterministically stale.
+ * @param {string} rpcUrl
+ */
+const startSlotTracker = async (rpcUrl) => {
+  const read = () => jsonRpc(rpcUrl, "getSlot", [{ commitment: "confirmed" }]);
+  let slot = await read();
+  const timer = setInterval(() => {
+    read()
+      .then((next) => {
+        slot = next;
+      })
+      .catch(() => undefined);
+  }, 200);
+  timer.unref?.();
+  return { current: () => slot, stop: () => clearInterval(timer) };
+};
+
 /** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; positionLots?:bigint; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean; spotExposure?: boolean; otherFunding?: boolean; market?:Record<string,unknown> }} [options] */
 export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
   const owner = await seedAddress(seed);
@@ -73,12 +100,12 @@ export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
   await cheats.ensureMint(global.canonicalTokenMintKey, 6);
   await cheats.setTokenAccount(owner, USDC_MINT_ADDRESS, options.walletUsdc ?? 2_000_000);
   const atas = await collateralAtas(owner, USDC_MINT_ADDRESS, global.canonicalTokenMintKey);
-  const slot = await jsonRpc(rpcUrl, "getSlot", [{ commitment: "confirmed" }]);
+  const slots = await startSlotTracker(rpcUrl);
   const fixture = startPhoenixFixture({
     trader: (/** @type {string} */ authority) =>
       traderState(authority, {
         collateral,
-        slot: options.staleRisk ? slot - 13 : slot,
+        slot: options.staleRisk ? slots.current() - 13 : slots.current(),
         exposure: options.exposure ?? false,
         positionLots: options.positionLots ?? 0n,
         tradingRestricted: options.tradingRestricted ?? false,
@@ -87,7 +114,7 @@ export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
         spotExposure: options.spotExposure ?? false,
         otherFunding: Boolean(options.otherFunding),
       }),
-    exchangeSnapshot: { slot: String(slot), exchange: exchange(global) },
+    exchangeSnapshot: { slot: String(slots.current()), exchange: exchange(global) },
     market: options.market,
   });
   return {
@@ -95,7 +122,7 @@ export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
     trader,
     global,
     atas,
-    fixture,
+    fixture: { ...fixture, stop: () => (slots.stop(), fixture.stop()) },
     collateral,
     walletUsdc: BigInt(options.walletUsdc ?? 2_000_000),
   };
