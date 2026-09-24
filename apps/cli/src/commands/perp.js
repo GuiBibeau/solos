@@ -5,6 +5,10 @@ import {
   getOnboardingStatus,
   simulateOnboardTrader,
   executeOnboardTrader,
+  simulatePerpDeposit,
+  executePerpDeposit,
+  simulatePerpWithdrawal,
+  executePerpWithdrawal,
 } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
@@ -54,7 +58,64 @@ const onboard = Command.make("onboard", {}, () =>
   ),
 );
 
+const depositAmount = Options.text("amount").pipe(
+  Options.withDescription(
+    "Exact wallet USDC input in base units; received collateral is only estimated",
+  ),
+);
+const withdrawalAmount = Options.text("amount").pipe(
+  Options.withDescription(
+    "Exact Phoenix collateral-token input in base units; USDC receipt is only estimated",
+  ),
+);
+
+const simulateDeposit = Command.make("simulate-deposit", { amount: depositAmount }, ({ amount }) =>
+  withSolos(simulatePerpDeposit({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Preview explicit USDC deposit to your Phoenix trader; no guaranteed output",
+  ),
+);
+
+const deposit = Command.make("deposit", { amount: depositAmount }, ({ amount }) =>
+  withSolos(executePerpDeposit({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Deposit wallet USDC into your Phoenix trader, then reconcile actual balances",
+  ),
+);
+
+const simulateWithdraw = Command.make(
+  "simulate-withdraw-collateral",
+  { amount: withdrawalAmount },
+  ({ amount }) =>
+    withSolos(simulatePerpWithdrawal({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Preview explicit fixed-input Phoenix collateral withdrawal to your USDC account",
+  ),
+);
+
+const withdraw = Command.make("withdraw-collateral", { amount: withdrawalAmount }, ({ amount }) =>
+  withSolos(executePerpWithdrawal({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Withdraw Phoenix collateral only after all-market safety checks; output is estimated",
+  ),
+);
+
 export const perp = Command.make("perp").pipe(
-  Command.withDescription("Phoenix Perps: positions and account enrollment"),
-  Command.withSubcommands([position, onboardingStatus, simulateOnboard, onboard]),
+  Command.withDescription(
+    "Phoenix Perps: positions, enrollment, and explicit collateral management",
+  ),
+  Command.withSubcommands([
+    position,
+    onboardingStatus,
+    simulateOnboard,
+    onboard,
+    simulateDeposit,
+    deposit,
+    simulateWithdraw,
+    withdraw,
+  ]),
 );

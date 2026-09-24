@@ -3,7 +3,12 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { SolanaRpc, SolanaRpcLive } from "@solos/solana";
 import { ensureOfflineSurfnet, randomSeed, seedAddress } from "@solos/solana/surfnet";
 import { Effect } from "effect";
-import { inspectAccount, inspectTransaction, transactionEvidence } from "./dev-chain-inspect.js";
+import {
+  inspectAccount,
+  inspectAccountData,
+  inspectTransaction,
+  transactionEvidence,
+} from "./dev-chain-inspect.js";
 
 let surfnet;
 let owner;
@@ -27,6 +32,13 @@ describe("read-only chain inspection via the Surfpool RPC adapter [integration]"
     const missing = await seedAddress(randomSeed());
     const absent = await rpc((ctx) => inspectAccount(ctx, missing));
     expect(absent).toEqual({ account: missing, exists: false });
+  });
+
+  test("explicit account-data inspection returns bounded public on-chain bytes", async () => {
+    const result = await rpc((ctx) => inspectAccountData(ctx, owner));
+    expect(result.account).toBe(owner);
+    expect(result.owner).toBe("11111111111111111111111111111111");
+    expect(result.dataBase64).toBe("");
   });
 
   test("reads the finalized transaction fee and lamport deltas", async () => {

@@ -1,7 +1,15 @@
 // @ts-check
 import { z } from "zod";
 import { ActionSchema } from "./action.js";
+import {
+  PerpCollateralQuoteSchema,
+  PerpCollateralReconciliationSchema,
+} from "./perp-collateral-results.js";
 import { PortfolioStateSchema } from "./portfolio.js";
+export {
+  PerpCollateralQuoteSchema,
+  PerpCollateralReconciliationSchema,
+} from "./perp-collateral-results.js";
 import {
   AddressSchema,
   AmountSchema,
@@ -115,6 +123,7 @@ export const PerpOnboardQuoteSchema = z.object({
 export const VenueQuoteSchema = z
   .discriminatedUnion("kind", [
     PerpOnboardQuoteSchema,
+    PerpCollateralQuoteSchema,
     LiquidityRemovalQuoteSchema,
     LiquidityDepositQuoteSchema,
     LendDepositQuoteSchema,
@@ -138,6 +147,9 @@ export const SimulationResultSchema = z.object({
 
 /** Returned by every executor's `execute`. */
 export const ExecutionResultSchema = z.object({
+  reconciliation: PerpCollateralReconciliationSchema.optional().describe(
+    "Present only after post-confirmation wallet and trader reads; not inferred from signature",
+  ),
   action: ActionSchema,
   status: z.enum(["confirmed", "rejected", "failed"]),
   signature: SignatureSchema.nullable(),
@@ -155,4 +167,6 @@ export const ExecutionResultSchema = z.object({
 /** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
 /** @typedef {z.infer<typeof LendWithdrawQuoteSchema>} LendWithdrawQuote */
 /** @typedef {z.infer<typeof PerpOnboardQuoteSchema>} PerpOnboardQuote */
+/** @typedef {z.infer<typeof PerpCollateralQuoteSchema>} PerpCollateralQuote */
+/** @typedef {z.infer<typeof PerpCollateralReconciliationSchema>} PerpCollateralReconciliation */
 /** @typedef {z.infer<typeof VenueQuoteSchema>} VenueQuote */

@@ -2,4 +2,4 @@
 "@solos/actions": minor
 ---
 
-Define fixed-input Phoenix collateral Action variants for wallet USDC deposit and trader collateral-token withdrawal. These intents do not promise a minimum output; executor support is not yet available.
+Add fixed-input Phoenix collateral Action variants, simulated non-guaranteed output quotes, and confirmed wallet/trader reconciliation results for explicit USDC deposits and collateral-token withdrawals. Offline executor tests do not establish live Phoenix program execution.

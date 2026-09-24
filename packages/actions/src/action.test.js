@@ -35,6 +35,44 @@ describe("@solos/actions", () => {
     }
   });
 
+  test("Phoenix collateral previews mark receipts as estimates and execution reports actual deltas", () => {
+    const action = ACTION_SAMPLES.find((sample) => sample.type === "withdraw_perp_collateral");
+    const quote = {
+      kind: "perp_collateral",
+      direction: "withdraw",
+      inputAmount: "1000000",
+      estimatedOutput: "999999",
+      estimatedFeeLamports: "5000",
+      guaranteedMinimumOutput: false,
+    };
+    const preview = SimulationResultSchema.parse({
+      action,
+      ok: true,
+      unitsConsumed: "100",
+      logs: [],
+      projectedPortfolio: null,
+      venueQuote: quote,
+      violations: [],
+    });
+    expect(preview.venueQuote).toEqual(quote);
+    const reconciliation = {
+      kind: "perp_collateral",
+      walletUsdcDelta: "999999",
+      traderCollateralDelta: "-1000000",
+      payerLamportsDelta: "-5000",
+    };
+    const result = ExecutionResultSchema.parse({
+      action,
+      status: "confirmed",
+      signature: "1".repeat(64),
+      executedAt: 1,
+      simulated: true,
+      error: null,
+      reconciliation,
+    });
+    expect(result.reconciliation).toEqual(reconciliation);
+  });
+
   test("onboarding simulation preserves the estimated wallet debit as a decimal lamport string", () => {
     const action = ACTION_SAMPLES.find((sample) => sample.type === "onboard_perp");
     const simulation = {

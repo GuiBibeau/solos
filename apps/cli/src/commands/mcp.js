@@ -20,6 +20,8 @@ const FORWARDED_ENV = [
   // Jupiter prices: key + optional base URL override for fixtures.
   "JUPITER_API_KEY",
   "JUPITER_BASE_URL",
+  // Phoenix Perps fixture and approved venue endpoint.
+  "PHOENIX_BASE_URL",
   // Kamino reserve reads: optional configured market (RPC is shared above).
   "KAMINO_LENDING_MARKET",
 ];

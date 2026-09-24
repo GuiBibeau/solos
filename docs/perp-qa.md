@@ -82,6 +82,41 @@ balance stayed **1,792,984,536 lamports**: no duplicate transaction or fee. The 
 MCP `solana_perp_get_onboarding_status` also returned `ready`; its simulate twin returned
 `already_ready` without submitting.
 
+## Explicit collateral transfers (#102) — not yet funded-QA verified
+
+`perp simulate-deposit --amount <USDC-base-units>` and `perp deposit --amount
+<USDC-base-units>` use an exact wallet USDC input. `perp simulate-withdraw-collateral
+--amount <Phoenix-collateral-token-base-units>` and `perp withdraw-collateral --amount
+<Phoenix-collateral-token-base-units>` use an exact collateral-token input, **not** an exact USDC
+output. Their MCP twins are `solana_perp_simulate_deposit_collateral`,
+`solana_perp_execute_deposit_collateral`, `solana_perp_simulate_withdraw_collateral` and
+`solana_perp_execute_withdraw_collateral`. All four target only the configured signer's trader
+PDA 0 / subaccount 0. No transfer happens as a side effect of onboarding or trading commands.
+
+The quote's `estimatedOutput` comes from one transaction simulation and is **not a minimum or
+guarantee**: the pinned Rise 0.5.26 Ember instructions encode no minimum receipt. Execute always
+rebuilds and simulates and ignores `skipSimulation`, compares account identity and trader
+sequence before submitting, and never retries an ambiguous submission. On confirmed execution,
+read `reconciliation.walletUsdcDelta`, `traderCollateralDelta` and `payerLamportsDelta` for the
+**actual** observed changes; a post-confirmation read or mismatch error preserves the signature
+for manual investigation. Do not automatically resubmit such an error.
+
+Offline Surfpool tests seed public Phoenix Trader and global account bytes captured with the
+read-only `solos dev inspect account-data` command after #101. They verify SDK instructions,
+account ownership, exact-input transfer plans, no-send on failed simulation and withdrawal
+exposure. A scripted Phoenix program response over a forwarding Surfpool RPC proxy exercises
+successful quote, submit and reconciliation paths, **not** execution of the real Phoenix
+program. No funded mainnet collateral transfer has been performed. Operator approval is
+required before a live simulation/transfer QA round. Before authorizing a small fixed-input
+round-trip, confirm the active signer/RPC, wallet USDC and SOL, Phoenix status, current positions,
+withdrawal state and amount budget. The eventual, separately authorized sequence is:
+`onboarding-status` / `onboard` if necessary → `simulate-deposit` / explicit `deposit` →
+#27 open / read all positions → #28 reduce-only close / read all positions and orders →
+optional `simulate-withdraw-collateral` / explicit `withdraw-collateral` / read again. Compare
+post-trade residual exposure, wallet USDC and on-chain trader collateral before deciding whether
+to withdraw. Record each signature, on-chain fees/rent, pre/post wallet USDC and trader collateral;
+do not trade until the separately approved close/exit path exists.
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:

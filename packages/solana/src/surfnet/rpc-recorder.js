@@ -36,10 +36,28 @@ const recordResult = (body, calls) => {
   }
 };
 
-/** @param {string} targetUrl @param {RecordedCall[]} calls */
-const proxyRequest = (targetUrl, calls) => async (/** @type {Request} */ request) => {
+/** @typedef {Record<string, (params: unknown[]) => Promise<unknown> | unknown>} Overrides */
+/** @param {string} body @returns {{id: unknown; method: string; params?: unknown[]} | null} */
+const rpcMessage = (body) => {
+  try {
+    const value = JSON.parse(body);
+    return typeof value?.method === "string" ? value : null;
+  } catch {
+    return null;
+  }
+};
+/** @param {string} targetUrl @param {RecordedCall[]} calls @param {Overrides} overrides */
+const proxyRequest = (targetUrl, calls, overrides) => async (/** @type {Request} */ request) => {
   const body = await request.text();
   recordRequests(body, calls);
+  const message = rpcMessage(body);
+  const handler = message && overrides[message.method];
+  if (handler && message) {
+    const result = await handler(message.params ?? []);
+    const responseBody = JSON.stringify({ jsonrpc: "2.0", id: message.id, result });
+    recordResult(responseBody, calls);
+    return new Response(responseBody, { headers: { "content-type": "application/json" } });
+  }
   const upstream = await fetch(targetUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -56,14 +74,15 @@ const proxyRequest = (targetUrl, calls) => async (/** @type {Request} */ request
 /**
  * Start the recording proxy on a loopback port, forwarding to the given RPC URL.
  * @param {string} targetUrl
+ * @param {Overrides} [overrides] Optional simulated program responses; every other RPC call still hits Surfpool.
  */
-export const startRpcRecorder = (targetUrl) => {
+export const startRpcRecorder = (targetUrl, overrides = {}) => {
   /** @type {RecordedCall[]} */
   const calls = [];
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
-    fetch: proxyRequest(targetUrl, calls),
+    fetch: proxyRequest(targetUrl, calls, overrides),
   });
   /** @param {string} method @returns {RecordedCall[]} */
   const callsFor = (method) => calls.filter((call) => call.method === method);

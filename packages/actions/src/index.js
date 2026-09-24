@@ -18,6 +18,8 @@
 /** @typedef {import("./results.js").LendDepositQuote} LendDepositQuote */
 /** @typedef {import("./results.js").LendWithdrawQuote} LendWithdrawQuote */
 /** @typedef {import("./results.js").PerpOnboardQuote} PerpOnboardQuote */
+/** @typedef {import("./results.js").PerpCollateralQuote} PerpCollateralQuote */
+/** @typedef {import("./results.js").PerpCollateralReconciliation} PerpCollateralReconciliation */
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
 /** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
@@ -62,6 +64,8 @@ export {
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
   PerpOnboardQuoteSchema,
+  PerpCollateralQuoteSchema,
+  PerpCollateralReconciliationSchema,
   SimulationResultSchema,
   VenueQuoteSchema,
   ViolationSchema,

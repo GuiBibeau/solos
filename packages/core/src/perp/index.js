@@ -49,10 +49,28 @@ export {
   simulateOnboardTraderTool,
   executeOnboardTraderTool,
 } from "./tools/onboarding-tools.js";
+export {
+  simulatePerpDeposit,
+  executePerpDeposit,
+  simulatePerpWithdrawal,
+  executePerpWithdrawal,
+} from "./use-cases/collateral.js";
+export {
+  simulatePerpDepositTool,
+  executePerpDepositTool,
+  simulatePerpWithdrawalTool,
+  executePerpWithdrawalTool,
+} from "./tools/collateral-tools.js";
 export { getPosition } from "./use-cases/get-position.js";
 export { listPositions } from "./use-cases/list-positions.js";
 export { getPositionTool } from "./tools/get-position.js";
 
+import {
+  simulatePerpDepositTool,
+  executePerpDepositTool,
+  simulatePerpWithdrawalTool,
+  executePerpWithdrawalTool,
+} from "./tools/collateral-tools.js";
 import { getPositionTool } from "./tools/get-position.js";
 import {
   getOnboardingStatusTool,
@@ -66,4 +84,8 @@ export const perpTools = [
   getOnboardingStatusTool,
   simulateOnboardTraderTool,
   executeOnboardTraderTool,
+  simulatePerpDepositTool,
+  executePerpDepositTool,
+  simulatePerpWithdrawalTool,
+  executePerpWithdrawalTool,
 ];
