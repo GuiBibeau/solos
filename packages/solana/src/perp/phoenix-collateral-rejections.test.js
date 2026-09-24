@@ -56,15 +56,18 @@ test("Phoenix risk [integration] reads its comparison slot after the all-market 
   const scenario = await startCollateralScenario(surfnet.rpcUrl, randomSeed(), {
     collateral: 2_000_000n,
   });
-  const slot = await jsonRpc(surfnet.rpcUrl, "getSlot", [{ commitment: "confirmed" }]);
   /** @type {boolean[]} */
   const snapshotSeen = [];
   const recorder = startRpcRecorder(surfnet.rpcUrl, {
+    // Ordering is what this test asserts, so the override only records whether the snapshot had
+    // already been fetched. The comparison slot itself must stay live: the scenario fixture now
+    // tracks the chain (#111), and a pinned `slot + 1` falls behind it within one polling
+    // interval, tripping the staleness guard before the assertion below ever runs.
     getSlot: () => {
       snapshotSeen.push(
         scenario.fixture.requests.some(({ path }) => path.startsWith(`${TRADER_STATE_PATH}/`)),
       );
-      return slot + 1;
+      return jsonRpc(surfnet.rpcUrl, "getSlot", [{ commitment: "confirmed" }]);
     },
   });
   try {
