@@ -4,6 +4,7 @@ import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { preflightSwapBuild } from "./swap-preflight.js";
 import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
+import { minSolCredit } from "./swap-spend-bound.js";
 import { assertV1WireForSubmission } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
@@ -46,6 +47,19 @@ export const buildSignedSwap = ({ ctx, kit, build }, action) =>
     const signed = yield* assembleAndSign({ kit, lifetime }, envelope);
     return { signed, envelope };
   });
+
+/**
+ * Plan one swap for the simulate tier. The envelope's minimum output is kept as `credit`: it is
+ * what the spend bound requires back when the output is SOL, and discarding it would let a
+ * route debit what it is about to credit and net out to a pass (ADR-0024).
+ * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
+ */
+export const plannedSwap = (deps, action) =>
+  Effect.map(buildSignedSwap(deps, action), (planned) => ({
+    signed: planned.signed,
+    venueQuote: /** @type {null} */ (null),
+    credit: minSolCredit(planned.envelope, action),
+  }));
 
 /**
  * Prove the exact wire bytes about to touch RPC decode to a v1 message.

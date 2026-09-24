@@ -78,21 +78,26 @@ const directProgramRejection = (accounts, destination) => {
 };
 
 /** @param {string} taker @param {number} authoritySlot @returns {(meta: Meta, index: number) => boolean} */
-const elevatedRepeat = (taker, authoritySlot) => (meta, index) =>
-  index !== authoritySlot && meta.pubkey === taker && (meta.isWritable || meta.isSigner);
+const signerRepeat = (taker, authoritySlot) => (meta, index) =>
+  index !== authoritySlot && meta.pubkey === taker && meta.isSigner;
 
 /**
- * The authority slot is the taker's only elevated appearance (read-only signer in both V2
- * layouts). Compilation coalesces duplicate addresses by unioning privileges, so a further
- * occurrence of the taker is safe exactly when it is a pure data reference: a read-only repeat
- * grants the route nothing the authority slot did not, while a writable or signer repeat
- * anywhere would elevate the route's authority over the wallet beyond what validation approved
- * (ADR-0023).
+ * The authority slot is the taker's reviewed appearance (read-only signer in both V2 layouts).
+ * A further occurrence declared a signer would place a signed authority position the validator
+ * never reviewed, so it still rejects here.
+ *
+ * A writable repeat no longer rejects. Real routes need one: Manifest funds the trader's seat
+ * from the wallet, so every Jupiter route through it lists the taker writable, and refusing the
+ * shape refused most of the SOL -> USDC book (ADR-0024, superseding ADR-0023). Compilation
+ * coalesces duplicate keys by unioning privileges and the taker is the fee payer, so that
+ * writability is real authority — it is bounded by measurement instead: `simulateSwapBounded`
+ * refuses to send when the simulated transaction would take more from the wallet than the
+ * swap's input plus a fixed overhead allowance.
  * @param {Meta[]} accounts @param {string} taker @param {number} authoritySlot
  */
 const duplicateAuthorityRejection = (accounts, taker, authoritySlot) =>
-  accounts.some(elevatedRepeat(taker, authoritySlot))
-    ? "swap instruction repeated the taker with authority beyond its validated slot"
+  accounts.some(signerRepeat(taker, authoritySlot))
+    ? "swap instruction repeated the taker as a signer beyond its validated slot"
     : undefined;
 
 /** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */

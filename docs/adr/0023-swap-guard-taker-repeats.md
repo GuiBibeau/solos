@@ -1,6 +1,6 @@
 # 0023 — Swap guard admits read-only taker repeats and nothing more
 
-Status: accepted, 2026-09-22. Maintainer contract for issue #90.
+Status: superseded by ADR-0024, 2026-09-24. Accepted 2026-09-22 as the maintainer contract for issue #90.
 
 ## Context
 

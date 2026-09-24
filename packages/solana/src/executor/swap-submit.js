@@ -2,7 +2,8 @@
 import { SimulationFailed } from "@solos/core";
 import { Effect } from "effect";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
-import { sendSigned, simulateSigned } from "./transfer-sol.js";
+import { simulateSwapBounded } from "./swap-spend-bound.js";
+import { sendSigned } from "./transfer-sol.js";
 
 /**
  * Simulation and submission for the swap branch. Unless simulation is explicitly skipped, the
@@ -13,14 +14,17 @@ import { sendSigned, simulateSigned } from "./transfer-sol.js";
  * @param {{
  *   ctx: import("../rpc/solana-rpc.js").SolanaRpcShape;
  *   signed: import("./swap-sol.js").SignedSwap["signed"];
+ *   taker: string;
+ *   action: import("@solos/actions").SwapAction;
+ *   credit: bigint;
  * }} deps
  * @param {boolean} skipSimulation
  */
-export const submitSimulatedSwap = ({ ctx, signed }, skipSimulation) =>
+export const submitSimulatedSwap = ({ ctx, signed, taker, action, credit }, skipSimulation) =>
   Effect.gen(function* () {
     yield* recheckSignedSwapLifetime(ctx, signed);
     if (!skipSimulation) {
-      const raw = yield* simulateSigned(ctx, signed);
+      const raw = yield* simulateSwapBounded(ctx, { signed, taker, action, credit });
       if (raw.err !== null) {
         return yield* new SimulationFailed({ reason: JSON.stringify(raw.err), logs: raw.logs });
       }

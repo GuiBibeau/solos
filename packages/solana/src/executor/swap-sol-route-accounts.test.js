@@ -84,6 +84,18 @@ const withTakerAt = (slot) => (envelope) => {
 
 const sharedTakerInTail = (envelope) => withTakerInTail(1)(sharedEnvelope(envelope));
 
+/** The same tail repeat, but declared a signer: an authority position never reviewed. */
+const withTakerAsSignerInTail = (takerSlot) => (envelope) => {
+  const taker = envelope.swapInstruction.accounts.at(takerSlot);
+  return withAccounts((accounts) => [
+    ...accounts,
+    { ...accounts.at(-1), pubkey: taker.pubkey, isWritable: false, isSigner: true },
+  ])(envelope);
+};
+
+const sharedTakerAsSignerInTail = (envelope) =>
+  withTakerAsSignerInTail(1)(sharedEnvelope(envelope));
+
 describe("Jupiter V2 fixed account slots before signer or RPC contact [integration]", () => {
   test("the current shared-accounts prefix reaches the first RPC gate", async () => {
     const { error } = await runBranch("execute", sharedEnvelope);
@@ -153,10 +165,19 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
     }
   });
 
-  test("the taker duplicated into the hop tail is refused for privilege elevation", async () => {
+  // A writable taker in a hop tail is what a Manifest route looks like: admitted here, and
+  // bounded by the simulated lamport delta instead (ADR-0024).
+  test("the taker duplicated writable into the hop tail reaches the first RPC gate", async () => {
     for (const mutation of [withTakerInTail(0), sharedTakerInTail]) {
+      const { error } = await runBranch("execute", mutation);
+      expect(error).toBeInstanceOf(RpcError);
+    }
+  });
+
+  test("the taker duplicated as a signer in the hop tail is still refused", async () => {
+    for (const mutation of [withTakerAsSignerInTail(0), sharedTakerAsSignerInTail]) {
       const { error, requests } = await runBranch("execute", mutation);
-      expect(reasonOf(error)).toContain("repeated the taker");
+      expect(reasonOf(error)).toContain("repeated the taker as a signer");
       expect(requests).toHaveLength(1);
     }
   });
@@ -180,13 +201,12 @@ describe("Jupiter V2 fixed account slots before signer or RPC contact [integrati
     expect(error).toBeInstanceOf(RpcError);
   });
 
-  test("the taker duplicated with authority inside the shared prefix is refused for elevation", async () => {
+  test("the taker duplicated writable inside the shared prefix reaches the first RPC gate", async () => {
     for (const slot of [3, 4]) {
-      const { error, requests } = await runBranch("execute", (envelope) =>
+      const { error } = await runBranch("execute", (envelope) =>
         withTakerAt(slot)(sharedEnvelope(envelope)),
       );
-      expect(reasonOf(error)).toContain("repeated the taker");
-      expect(requests).toHaveLength(1);
+      expect(error).toBeInstanceOf(RpcError);
     }
   });
 

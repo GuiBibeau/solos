@@ -60,7 +60,7 @@ export const buildSignedTransfer = (ctx, kit, action) =>
   });
 
 /** Reject non-v1 or mutated bytes before an RPC object is touched. @param {Signed} signed */
-const wireForRpc = (signed) =>
+export const wireForRpc = (signed) =>
   Effect.try({
     try: () => {
       const wire = getBase64EncodedWireTransaction(signed);
