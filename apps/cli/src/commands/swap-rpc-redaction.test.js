@@ -46,8 +46,27 @@ const resultFor = (payload) => {
     };
   }
   if (payload.method === "getBlockHeight") return 1;
+  // The spend bound reads the taker's lamports on both sides of the simulation (ADR-0024).
+  if (payload.method === "getBalance") return { context: { slot: 1 }, value: 5_000_000_000 };
   if (payload.method === "simulateTransaction") {
-    return { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 1 } };
+    return {
+      context: { slot: 1 },
+      value: {
+        err: null,
+        logs: [],
+        unitsConsumed: 1,
+        accounts: [
+          {
+            data: ["", "base64"],
+            executable: false,
+            lamports: 5_000_000_000,
+            owner: "11111111111111111111111111111111",
+            rentEpoch: 0,
+            space: 0,
+          },
+        ],
+      },
+    };
   }
   return null;
 };

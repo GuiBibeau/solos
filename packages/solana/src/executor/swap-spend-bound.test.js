@@ -1,6 +1,11 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { SWAP_OVERHEAD_LAMPORTS_MAX, maxSpendLamports, minSolCredit } from "./swap-spend-bound.js";
+import {
+  SWAP_OVERHEAD_LAMPORTS_MAX,
+  maxSpendLamports,
+  minSolCredit,
+  spendRejection,
+} from "./swap-spend-bound.js";
 
 const WSOL = "So11111111111111111111111111111111111111112";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -85,6 +90,21 @@ describe("swap spend bound", () => {
       const spentWhenHonest = -(quotedOut - 105_000n); // proceeds in, fee out
       expect(spentWhenHonest > maxSpendLamports(toSol, quotedOut)).toBe(false);
     });
+  });
+
+  test("an unreadable balance refuses the swap rather than escaping untyped", () => {
+    // An RPC answering with a shape we did not expect must not reach `BigInt(null)`: an
+    // unbounded send is exactly what this check exists to prevent.
+    const swap = action(WSOL, "10000000");
+    for (const missing of [null, undefined]) {
+      expect(spendRejection({ pre: missing, post: 1n, action: swap, credit: 0n })).toContain(
+        "could not be bounded",
+      );
+      expect(spendRejection({ pre: 1n, post: missing, action: swap, credit: 0n })).toContain(
+        "could not be bounded",
+      );
+    }
+    expect(spendRejection({ pre: 1n, post: 1n, action: swap, credit: 0n })).toBeUndefined();
   });
 
   test("the bound does not scale with notional: overhead is account rent and fees", () => {

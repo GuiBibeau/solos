@@ -16,6 +16,7 @@ import { startBuildFixture } from "../swap/jupiter-swap-build-http-fixture.js";
 import { TOKEN_PROGRAM } from "../swap/jupiter-swap-build-validate.js";
 
 const BLOCKHASH = "11111111111111111111111111111111";
+const TAKER_LAMPORTS = 5_000_000_000;
 const intent = { inputMint: INPUT_MINT, outputMint: OUTPUT_MINT, amount: AMOUNT, slippageBps: 50 };
 /** @type {Array<() => void>} */
 const stops = [];
@@ -74,8 +75,28 @@ const rpcResult = (payload, heights, lastValid) => {
     };
   }
   if (method === "getBlockHeight") return heights.shift() ?? lastValid;
+  // The spend bound reads the taker's lamports on both sides of the simulation (ADR-0024);
+  // equal balances leave the wSOL-input allowance untouched so expiry stays the thing under test.
+  if (method === "getBalance") return { context: { slot: 1 }, value: TAKER_LAMPORTS };
   if (method === "simulateTransaction") {
-    return { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 1 } };
+    return {
+      context: { slot: 1 },
+      value: {
+        err: null,
+        logs: [],
+        unitsConsumed: 1,
+        accounts: [
+          {
+            data: ["", "base64"],
+            executable: false,
+            lamports: TAKER_LAMPORTS,
+            owner: "11111111111111111111111111111111",
+            rentEpoch: 0,
+            space: 0,
+          },
+        ],
+      },
+    };
   }
   throw new Error(`unexpected RPC method ${method}`);
 };
@@ -148,6 +169,7 @@ describe("swap lifetime stages through the HTTP RPC adapter [integration]", () =
       "getLatestBlockhash",
       "getBlockHeight",
       "getBlockHeight",
+      "getBalance",
       "simulateTransaction",
       "getBlockHeight",
     ]);

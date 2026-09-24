@@ -74,10 +74,15 @@ export const maxSpendLamports = (action, credit = 0n) =>
   credit;
 
 /**
- * @param {{ pre: bigint | number | string; post: bigint | number | null | undefined;
+ * Both sides must be readable numbers. An RPC that answers with a shape we did not expect
+ * refuses the swap with this typed reason rather than escaping as an internal error: an
+ * unbounded send is exactly what the bound exists to prevent.
+ * @param {{ pre: bigint | number | string | null | undefined;
+ *   post: bigint | number | null | undefined;
  *   action: import("@solos/actions").SwapAction; credit: bigint }} observed
  */
-const spendRejection = ({ pre, post, action, credit }) => {
+export const spendRejection = ({ pre, post, action, credit }) => {
+  if (pre === undefined || pre === null) return UNREADABLE;
   if (post === undefined || post === null) return UNREADABLE;
   const spent = BigInt(pre) - BigInt(post);
   const allowed = maxSpendLamports(action, credit);
@@ -85,9 +90,9 @@ const spendRejection = ({ pre, post, action, credit }) => {
 };
 
 /**
- * Simulate the exact signed swap and bound what it costs the wallet. The balance read and the
- * simulation run together: both observe the same recent bank, and the allowance dwarfs a
- * one-slot skew from unrelated activity.
+ * Simulate the exact signed swap and bound what it costs the wallet. The balance is read strictly
+ * before the simulation so "before" is unambiguous; the allowance absorbs a one-slot skew from
+ * unrelated activity between the two.
  * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
  * @param {{ signed: import("./swap-sol-build.js").Signed; taker: string;
  *   action: import("@solos/actions").SwapAction; credit: bigint }} bound
@@ -95,19 +100,16 @@ const spendRejection = ({ pre, post, action, credit }) => {
 export const simulateSwapBounded = (ctx, { signed, taker, action, credit }) =>
   Effect.gen(function* () {
     const wire = yield* wireForRpc(signed);
-    const [pre, simulated] = yield* Effect.all(
-      [
-        rpcCall("getBalance", ctx.url, () => ctx.rpc.getBalance(address(taker)).send()),
-        rpcCall("simulateTransaction", ctx.url, () =>
-          ctx.rpc
-            .simulateTransaction(wire, {
-              encoding: "base64",
-              accounts: { addresses: [address(taker)], encoding: "base64" },
-            })
-            .send(),
-        ),
-      ],
-      { concurrency: 2 },
+    const pre = yield* rpcCall("getBalance", ctx.url, () =>
+      ctx.rpc.getBalance(address(taker)).send(),
+    );
+    const simulated = yield* rpcCall("simulateTransaction", ctx.url, () =>
+      ctx.rpc
+        .simulateTransaction(wire, {
+          encoding: "base64",
+          accounts: { addresses: [address(taker)], encoding: "base64" },
+        })
+        .send(),
     );
     const raw = {
       err: simulated.value.err,
@@ -116,7 +118,7 @@ export const simulateSwapBounded = (ctx, { signed, taker, action, credit }) =>
     };
     if (raw.err !== null) return raw;
     const post = simulated.value.accounts?.[0]?.lamports;
-    const rejection = spendRejection({ pre: pre.value, post, action, credit });
+    const rejection = spendRejection({ pre: pre?.value, post, action, credit });
     if (rejection) return yield* new SimulationFailed({ reason: rejection, logs: raw.logs });
     return raw;
   });
