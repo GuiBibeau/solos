@@ -35,6 +35,17 @@ export const SwapQaSchema = z.object({
   threshold: z.number().min(0).max(1).describe("Minimum overall rate for a passing run"),
   status: z.enum(["passed", "failed"]),
   skippedPairs: z.array(z.string()).describe("Pairs the wallet could not fund"),
+  receipts: z
+    .array(
+      z.object({
+        signature: z.string().min(1),
+        ms: z.number().int().nonnegative(),
+        reason: z.string(),
+      }),
+    )
+    .describe(
+      "One per landed execute, so a funded sweep can be accounted for; empty when simulating",
+    ),
   attempts: z.number().int().nonnegative(),
   ok: z.number().int().nonnegative(),
   rate: z.number().min(0).max(1),

@@ -5,64 +5,25 @@
  * fixed number of rounds and reports how often it succeeded and how long it took.
  *
  * `simulate` is the default and never spends. `execute` sends real transactions and is only for
- * an authorised live round (AGENTS.md, Funds).
+ * an authorised live round (AGENTS.md, Funds), which is why it keeps a signature per attempt.
  */
-import { executeSwap, getBalances, simulateSwap } from "@solos/core";
-import { Cause, Effect, Option } from "effect";
+import { getBalances } from "@solos/core";
+import { Effect } from "effect";
 import { withSolos } from "../runtime.js";
+import { attemptSwap } from "./swap-attempt.js";
 import { SWAP_PAIRS, WSOL, amountFor } from "./swap-cases.js";
+import { SwapQaOptionsSchema, requiredBalance } from "./swap-options.js";
 import { SwapQaSchema } from "./swap-schema.js";
-import { summarise } from "./swap-stats.js";
+import { percentileMs, summarise } from "./swap-stats.js";
 
 /** @typedef {import("./swap-cases.js").SwapPair} SwapPair */
-/** @typedef {{ tier: "simulate" | "execute"; amountLamports: bigint; slippageBps: number; rounds: number; threshold: number }} SwapQaOptions */
+/** @typedef {import("./swap-options.js").SwapQaOptions} SwapQaOptions */
+/** @typedef {import("./swap-attempt.js").Attempt} Attempt */
 
 /**
- * A stable, groupable outcome key. The tag alone is too coarse to act on — `SimulationFailed`
- * covers both a spend-bound refusal and a chain-level rejection, which call for opposite
- * responses — so a bounded slice of the reason rides along, with digits collapsed so numeric
- * variants of the same failure tally together instead of each counting once.
- * @param {unknown} error
- */
-const reasonOf = (error) => {
-  const failure = /** @type {{ _tag?: unknown; code?: unknown; reason?: unknown }} */ (error);
-  const named = [failure?._tag, failure?.code].find((value) => typeof value === "string");
-  const tag = named ?? "Unknown";
-  if (typeof failure?.reason !== "string" || failure.reason.length === 0) return tag;
-  const detail = failure.reason.replaceAll(/\d+/g, "N").replaceAll(/\s+/g, " ").trim().slice(0, 60);
-  return `${tag}: ${detail}`;
-};
-
-/**
- * One attempt against one pair. A failure is recorded, never thrown: the point of the run is the
- * distribution of outcomes, so one bad route must not end the sweep.
- * @param {SwapPair} pair @param {SwapQaOptions} options
- */
-const attempt = async (pair, options) => {
-  const input = {
-    inputMint: pair.inputMint,
-    outputMint: pair.outputMint,
-    amount: String(amountFor(pair, options.amountLamports)),
-    slippageBps: options.slippageBps,
-  };
-  const started = performance.now();
-  const exit = await (options.tier === "execute"
-    ? Effect.runPromiseExit(withSolos(executeSwap(input)))
-    : Effect.runPromiseExit(withSolos(simulateSwap(input))));
-  const ms = Math.round(performance.now() - started);
-  if (exit._tag === "Success") {
-    const value = /** @type {{ ok?: boolean }} */ (exit.value);
-    // A simulation that returns ok:false is a chain-level refusal, not a transport success.
-    return { reason: value?.ok === false ? "SimulationRejected" : "ok", ms };
-  }
-  const failure = Cause.failureOption(exit.cause);
-  return { reason: reasonOf(Option.getOrUndefined(failure)), ms };
-};
-
-/**
- * What the wallet actually holds of one mint, in base units. A pair the wallet cannot fund would
- * fail every round on insufficient funds and read as a broken venue — a reliability report that
- * blames the product for its own setup is worse than none, so those pairs are skipped instead.
+ * What the wallet holds of one mint, in base units. A pair the wallet cannot fund would fail
+ * every round on insufficient funds and read as a broken venue — a reliability report that
+ * blames the product for its own setup is worse than none, so those pairs are skipped.
  * @param {{ lamports: string; tokens: ReadonlyArray<{ mint: string; amount: string }> }} balances
  * @param {string} mint
  */
@@ -76,42 +37,43 @@ export const heldAmount = (balances, mint) =>
 /** @param {SwapPair} pair @param {SwapQaOptions} options @param {bigint} held */
 const runPair = async (pair, options, held) => {
   const amount = amountFor(pair, options.amountLamports);
+  const needed = requiredBalance(amount, options);
   const base = { name: pair.name, amount: String(amount) };
-  if (held < amount) {
-    return {
-      ...base,
-      ...summarise([]),
-      skipped: true,
-      skipReason: `wallet holds ${held} of the input mint, short of ${amount}`,
-    };
+  if (held < needed) {
+    const detail = `wallet holds ${held} of the input mint, short of the ${needed} this sweep needs`;
+    return { ...base, ...summarise([]), attempts: [], skipped: true, skipReason: detail };
   }
-  /** @type {Array<{ reason: string; ms: number }>} */
+  /** @type {Attempt[]} */
   const attempts = [];
-  for (let round = 0; round < options.rounds; round++) attempts.push(await attempt(pair, options));
-  return { ...base, ...summarise(attempts), skipped: false };
+  for (let round = 0; round < options.rounds; round++)
+    attempts.push(await attemptSwap(pair, options));
+  return { ...base, ...summarise(attempts), attempts, skipped: false };
 };
+
+/** @param {Array<{ attempts: Attempt[]; skipped: boolean }>} pairs */
+const receiptsOf = (pairs) =>
+  pairs
+    .flatMap(({ attempts }) => attempts)
+    .flatMap(({ signature, ms, reason }) => (signature ? [{ signature, ms, reason }] : []));
 
 /**
  * Run the sweep and return the validated report.
- * @param {SwapQaOptions} options
+ * @param {SwapQaOptions} rawOptions
  * @returns {Promise<import("./swap-schema.js").SwapQa>}
  */
-export const runSwapQa = async (options) => {
+export const runSwapQa = async (rawOptions) => {
+  // Before the first provider call: an unsatisfiable option must not cost a single send.
+  const options = SwapQaOptionsSchema.parse(rawOptions);
   const startedAt = new Date();
   const balances = await Effect.runPromise(withSolos(getBalances(undefined)));
-  /** @type {Array<import("./swap-schema.js").SwapPairReport>} */
   const pairs = [];
   for (const pair of SWAP_PAIRS) {
     pairs.push(await runPair(pair, options, heldAmount(balances, pair.inputMint)));
   }
   const attempted = pairs.filter((pair) => !pair.skipped);
-  const totals = summarise(
-    attempted.flatMap((pair) =>
-      pair.outcomes.flatMap(({ reason, count }) =>
-        Array.from({ length: count }, () => ({ reason, ms: pair.p50Ms })),
-      ),
-    ),
-  );
+  const every = attempted.flatMap(({ attempts }) => attempts);
+  const totals = summarise(every);
+  const durations = every.map(({ ms }) => ms);
   return SwapQaSchema.parse({
     capability: "swap",
     tier: options.tier,
@@ -120,19 +82,19 @@ export const runSwapQa = async (options) => {
     rounds: options.rounds,
     threshold: options.threshold,
     // An unfunded pair proves nothing either way, so it cannot pass the run on its own.
-    status:
-      attempted.length > 0 && totals.rate >= options.threshold
-        ? /** @type {const} */ ("passed")
-        : /** @type {const} */ ("failed"),
+    status: attempted.length > 0 && totals.rate >= options.threshold ? "passed" : "failed",
     skippedPairs: pairs.filter((pair) => pair.skipped).map((pair) => pair.name),
     attempts: totals.attempts,
     ok: totals.ok,
     rate: totals.rate,
-    p50Ms: Math.round(
-      attempted.reduce((sum, pair) => sum + pair.p50Ms, 0) / (attempted.length || 1),
-    ),
-    p95Ms: Math.max(0, ...attempted.map((pair) => pair.p95Ms)),
-    pairs,
+    // Percentiles over every attempt, not over the per-pair summaries: the mean of medians and
+    // the max of p95s are neither of them a percentile of the run.
+    p50Ms: percentileMs(durations, 0.5),
+    p95Ms: percentileMs(durations, 0.95),
+    receipts: receiptsOf(pairs),
+    // Per-attempt records stay out of the report; their signatures ride in `receipts` and their
+    // durations are already folded into the percentiles above.
+    pairs: pairs.map((pair) => ({ ...pair, attempts: pair.attempts.length })),
     startedAt: startedAt.toISOString(),
     durationMs: Date.now() - startedAt.getTime(),
   });
