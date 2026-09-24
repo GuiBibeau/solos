@@ -91,6 +91,10 @@ Per-market Position.valueUsd is null and its amount is absolute exposure with ex
 **Price bound** — required limitPriceUsd on perp Actions: maximum buy or minimum sell USD per
 base token. IOC tick rounding tightens the bound and quote-lot caps constrain open notional.
 
+**Phoenix collateral input** — the fixed token amount the transaction encodes: wallet USDC base
+units on deposit, Phoenix collateral-token base units on withdrawal. An estimated received amount
+is not a guaranteed minimum; only post-confirmation balance reads establish the actual credit.
+
 **LP position** — an existing protocol position account, never its NFT mint or its pool. Adds
 preserve its range and A/B maximum spends; removes take an explicit 1..10000 bps fraction of its
 liquidity, preserving account/NFT. Underlying principal is separate from shares and unclaimed fees.

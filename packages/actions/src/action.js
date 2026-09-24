@@ -5,11 +5,13 @@ import { PositiveAmountSchema, SlippageBpsSchema } from "./trading-primitives.js
 import {
   AddLiquidityActionSchema,
   ClosePerpActionSchema,
+  DepositPerpCollateralActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
   OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   WithdrawLendActionSchema,
+  WithdrawPerpCollateralActionSchema,
 } from "./venue-actions.js";
 
 const bps = z.number().int().min(0).max(10_000).describe("Basis points, 0 to 10000");
@@ -63,6 +65,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   OpenPerpActionSchema,
   ClosePerpActionSchema,
   OnboardPerpActionSchema,
+  DepositPerpCollateralActionSchema,
+  WithdrawPerpCollateralActionSchema,
   LendActionSchema,
   WithdrawLendActionSchema,
   AddLiquidityActionSchema,
@@ -81,6 +85,8 @@ export const ACTION_TYPES = [
   "open_perp",
   "close_perp",
   "onboard_perp",
+  "deposit_perp_collateral",
+  "withdraw_perp_collateral",
   "lend",
   "withdraw_lend",
   "add_liquidity",
@@ -90,9 +96,11 @@ export const ACTION_TYPES = [
 export {
   AddLiquidityActionSchema,
   ClosePerpActionSchema,
+  DepositPerpCollateralActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
   OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   WithdrawLendActionSchema,
+  WithdrawPerpCollateralActionSchema,
 } from "./venue-actions.js";

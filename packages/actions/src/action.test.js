@@ -23,6 +23,18 @@ describe("@solos/actions", () => {
     ).toBe(false);
   });
 
+  test("Phoenix collateral intents encode exact fixed input, not an output promise", () => {
+    for (const type of ["deposit_perp_collateral", "withdraw_perp_collateral"]) {
+      const action = { type, traderPdaIndex: 0, traderSubaccountIndex: 0, amount: "1000000" };
+      expect(ActionSchema.parse(action)).toEqual(action);
+      expect(ActionSchema.safeParse({ ...action, amount: "0" }).success).toBe(false);
+      expect(ActionSchema.safeParse({ ...action, amount: "18446744073709551616" }).success).toBe(
+        false,
+      );
+      expect(ActionSchema.safeParse({ ...action, traderPdaIndex: 1 }).success).toBe(false);
+    }
+  });
+
   test("onboarding simulation preserves the estimated wallet debit as a decimal lamport string", () => {
     const action = ACTION_SAMPLES.find((sample) => sample.type === "onboard_perp");
     const simulation = {

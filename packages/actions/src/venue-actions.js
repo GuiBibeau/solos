@@ -19,6 +19,22 @@ export const OnboardPerpActionSchema = z.object({
   ...traderScope,
 });
 
+export const DepositPerpCollateralActionSchema = z.object({
+  type: z.literal("deposit_perp_collateral"),
+  ...traderScope,
+  amount: PositiveAmountSchema.describe(
+    "Exact wallet USDC base units to debit; received Phoenix collateral is not guaranteed",
+  ),
+});
+
+export const WithdrawPerpCollateralActionSchema = z.object({
+  type: z.literal("withdraw_perp_collateral"),
+  ...traderScope,
+  amount: PositiveAmountSchema.describe(
+    "Exact Phoenix collateral-token base units to debit; received wallet USDC is not guaranteed",
+  ),
+});
+
 export const OpenPerpActionSchema = z.object({
   type: z.literal("open_perp"),
   market: z.string().min(1).describe("Canonical Phoenix perpetual market symbol"),
