@@ -49,42 +49,68 @@ re-runs the same command. See ADR-0016 for the verification contract.
 
 ## Tools today
 
-| Tool | Tier |
-|---|---|
-| `solana_wallet_get_address` | read |
-| `solana_wallet_get_balance` | read |
-| `solana_market_ask_iris` | read |
-| `solana_market_get_trending_tokens` | read |
-| `solana_market_get_token_news` | read |
-| `solana_market_get_event_summary` | read |
-| `solana_market_get_price` | read |
-| `solana_market_get_token` | read |
-| `solana_launch_get_curve` | read |
-| `solana_swap_get_quote` | read |
-| `solana_liquidity_get_position` | read |
-| `solana_perp_get_position` | read |
-| `solana_portfolio_get_state` | read |
-| `solana_lend_get_reserve` | read |
-| `solana_swap_simulate_swap` | simulate |
-| `solana_transfer_simulate_sol` | simulate |
-| `solana_liquidity_simulate_deposit` | simulate |
-| `solana_swap_execute_swap` | execute |
-| `solana_transfer_send_sol` | execute |
-| `solana_liquidity_execute_deposit` | execute |
+This table is generated from the tool registry by `solos dev docs check --write`; `solos dev
+check` fails when it drifts. Do not edit it by hand.
+
+<!-- generated: tools -->
+| Tool | Tier | Slice |
+|---|---|---|
+| `solana_launch_get_curve` | read | `launch` |
+| `solana_lend_execute_deposit` | execute | `lend` |
+| `solana_lend_execute_withdraw` | execute | `lend` |
+| `solana_lend_get_position` | read | `lend` |
+| `solana_lend_get_reserve` | read | `lend` |
+| `solana_lend_simulate_deposit` | simulate | `lend` |
+| `solana_lend_simulate_withdraw` | simulate | `lend` |
+| `solana_liquidity_execute_deposit` | execute | `liquidity` |
+| `solana_liquidity_execute_withdraw` | execute | `liquidity` |
+| `solana_liquidity_get_position` | read | `liquidity` |
+| `solana_liquidity_simulate_deposit` | simulate | `liquidity` |
+| `solana_liquidity_simulate_withdraw` | simulate | `liquidity` |
+| `solana_market_ask_iris` | read | `market` |
+| `solana_market_get_event_summary` | read | `market` |
+| `solana_market_get_price` | read | `market` |
+| `solana_market_get_token` | read | `market` |
+| `solana_market_get_token_news` | read | `market` |
+| `solana_market_get_trending_tokens` | read | `market` |
+| `solana_perp_execute_deposit_collateral` | execute | `perp` |
+| `solana_perp_execute_onboard_trader` | execute | `perp` |
+| `solana_perp_execute_withdraw_collateral` | execute | `perp` |
+| `solana_perp_get_onboarding_status` | read | `perp` |
+| `solana_perp_get_position` | read | `perp` |
+| `solana_perp_simulate_deposit_collateral` | simulate | `perp` |
+| `solana_perp_simulate_onboard_trader` | simulate | `perp` |
+| `solana_perp_simulate_withdraw_collateral` | simulate | `perp` |
+| `solana_portfolio_get_state` | read | `portfolio` |
+| `solana_swap_execute_swap` | execute | `swap` |
+| `solana_swap_get_quote` | read | `swap` |
+| `solana_swap_simulate_swap` | simulate | `swap` |
+| `solana_transfer_send_sol` | execute | `transfer` |
+| `solana_transfer_simulate_sol` | simulate | `transfer` |
+| `solana_wallet_get_address` | read | `wallet` |
+| `solana_wallet_get_balance` | read | `wallet` |
+<!-- /generated: tools -->
 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
 `JUPITER_API_KEY`, and the on-chain token registry over the configured Solana RPC; `swap` has the
 Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes) plus
-Action-based simulation and execution over Jupiter V2 `/build` through the shared executor; `launch` has the pump bonding-curve reader over the
-configured Solana RPC (no provider key at all); `perp` has the Phoenix Perps position reader
-(no provider key; `PHOENIX_BASE_URL` only overrides the public endpoint for loopback fixtures);
-`liquidity` has the Orca Whirlpool position reader plus deposits into explicitly identified
-existing positions over the configured Solana RPC (no provider key at all); `lend` has the Kamino reserve reader over the configured Solana RPC through the
-official Kamino klend-sdk (no provider key; one explicitly configured market); `portfolio`
+Action-based simulation and execution over Jupiter V2 `/build` through the shared executor;
+`launch` has the pump bonding-curve reader over the configured Solana RPC (no provider key at
+all); `perp` has the Phoenix Perps position and onboarding-status readers plus trader enrollment
+and bounded USDC collateral deposits and withdrawals (no provider key; `PHOENIX_BASE_URL` only
+overrides the public endpoint for loopback fixtures); `liquidity` has the Orca Whirlpool position
+reader plus bounded deposits into, and removals from, explicitly identified existing positions
+over the configured Solana RPC (no provider key at all); `lend` has the Kamino reserve and supply
+readers plus bounded deposits and withdrawals over the configured Solana RPC through the official
+Kamino klend-sdk (no provider key; one explicitly configured market); `portfolio`
 composes the wallet, price feed and venue reads into the supported-portfolio state
 (ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero
 holding is priced — a supported-assets view, never full net worth; `signals` has
 ports only.
+
+Every `execute` tool has a `simulate` twin, and the sections below still describe the read tiers
+in the most depth — the write tiers are specified in their ADRs (0019 lend, 0021 perp, 0022
+liquidity) and their QA docs.
 
 ## Market intelligence (Elfa Iris)
 
@@ -395,7 +421,7 @@ read one active curve and one completed curve and compare the decoded flags and 
 the chain accounts for the same addresses; both surfaces must return identical JSON for the
 same mint. No funded transaction is involved.
 
-## Phoenix Perps positions (read-only today)
+## Phoenix Perps positions, enrollment and collateral
 
 `solana_perp_get_position` (MCP) and `solos perp position --market <symbol> [--owner <address>]`
 (CLI) read one position from Phoenix Perps and return `{ position, account }`:
@@ -435,7 +461,12 @@ bun run solos perp position --market SOL --owner <trader-address>
 bun run solos mcp call solana_perp_get_position --args '{"market":"SOL-PERP"}'
 ```
 
-Orders, opens and closes are separate, later slices (#27/#28); nothing here signs or spends.
+Beyond reads, the slice enrolls the configured trader (`solana_perp_simulate_onboard_trader` /
+`solana_perp_execute_onboard_trader`, with `solana_perp_get_onboarding_status` reporting whether
+it is needed) and moves USDC collateral in exact, fixed amounts both ways
+(`solana_perp_{simulate,execute}_deposit_collateral` and the matching `withdraw_collateral`).
+Orders, opens and closes remain separate, later slices (#27/#28): nothing here opens, closes or
+sizes a position, but enrollment and collateral transfers do sign and spend.
 Live QA against a registered, funded operator account is **blocked** until those prerequisites
 exist — see [perp QA](docs/perp-qa.md) and never report it as passed.
 
@@ -536,7 +567,7 @@ SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_simulate_deposit \
 Live deposit QA stays **blocked** until #31 (bounded removals) exists and is checked, per
 ADR-0022: no live deposit/open without a checked exit path.
 
-## Kamino Lend reserve and supply reads (read-only today)
+## Kamino Lend reserve and supply reads, deposits and withdrawals
 
 `solana_lend_get_reserve` (MCP) and `solos lend reserve --mint <address>` (CLI) read one
 reserve's rates and available liquidity from one explicitly configured Kamino market and
@@ -576,7 +607,12 @@ base units and the distinct obligation accounts that contribute supply.
   as the shared `RpcError`. Corrupt obligations fail `LendingObligationInvalid`; enumerations
   beyond 4096 accounts, 256 positions, or 32 pages fail `LendingEnumerationIncomplete` rather
   than returning a partial result. One attempt per read, no retries, raw provider bodies never travel.
-- **No deposit/withdraw tools exist yet** (#22/#23); this slice signs nothing and spends nothing.
+- **Deposits and withdrawals are bounded and twinned** (#22/#23). `solana_lend_simulate_deposit` /
+  `solana_lend_execute_deposit` supply one exact underlying amount into the configured market, and
+  `solana_lend_simulate_withdraw` / `solana_lend_execute_withdraw` redeem back out of it. The
+  amount encoded in the transaction is the exact amount asked for, so nothing more can be spent;
+  the executor re-plans against live chain state on every call, and a simulation never submits.
+  Borrowing, leverage and elevation-group obligations are never touched.
 
 ```sh
 SOLANA_RPC_URL=... bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
