@@ -23,12 +23,24 @@ import { ATA_PROGRAM, WSOL_MINT, dataBytes } from "./jupiter-swap-build-validate
 /** Explicit local compute-unit budget: never provider-chosen; tunable after funded QA. */
 export const SWAP_COMPUTE_UNIT_LIMIT = 400_000;
 /**
- * Explicit local bound on loaded account data bytes: never provider-chosen, tunable after
- * funded QA. 8 MiB failed a real 0.001 SOL -> USDC Metis route simulation with
- * MaxLoadedAccountsDataSizeExceeded; 16 MiB passed the same real simulation (simulation only,
- * nothing was sent). Verified 2026-09-20 against the live route.
+ * Explicit local bound on loaded account data bytes: never provider-chosen.
+ *
+ * The first value here was 16 MiB, chosen on 2026-09-20 as the smallest that passed one live
+ * 0.001 SOL -> USDC route after 8 MiB failed it. One route is not the population: Jupiter picks
+ * a different path per call, and the heavier ones load more. Measured 2026-09-24 with
+ * `solos dev qa swap --amount-sol 0.1 --rounds 20`, 60 attempts per setting:
+ *
+ * | Limit  | ok       | MaxLoadedAccountsDataSizeExceeded |
+ * |--------|----------|-----------------------------------|
+ * | 16 MiB | 41 (68%) | 10 (17%)                          |
+ * | 32 MiB | 59 (98%) | 0                                 |
+ *
+ * 24 MiB also cleared it over a smaller sample, so the boundary sits between 16 and 24. 32 MiB
+ * is deliberately not that boundary — picking the smallest passing value is what put 16 MiB here
+ * and left a sixth of real routes unusable. It is half the 64 MiB ceiling, so it keeps headroom
+ * without reserving block-space accounting the swap cannot use.
  */
-export const SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 16_777_216;
+export const SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 33_554_432;
 /** Local total priority fee in lamports: the cap, paid as-is, never provider-derived. */
 export const SWAP_MAX_PRIORITY_FEE_LAMPORTS = 100_000n;
 /** Conservative pre-sign bounds, enforced with fixed reasons before any signer is involved. */

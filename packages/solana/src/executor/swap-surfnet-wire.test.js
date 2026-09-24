@@ -117,9 +117,10 @@ describe("the exact submitted swap wire [integration]", () => {
       loadedAccountsDataSizeLimit: SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
       priorityFeeLamports: SWAP_MAX_PRIORITY_FEE_LAMPORTS,
     });
-    // Pinned to the verified literal: the submitted wire carries the 16 MiB bound the real
-    // Metis route simulation required.
-    expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(16_777_216);
+    // Pinned to the measured literal: the submitted wire carries the 32 MiB bound. 16 MiB left
+    // 17% of real routes failing MaxLoadedAccountsDataSizeExceeded over 60 attempts (ADR-0024
+    // lineage; see the constant's own note for the sweep).
+    expect(decompiled.config?.loadedAccountsDataSizeLimit).toBe(33_554_432);
     expect(decompiled.lifetimeConstraint.blockhash).toBe(latest.value.blockhash);
     expect(decompiled.instructions.map((ix) => ix.programAddress)).toEqual([
       ATA_PROGRAM,
