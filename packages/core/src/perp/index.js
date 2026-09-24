@@ -10,6 +10,7 @@
 /** @typedef {import("./domain/types.js").PerpAccount} PerpAccount */
 /** @typedef {import("./ports/perp-venue.js").PerpVenueShape} PerpVenueShape */
 export {
+  NoPositionToClose,
   PerpAccountCorrupt,
   PerpAuthFailed,
   PerpEnumerationIncomplete,

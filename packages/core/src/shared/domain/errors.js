@@ -55,13 +55,6 @@ export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
   taggedError("UnsupportedAction")
 ) {}
 
-/** @typedef {import("./tagged-error.js").TaggedErrorClass<"NoPositionToClose", NoPositionToCloseProps>} NoPositionToCloseClass */
-/** @typedef {{ readonly market: string }} NoPositionToCloseProps */
-/** A requested reduce-only execution has no position to reduce; never fabricate a signature. */
-export class NoPositionToClose extends /** @type {NoPositionToCloseClass} */ (
-  taggedError("NoPositionToClose")
-) {}
-
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
 /** @typedef {{ readonly reason: string }} BuildRejectedProps */
 /** A transaction failed policy before signing; validation may include read-only RPC preflight. */

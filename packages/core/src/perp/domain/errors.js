@@ -8,6 +8,13 @@ export class PerpInputInvalid extends /** @type {PerpInputInvalidClass} */ (
   taggedError("PerpInputInvalid")
 ) {}
 
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"NoPositionToClose", NoPositionToCloseProps>} NoPositionToCloseClass */
+/** @typedef {{ readonly market: string }} NoPositionToCloseProps */
+/** A requested reduce-only close has no position to reduce; never fabricate a signature. */
+export class NoPositionToClose extends /** @type {NoPositionToCloseClass} */ (
+  taggedError("NoPositionToClose")
+) {}
+
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpMarketUnknown", PerpMarketUnknownProps>} PerpMarketUnknownClass */
 /** @typedef {{ readonly market: string }} PerpMarketUnknownProps */
 /** The normalized symbol is absent from the exchange metadata. */

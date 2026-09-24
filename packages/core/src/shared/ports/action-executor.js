@@ -9,10 +9,12 @@ import { Context } from "effect";
  *   | import("../domain/errors.js").TransactionFailed
  *   | import("../domain/errors.js").TransactionExpired
  *   | import("../domain/errors.js").UnsupportedAction
- *   | import("../domain/errors.js").NoPositionToClose
  *   | import("../domain/errors.js").BuildRejected
  *   | import("../domain/errors.js").BuildUnavailable
- *   | import("../domain/errors.js").SignerUnavailable} ExecutorError
+ *   | import("../domain/errors.js").SignerUnavailable
+ *   | ExecutorDomainError} ExecutorError
+ * Slice-owned executor failures use the open tagged-error seam; shared never imports a slice.
+ * @typedef {import("effect/Cause").YieldableError & { readonly _tag: string }} ExecutorDomainError
  */
 
 /**
