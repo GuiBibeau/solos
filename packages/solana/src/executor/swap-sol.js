@@ -2,6 +2,7 @@
 import { getBase64EncodedWireTransaction } from "@solana/kit";
 import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
+import { buildSignedPumpBuy } from "../launch/pump-buy-build.js";
 import { preflightSwapBuild } from "./swap-preflight.js";
 import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
 import { minSolCredit } from "./swap-spend-bound.js";
@@ -23,14 +24,19 @@ export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
 /** @typedef {{ readonly signed: Signed; readonly envelope: JupiterBuildEnvelope }} SignedSwap */
 
 /**
- * Fetch, validate, assemble, and sign one swap. Only Jupiter is supported; unsupported venues
- * are refused before any build request.
+ * Fetch, validate, assemble, and sign one swap.
+ *
+ * The venue comes from the Action and nothing else: a `pump` buy is built against the bonding
+ * curve, and an ordinary swap of the same coin still goes to Jupiter. Neither is ever inferred
+ * from the output mint, and a failed build is never retried at the other venue. A pump buy
+ * carries no Jupiter envelope, so callers reading one must tolerate its absence.
  * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
  */
 export const buildSignedSwap = ({ ctx, kit, build }, action) =>
   Effect.gen(function* () {
     if (action.venue === "pump") {
-      return yield* new UnsupportedAction({ actionType: "swap:pump", executor: EXECUTOR });
+      const { signed } = yield* buildSignedPumpBuy({ ctx, kit }, action);
+      return { signed, envelope: undefined };
     }
     if (action.venue !== undefined && action.venue !== "jupiter") {
       return yield* new UnsupportedAction({

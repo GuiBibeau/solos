@@ -40,3 +40,16 @@ export class CurveConfigUnavailable extends /** @type {CurveConfigUnavailableCla
  * provider failure bodies.
  * @typedef {CurveInputInvalid | CurveUnavailable | CurveCorrupt | UnsupportedQuoteAsset | CurveConfigUnavailable | import("../../shared/domain/errors.js").RpcError} LaunchCurveError
  */
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"CurveComplete", CurveCompleteProps>} CurveCompleteClass */
+/** @typedef {{ readonly mint: string; readonly curveAddress: string }} CurveCompleteProps */
+/** The curve has completed and no longer trades. Buying is refused here and never rerouted to PumpSwap or Jupiter. */
+export class CurveComplete extends /** @type {CurveCompleteClass} */ (
+  taggedError("CurveComplete")
+) {}
+
+/**
+ * Everything a launch buy can fail with before the executor is involved; the execute tier adds
+ * the shared executor errors on top.
+ * @typedef {CurveInputInvalid | CurveComplete | UnsupportedQuoteAsset | LaunchCurveError} LaunchBuyError
+ */
