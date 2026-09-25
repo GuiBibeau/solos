@@ -40,6 +40,7 @@ export const openParts = async ({ owner, action, pool, programs }) => {
     startLower: tickArrayStartIndex(action.tickLower, tickSpacing),
     startUpper: tickArrayStartIndex(action.tickUpper, tickSpacing),
     accounts: {
+      programs,
       payer: owner,
       nftAccount: accounts.nftAccount,
       poolState: action.pool,

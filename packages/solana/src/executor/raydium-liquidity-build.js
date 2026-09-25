@@ -67,6 +67,7 @@ const tokenSetup = ({ ctx, kit, plan, verb }) =>
         label,
         mint: label === "A" ? plan.mintA : plan.mintB,
         ata: label === "A" ? plan.accounts.tokenAccount0 : plan.accounts.tokenAccount1,
+        program: label === "A" ? plan.programs.token0 : plan.programs.token1,
       };
       return verb === "deposit"
         ? fundingSide({

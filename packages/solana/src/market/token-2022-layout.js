@@ -33,6 +33,29 @@ export const MULTISIG_ACCOUNT_BYTES = 355;
  * }} MintLayout
  */
 
+/** Extension discriminants, from interface/src/extension/mod.rs. */
+export const TRANSFER_FEE_CONFIG = 1;
+const TLV_HEADER_BYTES = 4;
+
+/**
+ * Whether the extension area declares a transfer fee. Records are TLV: a u16 type, a u16
+ * length, then the value — so the types can be walked without decoding any of them. A
+ * truncated trailing record ends the walk rather than throwing: an unreadable tail cannot be
+ * proven fee-free, but it also cannot be decoded, and the mint guards reject it upstream.
+ * @param {Uint8Array | undefined} extensions
+ * @returns {boolean}
+ */
+export const hasTransferFee = (extensions) => {
+  if (extensions === undefined) return false;
+  const view = new DataView(extensions.buffer, extensions.byteOffset, extensions.byteLength);
+  let at = 0;
+  while (at + TLV_HEADER_BYTES <= extensions.length) {
+    if (view.getUint16(at, true) === TRANSFER_FEE_CONFIG) return true;
+    at += TLV_HEADER_BYTES + view.getUint16(at + 2, true);
+  }
+  return false;
+};
+
 /**
  * Exactly the 82-byte base is a valid extension-less mint. Anything longer follows the padded
  * protocol layout: total lengths 83..165 have no AccountType location at all, and otherwise the

@@ -5,6 +5,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
+import { classicMintBytes, tlvRecord, token2022MintBytes, zeros } from "../market/test-fixtures.js";
 import { raydiumDepositPlan, raydiumWithdrawPlan } from "./raydium-clmm-plan.js";
 import {
   PERSONAL_POSITION_BYTES,
@@ -21,6 +22,14 @@ const NFT_ACCOUNT = "4uisq4ndD2eLNqaKm27UzQJBKQ4LHs9D92mZg9z5kttd";
 const addressFill = (/** @type {number} */ byte) => new Uint8Array(32).fill(byte);
 
 const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+
+/** A plain 82-byte mint, the shape both token programs accept without extensions. */
+const plainMintBytes = () => classicMintBytes({ decimals: 6 });
+
+/** A token-2022 mint declaring TransferFeeConfig — what the plan must refuse. */
+const feeBearingMintBytes = () =>
+  token2022MintBytes({ decimals: 6, records: [tlvRecord(1, zeros(116))] });
 
 /** The base58 address the decoder produces for a fill-byte account, so map keys line up. */
 const addressOf = (/** @type {number} */ byte) => {
@@ -101,8 +110,8 @@ const healthy = () =>
     [POSITION, { owner: RAYDIUM_CLMM_PROGRAM, bytes: positionBytes() }],
     [POOL, { owner: RAYDIUM_CLMM_PROGRAM, bytes: poolBytes() }],
     // The plan reads each pool mint to learn which token program owns it.
-    [addressOf(1), { owner: TOKEN_PROGRAM_ID, bytes: new Uint8Array(82) }],
-    [addressOf(2), { owner: TOKEN_PROGRAM_ID, bytes: new Uint8Array(82) }],
+    [addressOf(1), { owner: TOKEN_PROGRAM_ID, bytes: plainMintBytes() }],
+    [addressOf(2), { owner: TOKEN_PROGRAM_ID, bytes: plainMintBytes() }],
   ]);
 
 /** The bound the planner must encode at 50 bps against a 1e9 budget. @param {bigint} required */
@@ -151,6 +160,28 @@ describe("raydium deposit plan", () => {
     expect(plan.tokenMaxA).toBe(boundAt50Bps(plan.requiredA));
     expect(plan.tokenMaxB).toBe(boundAt50Bps(plan.requiredB));
     expect(plan.tokenMaxB).toBeLessThan(1_000_000_000n);
+  });
+
+  test("a pool mint that charges a transfer fee is refused, not quoted", async () => {
+    const rows = healthy();
+    rows.set(addressOf(2), {
+      owner: TOKEN_2022_PROGRAM_ID,
+      bytes: feeBearingMintBytes(),
+    });
+    const plan = await depositAt(rows);
+    expect(plan).toMatchObject({ status: "reject" });
+    expect(plan.reason).toContain("transfer fee");
+  });
+
+  test("a token-2022 pool mint without a fee is planned against its own program", async () => {
+    const rows = healthy();
+    rows.set(addressOf(2), { owner: TOKEN_2022_PROGRAM_ID, bytes: plainMintBytes() });
+    const plan = await depositAt(rows);
+    expect(plan.status).toBe("ok");
+    expect(plan.programs).toMatchObject({
+      token0: TOKEN_PROGRAM_ID,
+      token1: TOKEN_2022_PROGRAM_ID,
+    });
   });
 
   test("a zero tolerance encodes exactly the quoted spend", async () => {

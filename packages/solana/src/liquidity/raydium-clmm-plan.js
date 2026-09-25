@@ -63,6 +63,7 @@ export const raydiumDepositPlan = ({ reader, owner, action }) =>
       requiredB: quote.requiredB,
       mintA: read.pool.tokenMint0,
       mintB: read.pool.tokenMint1,
+      programs: read.programs,
       // The quoted spend plus the requested tolerance, capped by the budget — the same rule
       // Orca uses. The budget alone would ignore maxSlippageBps entirely: a request asking for
       // no tolerance could still spend the whole budget if the price moved before landing.
@@ -112,5 +113,6 @@ export const raydiumWithdrawPlan = ({ reader, owner, action }) =>
       minB: quote.minB,
       mintA: read.pool.tokenMint0,
       mintB: read.pool.tokenMint1,
+      programs: read.programs,
     };
   });

@@ -16,8 +16,18 @@ import { fundingSide, setupSides } from "./liquidity-token-accounts.js";
  */
 const sideOf = ({ quote, accounts }, label) =>
   label === "A"
-    ? { required: quote.requiredA, mint: accounts.vault0Mint, ata: accounts.tokenAccount0 }
-    : { required: quote.requiredB, mint: accounts.vault1Mint, ata: accounts.tokenAccount1 };
+    ? {
+        required: quote.requiredA,
+        mint: accounts.vault0Mint,
+        ata: accounts.tokenAccount0,
+        program: accounts.programs.token0,
+      }
+    : {
+        required: quote.requiredB,
+        mint: accounts.vault1Mint,
+        ata: accounts.tokenAccount1,
+        program: accounts.programs.token1,
+      };
 
 /**
  * @param {{ read: ReturnType<typeof import("./liquidity-token-accounts.js").liquidityRead>;
@@ -29,7 +39,6 @@ export const openFunding = ({ read, kit, quote, accounts }) =>
     read,
     { tokenOwnerAccountA: accounts.tokenAccount0, tokenOwnerAccountB: accounts.tokenAccount1 },
     ({ row, label }) => {
-      const { required, mint, ata } = sideOf({ quote, accounts }, label);
-      return fundingSide({ kit, row, label, required, mint, ata, verb: "open" });
+      return fundingSide({ kit, row, label, verb: "open", ...sideOf({ quote, accounts }, label) });
     },
   );

@@ -58,10 +58,10 @@ export const createAta = (kit, mint, { ata, program }) =>
  * create when the quote needs nothing from it, and a typed refusal when it is short or absent
  * but needed — a spend from an account that cannot cover it is not simulable honestly.
  * @param {{ kit: Kit; row: FetchedAccount | null | undefined; required: bigint; mint: string;
- *   ata: string; label: "A" | "B"; verb: string }} side
+ *   ata: string; program?: string; label: "A" | "B"; verb: string }} side
  * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
  */
-export const fundingSide = ({ kit, row, required, mint, ata, label, verb }) => {
+export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb }) => {
   const held = row === null || row === undefined ? null : tokenDecoder.decode(row.bytes).amount;
   if (held !== null && held >= required) return Effect.succeed(null);
   if (required > 0n) {
@@ -71,17 +71,17 @@ export const fundingSide = ({ kit, row, required, mint, ata, label, verb }) => {
         : `${held} available, the ${verb} needs ${required}`;
     return fail(`insufficient token ${label} balance: ${detail}`);
   }
-  return Effect.succeed(createAta(kit, mint, { ata }));
+  return Effect.succeed(createAta(kit, mint, { ata, program }));
 };
 
 /**
  * One receiving side of a payout: it only has to exist. A side owed nothing is created so the
  * instruction's account is there; a side that is owed something and absent is a refusal.
  * @param {{ kit: Kit; row: FetchedAccount | null | undefined; owed: bigint; mint: string;
- *   ata: string; label: "A" | "B" }} side
+ *   ata: string; program?: string; label: "A" | "B" }} side
  * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
  */
-export const receivingSide = ({ kit, row, owed, mint, ata, label }) => {
+export const receivingSide = ({ kit, row, owed, mint, ata, program, label }) => {
   if (row !== null && row !== undefined) return Effect.succeed(null);
   if (owed > 0n) {
     return fail(
@@ -89,7 +89,7 @@ export const receivingSide = ({ kit, row, owed, mint, ata, label }) => {
         `${owed} base units at the current price`,
     );
   }
-  return Effect.succeed(createAta(kit, mint, { ata }));
+  return Effect.succeed(createAta(kit, mint, { ata, program }));
 };
 
 /**

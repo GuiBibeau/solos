@@ -7,6 +7,8 @@
  */
 import { address, getAddressEncoder, getProgramDerivedAddress } from "@solana/kit";
 import { Effect } from "effect";
+import { readMintLayout } from "../market/mint-account.js";
+import { hasTransferFee } from "../market/token-2022-layout.js";
 import {
   bitmapExtensionAddress,
   needsBitmapExtension,
@@ -95,21 +97,37 @@ export const prepareRaydiumPlan = (reader, position) =>
   });
 
 /**
- * Each pool mint's own token program. A Token-2022 pool mint derives a different associated
- * account than the classic one, and the v2 instructions exist precisely so such a pool works —
- * deriving both against the classic program would target accounts the program rejects.
+ * Guard one pool mint and name the token program that owns it. A Token-2022 mint derives a
+ * different associated account than a classic one, and the v2 instructions exist precisely so
+ * such a pool works — but a transfer fee changes what every amount means, and the quotes here
+ * are plain Uniswap-V3 ones. ADR-0022 says the first adapters reject unsupported fee-bearing
+ * extensions, so a fee-bearing pool is refused rather than quoted wrongly.
+ * @param {string} mint @param {import("./liquidity-accounts.js").FetchedAccount | null | undefined} row
+ */
+const guardedMintProgram = (mint, row) => {
+  if (row === null || row === undefined) return reject(`the pool's mint ${mint} is missing`);
+  const layout = readMintLayout({ owner: row.owner, data: row.bytes });
+  if (layout.verdict !== "mint") return reject(`the pool's mint ${mint} is not a usable mint`);
+  if (hasTransferFee(layout.extensions)) {
+    return reject(
+      `the pool's mint ${mint} charges a token-2022 transfer fee, which these quotes do not account for`,
+    );
+  }
+  return { program: row.owner };
+};
+
+/**
+ * Both pool mints' token programs, guarded.
  * @param {Pick<Reader, "rows">} reader @param {{ tokenMint0: string; tokenMint1: string }} pool
  */
 export const mintPrograms = (reader, pool) =>
   Effect.gen(function* () {
     const [row0, row1] = yield* reader.rows([pool.tokenMint0, pool.tokenMint1]);
-    if (row0 === null || row0 === undefined) {
-      return reject(`the pool's mint ${pool.tokenMint0} is missing`);
-    }
-    if (row1 === null || row1 === undefined) {
-      return reject(`the pool's mint ${pool.tokenMint1} is missing`);
-    }
-    return { token0: row0.owner, token1: row1.owner };
+    const first = guardedMintProgram(pool.tokenMint0, row0);
+    if ("status" in first) return first;
+    const second = guardedMintProgram(pool.tokenMint1, row1);
+    if ("status" in second) return second;
+    return { token0: first.program, token1: second.program };
   });
 
 /**
