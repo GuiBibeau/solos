@@ -61,6 +61,9 @@ const curveRejection = (curve) => {
   if (curve.layout.complete) return CURVE_COMPLETE;
   if (!isSolQuote(curve.layout.quoteMint)) return NOT_SOL_QUOTED;
   if (curve.layout.creator === undefined) return CREATOR_ABSENT;
+  // Which fee recipient the program authorizes is selected by this flag, so a layout too short
+  // to carry it cannot be priced — guessing either set aborts the transaction on chain.
+  if (curve.layout.isMayhemMode === undefined) return MAYHEM_FLAG_ABSENT;
   return undefined;
 };
 
@@ -72,6 +75,7 @@ const configRejection = (config) => {
   // and escape as an untyped failure instead of a typed refusal.
   if (
     config.feeRecipient === undefined ||
+    config.mayhemFeeRecipient === undefined ||
     config.feeBasisPoints === undefined ||
     config.buybackFeeRecipient === undefined
   ) {
@@ -109,7 +113,9 @@ export const validateTradeReads = (reads) => {
     ok: /** @type {const} */ (true),
     layout,
     creator: b58.decode(/** @type {Uint8Array} */ (layout.creator)),
-    feeRecipient: b58.decode(decoded.feeRecipient),
+    feeRecipient: b58.decode(
+      layout.isMayhemMode === true ? decoded.mayhemFeeRecipient : decoded.feeRecipient,
+    ),
     buybackFeeRecipient: b58.decode(decoded.buybackFeeRecipient),
     totalFeeBps: fees.totalFeeBps,
     tokenProgram: /** @type {{ owner: string }} */ (reads.mint).owner,
@@ -128,6 +134,8 @@ const CURVE_COMPLETE =
 const NOT_SOL_QUOTED = "the curve trades against a quote asset other than SOL";
 const CREATOR_ABSENT = "the curve predates the creator field the buy's vault is seeded from";
 const MINT_ABSENT = "the requested mint was not found on chain";
+const MAYHEM_FLAG_ABSENT =
+  "the curve predates the mayhem-mode flag that selects the authorized fee recipient";
 const GLOBAL_CORRUPT = "the pump Global config is absent or unreadable";
 const GLOBAL_NO_FEES = "the pump Global config is too short to carry the live fee rates";
 const BUDGET_TOO_SMALL = "the budget buys no whole token after fees and slippage";
@@ -140,6 +148,7 @@ export const PUMP_BUY_REJECTIONS = Object.freeze({
   NOT_SOL_QUOTED,
   CREATOR_ABSENT,
   MINT_ABSENT,
+  MAYHEM_FLAG_ABSENT,
   GLOBAL_CORRUPT,
   GLOBAL_NO_FEES,
   BUDGET_TOO_SMALL,

@@ -141,24 +141,25 @@ export const GLOBAL_TRADING_BYTES = 1087;
  * deliberately stops at the original 97-byte prefix — that is what a curve read needs, and a
  * trade needs more, so the two fixtures stay separate rather than one growing to cover both.
  *
- * `feeRecipient` is written into `reserved_fee_recipients[0]` at 516, which is the array the v2
- * instructions authorize. The two decoy keys are the other fee-recipient fields Global carries,
- * both of which the program rejects: writing them makes a fixture that picks the wrong one fail
- * on a different key rather than silently matching.
- * @param {{ feeRecipient: Uint8Array; buybackFeeRecipient: Uint8Array; feeBasisPoints?: bigint; creatorFeeBasisPoints?: bigint; decoy?: Uint8Array }} parts
+ * The two fee-recipient sets go to distinct keys: `feeRecipient` into the scalar at 41, which the
+ * program authorizes for an ordinary coin, and `mayhemFeeRecipient` into
+ * `reserved_fee_recipients[0]` at 516, which it authorizes for a mayhem coin. They must differ so
+ * that selecting the wrong set fails on the key rather than matching by accident, and
+ * `fee_recipients[0]` at 162 stays a decoy the program authorizes for neither.
+ * @param {{ feeRecipient: Uint8Array; mayhemFeeRecipient?: Uint8Array; buybackFeeRecipient: Uint8Array; feeBasisPoints?: bigint; creatorFeeBasisPoints?: bigint; decoy?: Uint8Array }} parts
  * @returns {Uint8Array}
  */
 export const tradingGlobalBytes = (parts) => {
   const bytes = new Uint8Array(GLOBAL_TRADING_BYTES);
   const decoy = parts.decoy ?? new Uint8Array(32).fill(7);
   bytes.set(GLOBAL_DISCRIMINATOR, 0);
-  bytes.set(decoy, 41); // the legacy scalar `fee_recipient`
+  bytes.set(parts.feeRecipient, 41); // the scalar, authorized for an ordinary coin
   bytes.set(u64le(INITIAL_REAL_TOKEN_RESERVES), 89);
   // 95 protocol bps, as live mainnet reads, not the 100 the published docs state.
   bytes.set(u64le(parts.feeBasisPoints ?? 95n), 105);
   bytes.set(u64le(parts.creatorFeeBasisPoints ?? 5n), 154);
-  bytes.set(decoy, 162); // `fee_recipients[0]`, a different key the v2 path also rejects
-  bytes.set(parts.feeRecipient, 516);
+  bytes.set(decoy, 162); // `fee_recipients[0]`, a key the program authorizes for neither kind
+  bytes.set(parts.mayhemFeeRecipient ?? decoy, 516);
   bytes.set(parts.buybackFeeRecipient, 741);
   return bytes;
 };
