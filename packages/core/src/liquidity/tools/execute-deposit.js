@@ -1,7 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityExecuteDepositInputSchema } from "../domain/types.js";
+import { LiquidityExecuteDepositInputSchema, isReadable } from "../domain/types.js";
 import { executeDeposit } from "../use-cases/execute-deposit.js";
 
 export const executeDepositTool = defineTool({
@@ -29,7 +29,7 @@ export const executeDepositTool = defineTool({
     "access.",
   input: LiquidityExecuteDepositInputSchema,
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

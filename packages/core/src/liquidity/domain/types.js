@@ -77,7 +77,7 @@ const DepositBudgetSchema = z
 /** The deposit request fields before the cross-field budget rule. */
 const DepositInputBaseSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
   ),
   pool: AddressSchema.describe(
     "Pool address the position belongs to; the deposit fails typed when the position references a different pool",
@@ -110,7 +110,7 @@ export const LiquidityDepositInputSchema = DepositInputBaseSchema;
  * slippage-bounded minimum receipts. The bounds live here and in the Action contract. */
 export const LiquidityWithdrawInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
   ),
   position: AddressSchema.describe(
     "Protocol position-account address (the Whirlpool position PDA), never the NFT mint and never the pool; the position is never closed and its NFT is never burned",

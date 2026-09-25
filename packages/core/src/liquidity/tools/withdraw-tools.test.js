@@ -15,10 +15,12 @@ const base = {
 };
 
 describe("liquidity withdraw tools input guard", () => {
-  test("both twins reject supported-but-unimplemented protocols before any runtime", () => {
+  // Enum membership is not implementation: meteora parses and is refused before the
+  // signer-bearing runtime is built. raydium has an adapter as of #130/#131.
+  test("both twins reject a protocol with no adapter before any runtime", () => {
     for (const tool of [simulateWithdrawTool, executeWithdrawTool]) {
       expect(tool.check).toBeTypeOf("function");
-      for (const protocol of ["meteora", "raydium"]) {
+      for (const protocol of ["meteora"]) {
         expect(() => tool.check({ ...base, protocol }), `${tool.name} ${protocol}`).toThrow(
           LiquidityUnsupportedProtocol,
         );

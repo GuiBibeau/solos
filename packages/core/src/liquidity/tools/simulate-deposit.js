@@ -1,7 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityDepositInputSchema } from "../domain/types.js";
+import { LiquidityDepositInputSchema, isReadable } from "../domain/types.js";
 import { simulateDeposit } from "../use-cases/simulate-deposit.js";
 
 export const simulateDepositTool = defineTool({
@@ -29,7 +29,7 @@ export const simulateDepositTool = defineTool({
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

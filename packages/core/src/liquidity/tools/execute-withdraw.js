@@ -1,7 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityExecuteWithdrawInputSchema } from "../domain/types.js";
+import { LiquidityExecuteWithdrawInputSchema, isReadable } from "../domain/types.js";
 import { executeWithdraw } from "../use-cases/execute-withdraw.js";
 
 export const executeWithdrawTool = defineTool({
@@ -30,7 +30,7 @@ export const executeWithdrawTool = defineTool({
     "implemented: meteora and raydium fail before any network access.",
   input: LiquidityExecuteWithdrawInputSchema,
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

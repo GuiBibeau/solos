@@ -23,6 +23,7 @@ import {
 import { depositPlan } from "../liquidity/whirlpool-deposit-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { buildSignedRaydiumDeposit } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
@@ -34,7 +35,14 @@ const tokenDecoder = getTokenDecoder();
 /** @typedef {import("@solos/actions").AddLiquidityAction} AddLiquidityAction */
 /** @typedef {Awaited<ReturnType<typeof signV1Message>>} Signed */
 /** @typedef {Parameters<typeof appendTransactionMessageInstructions>[0][number]} SetupInstruction */
-/** @typedef {{ readonly signed: Signed; readonly plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk }} PlannedDeposit */
+/**
+ * What a planned deposit carries. `plan` is narrowed to the fields `depositQuoteOf` consumes
+ * rather than one venue's plan type, because both venues produce them and nothing downstream
+ * reads anything else.
+ * @typedef {{ readonly liquidity: bigint; readonly requiredA: bigint; readonly requiredB: bigint;
+ *   readonly tokenMaxA: bigint; readonly tokenMaxB: bigint }} DepositQuoteSource
+ */
+/** @typedef {{ readonly signed: Signed; readonly plan: DepositQuoteSource }} PlannedDeposit */
 
 /**
  * Prove the funding side can pay. A present account with enough needs nothing. A missing side is
@@ -144,7 +152,7 @@ const signDeposit = ({ ctx, kit, plan, creates }) =>
 /**
  * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
  * decimal strings, at the pre-send pool price.
- * @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
+ * @param {DepositQuoteSource} plan
  * @returns {import("@solos/actions").LiquidityDepositQuote}
  */
 export const depositQuoteOf = (plan) => ({
@@ -163,6 +171,9 @@ export const depositQuoteOf = (plan) => ({
  */
 export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
+    if (action.protocol === "raydium") {
+      return yield* buildSignedRaydiumDeposit({ ctx, kit }, action);
+    }
     if (action.protocol !== "orca") {
       return yield* new UnsupportedAction({
         actionType: `add_liquidity:${action.protocol}`,

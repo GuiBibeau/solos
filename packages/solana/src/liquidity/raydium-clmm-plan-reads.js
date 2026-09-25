@@ -34,7 +34,17 @@ const ata = (owner, mint, tokenProgram) =>
     seeds: [keyBytes(owner), keyBytes(tokenProgram), keyBytes(mint)],
   }).then(([key]) => key);
 
-/** @typedef {{ rows: (accounts: readonly string[]) => any; custody: (mint: string) => any }} Reader */
+/**
+ * The seam the plans read through: batched account rows and an NFT custody answer. Typed rather
+ * than `any` so the plans keep a real error channel instead of collapsing to `unknown`.
+ * @typedef {{
+ *   rows: (accounts: readonly string[]) => import("effect").Effect.Effect<
+ *     ReadonlyArray<{ owner: string; bytes: Uint8Array } | null | undefined>,
+ *     import("@solos/core").RpcError>;
+ *   custody: (mint: string) => import("effect").Effect.Effect<
+ *     string | null | undefined, import("@solos/core").RpcError>;
+ * }} Reader
+ */
 
 /** @param {Reader} reader @param {{ account: string; absent: string; foreign: string }} what */
 const guardedRow = (reader, what) =>
