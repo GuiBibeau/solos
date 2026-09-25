@@ -14,6 +14,7 @@ import { readCandidates, readPools } from "./liquidity-enumerate-accounts.js";
 import { selectPositionCandidates } from "./liquidity-enumerate-select.js";
 import { mintDecimals, usableMintPair } from "./liquidity-mint-read.js";
 import { toLpPosition } from "./liquidity-read.js";
+import { listRaydiumPositionsLive } from "./raydium-clmm-enumerate.js";
 
 /** @param {string} position @param {string} reason @returns {LiquidityPositionUnavailable} */
 const unavailable = (position, reason) => new LiquidityPositionUnavailable({ position, reason });
@@ -57,6 +58,7 @@ const toEnumeration = (found, pools, decimals) =>
  */
 export const listPositionsLive = (read, request) =>
   Effect.gen(function* () {
+    if (request.protocol === "raydium") return yield* listRaydiumPositionsLive(read, request);
     if (request.protocol !== "orca") {
       return yield* new LiquidityUnsupportedProtocol({ protocol: request.protocol });
     }

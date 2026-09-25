@@ -76,23 +76,28 @@ const venueLayers = (over = {}) => {
   };
   const liquidity = {
     getPosition: never,
-    listPositions: () =>
-      Effect.succeed({
-        positions: [
-          {
-            kind: /** @type {"lp"} */ ("lp"),
-            protocol: /** @type {"orca"} */ ("orca"),
-            position: LP,
-            instrument: MARKET,
-            liquidity: "1000",
-            tokenA: { mint: USDC, amount: "500000", decimals: 6 },
-            tokenB: { mint: WSOL, amount: "1000000", decimals: 9 },
-            valueUsd: null,
-          },
-        ],
-        perpAccounts: [],
-        receiptMints: [],
-      }),
+    // Protocol-aware, like the real adapters: each venue answers for itself and only the asked
+    // protocol returns rows. A stub that ignored `protocol` would hand the same position back
+    // for every venue, and the merged state would double-count it.
+    listPositions: (/** @type {{ protocol: string }} */ request) =>
+      request.protocol === "orca"
+        ? Effect.succeed({
+            positions: [
+              {
+                kind: /** @type {"lp"} */ ("lp"),
+                protocol: /** @type {"orca"} */ ("orca"),
+                position: LP,
+                instrument: MARKET,
+                liquidity: "1000",
+                tokenA: { mint: USDC, amount: "500000", decimals: 6 },
+                tokenB: { mint: WSOL, amount: "1000000", decimals: 9 },
+                valueUsd: null,
+              },
+            ],
+            perpAccounts: [],
+            receiptMints: [],
+          })
+        : Effect.succeed({ positions: [], perpAccounts: [], receiptMints: [] }),
     ...over.liquidity,
   };
   return Layer.mergeAll(
@@ -199,6 +204,36 @@ describe("portfolio read model through the composed adapters [integration]", () 
     );
     expect(state.positions.every((entry) => entry.instrument !== RECEIPT)).toBe(true);
     prices.stop();
+  });
+
+  // The point of #129: a venue with a read adapter must reach portfolio state. Omitting one
+  // under-reports holdings silently, which "Complete enumeration" rules out — it returns every
+  // supported position or fails explicitly.
+  test("positions from every liquidity venue reach the state, without duplicates", async () => {
+    const raydiumPosition = {
+      kind: /** @type {"lp"} */ ("lp"),
+      protocol: /** @type {"raydium"} */ ("raydium"),
+      position: "9".repeat(43),
+      instrument: "8".repeat(43),
+      liquidity: "24012912330",
+      tokenA: { mint: WSOL, amount: "913492918", decimals: 9 },
+      tokenB: { mint: USDC, amount: "300989782", decimals: 6 },
+      valueUsd: null,
+    };
+    const layer = testLayer(priceFixture(new Map()), {
+      liquidity: {
+        listPositions: (/** @type {{ protocol: string }} */ request) =>
+          Effect.succeed({
+            positions: request.protocol === "raydium" ? [raydiumPosition] : [],
+            perpAccounts: [],
+            receiptMints: [],
+          }),
+      },
+    });
+    const state = await Effect.runPromise(getState({}).pipe(Effect.provide(layer)));
+    const lp = state.positions.filter((position) => position.kind === "lp");
+    expect(lp).toHaveLength(1);
+    expect(lp[0]).toMatchObject({ protocol: "raydium", liquidity: "24012912330" });
   });
 
   test("a venue that fails enumeration fails the read with its typed error", async () => {
