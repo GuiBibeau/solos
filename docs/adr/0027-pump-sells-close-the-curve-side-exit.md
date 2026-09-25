@@ -57,6 +57,25 @@ Offline: the sell's wire form and 26-account list derived from and diffed agains
 sell curve maths including a round-trip-cannot-profit invariant, the balance and proceeds gates
 against a loopback JSON-RPC server, and the widened Action contract's accept and reject cases.
 
-Live: a funded mainnet round trip on one live curve — a small buy, then the sell that closes it —
-with both signatures, both simulations, fees, before and after balances and the residual position
-recorded. That round is what closes the live-QA gate ADR-0020 opened and #118 left open.
+Live: a funded mainnet round trip on 2026-09-25, curve `6UjqmVAa…dNgX` (`6Ujqm…pump`) at 227 bps
+progress, wallet `E15BHE3B…SJ8f`, both legs simulated before sending and neither skipped.
+
+| | Buy | Sell |
+|---|---|---|
+| Signature | `5Dt3xEPPJMPyRrVo44Sson4w2Wxq3SKQ7z8nx8k8ZVQVbXjXEA6AMC9Ed15sGQrXUqr29o8KTpviYrA8xddaorq8` | `7uLxFAU63sPY9uT75rzpdhgRoUPeiWh5MP8PYUxTiatL9BVPov5ZHKJocaeaHydw63wRj4SWfDznumXawWVAjXH` |
+| Compute units | 106,908 | 75,284 |
+| Network fee | 105,000 lamports | 105,000 lamports |
+| Wallet delta | −12,965,040 | +9,648,083 |
+| Coin balance | 0 → 2,949,392.806756 | → 0 |
+
+The buy's debit reconciles exactly: 10,000,000 budget + 2,860,040 rent for the two accounts it
+opened (Token-2022 ATA 1,513,840, user volume accumulator 1,346,200) + 105,000 fee. The round
+trip cost 3,316,957 lamports net, of which 2,860,040 is rent still locked in those two accounts
+and 210,000 is network fees; the remaining 246,917 is Pump's fees plus the curve spread on
+0.01 SOL. **Residual token exposure is zero** — the position was fully closed, not merely reduced.
+
+Two defects were found only by spending. The buy aborted with `NotAuthorized` (6000) reading the
+wrong fee-recipient field, which meant no pump buy could ever have landed since #118; that is
+fixed in this change and pinned by `global-decode.test.js`. The account order and the choice of
+recipient array were then confirmed against a real on-chain `sell_v2` on the same curve rather
+than inferred a second time.

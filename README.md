@@ -472,7 +472,9 @@ SOLANA_RPC_URL=... bun run solos mcp call solana_launch_simulate_buy --args '{"m
 
 Operator QA is a funded round: a small buy and the sell that closes it, on a curve that is live
 for both. Record both signatures, fees, before and after balances, and the residual token
-position; a balance increase alone is not a completed round trip.
+position; a balance increase alone is not a completed round trip. One such round ran on
+2026-09-25 and is reconciled in ADR-0027 — note that the buy opens two rent-bearing accounts
+(about 2.86M lamports on a Token-2022 mint), which stay locked after the position is closed.
 
 ## Phoenix Perps positions, enrollment and collateral
 
