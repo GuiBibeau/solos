@@ -156,7 +156,7 @@ export const buildSignedRaydiumWithdraw = ({ ctx, kit }, action) =>
       verb: "removal",
     });
     const instruction = raydiumInstruction(
-      decreaseLiquidityV2Accounts(plan.accounts),
+      decreaseLiquidityV2Accounts(plan.accounts, plan.rewards),
       decreaseLiquidityV2Data({
         liquidity: plan.liquidity,
         amount0Min: plan.minA,

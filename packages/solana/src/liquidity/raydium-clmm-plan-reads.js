@@ -28,7 +28,7 @@ export const reject = (reason) => ({ status: /** @type {const} */ ("reject"), re
 
 /** The owner's associated token account for one mint under one token program. */
 /** @param {string} owner @param {string} mint @param {string} tokenProgram */
-const ata = (owner, mint, tokenProgram) =>
+export const ata = (owner, mint, tokenProgram) =>
   getProgramDerivedAddress({
     programAddress: address(ATA_PROGRAM),
     seeds: [keyBytes(owner), keyBytes(tokenProgram), keyBytes(mint)],
@@ -135,3 +135,29 @@ export const deriveRaydiumAccounts = async ({
     ...(wide && { bitmapExtension: extension }),
   };
 };
+
+/**
+ * The reward groups `decrease_liquidity_v2` requires: one `(vault, recipient, mint)` triple per
+ * initialized pool reward, in reward index order. The count must match exactly — a pool with a
+ * reward and no groups fails the removal even when only liquidity was wanted.
+ *
+ * Each recipient is the owner's ATA for that reward mint, derived against the mint's own token
+ * program: a Token-2022 reward would otherwise derive an address the program rejects.
+ * @param {Reader} reader @param {string} owner
+ * @param {ReadonlyArray<{ mint: string; vault: string }>} rewards
+ */
+export const rewardGroups = (reader, owner, rewards) =>
+  Effect.gen(function* () {
+    if (rewards.length === 0) return [];
+    const mintRows = yield* reader.rows(rewards.map((reward) => reward.mint));
+    const groups = [];
+    for (const [index, reward] of rewards.entries()) {
+      const row = mintRows[index];
+      if (row === null || row === undefined) {
+        return reject(`the pool's reward mint ${reward.mint} is missing`);
+      }
+      const recipient = yield* Effect.promise(() => ata(owner, reward.mint, row.owner));
+      groups.push({ vault: reward.vault, recipient, mint: reward.mint });
+    }
+    return groups;
+  });

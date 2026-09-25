@@ -16,12 +16,21 @@ import {
   PERSONAL_POSITION_DISCRIMINATOR,
 } from "./raydium-clmm-program.js";
 
-/** The first 273 bytes of a live SOL/USDC PoolState — everything the read touches. */
+/** A live SOL/USDC PoolState, through `reward_infos` — everything the read touches. */
 const LIVE_POOL_PREFIX =
-  "9+3j9dfD3kb/J/h1kZHXDyshRTJ1cBKA+75w9IwihSFNbCJrm2AsTU2n4L9mLmKyVEpBQSbsZYZslSyLgLfqrjxPjwNPsqt58" +
-  "AabiFf+q4GE+2h/Y0YYwDXaxDncGus7VZig8AAAAAABxvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWE1xC8EegCgoA" +
-  "4uXlAv1Mq8Ujt5easRI0mT0Kd5/M0SaUYpXTwujyqOjii0GtMaFsBn/mlkafyZcZXVyvv1WhbIJa4wmFjRjYV3XU2tkbL5lj4" +
-  "9adulPU/iZbZpnkdbsRkJBgEA5v4fOEZoAAAAAAAAAAAAAFZOE7yzZLBYAAAAAAAAAAAurf//";
+  "9+3j9dfD3kb/J/h1kZHXDyshRTJ1cBKA+75w9IwihSFNbCJrm2AsTU2n4L9mLmKyVEpBQSbsZYZslSyLgLfqrjxPjwNPsqt5" +
+  "8AabiFf+q4GE+2h/Y0YYwDXaxDncGus7VZig8AAAAAABxvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWE1xC8EegCg" +
+  "oA4uXlAv1Mq8Ujt5easRI0mT0Kd5/M0SaUYpXTwujyqOjii0GtMaFsBn/mlkafyZcZXVyvv1WhbIJa4wmFjRjYV3XU2tkbL5" +
+  "lj49adulPU/iZbZpnkdbsRkJBgEAWPVVjClqAAAAAAAAAAAAAOmxrRNDOPBYAAAAAAAAAABmrf//AAAAABBgmRCFuGBZAAAA" +
+  "AAAAAACzVtEcpvMcDQAAAAAAAAAAm0gVAwAAAACMzVkAAAAAAEqLn9KvziUBAAAAAAAAAAAKh7aUYfUuAAAAAAAAAAAAueto" +
+  "MG0GLwAAAAAAAAAAADo7fnFD+SUBAAAAAAAAAAAAAAAAAAAAAANwIOdpAAAAAPBEFWoAAAAA8EQVagAAAAAwyQYXG1xscHUG" +
+  "AAAAAAAAKGiFqw4AAAD/v5GGDgAAADeZjMvy0EWLYVy8xrGjZ8R0np/vcwZiLhsbWJEBILya+pXh4ovnMzhpJU3xedI1Mncw" +
+  "mjtmCSjpjg8cFTiY+PQFbi5biuhaxy9JKpHBKlrVCfYFdU9E3Cnfqc2Lz1DJmLz+AFQXhK4BAAAAAAAAAAAAAAAAAAAAAAAA" +
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAp+C/Zi5islRKQUEm7GWGbJUsi4C36q48T48DT7KrefAA" +
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKfgv2YuYrJU" +
+  "SkFBJuxlhmyVLIuAt+quPE+PA0+yq3nwAAAAAAAAAAAAAAAAAAAAAA==";
 
 const livePool = () => Uint8Array.from(Buffer.from(LIVE_POOL_PREFIX, "base64"));
 
@@ -55,6 +64,18 @@ describe("raydium clmm decode", () => {
     expect(read.layout.tickSpacing).toBe(1);
   });
 
+  // This pool really does carry one initialized RAY reward, and a removal from it must pass
+  // three remaining accounts for that reward or the program refuses the whole instruction.
+  test("the pool's one initialized reward decodes, with the vault it really has", () => {
+    const read = decodePoolState(livePool());
+    if (read.status !== "decoded") throw new Error("expected a decode");
+    expect(read.layout.rewards).toHaveLength(1);
+    expect(read.layout.rewards[0]).toEqual({
+      mint: "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+      vault: "HsBUudV9Y2Z2dJTieWFgK3zhrpX4ELvnfHcAwSBVqDGX",
+    });
+  });
+
   // The strongest check available without a second implementation. `tick_current` and
   // `sqrt_price_x64` are different fields at different offsets, and the program keeps them in a
   // fixed relationship: the tick is the floor, so the sqrt price sits in [tick, tick+1). A wrong
@@ -71,7 +92,7 @@ describe("raydium clmm decode", () => {
   });
 
   test("a pool shorter than the fields the read touches is corrupt, not partially decoded", () => {
-    expect(decodePoolState(livePool().slice(0, 272)).status).toBe("corrupt");
+    expect(decodePoolState(livePool().slice(0, 903)).status).toBe("corrupt");
   });
 
   test("a pool without the PoolState discriminator is refused", () => {

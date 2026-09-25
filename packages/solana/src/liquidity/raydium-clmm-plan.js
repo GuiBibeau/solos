@@ -7,7 +7,12 @@
  * `raydium-clmm-math.test.js` for the three-way check that says why that is sound here.
  */
 import { Effect } from "effect";
-import { deriveRaydiumAccounts, prepareRaydiumPlan, reject } from "./raydium-clmm-plan-reads.js";
+import {
+  deriveRaydiumAccounts,
+  prepareRaydiumPlan,
+  reject,
+  rewardGroups,
+} from "./raydium-clmm-plan-reads.js";
 import { depositLiquidityForBudgets } from "./whirlpool-deposit-quote.js";
 import { withdrawQuoteForBps } from "./whirlpool-withdraw-quote.js";
 
@@ -90,10 +95,13 @@ export const raydiumWithdrawPlan = ({ reader, owner, action }) =>
         `${action.bps} bps of ${read.position.liquidity} current liquidity computes to zero`,
       );
     }
+    const rewards = yield* rewardGroups(reader, owner, read.pool.rewards);
+    if (!Array.isArray(rewards)) return rewards;
     const accounts = yield* accountsFor(owner, action.position, read);
     return {
       status: /** @type {const} */ ("ok"),
       accounts,
+      rewards,
       // Exact at a full exit, so `close_position` stays reachable afterwards.
       liquidity: action.bps === 10_000 ? read.position.liquidity : quote.liquidity,
       estA: quote.estA,

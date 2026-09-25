@@ -20,6 +20,21 @@ const NFT_ACCOUNT = "4uisq4ndD2eLNqaKm27UzQJBKQ4LHs9D92mZg9z5kttd";
 
 const addressFill = (/** @type {number} */ byte) => new Uint8Array(32).fill(byte);
 
+const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
+/** The base58 address the decoder produces for a fill-byte account, so map keys line up. */
+const addressOf = (/** @type {number} */ byte) => {
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let value = 0n;
+  for (const part of addressFill(byte)) value = (value << 8n) + BigInt(part);
+  let out = "";
+  while (value > 0n) {
+    out = alphabet[Number(value % 58n)] + out;
+    value /= 58n;
+  }
+  return out;
+};
+
 const positionBytes = ({ liquidity = 24_012_912_330n, lower = -21_878, upper = -20_877 } = {}) => {
   const bytes = new Uint8Array(PERSONAL_POSITION_BYTES);
   bytes.set(PERSONAL_POSITION_DISCRIMINATOR, 0);
@@ -46,8 +61,12 @@ const POOL_ID_BYTES = (() => {
   return bytes;
 })();
 
-const poolBytes = ({ tickSpacing = 1, tickCurrent = -21_146 } = {}) => {
-  const bytes = new Uint8Array(273);
+/** RAY, the reward this pool really carries. */
+const REWARD_MINT_BYTE = 7;
+const REWARD_VAULT_BYTE = 8;
+
+const poolBytes = ({ tickSpacing = 1, tickCurrent = -21_146, rewards = 0 } = {}) => {
+  const bytes = new Uint8Array(397 + 169 * 3);
   bytes.set(POOL_STATE_DISCRIMINATOR, 0);
   const view = new DataView(bytes.buffer);
   bytes.set(addressFill(1), 73); // mint0
@@ -61,6 +80,12 @@ const poolBytes = ({ tickSpacing = 1, tickCurrent = -21_146 } = {}) => {
   view.setBigUint64(253, 6_408_684_130_492_330_473n, true);
   view.setBigUint64(261, 0n, true);
   view.setInt32(269, tickCurrent, true);
+  for (let index = 0; index < rewards; index += 1) {
+    const at = 397 + 169 * index;
+    bytes[at] = 3; // an initialized (ended) reward still requires its accounts
+    bytes.set(addressFill(REWARD_MINT_BYTE + index), at + 57);
+    bytes.set(addressFill(REWARD_VAULT_BYTE + index), at + 89);
+  }
   return bytes;
 };
 
@@ -184,6 +209,29 @@ describe("raydium withdraw plan", () => {
     const tiny = healthy();
     tiny.set(POSITION, { owner: RAYDIUM_CLMM_PROGRAM, bytes: positionBytes({ liquidity: 1n }) });
     expect(await withdrawAt(tiny, { bps: 1 })).toMatchObject({ status: "reject" });
+  });
+
+  // The pool this fixture mirrors really does carry an initialized RAY reward, and
+  // decrease_liquidity_v2 requires exactly three remaining accounts per initialized reward.
+  // Passing none fails the removal outright, even when only liquidity was wanted.
+  test("a pool with no rewards needs no groups", async () => {
+    const plan = await withdrawAt(healthy());
+    expect(plan.status === "ok" && plan.rewards).toEqual([]);
+  });
+
+  test("each initialized reward contributes one group, in reward index order", async () => {
+    for (const count of [1, 2, 3]) {
+      const rows = healthy();
+      rows.set(POOL, { owner: RAYDIUM_CLMM_PROGRAM, bytes: poolBytes({ rewards: count }) });
+      for (let index = 0; index < count; index += 1) {
+        rows.set(addressOf(REWARD_MINT_BYTE + index), {
+          owner: TOKEN_PROGRAM_ID,
+          bytes: new Uint8Array(82),
+        });
+      }
+      const plan = await withdrawAt(rows);
+      expect(plan.status === "ok" && plan.rewards).toHaveLength(count);
+    }
   });
 
   test("an owner without the NFT cannot remove", async () => {
