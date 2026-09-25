@@ -47,7 +47,7 @@ export const LiquidityGetPositionInputSchema = z.object({
 /** One owner enumeration: whose LP positions to list. Omitted means the configured signer. */
 export const LiquidityListPositionsInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
   ),
   owner: AddressSchema.optional().describe(
     "Owner to enumerate. Defaults to the configured signer wallet",
