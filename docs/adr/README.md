@@ -33,3 +33,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0025](0025-pump-buys-use-the-v2-exact-quote-instruction.md) | Pump buys use `buy_exact_quote_in_v2` |
 | [0026](0026-phoenix-collateral-input.md) | Phoenix collateral transfers fix input, estimate output |
 | [0027](0027-pump-sells-close-the-curve-side-exit.md) | Pump sells use `sell_v2`; wSOL on exactly one side is the direction |
+| [0028](0028-pump-fees-and-recipients-are-read-per-coin.md) | Pump fees and fee recipients are read per coin, never reconstructed |
