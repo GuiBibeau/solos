@@ -12,10 +12,7 @@ import {
   appendTransactionMessageInstructions,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
-import {
-  getCreateAssociatedTokenIdempotentInstruction,
-  getTokenDecoder,
-} from "@solana-program/token";
+import { getTokenDecoder } from "@solana-program/token";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
@@ -24,14 +21,14 @@ import {
   increaseLiquidityInstruction,
 } from "../liquidity/whirlpool-deposit-instruction.js";
 import { depositPlan } from "../liquidity/whirlpool-deposit-plan.js";
-import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { rpcOrigin } from "../rpc/rpc-origin.js";
-import { beginV1Message, signV1Message, rejectionAfterV1Policy } from "./transaction-v1.js";
+import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
 const tokenDecoder = getTokenDecoder();
 
+/** @typedef {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} DepositPlanOk */
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("@solos/actions").AddLiquidityAction} AddLiquidityAction */
@@ -40,80 +37,43 @@ const tokenDecoder = getTokenDecoder();
 /** @typedef {{ readonly signed: Signed; readonly plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk }} PlannedDeposit */
 
 /**
- * Fetch the two funding token accounts. A missing side is allowed only when the quote needs
- * nothing from it: the driver then prepends an idempotent ATA create so the instruction's
- * account exists — rent is the signer's. A present-but-short side is a typed rejection.
- * @param {{ rpc: Rpc["rpc"]; origin: string; timeoutMs: number }} read
+ * Prove the funding side can pay. A present account with enough needs nothing. A missing side is
+ * allowed only when the quote needs nothing from it — the driver then prepends an idempotent ATA
+ * create so the instruction's account exists. A short or absent side that IS needed is a typed
+ * rejection: a spend from an account that cannot cover it is not simulable honestly.
+ * @param {ReturnType<typeof liquidityRead>} read
  * @param {Kit} kit
  * @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
- * @returns {import("effect").Effect.Effect<SetupInstruction[], BuildRejected | import("@solos/core").RpcError>}
  */
 const fundingSetup = (read, kit, plan) =>
-  Effect.flatMap(
-    fetchAccounts(read, [plan.accounts.tokenOwnerAccountA, plan.accounts.tokenOwnerAccountB]),
-    ([a, b]) =>
-      Effect.gen(function* () {
-        const aSetup = yield* fundingSide(kit, {
-          row: a,
-          required: plan.requiredA,
-          label: "A",
-          mint: plan.mintA,
-          plan,
-        });
-        const bSetup = yield* fundingSide(kit, {
-          row: b,
-          required: plan.requiredB,
-          label: "B",
-          mint: plan.mintB,
-          plan,
-        });
-        return [aSetup, bSetup].filter((setup) => setup !== null);
-      }),
-  );
+  setupSides(read, plan.accounts, (side) => fundingSide(kit, plan, side));
+
+/** What the plan says about one side. @param {DepositPlanOk} plan @param {"A"|"B"} label */
+const sideOf = (plan, label) =>
+  label === "A"
+    ? { required: plan.requiredA, mint: plan.mintA, target: plan.accounts.tokenOwnerAccountA }
+    : { required: plan.requiredB, mint: plan.mintB, target: plan.accounts.tokenOwnerAccountB };
 
 /**
- * One funding side: null when nothing is needed, an idempotent ATA create when the account
- * is absent and the quote needs nothing from it, a typed failure when it is short.
- * @param {Kit} kit
- * @param {{
- *   row: import("../liquidity/liquidity-accounts.js").FetchedAccount | null | undefined;
- *   required: bigint;
- *   label: string;
- *   mint: string;
- *   plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk;
- * }} parts
- * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
+ * One funding side: nothing to do when it already covers the spend, an idempotent create when
+ * the quote needs nothing from it, a typed refusal when it is short or absent but needed.
+ * @param {Kit} kit @param {DepositPlanOk} plan
+ * @param {{ row: import("../liquidity/liquidity-accounts.js").FetchedAccount | null | undefined;
+ *   label: "A" | "B" }} side
  */
-const fundingSide = (kit, { row, required, label, mint, plan }) => {
+const fundingSide = (kit, plan, { row, label }) => {
+  const { required, mint, target } = sideOf(plan, label);
   const isAbsent = row === null || row === undefined;
-  if (!isAbsent) {
-    const amount = tokenDecoder.decode(row.bytes).amount;
-    if (amount >= required) return Effect.succeed(null);
-  }
+  const held = isAbsent ? null : tokenDecoder.decode(row.bytes).amount;
+  if (held !== null && held >= required) return Effect.succeed(null);
   if (required > 0n) {
     const detail = isAbsent
       ? "the funding account does not exist"
-      : `${tokenDecoder.decode(row.bytes).amount} available, the deposit needs ${required}`;
+      : `${held} available, the deposit needs ${required}`;
     return fail(`insufficient token ${label} balance: ${detail}`);
   }
-  const target =
-    label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB;
   return Effect.succeed(createAta(kit, mint, target));
 };
-
-/** @param {Kit} kit @param {string} mint @param {string} ata */
-const createAta = (kit, mint, ata) =>
-  getCreateAssociatedTokenIdempotentInstruction({
-    payer: kit.signer,
-    ata: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (ata)),
-    owner: /** @type {import("@solana/kit").Address} */ (
-      /** @type {unknown} */ (kit.signer.address)
-    ),
-    mint: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (mint)),
-  });
-
-/** @param {string} reason @returns {import("effect").Effect.Effect<never, BuildRejected>} */
-const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
 
 /**
  * Run the plan against real RPC; its typed rejects surface as values the caller maps to
@@ -122,7 +82,7 @@ const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
  * @returns {import("effect").Effect.Effect<import("../liquidity/whirlpool-deposit-plan.js").DepositPlan, import("@solos/core").RpcError>}
  */
 const planFromChain = (ctx, owner, action) => {
-  const read = { rpc: ctx.rpc, origin: rpcOrigin(ctx.url), timeoutMs: TOKEN_RPC_TIMEOUT_MS };
+  const read = liquidityRead(ctx);
   /** @type {import("../liquidity/whirlpool-deposit-plan.js").DepositReader} */
   const reader = {
     rows: (/** @type {readonly string[]} */ accounts) => fetchAccounts(read, accounts),
@@ -213,8 +173,7 @@ export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
     if (plan.status === "reject") {
       return yield* new BuildRejected({ reason: plan.reason });
     }
-    const read = { rpc: ctx.rpc, origin: rpcOrigin(ctx.url), timeoutMs: TOKEN_RPC_TIMEOUT_MS };
-    const creates = yield* fundingSetup(read, kit, plan);
+    const creates = yield* fundingSetup(liquidityRead(ctx), kit, plan);
     const signed = yield* signDeposit({ ctx, kit, plan, creates });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildLiquidityDeposit"));
