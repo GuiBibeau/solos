@@ -7,13 +7,34 @@ cheatcode, decoded from the pinned Orca IDL. They prove the decode/guard/custody
 behavior, not what a live pool holds. Live QA compares solOS output with the same pool state
 seen through a second client.
 
-**Status: blocked.** A live read needs operator prerequisites that CI does not have: an RPC endpoint and an existing
-operator-owned Whirlpool position with its NFT in the operator's wallet. solOS reads are
-public — no credential is provisioned anywhere; the only configuration is `SOLANA_RPC_URL`.
-Live credentials and wallets belong only in the operator or approved QA environment, never
-in issue comments, tool inputs, or implementation sandboxes.
+**Status: the read is done; the funded round is blocked on a capability, not on a position.**
 
-## What to compare once an operator position exists
+A live read needs an RPC endpoint and an operator-owned Whirlpool position with its NFT in the
+operator's wallet. Both exist, and the read was run on 2026-09-25:
+
+```
+$ solos liquidity position --protocol orca --position 2LyZJBNUWMH7YXJvhT61NUNXjTbk7kHKZuwyPVA7QgWZ
+{"kind":"lp","protocol":"orca","position":"2LyZ…QgWZ","instrument":"83v8iPyZ…5d6d",
+ "liquidity":"0","tokenA":{"mint":"So111…112","amount":"0","decimals":9},
+ "tokenB":{"mint":"EPjFW…Dt1v","amount":"0","decimals":6},"valueUsd":null}
+```
+
+The position is live, held, and **empty**: ticks -10000..-5000 against a pool at tick -21359, so
+it sits below its range and is a 100% token-A position. Passing a different `--owner` returns
+`LiquidityPositionUnavailable: owner does not hold the position NFT`, which confirms custody is
+checked against the given owner rather than assumed.
+
+**What still blocks the funded add/remove round is issue #126, not a missing position.** Token A
+here is wSOL, and the deposit path never wraps: `fundingSide` refuses when a side needs more than
+its token account holds, and the wallet holds native SOL with no wSOL account. Every SOL-paired
+position is unreachable for adds until that is fixed. The round below becomes runnable as soon as
+it is.
+
+solOS reads are public — no credential is provisioned anywhere; the only configuration is
+`SOLANA_RPC_URL`. Live credentials and wallets belong only in the operator or approved QA
+environment, never in issue comments, tool inputs, or implementation sandboxes.
+
+## What to compare
 
 1. Pick the position **account** (the Whirlpool position PDA — never the NFT mint, never the
    pool) and the wallet that holds its NFT. Run:
