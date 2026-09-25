@@ -34,7 +34,7 @@ const utf8 = getUtf8Encoder();
 const POOL_STATE_MIN_BYTES = POOL_STATE_OFFSETS.tickCurrent + 4;
 
 /** @typedef {{ readonly poolId: string; readonly nftMint: string; readonly liquidity: bigint; readonly tickLowerIndex: number; readonly tickUpperIndex: number }} RaydiumPositionLayout */
-/** @typedef {{ readonly sqrtPrice: bigint; readonly tokenMint0: string; readonly tokenMint1: string; readonly decimals0: number; readonly decimals1: number; readonly tickSpacing: number; readonly tickCurrent: number }} RaydiumPoolLayout */
+/** @typedef {{ readonly sqrtPrice: bigint; readonly tokenMint0: string; readonly tokenMint1: string; readonly tokenVault0: string; readonly tokenVault1: string; readonly decimals0: number; readonly decimals1: number; readonly tickSpacing: number; readonly tickCurrent: number }} RaydiumPoolLayout */
 /** @typedef {{ readonly status: "decoded"; readonly layout: RaydiumPositionLayout } | { readonly status: "corrupt"; readonly reason: string }} RaydiumPositionRead */
 /** @typedef {{ readonly status: "decoded"; readonly layout: RaydiumPoolLayout } | { readonly status: "corrupt"; readonly reason: string }} RaydiumPoolRead */
 
@@ -115,6 +115,8 @@ export const decodePoolState = (bytes) => {
       sqrtPrice: readU128(view, POOL_STATE_OFFSETS.sqrtPriceX64),
       tokenMint0: readAddress(bytes, POOL_STATE_OFFSETS.tokenMint0),
       tokenMint1: readAddress(bytes, POOL_STATE_OFFSETS.tokenMint1),
+      tokenVault0: readAddress(bytes, POOL_STATE_OFFSETS.tokenVault0),
+      tokenVault1: readAddress(bytes, POOL_STATE_OFFSETS.tokenVault1),
       decimals0: bytes[POOL_STATE_OFFSETS.mintDecimals0] ?? 0,
       decimals1: bytes[POOL_STATE_OFFSETS.mintDecimals1] ?? 0,
       tickSpacing: view.getUint16(POOL_STATE_OFFSETS.tickSpacing, true),
