@@ -37,7 +37,8 @@ nothing was sent.
 ## Decision
 
 **Read the fee, do not reconstruct it.** `fee-config.js` implements `bondingCurveMarketCap` and
-`calculate_fee_tier` from the pinned `docs/FEE_PROGRAM_README.md`, in integers throughout. The
+`calculate_fee_tier` from the pinned upstream fee specification (see Sources), in integers
+throughout. The
 market cap uses the **mint's** supply, not the curve's `token_total_supply`: the two differ — a live
 coin carried 2e15 against 1e15 — and they select different tiers. The documented fallback applies
 only when there is no `FeeConfig` at all, and uses `Global`'s own creator rate, never the curve's.
@@ -91,3 +92,18 @@ a simulate that passes on an ordinary **and** a mayhem coin — which no single 
 do — plus funded round trips at `--max-slippage-bps 10` on each. Mayhem coin:
 `5JfcpBWt…VAHG` / `3ASu7x7Z…1Syf`. Ordinary classic-SPL coin, the one `main` could not buy:
 `4yeSWxvz…` / `2NW2CBJ7…UPwm`.
+
+## Sources
+
+These are upstream documents, not files in this repository — the pinned commit is the same one
+`pump-program.js` names, so the layouts and the algorithm can be audited against one revision:
+
+- [`docs/FEE_PROGRAM_README.md` at `81091419`](https://github.com/pump-fun/pump-public-docs/blob/81091419e4457566469d4e2a27f64ed84d42419c/docs/FEE_PROGRAM_README.md)
+  — `bondingCurveMarketCap`, `computeFeesBps` and `calculate_fee_tier`, and the note that
+  implementers may widen slippage "until you make sure it's implemented correctly".
+- [`idl/pump_fees.json` at `81091419`](https://github.com/pump-fun/pump-public-docs/blob/81091419e4457566469d4e2a27f64ed84d42419c/idl/pump_fees.json)
+  — the `FeeConfig`, `FeeTier` and `Fees` layouts the decoder follows, and the `FeeConfig`
+  discriminator pinned in `pump-program.js`.
+- [`idl/pump.json` at `81091419`](https://github.com/pump-fun/pump-public-docs/blob/81091419e4457566469d4e2a27f64ed84d42419c/idl/pump.json)
+  — `Global`, whose three fee-recipient fields and their offsets are what the per-coin selection
+  chooses between.

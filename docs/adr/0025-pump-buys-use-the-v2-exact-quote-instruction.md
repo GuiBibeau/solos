@@ -1,7 +1,9 @@
 # 0025 — Pump buys use `buy_exact_quote_in_v2`
 
-Status: accepted, 2026-09-25. Delivers the maintainer contract in issue #25. Its "there is no solOS
-Pump sell tool" clause is amended by ADR-0027, 2026-09-25; everything else stands.
+Status: accepted, 2026-09-25. Delivers the maintainer contract in issue #25. Two clauses are
+amended, both on 2026-09-25: "there is no solOS Pump sell tool" by ADR-0027, and the fee-rate
+paragraph below by ADR-0028, which supersedes it — fees are no longer read from `Global` at all.
+Everything else stands.
 
 ## Context
 
@@ -55,9 +57,12 @@ by running it — the IDL alone says nothing about it.
   IDL's own `pda` entries rather than the docs prose.
 - `buy_exact_quote_in_v2` does not open the buyer's token account, so an idempotent ATA create is
   prepended. That is the only account initialisation the buy performs.
-- Fee rates are read live from `Global`. The documentation states `fee_basis_points == 100`; the
+- ~~Fee rates are read live from `Global`. The documentation states `fee_basis_points == 100`; the
   live account reads **95** with a separate 5 bps creator fee. A hardcoded 100 would misprice every
-  quote.
+  quote.~~ **Superseded by ADR-0028.** Reading `Global.fee_basis_points` plus the curve's
+  `creator_fee_bps` is the schedule Pump retired on 2025-09-01, and it underprices every trade by
+  30 bps against the live tier table. The premise — read the rate, never assume it — was right;
+  the account it read was wrong.
 - The instruction is undocumented, so its discriminator and account order are pinned in
   `pump-buy-wire.test.js`. A silent upstream change fails the suite rather than the wallet.
 - There is no solOS Pump sell tool. An operator needs a checked external exit route before buying,
