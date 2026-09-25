@@ -14,7 +14,6 @@ import {
   appendTransactionMessageInstructions,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
-import { getCreateAssociatedTokenIdempotentInstruction } from "@solana-program/token";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
@@ -23,9 +22,8 @@ import {
   decreaseLiquidityInstruction,
 } from "../liquidity/whirlpool-withdraw-instruction.js";
 import { withdrawPlan } from "../liquidity/whirlpool-withdraw-plan.js";
-import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { rpcOrigin } from "../rpc/rpc-origin.js";
+import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
 import { beginV1Message, signV1Message, rejectionAfterV1Policy } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
@@ -38,79 +36,29 @@ const EXECUTOR = "direct-signer";
 /** @typedef {{ readonly signed: Signed; readonly plan: import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk }} PlannedWithdraw */
 
 /**
- * Prove the two receiving token accounts. A present account needs nothing. An absent side
- * is allowed only when the quote owes it nothing (zero minimum at the current price): the
- * driver then prepends an idempotent ATA create so the instruction's account exists — its
- * rent is the signer's, a protocol-mandated cost booked separately from principal. An
- * absent side that IS owed tokens fails: a payout into a nonexistent account cannot be
- * simulated honestly.
- * @param {{ rpc: Rpc["rpc"]; origin: string; timeoutMs: number }} read
+ * Prove each receiving side. A present account needs nothing. An absent side is allowed only
+ * when the quote owes it nothing at the current price — the driver then prepends an idempotent
+ * ATA create, whose rent is the signer's. An absent side that IS owed tokens fails: a payout
+ * into a nonexistent account cannot be simulated honestly.
+ * @param {ReturnType<typeof liquidityRead>} read
  * @param {Kit} kit
  * @param {import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk} plan
- * @returns {import("effect").Effect.Effect<SetupInstruction[], BuildRejected | import("@solos/core").RpcError>}
  */
 const receiptSetup = (read, kit, plan) =>
-  Effect.flatMap(
-    fetchAccounts(read, [plan.accounts.tokenOwnerAccountA, plan.accounts.tokenOwnerAccountB]),
-    ([a, b]) =>
-      Effect.gen(function* () {
-        const aSetup = yield* receiptSide(kit, {
-          row: a,
-          minimum: plan.minA,
-          label: "A",
-          mint: plan.mintA,
-          target: plan.accounts.tokenOwnerAccountA,
-        });
-        const bSetup = yield* receiptSide(kit, {
-          row: b,
-          minimum: plan.minB,
-          label: "B",
-          mint: plan.mintB,
-          target: plan.accounts.tokenOwnerAccountB,
-        });
-        return [aSetup, bSetup].filter((setup) => setup !== null);
-      }),
-  );
-
-/**
- * One receiving side: null when nothing is needed, an idempotent ATA create when the
- * account is absent and the quote owes it nothing, a typed failure when it is absent and
- * owed tokens.
- * @param {Kit} kit
- * @param {{
- *   row: import("../liquidity/liquidity-accounts.js").FetchedAccount | null | undefined;
- *   minimum: bigint;
- *   label: string;
- *   mint: string;
- *   target: string;
- * }} parts
- * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
- */
-const receiptSide = (kit, { row, minimum, label, mint, target }) => {
-  const isAbsent = row === null || row === undefined;
-  if (!isAbsent) return Effect.succeed(null);
-  if (minimum > 0n) {
-    return fail(
-      `the token ${label} receiving account does not exist and the position owes it ` +
-        `${minimum} base units at the current price`,
-    );
-  }
-  return Effect.succeed(createAta(kit, mint, target));
-};
-
-/** @param {Kit} kit @param {string} mint @param {string} ata */
-const createAta = (kit, mint, ata) =>
-  getCreateAssociatedTokenIdempotentInstruction({
-    payer: kit.signer,
-    ata: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (ata)),
-    owner: /** @type {import("@solana/kit").Address} */ (
-      /** @type {unknown} */ (kit.signer.address)
-    ),
-    mint: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (mint)),
+  setupSides(read, plan.accounts, ({ row, label }) => {
+    if (row !== null && row !== undefined) return Effect.succeed(null);
+    const minimum = label === "A" ? plan.minA : plan.minB;
+    if (minimum > 0n) {
+      return fail(
+        `the token ${label} receiving account does not exist and the position owes it ` +
+          `${minimum} base units at the current price`,
+      );
+    }
+    const mint = label === "A" ? plan.mintA : plan.mintB;
+    const target =
+      label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB;
+    return Effect.succeed(createAta(kit, mint, target));
   });
-
-/** @param {string} reason @returns {import("effect").Effect.Effect<never, BuildRejected>} */
-const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
 
 /**
  * Run the plan against real RPC; its typed rejects surface as values the caller maps to
@@ -119,7 +67,7 @@ const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
  * @returns {import("effect").Effect.Effect<import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlan, import("@solos/core").RpcError>}
  */
 const planFromChain = (ctx, owner, action) => {
-  const read = { rpc: ctx.rpc, origin: rpcOrigin(ctx.url), timeoutMs: TOKEN_RPC_TIMEOUT_MS };
+  const read = liquidityRead(ctx);
   /** @type {import("../liquidity/whirlpool-withdraw-plan.js").WithdrawReader} */
   const reader = {
     rows: (/** @type {readonly string[]} */ accounts) => fetchAccounts(read, accounts),
@@ -208,7 +156,7 @@ export const buildSignedLiquidityWithdraw = ({ ctx, kit }, action) =>
     if (plan.status === "reject") {
       return yield* new BuildRejected({ reason: plan.reason });
     }
-    const read = { rpc: ctx.rpc, origin: rpcOrigin(ctx.url), timeoutMs: TOKEN_RPC_TIMEOUT_MS };
+    const read = liquidityRead(ctx);
     const creates = yield* receiptSetup(read, kit, plan);
     const signed = yield* signWithdraw({ ctx, kit, plan, creates });
     return { signed, plan };
