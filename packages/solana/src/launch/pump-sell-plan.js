@@ -10,7 +10,6 @@
 import { address } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { bondingCurveAddress } from "./bonding-curve.js";
 import { globalConfigAddress } from "./global-config.js";
 import { associatedAccount, sellAccounts } from "./pump-buy-accounts.js";
@@ -23,19 +22,37 @@ import { PUMP_PROGRAM } from "./pump-program.js";
 
 const BALANCE_TOO_LOW = "the wallet holds less of this coin than the sell asks for";
 const PROCEEDS_TOO_SMALL = "the amount returns no lamports after fees and slippage";
+const NOT_A_TOKEN_ACCOUNT = "the seller's derived token account is not a readable token account";
+
+/** `amount` sits at bytes 64..72 of the SPL token account layout, classic and Token-2022 alike. */
+const TOKEN_AMOUNT_START = 64;
+const TOKEN_AMOUNT_END = 72;
 
 /**
- * What the wallet holds of the coin, in base units. An absent token account is zero, not an
- * error: the wallet simply never held it, and the balance gate reports that plainly.
+ * What the wallet holds of the coin, in base units.
+ *
+ * Read with `getAccountInfo` rather than `getTokenAccountBalance` so that "no such account" is a
+ * `null` value instead of an RPC error. A wallet that never held the coin must read as zero, but
+ * a timeout, a rate limit or a malformed response must not: catching those and calling them zero
+ * would answer an endpoint outage with `BALANCE_TOO_LOW`, telling the operator they hold nothing
+ * when the truth is that nothing was learned. Here only an absent account is zero and every real
+ * failure stays a structured `RpcError`.
  * @param {Rpc} ctx @param {string} tokenAccount
+ * @returns {import("effect").Effect.Effect<bigint, import("@solos/core").RpcError | BuildRejected>}
  */
 const heldTokens = (ctx, tokenAccount) =>
-  rpcCall("getTokenAccountBalance", ctx.url, () =>
-    ctx.rpc.getTokenAccountBalance(address(tokenAccount)).send(),
-  ).pipe(
-    Effect.map(({ value }) => BigInt(value.amount)),
-    Effect.catchAll(() => Effect.succeed(0n)),
-  );
+  Effect.gen(function* () {
+    const account = yield* accountAt(ctx, tokenAccount);
+    if (account === null) return 0n;
+    const bytes = Uint8Array.from(Buffer.from(account.data[0] ?? "", "base64"));
+    if (bytes.length < TOKEN_AMOUNT_END) {
+      return yield* new BuildRejected({ reason: NOT_A_TOKEN_ACCOUNT });
+    }
+    return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getBigUint64(
+      TOKEN_AMOUNT_START,
+      true,
+    );
+  });
 
 /**
  * The three account reads the gates need, plus the two PDAs they were read from. One round
@@ -118,4 +135,5 @@ export const PUMP_SELL_REJECTIONS = Object.freeze({
   ...PUMP_BUY_REJECTIONS,
   BALANCE_TOO_LOW,
   PROCEEDS_TOO_SMALL,
+  NOT_A_TOKEN_ACCOUNT,
 });
