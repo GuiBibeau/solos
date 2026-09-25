@@ -7,13 +7,45 @@ cheatcode, decoded from the pinned Orca IDL. They prove the decode/guard/custody
 behavior, not what a live pool holds. Live QA compares solOS output with the same pool state
 seen through a second client.
 
-**Status: blocked.** A live read needs operator prerequisites that CI does not have: an RPC endpoint and an existing
-operator-owned Whirlpool position with its NFT in the operator's wallet. solOS reads are
-public — no credential is provisioned anywhere; the only configuration is `SOLANA_RPC_URL`.
-Live credentials and wallets belong only in the operator or approved QA environment, never
-in issue comments, tool inputs, or implementation sandboxes.
+**Status: the read is done; the funded round is blocked on a capability, not on a position.**
 
-## What to compare once an operator position exists
+A live read needs an RPC endpoint and an operator-owned Whirlpool position with its NFT in the
+operator's wallet. Both exist, and the read was run on 2026-09-25:
+
+```
+$ solos liquidity position --protocol orca --position 2LyZJBNUWMH7YXJvhT61NUNXjTbk7kHKZuwyPVA7QgWZ
+{"kind":"lp","protocol":"orca","position":"2LyZ…QgWZ","instrument":"83v8iPyZ…5d6d",
+ "liquidity":"0","tokenA":{"mint":"So111…112","amount":"0","decimals":9},
+ "tokenB":{"mint":"EPjFW…Dt1v","amount":"0","decimals":6},"valueUsd":null}
+
+$ solos mcp call solana_liquidity_get_position --args '{"protocol":"orca","position":"2LyZ…QgWZ"}'
+… identical `structuredContent`, through a real stdio MCP child.
+```
+
+Both surfaces, as the checklist below requires: the CLI and a real stdio MCP child returned
+byte-identical JSON for the same position and pool state.
+
+The position is live, held, and **empty**: ticks -10000..-5000 against a pool at tick -21359, so
+it sits below its range and is a 100% token-A position. Passing a different `--owner` returns
+`LiquidityPositionUnavailable: owner does not hold the position NFT`, which confirms custody is
+checked against the given owner rather than assumed.
+
+**What still blocks the funded add/remove round is issue #126, not a missing position.** Token A
+here is wSOL, and the deposit path never wraps: `fundingSide` refuses when a side needs more than
+its token account holds, and this wallet holds native SOL with no wSOL account at all.
+
+To be precise about the scope, because an earlier draft of this overstated it: `fundingSide`
+accepts an existing account whenever its balance covers the requirement, so a wallet that
+**already holds enough wSOL can add today**. What #126 blocks is the wallet that holds native SOL
+and expects solOS to wrap it — which is the normal case, and this one. The funded round below can
+therefore run either after #126 lands, or sooner by provisioning a funded wSOL account for this
+wallet outside solOS.
+
+solOS reads are public — no credential is provisioned anywhere; the only configuration is
+`SOLANA_RPC_URL`. Live credentials and wallets belong only in the operator or approved QA
+environment, never in issue comments, tool inputs, or implementation sandboxes.
+
+## What to compare
 
 1. Pick the position **account** (the Whirlpool position PDA — never the NFT mint, never the
    pool) and the wallet that holds its NFT. Run:
@@ -38,10 +70,14 @@ in issue comments, tool inputs, or implementation sandboxes.
 
 ## Reporting
 
-Record live QA as `blocked` until the prerequisites above exist. Never report it as passed
-from fixture runs: seeded-surfnet suites prove adapter behavior, not venue state. The first
-live QA round runs from the operator environment against a real RPC with an operator-owned
-position; no funded transaction is involved (read-only slice).
+**The read-only round is done** — run on 2026-09-25 against the position above, through both the
+CLI and a real stdio MCP child, with no funded transaction involved. Re-run it whenever the
+adapter changes; it costs nothing.
+
+Never report a round as passed from fixture runs: seeded-surfnet suites prove adapter behavior,
+not venue state. What remains is the **funded** add/remove round, which needs either #126 or a
+wSOL account provisioned for this wallet outside solOS — record that one as `blocked` until one
+of those is true.
 
 ## Deposits into an existing position (#30)
 

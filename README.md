@@ -571,10 +571,10 @@ SOLANA_RPC_URL=... bun run solos liquidity position --protocol orca --position <
 SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '{"protocol":"orca","position":"<position-account>"}'
 ```
 
-Operator QA requires an RPC endpoint and an operator-owned Whirlpool position; report it blocked
-until those prerequisites exist. Read the operator position and compare `liquidity`,
-`tokenA`/`tokenB` amounts and decimals against the same pool state on a block explorer or a
-second client; both surfaces must return identical underlying quantities. See
+Operator QA requires an RPC endpoint and an operator-owned position. **The read-only round is
+done** — run 2026-09-25 through both the CLI and a real stdio MCP child, which returned identical
+JSON. The funded add/remove round is still outstanding, blocked on the wSOL funding gap for a
+wallet holding native SOL (#126) or on provisioning a funded wSOL account outside solOS. See
 [liquidity QA](docs/liquidity-qa.md).
 
 ### Deposits into existing positions
