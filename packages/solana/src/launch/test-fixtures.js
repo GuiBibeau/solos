@@ -127,3 +127,26 @@ export const freshCurveBytes = (overrides = {}) =>
 
 /** @param {Uint8Array} bytes @returns {string} base16, for `surfnet_setAccount` fixtures */
 export const base16 = (bytes) => getBase16Decoder().decode(bytes);
+
+/** The live Global account length at the pinned IDL, which the computed layout matches. */
+export const GLOBAL_TRADING_BYTES = 1087;
+
+/**
+ * A Global long enough to carry the live trading fields a buy or a sell must read: the fee
+ * recipient, the protocol and creator fee rates, and the buyback recipient. `globalConfigBytes`
+ * deliberately stops at the original 97-byte prefix — that is what a curve read needs, and a
+ * trade needs more, so the two fixtures stay separate rather than one growing to cover both.
+ * @param {{ feeRecipient: Uint8Array; buybackFeeRecipient: Uint8Array; feeBasisPoints?: bigint; creatorFeeBasisPoints?: bigint }} parts
+ * @returns {Uint8Array}
+ */
+export const tradingGlobalBytes = (parts) => {
+  const bytes = new Uint8Array(GLOBAL_TRADING_BYTES);
+  bytes.set(GLOBAL_DISCRIMINATOR, 0);
+  bytes.set(parts.feeRecipient, 41);
+  bytes.set(u64le(INITIAL_REAL_TOKEN_RESERVES), 89);
+  // 95 protocol bps, as live mainnet reads, not the 100 the published docs state.
+  bytes.set(u64le(parts.feeBasisPoints ?? 95n), 105);
+  bytes.set(u64le(parts.creatorFeeBasisPoints ?? 5n), 154);
+  bytes.set(parts.buybackFeeRecipient, 741);
+  return bytes;
+};

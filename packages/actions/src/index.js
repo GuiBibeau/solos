@@ -39,6 +39,7 @@ export {
   SwapActionSchema,
   TransferSolActionSchema,
   WithdrawLendActionSchema,
+  WSOL_MINT,
   WithdrawPerpCollateralActionSchema,
 } from "./action.js";
 export { MandateSchema } from "./mandate.js";

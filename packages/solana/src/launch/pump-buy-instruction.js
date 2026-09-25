@@ -32,3 +32,15 @@ export const encodeBuyExactQuoteInV2 = ({ spendableQuoteIn, minTokensOut }) =>
     ...u64.encode(spendableQuoteIn),
     ...u64.encode(minTokensOut),
   ]);
+
+/** 8-byte Anchor discriminator of `sell_v2`, from the IDL at the pinned commit. */
+export const SELL_V2_DISCRIMINATOR = Object.freeze([93, 246, 130, 60, 231, 233, 64, 178]);
+
+/**
+ * `sell_v2(amount, min_sol_output)`: an exact quantity of the coin in, and the least SOL the
+ * program may return. Same two-u64 shape as the buy, opposite direction.
+ * @param {{ tokensIn: bigint; minSolOutput: bigint }} args
+ * @returns {Uint8Array}
+ */
+export const encodeSellV2 = ({ tokensIn, minSolOutput }) =>
+  Uint8Array.from([...SELL_V2_DISCRIMINATOR, ...u64.encode(tokensIn), ...u64.encode(minSolOutput)]);

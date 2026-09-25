@@ -22,26 +22,34 @@ export const TransferSolActionSchema = z.object({
   lamports: AmountSchema.describe("Lamports to send"),
 });
 
+/** Native SOL's wrapped mint, the only quote asset a pump curve trades against. */
+export const WSOL_MINT = "So11111111111111111111111111111111111111112";
+
+/** How many sides of one swap are wSOL: 0, 1, or 2 when a caller names it twice. */
+/** @param {{ inputMint: string; outputMint: string }} action */
+const solSides = (action) =>
+  (action.inputMint === WSOL_MINT ? 1 : 0) + (action.outputMint === WSOL_MINT ? 1 : 0);
+
 export const SwapActionSchema = z
   .object({
     type: z.literal("swap"),
     venue: z
       .enum(["jupiter", "pump"])
       .optional()
-      .describe("Omitted means Jupiter; launch buys explicitly choose pump"),
+      .describe("Omitted means Jupiter; launch buys and sells explicitly choose pump"),
     inputMint: AddressSchema,
     outputMint: AddressSchema,
     amount: AmountSchema.describe("Input amount in base units of inputMint"),
     maxSlippageBps: bps,
   })
-  .refine(
-    (action) =>
-      action.venue !== "pump" || action.inputMint === "So11111111111111111111111111111111111111112",
-    {
-      path: ["inputMint"],
-      message: "Pump buys require wSOL input identity for native-lamport budgets",
-    },
-  )
+  // A pump curve always trades its coin against SOL, so exactly one side is wSOL: the input on a
+  // buy, the output on a sell. Requiring it on exactly one side rather than only on the input
+  // admits the sell while still refusing to express an arbitrary token-to-token route through
+  // this venue.
+  .refine((action) => action.venue !== "pump" || solSides(action) === 1, {
+    path: ["inputMint"],
+    message: "A pump swap must have wSOL on exactly one side: input to buy, output to sell",
+  })
   .refine(
     (action) => action.venue !== "pump" || PositiveAmountSchema.safeParse(action.amount).success,
     {

@@ -1,6 +1,13 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { BPS, quoteBuy, solIntoCurve, tokensForSol } from "./pump-buy-quote.js";
+import {
+  BPS,
+  quoteBuy,
+  quoteSell,
+  solForTokens,
+  solIntoCurve,
+  tokensForSol,
+} from "./pump-buy-quote.js";
 
 /** The documented launch parameters from the pinned Global account. */
 const FRESH_CURVE = {
@@ -91,5 +98,72 @@ describe("pump buy quote", () => {
     });
     expect(typeof quote.expectedTokens).toBe("bigint");
     expect(typeof quote.minTokensOut).toBe("bigint");
+  });
+});
+
+describe("pump sell quote", () => {
+  test("SOL out follows the constant product read the other way", () => {
+    const tokensIn = 1_000_000_000_000n;
+    const expected =
+      (FRESH_CURVE.virtualQuoteReserves * tokensIn) / (FRESH_CURVE.virtualTokenReserves + tokensIn);
+    expect(solForTokens(FRESH_CURVE, tokensIn)).toBe(expected);
+  });
+
+  test("fees come off the proceeds rather than dividing them", () => {
+    // The buy charges its fee on top of the trade; the sell takes it out of what comes back.
+    const quote = quoteSell(FRESH_CURVE, {
+      tokensIn: 1_000_000_000_000n,
+      totalFeeBps: 100n,
+      slippageBps: 0,
+    });
+    expect(quote.expectedSol).toBe((quote.grossSol * 9900n) / 10_000n);
+    expect(quote.expectedSol).toBeLessThan(quote.grossSol);
+  });
+
+  test("selling nothing yields nothing rather than dividing by zero", () => {
+    expect(solForTokens(FRESH_CURVE, 0n)).toBe(0n);
+    expect(solForTokens({ virtualTokenReserves: 0n, virtualQuoteReserves: 0n }, 0n)).toBe(0n);
+  });
+
+  test("the minimum never exceeds the estimate, and floors against the seller", () => {
+    const quote = quoteSell(FRESH_CURVE, {
+      tokensIn: 7n,
+      totalFeeBps: 100n,
+      slippageBps: 1,
+    });
+    expect(quote.minSolOutput).toBeLessThanOrEqual(quote.expectedSol);
+    expect(typeof quote.minSolOutput).toBe("bigint");
+  });
+
+  test("a bigger sell returns proportionally less, as a curve must", () => {
+    const one = quoteSell(FRESH_CURVE, {
+      tokensIn: 1_000_000_000_000n,
+      totalFeeBps: 100n,
+      slippageBps: 50,
+    }).expectedSol;
+    const ten = quoteSell(FRESH_CURVE, {
+      tokensIn: 10_000_000_000_000n,
+      totalFeeBps: 100n,
+      slippageBps: 50,
+    }).expectedSol;
+    expect(ten).toBeGreaterThan(one);
+    expect(ten).toBeLessThan(one * 10n);
+  });
+
+  test("a round trip at zero slippage and zero fees cannot profit", () => {
+    // Buying then immediately selling the same tokens must not return more SOL than it cost:
+    // the curve moves against the trader on both legs.
+    const budget = 1_000_000_000n;
+    const bought = quoteBuy(FRESH_CURVE, {
+      budgetLamports: budget,
+      totalFeeBps: 0n,
+      slippageBps: 0,
+    });
+    const back = quoteSell(FRESH_CURVE, {
+      tokensIn: bought.expectedTokens,
+      totalFeeBps: 0n,
+      slippageBps: 0,
+    });
+    expect(back.expectedSol).toBeLessThanOrEqual(budget);
   });
 });

@@ -1,6 +1,7 @@
 # 0025 — Pump buys use `buy_exact_quote_in_v2`
 
-Status: accepted, 2026-09-25. Delivers the maintainer contract in issue #25.
+Status: accepted, 2026-09-25. Delivers the maintainer contract in issue #25. Its "there is no solOS
+Pump sell tool" clause is amended by ADR-0027, 2026-09-25; everything else stands.
 
 ## Context
 

@@ -26,4 +26,10 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0020](0020-launch-slice.md) | Explicit Jupiter or Pump swap execution |
 | [0021](0021-perp-slice.md) | Phoenix account scope and finite-price IOC bounds |
 | [0022](0022-liquidity-slice.md) | Identified LP positions and deterministic bin allocation |
-| [0023](0023-swap-guard-taker-repeats.md) | Swap guard admits read-only taker repeats and nothing more |
+| [0023](0023-swap-guard-taker-repeats.md) | Swap guard admits read-only taker repeats and nothing more (superseded by 0024) |
+| [0024](0024-kamino-withdrawal-target.md) | Kamino withdrawals target underlying, but execute collateral input |
+| [0024](0024-swap-spend-bound-replaces-shape-guard.md) | A measured spend bound replaces the swap shape guard |
+| [0025](0025-phoenix-onboarding-wire.md) | Phoenix onboarding uses an isolated v0 co-signing wire |
+| [0025](0025-pump-buys-use-the-v2-exact-quote-instruction.md) | Pump buys use `buy_exact_quote_in_v2` |
+| [0026](0026-phoenix-collateral-input.md) | Phoenix collateral transfers fix input, estimate output |
+| [0027](0027-pump-sells-close-the-curve-side-exit.md) | Pump sells use `sell_v2`; wSOL on exactly one side is the direction |

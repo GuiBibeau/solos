@@ -1,6 +1,6 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { executeBuy, getCurve, simulateBuy } from "@solos/core";
+import { executeBuy, executeSell, getCurve, simulateBuy, simulateSell } from "@solos/core";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
@@ -20,14 +20,22 @@ const curve = Command.make("curve", { mint }, ({ mint }) =>
 const buyMint = Options.text("mint").pipe(
   Options.withDescription("Base58 mint of the coin to buy, whose bonding curve must be live"),
 );
+const sellMint = Options.text("mint").pipe(
+  Options.withDescription("Base58 mint of the coin to sell, whose bonding curve must be live"),
+);
 const amount = Options.text("amount").pipe(
   Options.withDescription(
     "Maximum SOL to spend in lamports, including Pump trading fees. Never a token amount",
   ),
 );
+const tokensIn = Options.text("amount").pipe(
+  Options.withDescription(
+    "Exact quantity of the coin to sell, in its base units. Never a SOL amount",
+  ),
+);
 const maxSlippageBps = Options.integer("max-slippage-bps").pipe(
   Options.withDefault(50),
-  Options.withDescription("How far below the quoted tokens the enforced minimum may sit"),
+  Options.withDescription("How far past the quote the enforced on-chain minimum may sit"),
 );
 const skipSimulation = Options.boolean("skip-simulation").pipe(
   Options.withDefault(false),
@@ -37,6 +45,7 @@ const skipSimulation = Options.boolean("skip-simulation").pipe(
 );
 
 const buyOptions = { mint: buyMint, amount, maxSlippageBps };
+const sellOptions = { mint: sellMint, amount: tokensIn, maxSlippageBps };
 
 const simulateBuyCommand = Command.make("simulate-buy", buyOptions, (options) =>
   withSolos(
@@ -63,11 +72,40 @@ const buy = Command.make("buy", { ...buyOptions, skipSimulation }, (options) =>
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Buy a pump.fun coin with a bounded SOL budget and submit it. There is no solOS Pump sell tool, so only spend here with a checked external exit route",
+    "Buy a pump.fun coin with a bounded SOL budget and submit it. amount is the maximum SOL spend including Pump fees; the minimum tokens out is enforced on chain",
+  ),
+);
+
+const simulateSellCommand = Command.make("simulate-sell", sellOptions, (options) =>
+  withSolos(
+    simulateSell({
+      mint: options.mint,
+      amount: options.amount,
+      maxSlippageBps: options.maxSlippageBps,
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Simulate selling a pump.fun coin back to its bonding curve without submitting anything. amount is the exact quantity of the coin in base units, never a SOL amount; the minimum SOL out is derived from live curve state and enforced on chain",
+  ),
+);
+
+const sell = Command.make("sell", { ...sellOptions, skipSimulation }, (options) =>
+  withSolos(
+    executeSell({
+      mint: options.mint,
+      amount: options.amount,
+      maxSlippageBps: options.maxSlippageBps,
+      skipSimulation: options.skipSimulation,
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Sell a pump.fun coin back to its bonding curve and submit it. amount is the exact quantity of the coin in base units; the minimum SOL out is enforced on chain",
   ),
 );
 
 export const launch = Command.make("launch").pipe(
-  Command.withDescription("Pump bonding curve reads and bounded SOL-in buys (no sell path)"),
-  Command.withSubcommands([curve, simulateBuyCommand, buy]),
+  Command.withDescription("Pump bonding curve reads, bounded SOL-in buys, and curve-side sells"),
+  Command.withSubcommands([curve, simulateBuyCommand, buy, simulateSellCommand, sell]),
 );

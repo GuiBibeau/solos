@@ -9,7 +9,8 @@
 import { describe, expect, test } from "bun:test";
 import { getAddressEncoder, address } from "@solana/kit";
 import { PUMP_BUY_REJECTIONS, validateBuyReads } from "./pump-buy-plan.js";
-import { BONDING_CURVE_DISCRIMINATOR, GLOBAL_DISCRIMINATOR, PUMP_PROGRAM } from "./pump-program.js";
+import { BONDING_CURVE_DISCRIMINATOR, PUMP_PROGRAM } from "./pump-program.js";
+import { GLOBAL_TRADING_BYTES, tradingGlobalBytes } from "./test-fixtures.js";
 
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const CREATOR = "7yecFGMRPmQcHUyrCRkQyDbTeBQhTBzE6LXZ9nQS3Mbq";
@@ -42,17 +43,11 @@ const curveBytes = ({
 };
 
 /** A Global long enough to carry the live fee fields. */
-const globalBytes = () => {
-  const bytes = new Uint8Array(1087); // the live Global length, which the computed layout matches
-  bytes.set(GLOBAL_DISCRIMINATOR, 0);
-  const view = new DataView(bytes.buffer);
-  bytes.set(new Uint8Array(encoder.encode(address(OTHER_MINT))), 41); // fee recipient
-  view.setBigUint64(89, 793_100_000_000_000n, true); // initial real token reserves
-  view.setBigUint64(105, 95n, true); // fee basis points, as live mainnet reads
-  view.setBigUint64(154, 5n, true); // creator fee basis points
-  bytes.set(new Uint8Array(encoder.encode(address(CREATOR))), 741); // buyback fee recipient
-  return bytes;
-};
+const globalBytes = () =>
+  tradingGlobalBytes({
+    feeRecipient: new Uint8Array(encoder.encode(address(OTHER_MINT))),
+    buybackFeeRecipient: new Uint8Array(encoder.encode(address(CREATOR))),
+  });
 
 const mintAccount = asAccount(new Uint8Array(82), TOKEN_PROGRAM);
 
@@ -113,7 +108,7 @@ describe("pump buy refusals", () => {
   });
 
   test("an unreadable Global config is refused", () => {
-    expect(validate({ global: asAccount(new Uint8Array(1087)) })).toMatchObject({
+    expect(validate({ global: asAccount(new Uint8Array(GLOBAL_TRADING_BYTES)) })).toMatchObject({
       ok: false,
       reason: PUMP_BUY_REJECTIONS.GLOBAL_CORRUPT,
     });

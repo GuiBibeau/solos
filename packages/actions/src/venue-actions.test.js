@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ADD, CLOSE, LEND, OPEN, PUMP, REMOVE, SWAP } from "./action.fixtures.js";
-import { ActionSchema } from "./index.js";
+import { ActionSchema, WSOL_MINT } from "./index.js";
 
 describe("Trading Action boundaries", () => {
   test("preserves legacy Jupiter intent and explicit Pump routing", () => {
@@ -105,5 +105,55 @@ describe("Trading Action boundaries", () => {
         expect(ActionSchema.safeParse({ ...LEND, type, ...change }).success).toBe(false);
       }
     }
+  });
+});
+
+describe("Pump routes both directions but never token to token", () => {
+  // A pump curve always trades its coin against SOL, so exactly one side is wSOL: the input on a
+  // buy, the output on a sell. The rule used to require wSOL on the input alone, which refused
+  // every sell (#119).
+  const COIN = "UYGGYygeDt9SfsVBf2qBNtU4bFPhrR6DVVCRf7fpump";
+  const OTHER = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+  const base = { type: "swap", venue: "pump", amount: "1000", maxSlippageBps: 50 };
+
+  test("a buy has wSOL on the input", () => {
+    const buy = { ...base, inputMint: WSOL_MINT, outputMint: COIN };
+    expect(ActionSchema.parse(buy)).toEqual(buy);
+  });
+
+  test("a sell has wSOL on the output", () => {
+    const sell = { ...base, inputMint: COIN, outputMint: WSOL_MINT };
+    expect(ActionSchema.parse(sell)).toEqual(sell);
+  });
+
+  test("neither side wSOL is refused: pump cannot express a token-to-token route", () => {
+    const result = ActionSchema.safeParse({ ...base, inputMint: COIN, outputMint: OTHER });
+    expect(result.success).toBe(false);
+  });
+
+  test("both sides wSOL is refused too, rather than counted as satisfying the rule", () => {
+    const result = ActionSchema.safeParse({
+      ...base,
+      inputMint: WSOL_MINT,
+      outputMint: WSOL_MINT,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("the widened rule does not loosen the pump amount or slippage bounds", () => {
+    const sell = { ...base, inputMint: COIN, outputMint: WSOL_MINT };
+    expect(ActionSchema.safeParse({ ...sell, amount: "0" }).success).toBe(false);
+    expect(ActionSchema.safeParse({ ...sell, maxSlippageBps: 10_000 }).success).toBe(false);
+  });
+
+  test("Jupiter is untouched: it may route token to token", () => {
+    const jupiter = {
+      type: "swap",
+      inputMint: COIN,
+      outputMint: OTHER,
+      amount: "1000",
+      maxSlippageBps: 50,
+    };
+    expect(ActionSchema.parse(jupiter)).toEqual(jupiter);
   });
 });
