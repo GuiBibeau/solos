@@ -54,6 +54,21 @@ export const REMOVE = {
   bps: 10_000,
   maxSlippageBps: 50,
 };
+export const OPEN_POSITION = {
+  type: "open_position",
+  protocol: "raydium",
+  pool: MARKET,
+  tickLower: -1000,
+  tickUpper: 1000,
+  amountA: "1000000",
+  amountB: "0",
+  maxSlippageBps: 50,
+};
+export const CLOSE_POSITION = {
+  type: "close_position",
+  protocol: "raydium",
+  position: OWNER,
+};
 export const ACTION_SAMPLES = [
   { type: "transfer_sol", to: OWNER, lamports: "100000000" },
   SWAP,
@@ -76,4 +91,6 @@ export const ACTION_SAMPLES = [
   { ...LEND, type: "withdraw_lend" },
   ADD,
   REMOVE,
+  OPEN_POSITION,
+  CLOSE_POSITION,
 ];

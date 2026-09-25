@@ -100,7 +100,7 @@ dev check` — do not edit the table by hand:
 |---|---|---|
 | `launch` | 5 | read, simulate, execute |
 | `lend` | 6 | read, simulate, execute |
-| `liquidity` | 5 | read, simulate, execute |
+| `liquidity` | 9 | read, simulate, execute |
 | `market` | 6 | read |
 | `perp` | 12 | read, simulate, execute |
 | `portfolio` | 1 | read |

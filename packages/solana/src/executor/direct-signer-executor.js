@@ -11,10 +11,12 @@ import { executeSwap } from "./execute-swap.js";
 import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
 import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { simulatePerpAction, executePerpAction } from "./perp-dispatch.js";
+import { buildSignedRaydiumClose } from "./raydium-close-build.js";
+import { buildSignedRaydiumOpen, openQuoteOf } from "./raydium-position-build.js";
 import { simulationErrorText } from "./simulation-error-text.js";
 import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
-import { assertSwapWireBeforeContact, buildSignedSwap, plannedSwap } from "./swap-sol.js";
+import { assertSwapWireBeforeContact, plannedSwap } from "./swap-sol.js";
 import { simulateForAction } from "./swap-spend-bound.js";
 import { buildSignedTransfer } from "./transfer-sol.js";
 
@@ -38,30 +40,28 @@ const PERP_ACTIONS = new Set([
 /** @typedef {import("./transfer-sol.js").Signed} Signed */
 
 /**
- * Build and sign whatever the action asks for. One branch per supported action type; anything
- * else is `UnsupportedAction` so callers learn the gap instead of guessing.
+ * Everything `plannedSigned` does not quote: one signed transaction, or `UnsupportedAction` so
+ * callers learn the gap instead of guessing.
  * @param {Deps} deps
  * @param {Action} action
+ * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").ExecutorError>}
  */
-const build = ({ ctx, kit, build: buildSwap, market }, action) => {
+const build = ({ ctx, kit }, action) => {
   if (action.type === "transfer_sol") return buildSignedTransfer(ctx, kit, action);
-  if (action.type === "swap") {
-    return Effect.map(
-      buildSignedSwap({ ctx, kit, build: buildSwap }, action),
-      ({ signed }) => signed,
-    );
-  }
-  if (action.type === "add_liquidity") {
-    return Effect.map(buildSignedLiquidityDeposit({ ctx, kit }, action), ({ signed }) => signed);
-  }
-  if (action.type === "remove_liquidity") {
-    return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), ({ signed }) => signed);
-  }
-  if (action.type === "lend") {
-    return Effect.map(buildSignedLendDeposit({ ctx, kit, market }, action), ({ signed }) => signed);
+  if (action.type === "close_position") {
+    return Effect.map(buildSignedRaydiumClose({ ctx, kit }, action), ({ signed }) => signed);
   }
   return Effect.fail(new UnsupportedAction({ actionType: action.type, executor: EXECUTOR_NAME }));
 };
+
+/**
+ * Keep the plan's venueQuote alongside the signed transaction.
+ * @template P
+ * @param {import("effect").Effect.Effect<{ signed: Signed; plan: P }, import("@solos/core").ExecutorError>} planned
+ * @param {(plan: P) => import("@solos/actions").VenueQuote} toQuote
+ */
+const quoted = (planned, toQuote) =>
+  Effect.map(planned, ({ signed, plan }) => ({ signed, venueQuote: toQuote(plan) }));
 
 /**
  * Build and sign, keeping the plan's venueQuote for the venue branches: their quoted
@@ -73,28 +73,23 @@ const build = ({ ctx, kit, build: buildSwap, market }, action) => {
 const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) => {
   switch (action.type) {
     case "remove_liquidity": {
-      return Effect.map(buildSignedLiquidityWithdraw({ ctx, kit }, action), (planned) => ({
-        signed: planned.signed,
-        venueQuote: withdrawQuoteOf(planned.plan),
-      }));
+      return quoted(buildSignedLiquidityWithdraw({ ctx, kit }, action), withdrawQuoteOf);
     }
     case "add_liquidity": {
-      return Effect.map(buildSignedLiquidityDeposit({ ctx, kit }, action), (planned) => ({
-        signed: planned.signed,
-        venueQuote: depositQuoteOf(planned.plan),
-      }));
+      return quoted(buildSignedLiquidityDeposit({ ctx, kit }, action), depositQuoteOf);
+    }
+    case "open_position": {
+      return quoted(buildSignedRaydiumOpen({ ctx, kit }, action), (plan) =>
+        openQuoteOf(action, plan),
+      );
     }
     case "lend": {
-      return Effect.map(buildSignedLendDeposit({ ctx, kit, market }, action), (planned) => ({
-        signed: planned.signed,
-        venueQuote: lendQuoteOf(planned.plan.quote),
-      }));
+      return quoted(buildSignedLendDeposit({ ctx, kit, market }, action), (plan) =>
+        lendQuoteOf(plan.quote),
+      );
     }
     case "withdraw_lend": {
-      return Effect.map(buildSignedLendWithdraw({ ctx, kit, market }, action), (planned) => ({
-        signed: planned.signed,
-        venueQuote: planned.plan.quote,
-      }));
+      return quoted(buildSignedLendWithdraw({ ctx, kit, market }, action), (plan) => plan.quote);
     }
     case "swap": {
       return plannedSwap({ ctx, kit, build: buildSwap }, action);
@@ -102,7 +97,10 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) 
     default: {
       return Effect.map(
         build({ ctx, kit, build: buildSwap, market, phoenix }, action),
-        (signed) => ({ signed, venueQuote: null }),
+        (signed) => ({
+          signed,
+          venueQuote: null,
+        }),
       );
     }
   }

@@ -66,10 +66,14 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_lend_get_reserve` | read | `lend` |
 | `solana_lend_simulate_deposit` | simulate | `lend` |
 | `solana_lend_simulate_withdraw` | simulate | `lend` |
+| `solana_liquidity_execute_close_position` | execute | `liquidity` |
 | `solana_liquidity_execute_deposit` | execute | `liquidity` |
+| `solana_liquidity_execute_open_position` | execute | `liquidity` |
 | `solana_liquidity_execute_withdraw` | execute | `liquidity` |
 | `solana_liquidity_get_position` | read | `liquidity` |
+| `solana_liquidity_simulate_close_position` | simulate | `liquidity` |
 | `solana_liquidity_simulate_deposit` | simulate | `liquidity` |
+| `solana_liquidity_simulate_open_position` | simulate | `liquidity` |
 | `solana_liquidity_simulate_withdraw` | simulate | `liquidity` |
 | `solana_market_ask_iris` | read | `market` |
 | `solana_market_get_event_summary` | read | `market` |

@@ -28,6 +28,16 @@ export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
 export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
 
 /**
+ * Protocols whose positions solOS can create and retire, which is narrower than the ones it can
+ * read: Orca positions are opened by a different instruction family that nothing here encodes,
+ * so asking for one is refused rather than silently built against Raydium.
+ */
+export const LIFECYCLE_PROTOCOLS = Object.freeze(["raydium"]);
+
+/** @param {string} protocol */
+export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol);
+
+/**
  * One position read: `position` is the protocol position account (the Whirlpool
  * position PDA), never the position NFT mint and never the pool. An omitted owner means the
  * configured signer; an explicit owner is honored verbatim.
@@ -63,7 +73,7 @@ export const LiquidityListPositionsInputSchema = z.object({
 /** One enumeration request, after input validation. @typedef {{ readonly protocol: "orca" | "meteora" | "raydium"; readonly owner: Address }} LiquidityListPositionsRequest */
 
 /** One deposit budget: a u64 decimal string in base units, zero allowed. */
-const DepositBudgetSchema = z
+export const DepositBudgetSchema = z
   .string()
   .regex(/^\d+$/, "a u64 decimal string in base units")
   .pipe(

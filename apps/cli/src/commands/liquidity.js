@@ -4,6 +4,12 @@ import { executeDeposit, getLpPosition, simulateDeposit } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import {
+  closeCommand,
+  openCommand,
+  simulateCloseCommand,
+  simulateOpenCommand,
+} from "./liquidity-lifecycle.js";
 import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.js";
 
 const protocol = Options.text("protocol").pipe(
@@ -114,7 +120,7 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
 
 export const liquidity = Command.make("liquidity").pipe(
   Command.withDescription(
-    "Liquidity venues: Orca Whirlpool position reads, deposits into and bounded removals from explicitly identified existing positions",
+    "Liquidity venues: Orca and Raydium position reads, deposits into and bounded removals from explicitly identified positions, and opening or closing a Raydium position at a range you choose",
   ),
   Command.withSubcommands([
     positionCommand,
@@ -122,5 +128,9 @@ export const liquidity = Command.make("liquidity").pipe(
     depositCommand,
     simulateWithdrawCommand,
     withdrawCommand,
+    simulateOpenCommand,
+    openCommand,
+    simulateCloseCommand,
+    closeCommand,
   ]),
 );
