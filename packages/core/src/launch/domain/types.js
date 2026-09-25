@@ -63,3 +63,44 @@ export const GetCurveInputSchema = z.object({
 });
 
 /** @typedef {z.infer<typeof GetCurveInputSchema>} GetCurveInput */
+
+/**
+ * One launch buy intent.
+ *
+ * `amount` is the **maximum SOL the wallet may spend, in lamports, including Pump's trading
+ * fees** — it is not a token quantity and never silently becomes one. It rides the wire as
+ * `spendable_sol_in`, and the minimum tokens the program must deliver is derived from curve
+ * state and this slippage bound.
+ *
+ * Network fees and any account rent are reported separately and sit outside this budget.
+ */
+export const LaunchBuyInputSchema = z.object({
+  mint: MintSchema.describe("Base58 mint of the coin to buy, whose bonding curve must be live"),
+  amount: U64AmountSchema.refine((value) => BigInt(value) > 0n, "amount must be positive").describe(
+    "Maximum SOL to spend in lamports, including Pump trading fees; never a token amount",
+  ),
+  maxSlippageBps: z
+    .number()
+    .int()
+    .min(1)
+    .max(10_000)
+    .default(50)
+    .describe("How far below the quoted tokens the enforced minimum may sit. Default 50 (0.5%)."),
+});
+
+/** @typedef {z.infer<typeof LaunchBuyInputSchema>} LaunchBuyInput */
+
+/**
+ * The execute tier's intent: the simulate input plus the explicit simulation opt-out.
+ *
+ * `skipSimulation` bypasses only the simulation, never validation or the on-chain minimum the
+ * instruction carries.
+ */
+export const LaunchExecuteBuyInputSchema = LaunchBuyInputSchema.extend({
+  skipSimulation: z
+    .boolean()
+    .default(false)
+    .describe("Skip the pre-send simulation. Validation and the enforced minimum still apply."),
+});
+
+/** @typedef {z.infer<typeof LaunchExecuteBuyInputSchema>} LaunchExecuteBuyInput */

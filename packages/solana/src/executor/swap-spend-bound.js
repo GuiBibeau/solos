@@ -49,11 +49,12 @@ const overspent = (spent, allowed) =>
 /**
  * The lamports a swap owes the wallet back: its minimum output, when that output is SOL. Zero
  * for a token output, which the route program bounds on chain instead.
- * @param {{ otherAmountThreshold?: string }} envelope
+ * A pump buy carries no envelope; its output is the coin, never SOL, so it owes nothing back.
+ * @param {{ otherAmountThreshold?: string } | undefined} envelope
  * @param {import("@solos/actions").SwapAction} action
  */
 export const minSolCredit = (envelope, action) =>
-  action.outputMint === WSOL_MINT ? BigInt(envelope.otherAmountThreshold ?? "0") : 0n;
+  action.outputMint === WSOL_MINT ? BigInt(envelope?.otherAmountThreshold ?? "0") : 0n;
 
 /**
  * The most this swap may take from the wallet, net.

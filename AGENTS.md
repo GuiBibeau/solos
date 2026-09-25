@@ -98,7 +98,7 @@ dev check` — do not edit the table by hand:
 <!-- generated: slices -->
 | Slice | Tools | Tiers |
 |---|---|---|
-| `launch` | 1 | read |
+| `launch` | 3 | read, simulate, execute |
 | `lend` | 6 | read, simulate, execute |
 | `liquidity` | 5 | read, simulate, execute |
 | `market` | 6 | read |

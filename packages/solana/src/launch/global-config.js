@@ -6,10 +6,28 @@ const utf8 = getUtf8Encoder();
 
 /** `initial_real_token_reserves` sits in the stable original Global prefix: bytes 89..97. */
 const INITIAL_REAL_TOKEN_OFFSET = 89;
-/** Minimum Global length solOS reads: everything through the offset above. */
+/**
+ * A buy also needs the fee account and the live fee rates. These are read, never assumed: the
+ * pinned documentation states `fee_basis_points == 100`, and the live account reads 95 with a
+ * separate 5 bps creator fee. A hardcoded 100 would misprice every quote.
+ */
+const FEE_RECIPIENT_START = 41;
+/** `buyback_fee_recipients` is an 8-entry array; the whole struct is 1087 bytes, which the live account matches exactly. */
+const BUYBACK_RECIPIENTS_START = 741;
+const BUYBACK_RECIPIENTS_END = 773;
+const FEE_RECIPIENT_END = 73;
+const FEE_BASIS_POINTS_OFFSET = 105;
+const CREATOR_FEE_BASIS_POINTS_OFFSET = 154;
+/**
+ * Minimum Global length solOS reads, unchanged: the curve read needs only the stable prefix.
+ * The fee fields sit past it and come back undefined on a shorter account rather than making
+ * one corrupt — raising this bound would refuse accounts the read tool accepts today.
+ */
 const GLOBAL_MIN_BYTES = 97;
+const FEE_FIELDS_MIN_BYTES = 162;
+const BUYBACK_MIN_BYTES = 773;
 
-/** Outcome of decoding the Global config account. @typedef {{ readonly status: "decoded"; readonly initialRealTokenReserves: bigint } | { readonly status: "corrupt"; readonly reason: string }} GlobalConfigRead */
+/** Outcome of decoding the Global config account. @typedef {{ readonly status: "decoded"; readonly initialRealTokenReserves: bigint; readonly feeRecipient: Uint8Array | undefined; readonly feeBasisPoints: bigint | undefined; readonly creatorFeeBasisPoints: bigint | undefined; readonly buybackFeeRecipient: Uint8Array | undefined } | { readonly status: "corrupt"; readonly reason: string }} GlobalConfigRead */
 
 /**
  * Global config PDA: seeds ["global"] under the pinned pump program. Pure derivation; the
@@ -62,5 +80,23 @@ export const decodeGlobalConfig = (bytes) => {
   if (initialRealTokenReserves === 0n) {
     return { status: "corrupt", reason: "Global config sets zero initial real token reserves" };
   }
-  return { status: "decoded", initialRealTokenReserves };
+  return { status: "decoded", initialRealTokenReserves, ...tradingFields(bytes) };
+};
+
+/**
+ * The fields only a buy needs. They sit past the prefix the curve read uses, so a shorter
+ * account yields undefined rather than a corrupt verdict.
+ * @param {Uint8Array} bytes
+ */
+const tradingFields = (bytes) => {
+  const hasFees = bytes.length >= FEE_FIELDS_MIN_BYTES;
+  return {
+    feeRecipient: hasFees ? bytes.slice(FEE_RECIPIENT_START, FEE_RECIPIENT_END) : undefined,
+    feeBasisPoints: hasFees ? readU64(bytes, FEE_BASIS_POINTS_OFFSET) : undefined,
+    creatorFeeBasisPoints: hasFees ? readU64(bytes, CREATOR_FEE_BASIS_POINTS_OFFSET) : undefined,
+    buybackFeeRecipient:
+      bytes.length >= BUYBACK_MIN_BYTES
+        ? bytes.slice(BUYBACK_RECIPIENTS_START, BUYBACK_RECIPIENTS_END)
+        : undefined,
+  };
 };

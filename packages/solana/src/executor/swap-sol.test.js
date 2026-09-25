@@ -15,11 +15,13 @@ import {
 const attacker = await attackerAddress();
 
 describe("the executor swap branch refuses before any contact [integration]", () => {
-  test("an explicit pump venue fails before any build request", async () => {
+  // A pump venue is now built against the bonding curve rather than refused. It must still
+  // never reach Jupiter: the route comes from the Action, and a pump buy has no build request.
+  test("an explicit pump venue never reaches a Jupiter build request", async () => {
     const { error, requests } = await runBranch("execute", undefined, { venue: "pump" });
-    expect(error).toBeInstanceOf(UnsupportedAction);
-    expect(/** @type {UnsupportedAction} */ (error)?.actionType).toBe("swap:pump");
     expect(requests).toHaveLength(0);
+    // The driver's RPC points at a closed port, so the buy stops at its first curve read.
+    expect(error).not.toBeInstanceOf(UnsupportedAction);
   });
 
   test("any other explicit venue is unsupported and never reaches a build request", async () => {

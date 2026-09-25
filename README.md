@@ -55,7 +55,9 @@ check` fails when it drifts. Do not edit it by hand.
 <!-- generated: tools -->
 | Tool | Tier | Slice |
 |---|---|---|
+| `solana_launch_execute_buy` | execute | `launch` |
 | `solana_launch_get_curve` | read | `launch` |
+| `solana_launch_simulate_buy` | simulate | `launch` |
 | `solana_lend_execute_deposit` | execute | `lend` |
 | `solana_lend_execute_withdraw` | execute | `lend` |
 | `solana_lend_get_position` | read | `lend` |
@@ -424,6 +426,40 @@ operator provides that endpoint:
 read one active curve and one completed curve and compare the decoded flags and reserves with
 the chain accounts for the same addresses; both surfaces must return identical JSON for the
 same mint. No funded transaction is involved.
+
+### Bounded SOL-in buys
+
+`solana_launch_simulate_buy` / `solana_launch_execute_buy` (MCP) and `solos launch simulate-buy
+--mint <mint> --amount <lamports> [--max-slippage-bps 50]` / `solos launch buy … [--skip-simulation]`
+buy one coin on a live curve with a bounded SOL budget.
+
+- **There is no solOS Pump sell tool, and none is planned here.** Buying leaves an exposure this
+  CLI cannot close. Confirm a checked external exit route before spending; the tool descriptions
+  and CLI help repeat this, and live QA stays blocked until an operator has verified one.
+- **`amount` is the maximum SOL, in lamports, including Pump's trading fees** — never a token
+  quantity. The same maximum is encoded in the transaction as `spendable_quote_in`, so nothing
+  more can be spent. Network fees and account rent are reported separately and sit outside it.
+- **The minimum tokens out is enforced on chain**, not by solOS arithmetic. It is derived from
+  live curve state and `maxSlippageBps` and handed to the program, so a curve that moves between
+  planning and landing reverts the buy instead of filling it badly (ADR-0025).
+- **Route identity is explicit.** The buy builds a `swap` Action carrying `venue: "pump"`; the
+  executor selects Pump from that and never infers it from the output mint, so an ordinary
+  `solana_swap_*` call on the same coin still goes to Jupiter. A refused buy is never rerouted to
+  PumpSwap or Jupiter, and never retried.
+- **Refusals before signing:** a completed curve, a curve quoted in anything but SOL, a missing or
+  foreign-owned curve, a missing mint, an unreadable protocol config, or a budget too small to
+  clear one whole token after fees.
+- **Fee rates are read live.** Pump's published docs state `fee_basis_points == 100`; the live
+  config reads 95 plus a 5 bps creator fee, so the rates are never hardcoded.
+
+```sh
+SOLANA_RPC_URL=... bun run solos launch simulate-buy --mint <mint> --amount 10000000
+SOLANA_RPC_URL=... bun run solos mcp call solana_launch_simulate_buy --args '{"mint":"<mint>","amount":"10000000"}'
+```
+
+Operator QA is a funded round and stays **blocked** until an operator confirms a manual exit route
+and approves a budget. Record the signature, fees, before and after balances, and the residual
+token position; a balance increase alone is not a completed round trip.
 
 ## Phoenix Perps positions, enrollment and collateral
 

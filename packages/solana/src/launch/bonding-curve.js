@@ -13,8 +13,14 @@ const REAL_QUOTE_OFFSET = 32;
 const COMPLETE_OFFSET = 48;
 /** Legacy accounts end at `complete` (49 bytes); quote_mint spans 83..115. */
 export const LEGACY_MIN_BYTES = 49;
+/** `creator` spans 49..81; the buy's creator_vault PDA is seeded from it. */
+const CREATOR_START = 49;
+const CREATOR_END = 81;
 const QUOTE_MINT_START = 83;
 const QUOTE_MINT_END = 115;
+/** `creator_fee_bps` follows quote_mint; absent on layouts that stop before 123. */
+const CREATOR_FEE_BPS_OFFSET = 115;
+const CREATOR_FEE_BPS_END = 123;
 
 /** Lengths inside a window cut the named encoded field in half; the decoder refuses them. */
 const TRUNCATION_WINDOWS = [
@@ -32,6 +38,8 @@ const TRUNCATION_WINDOWS = [
  *   readonly realTokenReserves: bigint;
  *   readonly realQuoteReserves: bigint;
  *   readonly complete: boolean;
+ *   readonly creator: Uint8Array | undefined;
+ *   readonly creatorFeeBps: bigint | undefined;
  *   readonly quoteMint: Uint8Array | undefined;
  * }} BondingCurveLayout
  */
@@ -126,17 +134,22 @@ export const decodeBondingCurve = (bytes) => {
   if (truncated !== undefined) return { status: "corrupt", reason: truncated };
   const badBoolean = invalidBooleanIn(bytes);
   if (badBoolean !== undefined) return { status: "corrupt", reason: badBoolean };
+  return { status: "decoded", layout: decodeLayout(bytes) };
+};
+
+/** The fields themselves, once the account has been proven well formed. @param {Uint8Array} bytes */
+const decodeLayout = (bytes) => {
   return {
-    status: "decoded",
-    layout: {
-      virtualTokenReserves: readU64(bytes, VIRTUAL_TOKEN_OFFSET),
-      virtualQuoteReserves: readU64(bytes, VIRTUAL_QUOTE_OFFSET),
-      realTokenReserves: readU64(bytes, REAL_TOKEN_OFFSET),
-      realQuoteReserves: readU64(bytes, REAL_QUOTE_OFFSET),
-      complete: bytes[COMPLETE_OFFSET] === 1,
-      quoteMint:
-        bytes.length >= QUOTE_MINT_END ? bytes.slice(QUOTE_MINT_START, QUOTE_MINT_END) : undefined,
-    },
+    virtualTokenReserves: readU64(bytes, VIRTUAL_TOKEN_OFFSET),
+    virtualQuoteReserves: readU64(bytes, VIRTUAL_QUOTE_OFFSET),
+    realTokenReserves: readU64(bytes, REAL_TOKEN_OFFSET),
+    realQuoteReserves: readU64(bytes, REAL_QUOTE_OFFSET),
+    complete: bytes[COMPLETE_OFFSET] === 1,
+    creator: bytes.length >= CREATOR_END ? bytes.slice(CREATOR_START, CREATOR_END) : undefined,
+    creatorFeeBps:
+      bytes.length >= CREATOR_FEE_BPS_END ? readU64(bytes, CREATOR_FEE_BPS_OFFSET) : undefined,
+    quoteMint:
+      bytes.length >= QUOTE_MINT_END ? bytes.slice(QUOTE_MINT_START, QUOTE_MINT_END) : undefined,
   };
 };
 
