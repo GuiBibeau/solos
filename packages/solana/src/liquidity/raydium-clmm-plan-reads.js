@@ -15,7 +15,7 @@ import {
   tickArrayStartIndex,
 } from "./raydium-clmm-accounts.js";
 import { decodePersonalPosition, decodePoolState } from "./raydium-clmm-decode.js";
-import { ATA_PROGRAM, TOKEN_PROGRAM } from "./raydium-clmm-instruction.js";
+import { ATA_PROGRAM } from "./raydium-clmm-instruction.js";
 import { RAYDIUM_CLMM_PROGRAM } from "./raydium-clmm-program.js";
 
 const addressBytes = getAddressEncoder();
@@ -83,12 +83,33 @@ export const prepareRaydiumPlan = (reader, position) =>
     if (nftAccount === null || nftAccount === undefined) {
       return reject("owner does not hold the position NFT");
     }
+    const programs = yield* mintPrograms(reader, pool.layout);
+    if ("status" in programs) return programs;
     return {
       status: /** @type {const} */ ("ok"),
       position: decoded.layout,
       pool: pool.layout,
       nftAccount,
+      programs,
     };
+  });
+
+/**
+ * Each pool mint's own token program. A Token-2022 pool mint derives a different associated
+ * account than the classic one, and the v2 instructions exist precisely so such a pool works —
+ * deriving both against the classic program would target accounts the program rejects.
+ * @param {Pick<Reader, "rows">} reader @param {{ tokenMint0: string; tokenMint1: string }} pool
+ */
+export const mintPrograms = (reader, pool) =>
+  Effect.gen(function* () {
+    const [row0, row1] = yield* reader.rows([pool.tokenMint0, pool.tokenMint1]);
+    if (row0 === null || row0 === undefined) {
+      return reject(`the pool's mint ${pool.tokenMint0} is missing`);
+    }
+    if (row1 === null || row1 === undefined) {
+      return reject(`the pool's mint ${pool.tokenMint1} is missing`);
+    }
+    return { token0: row0.owner, token1: row1.owner };
   });
 
 /**
@@ -96,7 +117,8 @@ export const prepareRaydiumPlan = (reader, position) =>
  * included only when the arithmetic says the position's arrays fall outside the default bitmap.
  * @param {{ owner: string; positionAddress: string; nftAccount: string;
  *   position: import("./raydium-clmm-decode.js").RaydiumPositionLayout;
- *   pool: import("./raydium-clmm-decode.js").RaydiumPoolLayout }} parts
+ *   pool: import("./raydium-clmm-decode.js").RaydiumPoolLayout;
+ *   programs: { token0: string; token1: string } }} parts
  */
 export const deriveRaydiumAccounts = async ({
   owner,
@@ -104,6 +126,7 @@ export const deriveRaydiumAccounts = async ({
   nftAccount,
   position,
   pool,
+  programs,
 }) => {
   const poolId = position.poolId;
   const { tickLowerIndex: lower, tickUpperIndex: upper } = position;
@@ -114,8 +137,8 @@ export const deriveRaydiumAccounts = async ({
       tickArrayAddress(poolId, tickArrayStartIndex(upper, spacing)),
       protocolPositionAddress(poolId, lower, upper),
       bitmapExtensionAddress(poolId),
-      ata(owner, pool.tokenMint0, TOKEN_PROGRAM),
-      ata(owner, pool.tokenMint1, TOKEN_PROGRAM),
+      ata(owner, pool.tokenMint0, programs.token0),
+      ata(owner, pool.tokenMint1, programs.token1),
     ]);
   const wide = needsBitmapExtension({ tickLower: lower, tickUpper: upper, tickSpacing: spacing });
   return {

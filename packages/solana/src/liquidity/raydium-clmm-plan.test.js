@@ -100,7 +100,16 @@ const healthy = () =>
   new Map([
     [POSITION, { owner: RAYDIUM_CLMM_PROGRAM, bytes: positionBytes() }],
     [POOL, { owner: RAYDIUM_CLMM_PROGRAM, bytes: poolBytes() }],
+    // The plan reads each pool mint to learn which token program owns it.
+    [addressOf(1), { owner: TOKEN_PROGRAM_ID, bytes: new Uint8Array(82) }],
+    [addressOf(2), { owner: TOKEN_PROGRAM_ID, bytes: new Uint8Array(82) }],
   ]);
+
+/** The bound the planner must encode at 50 bps against a 1e9 budget. @param {bigint} required */
+const boundAt50Bps = (required) => {
+  const withTolerance = (required * 10_050n + 9999n) / 10_000n;
+  return withTolerance < 1_000_000_000n ? withTolerance : 1_000_000_000n;
+};
 
 const depositAt = (rows, over = {}, custody = NFT_ACCOUNT) =>
   Effect.runPromise(
@@ -136,9 +145,25 @@ describe("raydium deposit plan", () => {
     expect(plan.accounts.personalPosition).toBe(POSITION);
     expect(plan.accounts.poolState).toBe(POOL);
     expect(plan.accounts.nftAccount).toBe(NFT_ACCOUNT);
-    // The budgets are the on-chain maxima, passed through unchanged.
-    expect(plan.tokenMaxA).toBe(1_000_000_000n);
-    expect(plan.tokenMaxB).toBe(1_000_000_000n);
+    // The on-chain maxima are the quote plus the requested tolerance, capped by the budget —
+    // not the budget itself, which would make maxSlippageBps decorative.
+    // A is the side the budget exhausts, so it caps; B is the side the quote decides.
+    expect(plan.tokenMaxA).toBe(boundAt50Bps(plan.requiredA));
+    expect(plan.tokenMaxB).toBe(boundAt50Bps(plan.requiredB));
+    expect(plan.tokenMaxB).toBeLessThan(1_000_000_000n);
+  });
+
+  test("a zero tolerance encodes exactly the quoted spend", async () => {
+    const plan = await depositAt(healthy(), { maxSlippageBps: 0 });
+    expect(plan.status).toBe("ok");
+    expect(plan.tokenMaxA).toBe(plan.requiredA);
+    expect(plan.tokenMaxB).toBe(plan.requiredB);
+  });
+
+  test("a budget below the quote plus tolerance still caps the maximum", async () => {
+    const plan = await depositAt(healthy(), { amountB: 1000n });
+    expect(plan.status).toBe("ok");
+    expect(plan.tokenMaxB).toBe(1000n);
   });
 
   test("a position in a different pool than the one given is refused", async () => {

@@ -8,11 +8,7 @@
  * keeps until it closes that account — while a side that is needed but short or absent is a
  * typed refusal, not a simulation error.
  */
-import { getTokenDecoder } from "@solana-program/token";
-import { Effect } from "effect";
-import { createAta, fail, setupSides } from "./liquidity-token-accounts.js";
-
-const tokenDecoder = getTokenDecoder();
+import { fundingSide, setupSides } from "./liquidity-token-accounts.js";
 
 /**
  * @param {{ quote: { requiredA: bigint; requiredB: bigint }; accounts: any }} plan
@@ -20,8 +16,8 @@ const tokenDecoder = getTokenDecoder();
  */
 const sideOf = ({ quote, accounts }, label) =>
   label === "A"
-    ? { required: quote.requiredA, mint: accounts.vault0Mint, target: accounts.tokenAccount0 }
-    : { required: quote.requiredB, mint: accounts.vault1Mint, target: accounts.tokenAccount1 };
+    ? { required: quote.requiredA, mint: accounts.vault0Mint, ata: accounts.tokenAccount0 }
+    : { required: quote.requiredB, mint: accounts.vault1Mint, ata: accounts.tokenAccount1 };
 
 /**
  * @param {{ read: ReturnType<typeof import("./liquidity-token-accounts.js").liquidityRead>;
@@ -33,16 +29,7 @@ export const openFunding = ({ read, kit, quote, accounts }) =>
     read,
     { tokenOwnerAccountA: accounts.tokenAccount0, tokenOwnerAccountB: accounts.tokenAccount1 },
     ({ row, label }) => {
-      const { required, mint, target } = sideOf({ quote, accounts }, label);
-      const isAbsent = row === null || row === undefined;
-      const held = isAbsent ? null : tokenDecoder.decode(row.bytes).amount;
-      if (held !== null && held >= required) return Effect.succeed(null);
-      if (required > 0n) {
-        const detail = isAbsent
-          ? "the funding account does not exist"
-          : `${held} available, the open needs ${required}`;
-        return fail(`insufficient token ${label} balance: ${detail}`);
-      }
-      return Effect.succeed(createAta(kit, mint, { ata: target }));
+      const { required, mint, ata } = sideOf({ quote, accounts }, label);
+      return fundingSide({ kit, row, label, required, mint, ata, verb: "open" });
     },
   );

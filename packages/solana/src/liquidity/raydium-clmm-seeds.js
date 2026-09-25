@@ -7,7 +7,7 @@
 
 import { address, getAddressEncoder } from "@solana/kit";
 import { accountWriter, ataAddress } from "./liquidity-seeds.js";
-import { nftBytes, randomAddress } from "./liquidity-token-fixture.js";
+import { mintBytes, nftBytes, randomAddress } from "./liquidity-token-fixture.js";
 import { personalPositionAddress } from "./raydium-clmm-decode.js";
 import {
   PERSONAL_POSITION_BYTES,
@@ -76,10 +76,22 @@ export const raydiumPositionBytes = (o) => {
   return bytes;
 };
 
-/** Seed one Raydium pool. @param {string} rpcUrl @param {Parameters<typeof raydiumPoolBytes>[0] & { pool?: string; accountOwner?: string }} o */
+/**
+ * Seed one Raydium pool, and its two mints alongside it: the plan reads each mint to learn which
+ * token program owns it, so a pool whose mints do not exist is not a pool anything can plan from.
+ * @param {string} rpcUrl
+ * @param {Parameters<typeof raydiumPoolBytes>[0] & { pool?: string; accountOwner?: string;
+ *   mintOwner?: string }} o
+ */
 export const seedRaydiumPool = async (rpcUrl, o) => {
   const pool = o.pool ?? randomAddress();
-  await accountWriter(rpcUrl)(pool, o.accountOwner ?? RAYDIUM_CLMM_PROGRAM, raydiumPoolBytes(o));
+  const write = accountWriter(rpcUrl);
+  const mintOwner = o.mintOwner ?? TOKEN_PROGRAM;
+  await Promise.all([
+    write(pool, o.accountOwner ?? RAYDIUM_CLMM_PROGRAM, raydiumPoolBytes(o)),
+    write(o.mint0, mintOwner, mintBytes(9)),
+    write(o.mint1, mintOwner, mintBytes(6)),
+  ]);
   return pool;
 };
 

@@ -12,7 +12,6 @@ import {
   appendTransactionMessageInstructions,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
-import { getTokenDecoder } from "@solana-program/token";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
@@ -22,12 +21,11 @@ import {
 } from "../liquidity/whirlpool-deposit-instruction.js";
 import { depositPlan } from "../liquidity/whirlpool-deposit-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { fundingSide, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
 import { buildSignedRaydiumDeposit } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
-const tokenDecoder = getTokenDecoder();
 
 /** @typedef {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} DepositPlanOk */
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
@@ -54,34 +52,15 @@ const tokenDecoder = getTokenDecoder();
  * @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
  */
 const fundingSetup = (read, kit, plan) =>
-  setupSides(read, plan.accounts, (side) => fundingSide(kit, plan, side));
+  setupSides(read, plan.accounts, ({ row, label }) =>
+    fundingSide({ kit, row, label, verb: "deposit", ...sideOf(plan, label) }),
+  );
 
 /** What the plan says about one side. @param {DepositPlanOk} plan @param {"A"|"B"} label */
 const sideOf = (plan, label) =>
   label === "A"
-    ? { required: plan.requiredA, mint: plan.mintA, target: plan.accounts.tokenOwnerAccountA }
-    : { required: plan.requiredB, mint: plan.mintB, target: plan.accounts.tokenOwnerAccountB };
-
-/**
- * One funding side: nothing to do when it already covers the spend, an idempotent create when
- * the quote needs nothing from it, a typed refusal when it is short or absent but needed.
- * @param {Kit} kit @param {DepositPlanOk} plan
- * @param {{ row: import("../liquidity/liquidity-accounts.js").FetchedAccount | null | undefined;
- *   label: "A" | "B" }} side
- */
-const fundingSide = (kit, plan, { row, label }) => {
-  const { required, mint, target } = sideOf(plan, label);
-  const isAbsent = row === null || row === undefined;
-  const held = isAbsent ? null : tokenDecoder.decode(row.bytes).amount;
-  if (held !== null && held >= required) return Effect.succeed(null);
-  if (required > 0n) {
-    const detail = isAbsent
-      ? "the funding account does not exist"
-      : `${held} available, the deposit needs ${required}`;
-    return fail(`insufficient token ${label} balance: ${detail}`);
-  }
-  return Effect.succeed(createAta(kit, mint, { ata: target }));
-};
+    ? { required: plan.requiredA, mint: plan.mintA, ata: plan.accounts.tokenOwnerAccountA }
+    : { required: plan.requiredB, mint: plan.mintB, ata: plan.accounts.tokenOwnerAccountB };
 
 /**
  * Run the plan against real RPC; its typed rejects surface as values the caller maps to

@@ -13,7 +13,7 @@ import {
   reject,
   rewardGroups,
 } from "./raydium-clmm-plan-reads.js";
-import { depositLiquidityForBudgets } from "./whirlpool-deposit-quote.js";
+import { depositLiquidityForBudgets, spendBound } from "./whirlpool-deposit-quote.js";
 import { withdrawQuoteForBps } from "./whirlpool-withdraw-quote.js";
 
 /** @typedef {import("./raydium-clmm-plan-reads.js").Reader} Reader */
@@ -27,6 +27,7 @@ const accountsFor = (owner, positionAddress, read) =>
       nftAccount: read.nftAccount,
       position: read.position,
       pool: read.pool,
+      programs: read.programs,
     }),
   );
 
@@ -62,10 +63,11 @@ export const raydiumDepositPlan = ({ reader, owner, action }) =>
       requiredB: quote.requiredB,
       mintA: read.pool.tokenMint0,
       mintB: read.pool.tokenMint1,
-      // The caller's budgets are the on-chain maxima: whatever the price does between planning
-      // and landing, the program may never spend more than was allowed.
-      tokenMaxA: action.amountA,
-      tokenMaxB: action.amountB,
+      // The quoted spend plus the requested tolerance, capped by the budget — the same rule
+      // Orca uses. The budget alone would ignore maxSlippageBps entirely: a request asking for
+      // no tolerance could still spend the whole budget if the price moved before landing.
+      tokenMaxA: spendBound(quote.requiredA, action.amountA, action.maxSlippageBps),
+      tokenMaxB: spendBound(quote.requiredB, action.amountB, action.maxSlippageBps),
     };
   });
 

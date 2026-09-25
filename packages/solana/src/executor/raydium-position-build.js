@@ -18,8 +18,9 @@ import {
   openPositionData,
   raydiumOpenInstruction,
 } from "../liquidity/raydium-clmm-open.js";
+import { mintPrograms } from "../liquidity/raydium-clmm-plan-reads.js";
 import { RAYDIUM_CLMM_PROGRAM } from "../liquidity/raydium-clmm-program.js";
-import { depositLiquidityForBudgets } from "../liquidity/whirlpool-deposit-quote.js";
+import { depositLiquidityForBudgets, spendBound } from "../liquidity/whirlpool-deposit-quote.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
 import { openFunding } from "./raydium-open-funding.js";
 import { openParts } from "./raydium-open-parts.js";
@@ -48,10 +49,21 @@ const readPool = (ctx, pool) =>
       };
     }
     const decoded = decodePoolState(row.bytes);
-    return decoded.status === "decoded"
-      ? { ok: /** @type {const} */ (true), pool: decoded.layout }
-      : { ok: /** @type {const} */ (false), reason: decoded.reason };
+    if (decoded.status !== "decoded") {
+      return { ok: /** @type {const} */ (false), reason: decoded.reason };
+    }
+    // Each side's account derives against its own mint's token program, so a Token-2022 pool
+    // opens at the addresses the program expects rather than at classic ones it rejects.
+    const programs = yield* mintPrograms(readerRows(ctx), decoded.layout);
+    return "status" in programs
+      ? { ok: /** @type {const} */ (false), reason: programs.reason }
+      : { ok: /** @type {const} */ (true), pool: decoded.layout, programs };
   });
+
+/** The plan reader's row seam, which is all `mintPrograms` needs. @param {Rpc} ctx */
+const readerRows = (ctx) => ({
+  rows: (/** @type {readonly string[]} */ accounts) => fetchAccounts(liquidityRead(ctx), accounts),
+});
 
 /**
  * The pure half of an open: align the range to the pool, refuse a range the instruction cannot
@@ -113,16 +125,18 @@ export const openQuoteOf = (action, plan) => ({
   liquidity: String(plan.liquidity),
   requiredA: String(plan.requiredA),
   requiredB: String(plan.requiredB),
-  tokenMaxA: String(action.amountA),
-  tokenMaxB: String(action.amountB),
+  tokenMaxA: String(spendBound(plan.requiredA, BigInt(action.amountA), action.maxSlippageBps)),
+  tokenMaxB: String(spendBound(plan.requiredB, BigInt(action.amountB), action.maxSlippageBps)),
 });
 
 /**
  * The open instruction itself. The NFT mint signs through its own account meta — index 2 — which
  * is how Kit learns about the second signer without a separate list to keep in step.
- * @param {any} action @param {bigint} liquidity @param {Awaited<ReturnType<typeof openParts>>} built
+ * @param {any} action
+ * @param {{ liquidity: bigint; requiredA: bigint; requiredB: bigint }} quote
+ * @param {Awaited<ReturnType<typeof openParts>>} built
  */
-const openInstruction = (action, liquidity, built) =>
+const openInstruction = (action, quote, built) =>
   raydiumOpenInstruction(
     openPositionAccounts({ ...built.accounts, nftMint: built.nftSigner.address }).map(
       (meta, index) => (index === 2 ? { ...meta, signer: built.nftSigner } : meta),
@@ -132,9 +146,11 @@ const openInstruction = (action, liquidity, built) =>
       tickUpper: action.tickUpper,
       startLower: built.startLower,
       startUpper: built.startUpper,
-      liquidity,
-      amount0Max: BigInt(action.amountA),
-      amount1Max: BigInt(action.amountB),
+      liquidity: quote.liquidity,
+      // Quoted spend plus the requested tolerance, capped by the budget: the budget alone would
+      // make maxSlippageBps decorative on the one verb that opens a brand new position.
+      amount0Max: spendBound(quote.requiredA, BigInt(action.amountA), action.maxSlippageBps),
+      amount1Max: spendBound(quote.requiredB, BigInt(action.amountB), action.maxSlippageBps),
     }),
   );
 
@@ -150,10 +166,10 @@ export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
         owner: kit.signer.address,
         action,
         pool: read.pool,
-        tickSpacing: read.pool.tickSpacing,
+        programs: read.programs,
       }),
     );
-    const instruction = openInstruction(action, quote.liquidity, built);
+    const instruction = openInstruction(action, quote, built);
     const setup = yield* openFunding({
       read: liquidityRead(ctx),
       kit,

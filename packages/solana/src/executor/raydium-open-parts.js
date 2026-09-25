@@ -12,8 +12,12 @@ import { personalPositionAddress } from "../liquidity/raydium-clmm-decode.js";
 import { TOKEN_2022_PROGRAM } from "../liquidity/raydium-clmm-instruction.js";
 import { ata, deriveRaydiumAccounts } from "../liquidity/raydium-clmm-plan-reads.js";
 
-/** @param {{ owner: string; action: any; pool: any; tickSpacing: number }} parts */
-export const openParts = async ({ owner, action, pool, tickSpacing }) => {
+/**
+ * @param {{ owner: string; action: any; pool: any;
+ *   programs: { token0: string; token1: string } }} parts
+ */
+export const openParts = async ({ owner, action, pool, programs }) => {
+  const tickSpacing = pool.tickSpacing;
   const nftSigner = await generateKeyPairSigner();
   const accounts = await deriveRaydiumAccounts({
     owner,
@@ -29,6 +33,7 @@ export const openParts = async ({ owner, action, pool, tickSpacing }) => {
       tickUpperIndex: action.tickUpper,
     },
     pool,
+    programs,
   });
   return {
     nftSigner,

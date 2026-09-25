@@ -23,7 +23,7 @@ import {
 } from "../liquidity/whirlpool-withdraw-instruction.js";
 import { withdrawPlan } from "../liquidity/whirlpool-withdraw-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { liquidityRead, receivingSide, setupSides } from "./liquidity-token-accounts.js";
 import { buildSignedRaydiumWithdraw } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
@@ -52,20 +52,16 @@ const EXECUTOR = "direct-signer";
  * @param {import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk} plan
  */
 const receiptSetup = (read, kit, plan) =>
-  setupSides(read, plan.accounts, ({ row, label }) => {
-    if (row !== null && row !== undefined) return Effect.succeed(null);
-    const minimum = label === "A" ? plan.minA : plan.minB;
-    if (minimum > 0n) {
-      return fail(
-        `the token ${label} receiving account does not exist and the position owes it ` +
-          `${minimum} base units at the current price`,
-      );
-    }
-    const mint = label === "A" ? plan.mintA : plan.mintB;
-    const target =
-      label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB;
-    return Effect.succeed(createAta(kit, mint, { ata: target }));
-  });
+  setupSides(read, plan.accounts, ({ row, label }) =>
+    receivingSide({
+      kit,
+      row,
+      label,
+      owed: label === "A" ? plan.minA : plan.minB,
+      mint: label === "A" ? plan.mintA : plan.mintB,
+      ata: label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB,
+    }),
+  );
 
 /**
  * Run the plan against real RPC; its typed rejects surface as values the caller maps to

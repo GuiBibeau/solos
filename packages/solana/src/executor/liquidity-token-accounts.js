@@ -7,7 +7,10 @@
  * differs — a deposit asks whether the side can pay, a withdrawal whether it can receive — so
  * the fetch and the assembly live here once and each builder passes its own rule.
  */
-import { getCreateAssociatedTokenIdempotentInstruction } from "@solana-program/token";
+import {
+  getCreateAssociatedTokenIdempotentInstruction,
+  getTokenDecoder,
+} from "@solana-program/token";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
@@ -18,6 +21,8 @@ import { rpcOrigin } from "../rpc/rpc-origin.js";
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("../liquidity/liquidity-accounts.js").FetchedAccount} FetchedAccount */
 /** @typedef {Parameters<typeof import("@solana/kit").appendTransactionMessageInstructions>[0][number]} SetupInstruction */
+
+const tokenDecoder = getTokenDecoder();
 
 /** The bounded read shape the liquidity helpers take. @param {Rpc} ctx */
 export const liquidityRead = (ctx) => ({
@@ -47,6 +52,45 @@ export const createAta = (kit, mint, { ata, program }) =>
     mint: asAddress(mint),
     ...(program !== undefined && { tokenProgram: asAddress(program) }),
   });
+
+/**
+ * One funding side of a spend: nothing to do when it already covers the quote, an idempotent
+ * create when the quote needs nothing from it, and a typed refusal when it is short or absent
+ * but needed — a spend from an account that cannot cover it is not simulable honestly.
+ * @param {{ kit: Kit; row: FetchedAccount | null | undefined; required: bigint; mint: string;
+ *   ata: string; label: "A" | "B"; verb: string }} side
+ * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
+ */
+export const fundingSide = ({ kit, row, required, mint, ata, label, verb }) => {
+  const held = row === null || row === undefined ? null : tokenDecoder.decode(row.bytes).amount;
+  if (held !== null && held >= required) return Effect.succeed(null);
+  if (required > 0n) {
+    const detail =
+      held === null
+        ? "the funding account does not exist"
+        : `${held} available, the ${verb} needs ${required}`;
+    return fail(`insufficient token ${label} balance: ${detail}`);
+  }
+  return Effect.succeed(createAta(kit, mint, { ata }));
+};
+
+/**
+ * One receiving side of a payout: it only has to exist. A side owed nothing is created so the
+ * instruction's account is there; a side that is owed something and absent is a refusal.
+ * @param {{ kit: Kit; row: FetchedAccount | null | undefined; owed: bigint; mint: string;
+ *   ata: string; label: "A" | "B" }} side
+ * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
+ */
+export const receivingSide = ({ kit, row, owed, mint, ata, label }) => {
+  if (row !== null && row !== undefined) return Effect.succeed(null);
+  if (owed > 0n) {
+    return fail(
+      `the token ${label} receiving account does not exist and the position owes it ` +
+        `${owed} base units at the current price`,
+    );
+  }
+  return Effect.succeed(createAta(kit, mint, { ata }));
+};
 
 /**
  * Read both owner token accounts and apply one per-side rule, keeping whatever creates it asked
