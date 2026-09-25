@@ -10,7 +10,12 @@ import { describe, expect, test } from "bun:test";
 import { getAddressEncoder, address } from "@solana/kit";
 import { PUMP_BUY_REJECTIONS, validateBuyReads } from "./pump-buy-plan.js";
 import { BONDING_CURVE_DISCRIMINATOR, PUMP_PROGRAM } from "./pump-program.js";
-import { GLOBAL_TRADING_BYTES, tradingGlobalBytes } from "./test-fixtures.js";
+import {
+  GLOBAL_TRADING_BYTES,
+  feeConfigBytes,
+  mintBytesWithSupply,
+  tradingGlobalBytes,
+} from "./test-fixtures.js";
 
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const CREATOR = "7yecFGMRPmQcHUyrCRkQyDbTeBQhTBzE6LXZ9nQS3Mbq";
@@ -49,7 +54,7 @@ const globalBytes = () =>
     buybackFeeRecipient: new Uint8Array(encoder.encode(address(CREATOR))),
   });
 
-const mintAccount = asAccount(new Uint8Array(82), TOKEN_PROGRAM);
+const mintAccount = asAccount(mintBytesWithSupply(1_000_000_000_000_000n), TOKEN_PROGRAM);
 
 /** @param {Partial<{ curve: unknown; global: unknown; mint: unknown }>} overrides */
 const validate = (overrides = {}) =>
@@ -58,6 +63,7 @@ const validate = (overrides = {}) =>
       curve: asAccount(curveBytes()),
       global: asAccount(globalBytes()),
       mint: mintAccount,
+      feeConfig: asAccount(feeConfigBytes()),
       ...overrides,
     }),
   );
@@ -66,8 +72,9 @@ describe("pump buy refusals", () => {
   test("the documented reads pass every gate", () => {
     const checked = validate();
     expect(checked.ok).toBe(true);
-    // The fee is read live, never assumed: 95 protocol plus 5 creator, not the doc's 100.
-    expect(checked.ok && checked.totalFeeBps).toBe(100n);
+    // The fee comes from the fee program's live tier table, not from Global's retired fields:
+    // 95 protocol plus 30 creator, where the old arithmetic produced 95.
+    expect(checked.ok && checked.totalFeeBps).toBe(125n);
     expect(checked.ok && checked.tokenProgram).toBe(TOKEN_PROGRAM);
   });
 

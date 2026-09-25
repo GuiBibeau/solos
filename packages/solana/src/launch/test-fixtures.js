@@ -6,7 +6,11 @@
  * never through a JS Number.
  */
 import { getBase16Decoder } from "@solana/kit";
-import { BONDING_CURVE_DISCRIMINATOR, GLOBAL_DISCRIMINATOR } from "./pump-program.js";
+import {
+  BONDING_CURVE_DISCRIMINATOR,
+  FEE_CONFIG_DISCRIMINATOR,
+  GLOBAL_DISCRIMINATOR,
+} from "./pump-program.js";
 
 /** @param {...Uint8Array} parts @returns {Uint8Array} */
 const concat = (...parts) => {
@@ -156,5 +160,38 @@ export const tradingGlobalBytes = (parts) => {
   bytes.set(decoy, 162); // `fee_recipients[0]`, a different key the v2 path also rejects
   bytes.set(parts.feeRecipient, 516);
   bytes.set(parts.buybackFeeRecipient, 741);
+  return bytes;
+};
+
+/**
+ * A fee program `FeeConfig`: 8 discriminator, `bump`, `admin`, `flat_fees`, then the tier vector.
+ *
+ * Defaults to the table live on mainnet 2026-09-25 — one tier from market cap zero charging 95
+ * protocol and 30 creator — so a fixture drifting from the chain shows up as a changed constant
+ * rather than as arithmetic that quietly still passes.
+ * @param {ReadonlyArray<{ threshold: bigint; protocolFeeBps: bigint; creatorFeeBps: bigint }>} [tiers]
+ * @returns {Uint8Array}
+ */
+export const feeConfigBytes = (
+  tiers = [{ threshold: 0n, protocolFeeBps: 95n, creatorFeeBps: 30n }],
+) => {
+  const bytes = new Uint8Array(69 + 40 * tiers.length);
+  bytes.set(FEE_CONFIG_DISCRIMINATOR, 0);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(65, tiers.length, true);
+  for (const [index, tier] of tiers.entries()) {
+    const at = 69 + 40 * index;
+    view.setBigUint64(at, BigInt.asUintN(64, tier.threshold), true);
+    view.setBigUint64(at + 8, tier.threshold >> 64n, true);
+    view.setBigUint64(at + 24, tier.protocolFeeBps, true);
+    view.setBigUint64(at + 32, tier.creatorFeeBps, true);
+  }
+  return bytes;
+};
+
+/** An SPL mint carrying `supply` at bytes 36..44, which the market cap is denominated in. */
+export const mintBytesWithSupply = (/** @type {bigint} */ supply) => {
+  const bytes = new Uint8Array(82);
+  new DataView(bytes.buffer).setBigUint64(36, supply, true);
   return bytes;
 };
