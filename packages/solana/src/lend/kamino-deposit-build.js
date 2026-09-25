@@ -12,7 +12,11 @@ import {
 } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import { beginV1Message, signV1Message } from "../executor/transaction-v1.js";
+import {
+  beginV1Message,
+  signV1Message,
+  rejectionAfterV1Policy,
+} from "../executor/transaction-v1.js";
 import { base64AccountData } from "../market/mint-account.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
@@ -188,12 +192,7 @@ export const signLendInstructions = ({ ctx, kit, instructions }) =>
         signV1Message(
           appendTransactionMessageInstructions(/** @type {any} */ (instructions), message),
         ),
-      catch: (/** @type {unknown} */ error) =>
-        error instanceof BuildRejected
-          ? error
-          : new BuildRejected({
-              reason: "transaction failed v1 policy before signing; nothing was signed",
-            }),
+      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
     });
   });
 

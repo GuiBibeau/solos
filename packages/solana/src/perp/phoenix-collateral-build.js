@@ -6,7 +6,11 @@ import {
 import { ActionSchema } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import { beginV1Message, signV1Message } from "../executor/transaction-v1.js";
+import {
+  beginV1Message,
+  rejectionAfterV1Policy,
+  signV1Message,
+} from "../executor/transaction-v1.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 import { readCollateralExchange } from "./phoenix-collateral-exchange-live.js";
@@ -137,8 +141,8 @@ const signPlan = (deps, facts) =>
     );
     const signed = yield* Effect.tryPromise({
       try: () => signV1Message(message),
-      catch: () =>
-        new BuildRejected({ reason: "Phoenix collateral v1 signing failed; nothing was sent" }),
+      catch: (/** @type {unknown} */ error) =>
+        rejectionAfterV1Policy(error, "Phoenix collateral transfer"),
     });
     return { signed, facts };
   });
