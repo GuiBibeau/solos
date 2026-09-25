@@ -21,7 +21,7 @@ export const validateBuyInput = (schema, input) => {
         new CurveInputInvalid({
           reason:
             "a buy needs a mint that decodes to a 32-byte address, a positive u64 lamport " +
-            "budget as an integer string, and a slippage bound between 1 and 10000 bps",
+            "budget as an integer string, and a slippage bound between 1 and 9999 bps",
         }),
       );
 };

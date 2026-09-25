@@ -76,14 +76,17 @@ export const GetCurveInputSchema = z.object({
  */
 export const LaunchBuyInputSchema = z.object({
   mint: MintSchema.describe("Base58 mint of the coin to buy, whose bonding curve must be live"),
-  amount: U64AmountSchema.refine((value) => BigInt(value) > 0n, "amount must be positive").describe(
-    "Maximum SOL to spend in lamports, including Pump trading fees; never a token amount",
-  ),
+  // The grammar is re-tested here for the same reason `U64AmountSchema` re-tests it: Zod 4 runs
+  // refinements even when an earlier check failed, and `BigInt` throws on anything else.
+  amount: U64AmountSchema.refine(
+    (value) => /^(0|[1-9]\d*)$/.test(value) && BigInt(value) > 0n,
+    "amount must be positive",
+  ).describe("Maximum SOL to spend in lamports, including Pump trading fees; never a token amount"),
   maxSlippageBps: z
     .number()
     .int()
     .min(1)
-    .max(10_000)
+    .max(9999)
     .default(50)
     .describe("How far below the quoted tokens the enforced minimum may sit. Default 50 (0.5%)."),
 });

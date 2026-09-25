@@ -61,7 +61,14 @@ const curveRejection = (curve) => {
 /** @param {ReturnType<typeof decodeGlobalConfig>} config */
 const configRejection = (config) => {
   if (config.status !== "decoded") return GLOBAL_CORRUPT;
-  if (config.feeRecipient === undefined || config.feeBasisPoints === undefined) {
+  // Every optional field the buy goes on to decode must be proven here. A Global carrying the
+  // fee rates but shorter than the buyback array would otherwise reach `b58.decode(undefined)`
+  // and escape as an untyped failure instead of a typed refusal.
+  if (
+    config.feeRecipient === undefined ||
+    config.feeBasisPoints === undefined ||
+    config.buybackFeeRecipient === undefined
+  ) {
     return GLOBAL_NO_FEES;
   }
   return undefined;
