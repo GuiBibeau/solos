@@ -2,7 +2,7 @@
 import { Effect } from "effect";
 import { Signer } from "../../wallet/index.js";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityGetPositionInputSchema } from "../domain/types.js";
+import { LiquidityGetPositionInputSchema, isReadable } from "../domain/types.js";
 import { LiquidityVenue } from "../ports/liquidity-venue.js";
 
 /** @typedef {import("../domain/errors.js").LiquidityError | import("../../shared/index.js").SignerUnavailable | import("../../shared/index.js").RpcError} GetPositionError */
@@ -25,7 +25,7 @@ export const getLpPosition = (input) =>
           "protocol must be orca, meteora or raydium, position a base58 address and owner a base58 address when given",
       });
     }
-    if (parsed.data.protocol !== "orca") {
+    if (!isReadable(parsed.data.protocol)) {
       return yield* new LiquidityUnsupportedProtocol({ protocol: parsed.data.protocol });
     }
     const owner = parsed.data.owner ?? (yield* (yield* Signer).address());

@@ -18,16 +18,26 @@ import { AddressSchema } from "../../shared/domain/address.js";
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 
 /**
- * One Whirlpool position read: `position` is the protocol position account (the Whirlpool
+ * Protocols with a read adapter behind them. Enum membership is not implementation: `meteora`
+ * parses and then fails `UnsupportedProtocol` before any network access. One list, checked by
+ * the tool's pure guard and again by the use case.
+ */
+export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
+
+/** @param {string} protocol */
+export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
+
+/**
+ * One position read: `position` is the protocol position account (the Whirlpool
  * position PDA), never the position NFT mint and never the pool. An omitted owner means the
  * configured signer; an explicit owner is honored verbatim.
  */
 export const LiquidityGetPositionInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
   ),
   position: AddressSchema.describe(
-    "Protocol position-account address (the Whirlpool position PDA), never the NFT mint and never the pool",
+    "Protocol position-account address — the Whirlpool position PDA on orca, the PersonalPositionState PDA on raydium; never the NFT mint and never the pool",
   ),
   owner: AddressSchema.optional().describe(
     "Owner whose position NFT custody proves ownership. Defaults to the configured signer wallet",
