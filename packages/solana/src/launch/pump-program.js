@@ -24,3 +24,6 @@ export const BONDING_CURVE_SEED = "bonding-curve";
 
 /** PDA seed of the shared protocol config: ["global"] — well-known address 4wTV…xnjf. */
 export const GLOBAL_SEED = "global";
+
+/** 8-byte Anchor discriminator of `account:FeeConfig` in the fee program's IDL, pinned commit. */
+export const FEE_CONFIG_DISCRIMINATOR = Object.freeze([143, 52, 146, 187, 219, 123, 76, 155]);

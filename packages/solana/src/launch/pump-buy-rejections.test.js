@@ -7,10 +7,15 @@
  * is provable here rather than only in a funded round.
  */
 import { describe, expect, test } from "bun:test";
-import { getAddressEncoder, address } from "@solana/kit";
+import { getAddressEncoder, getBase58Decoder, address } from "@solana/kit";
 import { PUMP_BUY_REJECTIONS, validateBuyReads } from "./pump-buy-plan.js";
 import { BONDING_CURVE_DISCRIMINATOR, PUMP_PROGRAM } from "./pump-program.js";
-import { GLOBAL_TRADING_BYTES, tradingGlobalBytes } from "./test-fixtures.js";
+import {
+  GLOBAL_TRADING_BYTES,
+  feeConfigBytes,
+  mintBytesWithSupply,
+  tradingGlobalBytes,
+} from "./test-fixtures.js";
 
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const CREATOR = "7yecFGMRPmQcHUyrCRkQyDbTeBQhTBzE6LXZ9nQS3Mbq";
@@ -28,6 +33,7 @@ const curveBytes = ({
   complete = false,
   quoteMint = new Uint8Array(32),
   creator = CREATOR,
+  mayhem = false,
 } = {}) => {
   const bytes = new Uint8Array(125);
   bytes.set(BONDING_CURVE_DISCRIMINATOR, 0);
@@ -37,19 +43,24 @@ const curveBytes = ({
   view.setBigUint64(24, 793_100_000_000_000n, true); // real token
   bytes[48] = complete ? 1 : 0;
   bytes.set(new Uint8Array(encoder.encode(address(creator))), 49);
+  bytes[81] = mayhem ? 1 : 0;
   bytes.set(quoteMint, 83);
   view.setBigUint64(115, 5n, true); // creator fee bps
   return bytes;
 };
 
 /** A Global long enough to carry the live fee fields. */
+const ORDINARY_RECIPIENT = new Uint8Array(encoder.encode(address(OTHER_MINT)));
+const MAYHEM_RECIPIENT = new Uint8Array(32).fill(11);
+
 const globalBytes = () =>
   tradingGlobalBytes({
-    feeRecipient: new Uint8Array(encoder.encode(address(OTHER_MINT))),
+    feeRecipient: ORDINARY_RECIPIENT,
+    mayhemFeeRecipient: MAYHEM_RECIPIENT,
     buybackFeeRecipient: new Uint8Array(encoder.encode(address(CREATOR))),
   });
 
-const mintAccount = asAccount(new Uint8Array(82), TOKEN_PROGRAM);
+const mintAccount = asAccount(mintBytesWithSupply(1_000_000_000_000_000n), TOKEN_PROGRAM);
 
 /** @param {Partial<{ curve: unknown; global: unknown; mint: unknown }>} overrides */
 const validate = (overrides = {}) =>
@@ -58,6 +69,7 @@ const validate = (overrides = {}) =>
       curve: asAccount(curveBytes()),
       global: asAccount(globalBytes()),
       mint: mintAccount,
+      feeConfig: asAccount(feeConfigBytes()),
       ...overrides,
     }),
   );
@@ -66,8 +78,9 @@ describe("pump buy refusals", () => {
   test("the documented reads pass every gate", () => {
     const checked = validate();
     expect(checked.ok).toBe(true);
-    // The fee is read live, never assumed: 95 protocol plus 5 creator, not the doc's 100.
-    expect(checked.ok && checked.totalFeeBps).toBe(100n);
+    // The fee comes from the fee program's live tier table, not from Global's retired fields:
+    // 95 protocol plus 30 creator, where the old arithmetic produced 95.
+    expect(checked.ok && checked.totalFeeBps).toBe(125n);
     expect(checked.ok && checked.tokenProgram).toBe(TOKEN_PROGRAM);
   });
 
@@ -119,6 +132,29 @@ describe("pump buy refusals", () => {
     expect(validate({ global: asAccount(short) })).toMatchObject({
       ok: false,
       reason: PUMP_BUY_REJECTIONS.GLOBAL_NO_FEES,
+    });
+  });
+
+  // Global holds three fee-recipient keys and the program authorizes one set per coin, chosen
+  // by the curve's mayhem flag. Observed on mainnet 2026-09-25: an ordinary coin's real sell_v2
+  // passes the scalar at offset 41, a mayhem coin's passes reserved_fee_recipients at 516, and
+  // each is refused NotAuthorized (6000) for the other kind. Picking one set for all coins
+  // aborts the transaction rather than degrading, so both directions are pinned here.
+  test("an ordinary coin is priced against the scalar fee recipient", () => {
+    const checked = validate();
+    expect(checked.ok && checked.feeRecipient).toBe(OTHER_MINT);
+  });
+
+  test("a mayhem coin is priced against the reserved fee recipient instead", () => {
+    const checked = validate({ curve: asAccount(curveBytes({ mayhem: true })) });
+    expect(checked.ok && checked.feeRecipient).toBe(getBase58Decoder().decode(MAYHEM_RECIPIENT));
+    expect(checked.ok && checked.feeRecipient).not.toBe(OTHER_MINT);
+  });
+
+  test("a curve too short to carry the mayhem flag is refused, never guessed", () => {
+    expect(validate({ curve: asAccount(curveBytes().slice(0, 81)) })).toMatchObject({
+      ok: false,
+      reason: PUMP_BUY_REJECTIONS.MAYHEM_FLAG_ABSENT,
     });
   });
 

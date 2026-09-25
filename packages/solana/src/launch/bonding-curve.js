@@ -16,6 +16,11 @@ export const LEGACY_MIN_BYTES = 49;
 /** `creator` spans 49..81; the buy's creator_vault PDA is seeded from it. */
 const CREATOR_START = 49;
 const CREATOR_END = 81;
+/**
+ * `is_mayhem_mode` sits between `creator` and `quote_mint`. It decides which of Global's fee
+ * recipient sets the program authorizes for this coin, so a trade cannot be built without it.
+ */
+const MAYHEM_MODE_OFFSET = 81;
 const QUOTE_MINT_START = 83;
 const QUOTE_MINT_END = 115;
 /** `creator_fee_bps` follows quote_mint; absent on layouts that stop before 123. */
@@ -40,6 +45,7 @@ const TRUNCATION_WINDOWS = [
  *   readonly complete: boolean;
  *   readonly creator: Uint8Array | undefined;
  *   readonly creatorFeeBps: bigint | undefined;
+ *   readonly isMayhemMode: boolean | undefined;
  *   readonly quoteMint: Uint8Array | undefined;
  * }} BondingCurveLayout
  */
@@ -145,6 +151,7 @@ const decodeLayout = (bytes) => {
     realTokenReserves: readU64(bytes, REAL_TOKEN_OFFSET),
     realQuoteReserves: readU64(bytes, REAL_QUOTE_OFFSET),
     complete: bytes[COMPLETE_OFFSET] === 1,
+    isMayhemMode: bytes.length > MAYHEM_MODE_OFFSET ? bytes[MAYHEM_MODE_OFFSET] === 1 : undefined,
     creator: bytes.length >= CREATOR_END ? bytes.slice(CREATOR_START, CREATOR_END) : undefined,
     creatorFeeBps:
       bytes.length >= CREATOR_FEE_BPS_END ? readU64(bytes, CREATOR_FEE_BPS_OFFSET) : undefined,

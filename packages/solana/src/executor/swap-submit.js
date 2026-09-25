@@ -1,6 +1,7 @@
 // @ts-check
 import { SimulationFailed } from "@solos/core";
 import { Effect } from "effect";
+import { simulationErrorText } from "./simulation-error-text.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
 import { simulateSwapBounded } from "./swap-spend-bound.js";
 import { sendSigned } from "./transfer-sol.js";
@@ -26,7 +27,14 @@ export const submitSimulatedSwap = ({ ctx, signed, taker, action, credit }, skip
     if (!skipSimulation) {
       const raw = yield* simulateSwapBounded(ctx, { signed, taker, action, credit });
       if (raw.err !== null) {
-        return yield* new SimulationFailed({ reason: JSON.stringify(raw.err), logs: raw.logs });
+        // BigInt-safe, like every other submit path: a simulation error carrying a u64 field
+        // would otherwise throw inside the failure constructor and replace the typed
+        // SimulationFailed — the one thing that says *why* nothing was sent — with an untyped
+        // InternalError.
+        return yield* new SimulationFailed({
+          reason: simulationErrorText(raw.err),
+          logs: raw.logs,
+        });
       }
       yield* recheckSignedSwapLifetime(ctx, signed);
     }

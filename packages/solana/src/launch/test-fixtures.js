@@ -6,7 +6,11 @@
  * never through a JS Number.
  */
 import { getBase16Decoder } from "@solana/kit";
-import { BONDING_CURVE_DISCRIMINATOR, GLOBAL_DISCRIMINATOR } from "./pump-program.js";
+import {
+  BONDING_CURVE_DISCRIMINATOR,
+  FEE_CONFIG_DISCRIMINATOR,
+  GLOBAL_DISCRIMINATOR,
+} from "./pump-program.js";
 
 /** @param {...Uint8Array} parts @returns {Uint8Array} */
 const concat = (...parts) => {
@@ -137,24 +141,58 @@ export const GLOBAL_TRADING_BYTES = 1087;
  * deliberately stops at the original 97-byte prefix — that is what a curve read needs, and a
  * trade needs more, so the two fixtures stay separate rather than one growing to cover both.
  *
- * `feeRecipient` is written into `reserved_fee_recipients[0]` at 516, which is the array the v2
- * instructions authorize. The two decoy keys are the other fee-recipient fields Global carries,
- * both of which the program rejects: writing them makes a fixture that picks the wrong one fail
- * on a different key rather than silently matching.
- * @param {{ feeRecipient: Uint8Array; buybackFeeRecipient: Uint8Array; feeBasisPoints?: bigint; creatorFeeBasisPoints?: bigint; decoy?: Uint8Array }} parts
+ * The two fee-recipient sets go to distinct keys: `feeRecipient` into the scalar at 41, which the
+ * program authorizes for an ordinary coin, and `mayhemFeeRecipient` into
+ * `reserved_fee_recipients[0]` at 516, which it authorizes for a mayhem coin. They must differ so
+ * that selecting the wrong set fails on the key rather than matching by accident, and
+ * `fee_recipients[0]` at 162 stays a decoy the program authorizes for neither.
+ * @param {{ feeRecipient: Uint8Array; mayhemFeeRecipient?: Uint8Array; buybackFeeRecipient: Uint8Array; feeBasisPoints?: bigint; creatorFeeBasisPoints?: bigint; decoy?: Uint8Array }} parts
  * @returns {Uint8Array}
  */
 export const tradingGlobalBytes = (parts) => {
   const bytes = new Uint8Array(GLOBAL_TRADING_BYTES);
   const decoy = parts.decoy ?? new Uint8Array(32).fill(7);
   bytes.set(GLOBAL_DISCRIMINATOR, 0);
-  bytes.set(decoy, 41); // the legacy scalar `fee_recipient`
+  bytes.set(parts.feeRecipient, 41); // the scalar, authorized for an ordinary coin
   bytes.set(u64le(INITIAL_REAL_TOKEN_RESERVES), 89);
   // 95 protocol bps, as live mainnet reads, not the 100 the published docs state.
   bytes.set(u64le(parts.feeBasisPoints ?? 95n), 105);
   bytes.set(u64le(parts.creatorFeeBasisPoints ?? 5n), 154);
-  bytes.set(decoy, 162); // `fee_recipients[0]`, a different key the v2 path also rejects
-  bytes.set(parts.feeRecipient, 516);
+  bytes.set(decoy, 162); // `fee_recipients[0]`, a key the program authorizes for neither kind
+  bytes.set(parts.mayhemFeeRecipient ?? decoy, 516);
   bytes.set(parts.buybackFeeRecipient, 741);
+  return bytes;
+};
+
+/**
+ * A fee program `FeeConfig`: 8 discriminator, `bump`, `admin`, `flat_fees`, then the tier vector.
+ *
+ * Defaults to the table live on mainnet 2026-09-25 — one tier from market cap zero charging 95
+ * protocol and 30 creator — so a fixture drifting from the chain shows up as a changed constant
+ * rather than as arithmetic that quietly still passes.
+ * @param {ReadonlyArray<{ threshold: bigint; protocolFeeBps: bigint; creatorFeeBps: bigint }>} [tiers]
+ * @returns {Uint8Array}
+ */
+export const feeConfigBytes = (
+  tiers = [{ threshold: 0n, protocolFeeBps: 95n, creatorFeeBps: 30n }],
+) => {
+  const bytes = new Uint8Array(69 + 40 * tiers.length);
+  bytes.set(FEE_CONFIG_DISCRIMINATOR, 0);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(65, tiers.length, true);
+  for (const [index, tier] of tiers.entries()) {
+    const at = 69 + 40 * index;
+    view.setBigUint64(at, BigInt.asUintN(64, tier.threshold), true);
+    view.setBigUint64(at + 8, tier.threshold >> 64n, true);
+    view.setBigUint64(at + 24, tier.protocolFeeBps, true);
+    view.setBigUint64(at + 32, tier.creatorFeeBps, true);
+  }
+  return bytes;
+};
+
+/** An SPL mint carrying `supply` at bytes 36..44, which the market cap is denominated in. */
+export const mintBytesWithSupply = (/** @type {bigint} */ supply) => {
+  const bytes = new Uint8Array(82);
+  new DataView(bytes.buffer).setBigUint64(36, supply, true);
   return bytes;
 };
