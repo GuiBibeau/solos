@@ -8,7 +8,7 @@ import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.j
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access.",
+    "Liquidity protocol. orca (Whirlpools) is implemented throughout; raydium (CLMM) for reads so far; meteora fails before any network access.",
   ),
 );
 
@@ -36,7 +36,7 @@ const positionCommand = Command.make("position", { protocol, position, owner }, 
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Read one Orca Whirlpool LP position: raw liquidity and underlying A/B amounts (read-only)",
+    "Read one concentrated-liquidity LP position on orca or raydium: raw liquidity and underlying A/B amounts. owner defaults to the configured signer, so a third party's position can be read by naming its owner (read-only)",
   ),
 );
 
