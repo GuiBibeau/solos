@@ -14,6 +14,7 @@ import { fetchAccount } from "../market/account-read.js";
 import { base64AccountData } from "../market/mint-account.js";
 import { holdsPositionNft } from "./liquidity-accounts.js";
 import { mintDecimals, mintDecimalsOrUnavailable } from "./liquidity-mint-read.js";
+import { getRaydiumPositionLive } from "./raydium-clmm-read.js";
 import { decodePosition, decodeWhirlpool } from "./whirlpool-decode.js";
 import { WHIRLPOOL_PROGRAM } from "./whirlpool-program.js";
 import { underlyingAmounts } from "./whirlpool-underlying.js";
@@ -119,15 +120,16 @@ export const toLpPosition = (found, pool, decimals) => {
 };
 
 /**
- * The whole point read in protocol order: defensive protocol gate, position guards, NFT
- * custody proof, pool guards, mint decimals, then the pinned underlying math. At most four
- * bounded RPC reads happen; nothing is signed, sent, or priced.
+ * The whole point read in protocol order. Raydium has its own adapter and dispatches first;
+ * what follows is Orca's: position guards, NFT custody proof, pool guards, mint decimals, then
+ * the pinned underlying math. At most four bounded RPC reads happen; nothing is signed or sent.
  * @param {AccountRead} read
  * @param {LiquidityGetPositionRequest} request
  * @returns {Effect.Effect<import("@solos/core").LpPosition, import("@solos/core").LiquidityError | import("@solos/core").RpcError>}
  */
 export const getPositionLive = (read, request) =>
   Effect.gen(function* () {
+    if (request.protocol === "raydium") return yield* getRaydiumPositionLive(read, request);
     if (request.protocol !== "orca") {
       return yield* new LiquidityUnsupportedProtocol({ protocol: request.protocol });
     }

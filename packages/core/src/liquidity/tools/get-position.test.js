@@ -6,14 +6,19 @@ import { LiquidityGetPositionInputSchema } from "../domain/types.js";
 import { getLpPositionTool } from "./get-position.js";
 
 describe("liquidity position tool input guard", () => {
-  test("rejects supported-but-unimplemented protocols before any runtime", () => {
+  // Enum membership is not implementation. meteora parses and is refused here, before the
+  // signer-bearing runtime is ever built; raydium has an adapter as of #128 and passes.
+  test("rejects a protocol with no adapter before any runtime", () => {
     expect(getLpPositionTool.check).toBeTypeOf("function");
-    for (const protocol of ["meteora", "raydium"]) {
-      expect(
-        () => getLpPositionTool.check({ protocol, position: "2".repeat(44) }),
-        protocol,
-      ).toThrow(LiquidityUnsupportedProtocol);
-    }
+    expect(() =>
+      getLpPositionTool.check({ protocol: "meteora", position: "2".repeat(44) }),
+    ).toThrow(LiquidityUnsupportedProtocol);
+  });
+
+  test("accepts raydium, which has a read adapter", () => {
+    expect(
+      getLpPositionTool.check({ protocol: "raydium", position: "2".repeat(44) }),
+    ).toBeUndefined();
   });
 
   test("accepts orca with an optional owner", () => {
