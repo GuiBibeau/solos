@@ -15,9 +15,11 @@
  * the change suggests widening slippage "until you make sure it's implemented correctly" —
  * widening slippage is what hides this, so the fee is read instead.
  *
- * Arithmetic is `bondingCurveMarketCap` and `calculateFeeTier` from the pinned
- * `docs/FEE_PROGRAM_README.md`, in integers throughout: the threshold is a u128 and the market
- * cap of a live curve exceeds what a double can hold exactly.
+ * Arithmetic is `bondingCurveMarketCap` and `calculate_fee_tier` from the upstream fee
+ * specification at the commit `pump-program.js` pins — not a file in this repo:
+ * https://github.com/pump-fun/pump-public-docs/blob/81091419e4457566469d4e2a27f64ed84d42419c/docs/FEE_PROGRAM_README.md
+ * Integers throughout: the threshold is a u128 and a live curve's market cap exceeds what a
+ * double holds exactly.
  */
 import { FEE_CONFIG_DISCRIMINATOR } from "./pump-program.js";
 

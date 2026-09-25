@@ -1,10 +1,16 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { simulationReason } from "./swap-attempt.js";
+import { reasonOf, simulationReason } from "./swap-attempt.js";
 import { BONK, SWAP_PAIRS, USDC, WSOL, amountFor } from "./swap-cases.js";
 import { SwapQaOptionsSchema, requiredBalance } from "./swap-options.js";
 import { percentileMs, summarise, tallyOutcomes } from "./swap-stats.js";
 import { heldAmount } from "./swap.js";
+
+const V1_PRESIGN = "transaction failed v1 policy before signing; nothing was signed";
+
+/** One refusal as the real pipeline records it: a clause hung off the boundary's sentence. */
+const rejectedWith = (/** @type {string} */ clause) =>
+  reasonOf({ _tag: "BuildRejected", reason: `${V1_PRESIGN} (${clause})` });
 
 /** @param {string} reason @param {number} ms */
 const at = (reason, ms) => ({ reason, ms });
@@ -29,11 +35,48 @@ describe("swap qa statistics", () => {
       at("SimulationFailed", 1),
       at("BuildRejected", 1),
     ]);
-    expect(tally).toEqual([
+    expect(tally.map(({ reason, count }) => ({ reason, count }))).toEqual([
       { reason: "SimulationFailed", count: 2 },
       { reason: "BuildRejected", count: 1 },
       { reason: "ok", count: 1 },
     ]);
+  });
+
+  // These go through `reasonOf`, the real pipeline, rather than hand-made strings. The first
+  // version of this test did not, and so passed while production collapsed every v1 refusal into
+  // one identical row: `reasonOf` truncated to 60 characters and every such reason shares the
+  // same 62-character prefix. A test that bypasses the transform cannot see that.
+  test("two different clauses are two different outcomes, through the real pipeline", () => {
+    const size = rejectedWith("serialized size 4200 bytes, over the 4096-byte v1 ceiling");
+    const accounts = rejectedWith("more unique accounts than the 64 a v1 message allows");
+    expect(size).not.toBe(accounts);
+    expect(tallyOutcomes([at(size, 1), at(accounts, 1)])).toHaveLength(2);
+  });
+
+  test("one clause with differing numbers is a single bucket, not one row per value", () => {
+    const tally = tallyOutcomes(
+      [4200, 5100, 9001].map((n) =>
+        at(rejectedWith(`serialized size ${n} bytes, over the 4096-byte v1 ceiling`), 1),
+      ),
+    );
+    expect(tally).toHaveLength(1);
+    expect(tally[0]?.count).toBe(3);
+  });
+
+  test("the row reports the clause it counted, with the numbers collapsed", () => {
+    const tally = tallyOutcomes(
+      [4200, 5100].map((n) =>
+        at(rejectedWith(`serialized size ${n} bytes, over the 4096-byte v1 ceiling`), 1),
+      ),
+    );
+    // Showing one sample's numbers beside a count of two would claim both attempts hit 4200.
+    expect(tally[0]?.reason).not.toMatch(/4200|5100/);
+    expect(tally[0]?.example).toMatch(/serialized size (4200|5100) bytes/);
+  });
+
+  test("the clause survives into the outcome rather than being truncated away", () => {
+    const tally = tallyOutcomes([at(rejectedWith("a clause worth reading"), 1)]);
+    expect(tally[0]?.example).toContain("a clause worth reading");
   });
 
   test("equal counts break by reason, so the report is stable across runs", () => {

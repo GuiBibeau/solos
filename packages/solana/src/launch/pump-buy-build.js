@@ -12,7 +12,11 @@ import {
 } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import { beginV1Message, signV1Message } from "../executor/transaction-v1.js";
+import {
+  beginV1Message,
+  signV1Message,
+  rejectionAfterV1Policy,
+} from "../executor/transaction-v1.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { planPumpBuy } from "./pump-buy-plan.js";
 import { planPumpSell } from "./pump-sell-plan.js";
@@ -63,12 +67,7 @@ const buildSignedPumpTrade = ({ ctx, kit }, action, planner) =>
             appendTransactionMessageInstructions(/** @type {any} */ (plan.instructions), message)
           ),
         ),
-      catch: (/** @type {unknown} */ error) =>
-        error instanceof BuildRejected
-          ? error
-          : new BuildRejected({
-              reason: "transaction failed v1 policy before signing; nothing was signed",
-            }),
+      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
     });
     return { signed, quote: plan.quote };
   }).pipe(Effect.withSpan("executor.buildPumpBuy"));

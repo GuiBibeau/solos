@@ -27,7 +27,7 @@ import { depositPlan } from "../liquidity/whirlpool-deposit-plan.js";
 import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
-import { beginV1Message, signV1Message } from "./transaction-v1.js";
+import { beginV1Message, signV1Message, rejectionAfterV1Policy } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
 const tokenDecoder = getTokenDecoder();
@@ -177,12 +177,7 @@ const signDeposit = ({ ctx, kit, plan, creates }) =>
             message,
           ),
         ),
-      catch: (/** @type {unknown} */ error) =>
-        error instanceof BuildRejected
-          ? error
-          : new BuildRejected({
-              reason: "transaction failed v1 policy before signing; nothing was signed",
-            }),
+      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
     });
   });
 

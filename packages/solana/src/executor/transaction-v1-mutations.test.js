@@ -13,6 +13,7 @@ import {
 } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { randomSeed } from "../surfnet/test-surfnet.js";
+import { V1_FIXTURE_CONFIG, rejectionReasonOf } from "./transaction-v1-fixture.js";
 import {
   assertV1MessageForSigning,
   assertV1WireForSubmission,
@@ -22,20 +23,7 @@ import {
 
 const COMPUTE_BUDGET = "ComputeBudget111111111111111111111111111111";
 
-/** BuildRejected carries its text in `reason`, not `message`. @param {() => unknown} run */
-const reasonOf = (run) => {
-  try {
-    run();
-  } catch (error) {
-    return /** @type {BuildRejected} */ (error).reason;
-  }
-  throw new Error("expected a rejection");
-};
-const V1_CONFIG = {
-  computeUnitLimit: 10_000,
-  loadedAccountsDataSizeLimit: 65_536,
-  priorityFeeLamports: 1000n,
-};
+const V1_CONFIG = V1_FIXTURE_CONFIG;
 
 const countingSigner = async () => {
   const signer = await createMemorySignerFromBytes(randomSeed());
@@ -122,10 +110,16 @@ describe("transaction v1 mutation guards [integration]", () => {
     );
     expect(() => assertV1MessageForSigning(oversized)).toThrow(BuildRejected);
     // The two breaches must be told apart: this is the pair that read identically before.
-    expect(reasonOf(() => assertV1MessageForSigning(crowded))).toContain(
-      "more unique accounts than the 64",
+    // Kit stops the compile before our own count runs, but its error carries the number as
+    // structured context, so the clause still says how many (#124). This is the case #116 named.
+    expect(rejectionReasonOf(() => assertV1MessageForSigning(crowded))).toMatch(
+      /\d+ unique accounts, over the 64 a v1 message allows/,
     );
-    expect(reasonOf(() => assertV1MessageForSigning(oversized))).toContain("serialized size over");
+    // The clause now carries both numbers, which is what makes the ceiling tunable rather than
+    // mysterious (#124); asserting them keeps a future change from dropping them again.
+    expect(rejectionReasonOf(() => assertV1MessageForSigning(oversized))).toMatch(
+      /serialized size \d+ bytes, over the 4096-byte v1 ceiling/,
+    );
   });
 
   test("accepts the exact 4096-byte boundary", async () => {

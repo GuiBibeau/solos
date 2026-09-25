@@ -9,10 +9,25 @@ import { amountFor } from "./swap-cases.js";
 /** @typedef {import("./swap-options.js").SwapQaOptions} SwapQaOptions */
 /** @typedef {{ reason: string; ms: number; signature?: string }} Attempt */
 
-/** Bound a reason so variants of one failure tally together instead of each counting once. */
-/** @param {string} reason */
-const shortReason = (reason) =>
-  reason.replaceAll(/\d+/g, "N").replaceAll(/\s+/g, " ").trim().slice(0, 60);
+/** A trailing parenthetical is the clause that names which bound refused (#124). */
+const TRAILING_CLAUSE = /\(([^()]+)\)\s*$/;
+
+/**
+ * The part of a reason worth recording.
+ *
+ * This used to collapse digits and take the first 60 characters. Both were doing the tally's
+ * job, and both destroyed the thing worth keeping: every v1 policy refusal begins with the same
+ * 62-character sentence, so two different clauses truncated to the *identical* row and the
+ * report showed one anonymous bucket — the very symptom #116 reported and #124 set out to end.
+ *
+ * So when a reason ends in a clause, the clause is the identity and rides through with its
+ * numbers intact. Grouping is `tallyOutcomes`'s concern, not this one.
+ * @param {string} reason
+ */
+const shortReason = (reason) => {
+  const collapsed = reason.replaceAll(/\s+/g, " ").trim();
+  return (TRAILING_CLAUSE.exec(collapsed)?.[1] ?? collapsed).slice(0, 120);
+};
 
 /**
  * A stable, groupable outcome key. The tag alone is too coarse to act on — `SimulationFailed`

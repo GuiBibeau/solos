@@ -1,4 +1,8 @@
 // @ts-check
+/**
+ * The two v1 boundaries: the last check before a signer is involved, and the last before wire
+ * bytes touch RPC. The clauses each one refuses with live in `transaction-v1-clauses.js`.
+ */
 import {
   compileTransactionMessage,
   createTransactionMessage,
@@ -6,61 +10,36 @@ import {
   getBase64Codec,
   getCompiledTransactionMessageDecoder,
   getCompiledTransactionMessageEncoder,
-  getTransactionMessageSize,
   getTransactionDecoder,
+  getTransactionMessageSize,
   setTransactionMessageConfig,
   setTransactionMessageFeePayerSigner,
   signTransactionMessageWithSigners,
 } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
+import {
+  COMPUTE_BUDGET_PROGRAM,
+  MAX_TRANSACTION_ACCOUNTS,
+  MAX_TRANSACTION_BYTES,
+  PRESIGN_REASON,
+  PRESUBMIT_REASON,
+  assertConfig,
+  clause,
+  kitAccountCount,
+  notV1,
+  overByteCeiling,
+  tooManyAccounts,
+  withClause,
+} from "./transaction-v1-clauses.js";
 
-export const MAX_TRANSACTION_BYTES = 4096;
-export const MAX_TRANSACTION_ACCOUNTS = 64;
-export const MAX_PRIORITY_FEE_LAMPORTS = 100_000n;
-const COMPUTE_BUDGET_PROGRAM = "ComputeBudget111111111111111111111111111111";
-const PRESIGN_REASON = "transaction failed v1 policy before signing; nothing was signed";
-const PRESUBMIT_REASON = "transaction failed v1 policy before RPC; nothing was sent";
-
-/**
- * Which clause failed, appended to the fixed reason. Flattening every breach into one sentence
- * meant a refused build named nothing an operator could act on — a heavy route over the account
- * ceiling read exactly like a malformed config (#116).
- *
- * Only our own clauses travel. A library error caught here keeps the bare reason: Kit's messages
- * are more specific but they are not ours to promise, and a fixed vocabulary is what lets a
- * caller match on a reason at all.
- * @param {string} text
- */
-const clause = (text) => Object.assign(new Error(text), { solosClause: true });
-
-/** @param {string} base @param {unknown} error */
-const withClause = (base, error) =>
-  /** @type {{ solosClause?: boolean }} */ (error)?.solosClause === true
-    ? `${base} (${/** @type {Error} */ (error).message})`
-    : base;
-
-/** @param {string} clause @returns {never} */
-const rejectBeforeSigning = (clause) => {
-  throw new BuildRejected({ reason: `${PRESIGN_REASON} (${clause})` });
-};
-
-/** @param {number | undefined} value */
-const isPositiveSafeInteger = (value) => Number.isSafeInteger(value) && (value ?? 0) > 0;
-
-/** @param {import("@solana/kit").V1TransactionConfig} config */
-const assertConfig = (config) => {
-  if (!isPositiveSafeInteger(config.computeUnitLimit)) rejectBeforeSigning("compute unit limit");
-  if (!isPositiveSafeInteger(config.loadedAccountsDataSizeLimit)) {
-    rejectBeforeSigning("loaded accounts data size limit");
-  }
-  const priorityFeeLamports = config.priorityFeeLamports;
-  if (
-    priorityFeeLamports === undefined ||
-    priorityFeeLamports < 0n ||
-    priorityFeeLamports > MAX_PRIORITY_FEE_LAMPORTS
-  )
-    rejectBeforeSigning("priority fee");
-};
+export {
+  MAX_PRIORITY_FEE_LAMPORTS,
+  MAX_TRANSACTION_ACCOUNTS,
+  MAX_TRANSACTION_BYTES,
+  V1_SIGNING_FAILED,
+  V1_UNKNOWN_CLAUSE,
+  rejectionAfterV1Policy,
+} from "./transaction-v1-clauses.js";
 
 /**
  * The only production v1 message constructor. Callers choose bounded local policy values;
@@ -71,7 +50,7 @@ const assertConfig = (config) => {
  * }} options
  */
 export const beginV1Message = ({ feePayerSigner, config }) => {
-  assertConfig(config);
+  assertConfig(config, PRESIGN_REASON);
   return setTransactionMessageConfig(
     config,
     setTransactionMessageFeePayerSigner(feePayerSigner, createTransactionMessage({ version: 1 })),
@@ -83,33 +62,31 @@ export const beginV1Message = ({ feePayerSigner, config }) => {
  * @param {import("@solana/kit").ReadonlyUint8Array} bytes
  */
 const assertCompiledBounds = (compiled, bytes) => {
-  if (compiled.version !== 1 || bytes[0] !== 0x81) throw clause("not a v1 message");
-  if (compiled.staticAccounts.length > MAX_TRANSACTION_ACCOUNTS) throw tooManyAccounts();
+  if (compiled.version !== 1 || bytes[0] !== 0x81) throw notV1(compiled.version, bytes[0]);
+  if (compiled.staticAccounts.length > MAX_TRANSACTION_ACCOUNTS) {
+    throw tooManyAccounts(compiled.staticAccounts.length);
+  }
 };
-
-/** Kit refuses this before we can count, so both paths answer with one clause of ours. */
-const tooManyAccounts = () =>
-  clause(`more unique accounts than the ${MAX_TRANSACTION_ACCOUNTS} a v1 message allows`);
 
 /** @param {Parameters<typeof compileTransactionMessage>[0]} message */
 export const assertV1MessageForSigning = (message) => {
   try {
-    if (message.version !== 1) throw clause("not a v1 message");
-    assertConfig(message.config ?? {});
+    if (message.version !== 1) throw notV1(message.version, undefined);
+    assertConfig(message.config ?? {}, PRESIGN_REASON);
     if (message.instructions.some((ix) => ix.programAddress === COMPUTE_BUDGET_PROGRAM))
       throw clause("a compute budget instruction reached the v1 boundary");
-    // Kit throws its own account-ceiling error here; translate it rather than let it travel.
+    // Kit throws its own account-ceiling error here; translate it, keeping only its count.
     const compiled = (() => {
       try {
         return compileTransactionMessage(message);
-      } catch {
-        throw tooManyAccounts();
+      } catch (error) {
+        throw tooManyAccounts(kitAccountCount(error));
       }
     })();
     const bytes = getCompiledTransactionMessageEncoder().encode(compiled);
     assertCompiledBounds(compiled, bytes);
-    if (getTransactionMessageSize(message) > MAX_TRANSACTION_BYTES)
-      throw clause("serialized size over the v1 byte ceiling");
+    const size = getTransactionMessageSize(message);
+    if (size > MAX_TRANSACTION_BYTES) throw overByteCeiling(size);
     return { compiled, bytes };
   } catch (error) {
     if (error instanceof BuildRejected) throw error;
@@ -124,18 +101,33 @@ export const signV1Message = async (message) => {
   return await signTransactionMessageWithSigners(message);
 };
 
+/**
+ * Decode the wire and prove its shape: within the byte ceiling, a v1 message by both the decoded
+ * field and the prefix byte, and within the account ceiling. That last check was missing here
+ * while the pre-signing boundary enforced it, so a wire reaching RPC by any other route went out
+ * over the ceiling with the clause never evaluated.
+ * @param {string} wireBase64
+ */
+const compiledFromWire = (wireBase64) => {
+  const wire = getBase64Codec().encode(wireBase64);
+  if (wire.length > MAX_TRANSACTION_BYTES) throw overByteCeiling(wire.length);
+  const transaction = getTransactionDecoder().decode(wire);
+  const compiled = getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
+  if (compiled.version !== 1 || transaction.messageBytes[0] !== 0x81) {
+    throw notV1(compiled.version, transaction.messageBytes[0]);
+  }
+  if (compiled.staticAccounts.length > MAX_TRANSACTION_ACCOUNTS) {
+    throw tooManyAccounts(compiled.staticAccounts.length);
+  }
+  return compiled;
+};
+
 /** @param {string} wireBase64 */
 export const assertV1WireForSubmission = (wireBase64) => {
   try {
-    const wire = getBase64Codec().encode(wireBase64);
-    if (wire.length > MAX_TRANSACTION_BYTES)
-      throw clause("serialized size over the v1 byte ceiling");
-    const transaction = getTransactionDecoder().decode(wire);
-    const compiled = getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
-    if (compiled.version !== 1 || transaction.messageBytes[0] !== 0x81)
-      throw clause("not a v1 message");
+    const compiled = compiledFromWire(wireBase64);
     const message = decompileTransactionMessage(compiled);
-    assertConfig(message.config ?? {});
+    assertConfig(message.config ?? {}, PRESUBMIT_REASON);
     if (message.instructions.some((ix) => ix.programAddress === COMPUTE_BUDGET_PROGRAM))
       throw clause("a compute budget instruction reached the v1 boundary");
     return compiled;

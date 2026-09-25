@@ -9,6 +9,12 @@ import { z } from "zod";
 export const SwapOutcomeSchema = z.object({
   reason: z.string().describe("Typed failure reason, or 'ok' when the attempt succeeded"),
   count: z.number().int().positive(),
+  example: z
+    .string()
+    .describe(
+      "One verbatim occurrence. Outcomes group by clause with their numbers collapsed, so this " +
+        "is where the observed and permitted values of a bound survive the grouping",
+    ),
 });
 
 export const SwapPairReportSchema = z.object({

@@ -17,17 +17,42 @@ export const percentileMs = (values, percentile) => {
 };
 
 /**
+ * The grouping key for one outcome: its text with every run of digits collapsed.
+ *
+ * A v1 policy clause reports what it observed against what it allows (#124), so two occurrences
+ * of one clause differ in their numbers. Grouping on the raw text would split a recurring clause
+ * into a column of count-1 rows and bury it, which is the opposite of what naming it achieved.
+ * @param {string} reason
+ */
+const outcomeKey = (reason) => reason.replaceAll(/\d+/g, "#");
+
+/**
  * Every distinct outcome with its count, most frequent first, so the dominant failure is the
- * first thing read. Ties break by reason for a stable report.
+ * first thing read. Ties break by the grouping key, which is stable across runs; the first-seen
+ * sample is not, because which attempt failed first varies.
+ *
+ * `reason` is the collapsed clause, because that is what the count is a count *of* — reporting a
+ * count of three beside one sample's numbers would say three attempts hit 4200 bytes when one
+ * did. `example` carries a verbatim occurrence so the observed values survive the grouping.
  * @param {ReadonlyArray<Attempt>} attempts
  */
 export const tallyOutcomes = (attempts) => {
-  /** @type {Map<string, number>} */
-  const counts = new Map();
-  for (const { reason } of attempts) counts.set(reason, (counts.get(reason) ?? 0) + 1);
-  return Array.from(counts, ([reason, count]) => ({ reason, count })).toSorted(
-    (a, b) => b.count - a.count || a.reason.localeCompare(b.reason),
-  );
+  /** @typedef {{ reason: string; count: number; example: string }} Row */
+  /** @type {Row[]} */
+  const rows = [];
+  /** @type {Map<string, Row>} */
+  const byClause = new Map();
+  for (const { reason } of attempts) {
+    const key = outcomeKey(reason);
+    const row = byClause.get(key);
+    if (row === undefined) {
+      /** @type {Row} */
+      const fresh = { reason: key, count: 1, example: reason };
+      byClause.set(key, fresh);
+      rows.push(fresh);
+    } else row.count += 1;
+  }
+  return rows.toSorted((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
 };
 
 /**
