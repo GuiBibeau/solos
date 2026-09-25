@@ -21,6 +21,7 @@ import {
 import { RAYDIUM_CLMM_PROGRAM } from "../liquidity/raydium-clmm-program.js";
 import { depositLiquidityForBudgets } from "../liquidity/whirlpool-deposit-quote.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
+import { openFunding } from "./raydium-open-funding.js";
 import { openParts } from "./raydium-open-parts.js";
 import { signRaydiumPosition } from "./raydium-position-sign.js";
 
@@ -81,8 +82,14 @@ const openQuote = (action, pool) => {
     amountA: BigInt(action.amountA),
     amountB: BigInt(action.amountB),
   });
-  if (quote.status === "quoted")
-    return { ok: /** @type {const} */ (true), liquidity: quote.liquidity };
+  if (quote.status === "quoted") {
+    return {
+      ok: /** @type {const} */ (true),
+      liquidity: quote.liquidity,
+      requiredA: quote.requiredA,
+      requiredB: quote.requiredB,
+    };
+  }
   return {
     ok: /** @type {const} */ (false),
     reason:
@@ -95,7 +102,8 @@ const openQuote = (action, pool) => {
 /**
  * What the caller records for an open (ADR-0022): the range and the bounds actually encoded. No
  * NFT mint — that key is per build, so the one a simulation shows is not the one execute signs.
- * @param {any} action @param {{ readonly liquidity: bigint }} plan
+ * @param {any} action
+ * @param {{ readonly liquidity: bigint; readonly requiredA: bigint; readonly requiredB: bigint }} plan
  */
 export const openQuoteOf = (action, plan) => ({
   kind: /** @type {const} */ ("position_open"),
@@ -103,9 +111,32 @@ export const openQuoteOf = (action, plan) => ({
   tickLower: action.tickLower,
   tickUpper: action.tickUpper,
   liquidity: String(plan.liquidity),
+  requiredA: String(plan.requiredA),
+  requiredB: String(plan.requiredB),
   tokenMaxA: String(action.amountA),
   tokenMaxB: String(action.amountB),
 });
+
+/**
+ * The open instruction itself. The NFT mint signs through its own account meta — index 2 — which
+ * is how Kit learns about the second signer without a separate list to keep in step.
+ * @param {any} action @param {bigint} liquidity @param {Awaited<ReturnType<typeof openParts>>} built
+ */
+const openInstruction = (action, liquidity, built) =>
+  raydiumOpenInstruction(
+    openPositionAccounts({ ...built.accounts, nftMint: built.nftSigner.address }).map(
+      (meta, index) => (index === 2 ? { ...meta, signer: built.nftSigner } : meta),
+    ),
+    openPositionData({
+      tickLower: action.tickLower,
+      tickUpper: action.tickUpper,
+      startLower: built.startLower,
+      startUpper: built.startUpper,
+      liquidity,
+      amount0Max: BigInt(action.amountA),
+      amount1Max: BigInt(action.amountB),
+    }),
+  );
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
 export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
@@ -122,27 +153,26 @@ export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
         tickSpacing: read.pool.tickSpacing,
       }),
     );
-    const instruction = raydiumOpenInstruction(
-      openPositionAccounts({ ...built.accounts, nftMint: built.nftSigner.address }).map(
-        (meta, index) => (index === 2 ? { ...meta, signer: built.nftSigner } : meta),
-      ),
-      openPositionData({
-        tickLower: action.tickLower,
-        tickUpper: action.tickUpper,
-        startLower: built.startLower,
-        startUpper: built.startUpper,
-        liquidity: quote.liquidity,
-        amount0Max: BigInt(action.amountA),
-        amount1Max: BigInt(action.amountB),
-      }),
-    );
-    const signed = yield* signRaydiumPosition({ ctx, kit, instructions: [instruction] });
+    const instruction = openInstruction(action, quote.liquidity, built);
+    const setup = yield* openFunding({
+      read: liquidityRead(ctx),
+      kit,
+      quote,
+      accounts: built.accounts,
+    });
+    const signed = yield* signRaydiumPosition({
+      ctx,
+      kit,
+      instructions: [...setup, instruction],
+    });
     return {
       signed,
       plan: {
         position: built.accounts.personalPosition,
         nftMint: built.nftSigner.address,
         liquidity: quote.liquidity,
+        requiredA: quote.requiredA,
+        requiredB: quote.requiredB,
       },
     };
   }).pipe(Effect.withSpan("executor.buildRaydiumOpen"));

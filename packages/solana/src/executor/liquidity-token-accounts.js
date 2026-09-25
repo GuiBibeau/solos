@@ -29,19 +29,23 @@ export const liquidityRead = (ctx) => ({
 /** @param {string} reason @returns {import("effect").Effect.Effect<never, BuildRejected>} */
 export const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
 
+/** @param {string} value */
+const asAddress = (value) =>
+  /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (value));
+
 /**
  * An idempotent create of the signer's own ATA. Rent is the signer's, and the instruction is a
- * no-op when the account already exists.
- * @param {Kit} kit @param {string} mint @param {string} ata
+ * no-op when the account already exists. `program` names the mint's own token program, which
+ * matters for a Token-2022 mint: the classic program would reject the account it derives.
+ * @param {Kit} kit @param {string} mint @param {{ ata: string; program?: string }} target
  */
-export const createAta = (kit, mint, ata) =>
+export const createAta = (kit, mint, { ata, program }) =>
   getCreateAssociatedTokenIdempotentInstruction({
     payer: kit.signer,
-    ata: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (ata)),
-    owner: /** @type {import("@solana/kit").Address} */ (
-      /** @type {unknown} */ (kit.signer.address)
-    ),
-    mint: /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (mint)),
+    ata: asAddress(ata),
+    owner: asAddress(kit.signer.address),
+    mint: asAddress(mint),
+    ...(program !== undefined && { tokenProgram: asAddress(program) }),
   });
 
 /**

@@ -8,9 +8,9 @@ export const simulateDepositTool = defineTool({
   name: "solana_liquidity_simulate_deposit",
   group: "liquidity",
   tier: "simulate",
-  title: "Simulate Orca position deposit",
+  title: "Simulate position deposit",
   description:
-    "Simulate adding liquidity to one existing Orca Whirlpool position without submitting " +
+    "Simulate adding liquidity to one existing Orca or Raydium position without submitting " +
     "anything. amountA and amountB are the maximum spends of each token in the pool's " +
     "canonical mint order; the executor computes the liquidity they can fund, rounds down to " +
     "fit both budgets, and encodes spend bounds at the quoted amounts plus the requested " +

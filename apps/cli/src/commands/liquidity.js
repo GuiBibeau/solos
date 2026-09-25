@@ -14,7 +14,7 @@ import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.j
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools) is implemented throughout; raydium (CLMM) for reads so far; meteora fails before any network access.",
+    "Liquidity protocol. orca (Whirlpools) is implemented throughout; raydium (CLMM) is implemented for reads, deposits and removals; meteora fails before any network access.",
   ),
 );
 
@@ -96,7 +96,7 @@ const simulateDepositCommand = Command.make("simulate-deposit", depositOptions, 
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate adding liquidity to one existing Orca position without submitting anything; bounds are the quoted spends plus slippage, capped by the budgets",
+    "Simulate adding liquidity to one existing Orca or Raydium position without submitting anything; bounds are the quoted spends plus slippage, capped by the budgets",
   ),
 );
 
@@ -114,7 +114,7 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Add liquidity to one existing Orca position and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+    "Add liquidity to one existing Orca or Raydium position and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
   ),
 );
 

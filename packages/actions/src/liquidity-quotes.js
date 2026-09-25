@@ -61,6 +61,12 @@ export const PositionOpenQuoteSchema = z.object({
   liquidity: AmountSchema.describe(
     "Exact liquidity units the budgets buy at the pre-send pool price, u128 decimal string",
   ),
+  requiredA: AmountSchema.describe(
+    "Quoted token A spend at the pre-send pool price, base units decimal string; zero when the range sits entirely below the price",
+  ),
+  requiredB: AmountSchema.describe(
+    "Quoted token B spend at the pre-send pool price, base units decimal string; zero when the range sits entirely above the price",
+  ),
   tokenMaxA: AmountSchema.describe(
     "Encoded on-chain maximum token A spend, base units decimal string",
   ),

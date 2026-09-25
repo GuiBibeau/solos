@@ -20,6 +20,7 @@ import {
 import { raydiumDepositPlan, raydiumWithdrawPlan } from "../liquidity/raydium-clmm-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { rewardSetup } from "./raydium-reward-setup.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
@@ -64,7 +65,7 @@ const tokenSetup = ({ ctx, kit, plan, needs, verb }) =>
       }
       const mint = label === "A" ? plan.mintA : plan.mintB;
       const target = label === "A" ? plan.accounts.tokenAccount0 : plan.accounts.tokenAccount1;
-      return Effect.succeed(createAta(kit, mint, target));
+      return Effect.succeed(createAta(kit, mint, { ata: target }));
     },
   );
 
@@ -155,6 +156,7 @@ export const buildSignedRaydiumWithdraw = ({ ctx, kit }, action) =>
       needs: (label) => (label === "A" ? plan.minA : plan.minB),
       verb: "removal",
     });
+    const rewardCreates = yield* rewardSetup({ ctx, kit, rewards: plan.rewards });
     const instruction = raydiumInstruction(
       decreaseLiquidityV2Accounts(plan.accounts, plan.rewards),
       decreaseLiquidityV2Data({
@@ -163,6 +165,11 @@ export const buildSignedRaydiumWithdraw = ({ ctx, kit }, action) =>
         amount1Min: plan.minB,
       }),
     );
-    const signed = yield* signRaydium({ ctx, kit, creates, instruction });
+    const signed = yield* signRaydium({
+      ctx,
+      kit,
+      creates: [...creates, ...rewardCreates],
+      instruction,
+    });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildRaydiumWithdraw"));

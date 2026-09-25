@@ -7,7 +7,7 @@ import { toWithdrawAction, validateWithdrawInput } from "./validate-input.js";
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | import("../domain/errors.js").LiquidityUnsupportedProtocol | import("../../shared/domain/errors.js").SimulationFailed | import("../../shared/ports/action-executor.js").ExecutorError} SimulateWithdrawError */
 
 /**
- * Simulate removing liquidity from one existing Orca position without sending anything: the
+ * Simulate removing liquidity from one existing Orca or Raydium position without sending anything: the
  * intent becomes a `remove_liquidity` Action and the executor plans against live chain
  * state — position liquidity, pool price, custody — and simulates the exact transaction it
  * would submit. Nothing is ever sent, and a later execute re-plans and may differ.

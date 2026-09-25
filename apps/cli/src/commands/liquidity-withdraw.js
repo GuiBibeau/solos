@@ -53,7 +53,7 @@ export const simulateWithdrawCommand = Command.make(
     ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate removing a percentage of one existing Orca position's liquidity without submitting anything; minimum receipts are the quotes minus slippage",
+    "Simulate removing a percentage of one existing Orca or Raydium position's liquidity without submitting anything; minimum receipts are the quotes minus slippage",
   ),
 );
 
@@ -72,6 +72,6 @@ export const withdrawCommand = Command.make(
     ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Remove a percentage of one existing Orca position's liquidity and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+    "Remove a percentage of one existing Orca or Raydium position's liquidity and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
   ),
 );

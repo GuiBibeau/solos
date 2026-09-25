@@ -64,7 +64,7 @@ const receiptSetup = (read, kit, plan) =>
     const mint = label === "A" ? plan.mintA : plan.mintB;
     const target =
       label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB;
-    return Effect.succeed(createAta(kit, mint, target));
+    return Effect.succeed(createAta(kit, mint, { ata: target }));
   });
 
 /**

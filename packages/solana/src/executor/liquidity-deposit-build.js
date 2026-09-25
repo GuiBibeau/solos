@@ -80,7 +80,7 @@ const fundingSide = (kit, plan, { row, label }) => {
       : `${held} available, the deposit needs ${required}`;
     return fail(`insufficient token ${label} balance: ${detail}`);
   }
-  return Effect.succeed(createAta(kit, mint, target));
+  return Effect.succeed(createAta(kit, mint, { ata: target }));
 };
 
 /**

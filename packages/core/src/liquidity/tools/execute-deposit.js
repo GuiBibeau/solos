@@ -8,9 +8,9 @@ export const executeDepositTool = defineTool({
   name: "solana_liquidity_execute_deposit",
   group: "liquidity",
   tier: "execute",
-  title: "Execute Orca position deposit",
+  title: "Execute position deposit",
   description:
-    "Add liquidity to one existing Orca Whirlpool position from the configured signer wallet " +
+    "Add liquidity to one existing Orca or Raydium position from the configured signer wallet " +
     "and wait for confirmation. Signs and submits a real transaction that moves funds. " +
     "amountA and amountB are the maximum spends of each token in the pool's canonical mint " +
     "order; the executor computes the liquidity they can fund, rounds down to fit both " +

@@ -8,9 +8,9 @@ export const simulateWithdrawTool = defineTool({
   name: "solana_liquidity_simulate_withdraw",
   group: "liquidity",
   tier: "simulate",
-  title: "Simulate Orca position withdrawal",
+  title: "Simulate position withdrawal",
   description:
-    "Simulate removing liquidity from one existing Orca Whirlpool position without " +
+    "Simulate removing liquidity from one existing Orca or Raydium position without " +
     "submitting anything. bps is the fraction of the position's CURRENT liquidity to " +
     "remove, 1..10000 where 10000 means all of it; fractional liquidity units round down, " +
     "and a removal computing to zero liquidity is rejected. The executor quotes the " +

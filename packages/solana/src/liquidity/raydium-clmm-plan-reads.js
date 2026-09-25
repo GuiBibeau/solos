@@ -157,7 +157,7 @@ export const rewardGroups = (reader, owner, rewards) =>
         return reject(`the pool's reward mint ${reward.mint} is missing`);
       }
       const recipient = yield* Effect.promise(() => ata(owner, reward.mint, row.owner));
-      groups.push({ vault: reward.vault, recipient, mint: reward.mint });
+      groups.push({ vault: reward.vault, recipient, mint: reward.mint, program: row.owner });
     }
     return groups;
   });
