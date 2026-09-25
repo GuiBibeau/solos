@@ -21,7 +21,7 @@ const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const RENT_LAMPORTS = 1_461_600;
 
 /** @param {string} rpcUrl */
-const accountWriter =
+export const accountWriter =
   (rpcUrl) =>
   /**
    * @param {string} account

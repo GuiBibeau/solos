@@ -60,6 +60,28 @@ const readChunk = (read, mints) =>
   });
 
 /**
+ * One fetched pool row, guarded exactly as the point read guards it. The ownership check is the
+ * point: without it, discriminator-shaped bytes in a foreign account decode into fabricated mints
+ * and amounts instead of a typed refusal.
+ * @param {string} position @param {{ owner: string; bytes: Uint8Array } | null | undefined} row
+ * @returns {Effect.Effect<RaydiumPoolLayout, LiquidityPositionUnavailable>}
+ */
+const guardedPool = (position, row) => {
+  if (row === null || row === undefined) {
+    return Effect.fail(unavailable(position, "referenced pool is missing"));
+  }
+  if (row.owner !== RAYDIUM_CLMM_PROGRAM) {
+    return Effect.fail(
+      unavailable(position, "referenced pool is not owned by the pinned Raydium CLMM program"),
+    );
+  }
+  const guarded = decodePoolState(row.bytes);
+  return guarded.status === "decoded"
+    ? Effect.succeed(guarded.layout)
+    : Effect.fail(unavailable(position, guarded.reason));
+};
+
+/**
  * Fetch every referenced pool once, batched. The first position referencing a failing pool
  * carries the typed error.
  * @param {AccountRead} read @param {FoundRaydium[]} found
@@ -78,20 +100,11 @@ const readPools = (read, found) =>
     }
     /** @type {Map<string, RaydiumPoolLayout>} */
     const pools = new Map();
-    const poolChunks = chunksOf(poolAddresses, BATCH_CHUNK);
-    for (const chunk of poolChunks) {
+    for (const chunk of chunksOf(poolAddresses, BATCH_CHUNK)) {
       const rows = yield* fetchAccounts(read, chunk);
       for (const [index, pool] of chunk.entries()) {
         const position = /** @type {string} */ (referrer.get(pool));
-        const row = rows[index];
-        if (row === null || row === undefined) {
-          return yield* Effect.fail(unavailable(position, "referenced pool is missing"));
-        }
-        const guarded = decodePoolState(row.bytes);
-        if (guarded.status !== "decoded") {
-          return yield* Effect.fail(unavailable(position, guarded.reason));
-        }
-        pools.set(pool, guarded.layout);
+        pools.set(pool, yield* guardedPool(position, rows[index]));
       }
     }
     return pools;
