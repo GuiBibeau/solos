@@ -71,8 +71,10 @@ describe("`solos market price` and `solos mcp` through real child processes [int
     const names = JSON.parse(stdout).tools.map((/** @type {{ name: string }} */ t) => t.name);
     expect(names).toEqual([
       "solana_launch_execute_buy",
+      "solana_launch_execute_sell",
       "solana_launch_get_curve",
       "solana_launch_simulate_buy",
+      "solana_launch_simulate_sell",
       "solana_lend_execute_deposit",
       "solana_lend_execute_withdraw",
       "solana_lend_get_position",

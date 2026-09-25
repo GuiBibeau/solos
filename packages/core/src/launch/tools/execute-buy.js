@@ -21,9 +21,9 @@ export const executeBuyTool = defineTool({
     "completed curve, a curve quoted in anything but SOL, a missing curve, an unsupported mint " +
     "extension or an underfunded wallet sends nothing, and the buy is never rerouted to " +
     "PumpSwap or Jupiter. An ambiguous submission keeps its signature in a structured failure " +
-    "and is never re-sent or rebuilt; confirmation is not proof of the requested fill. There " +
-    "is no solOS Pump sell tool, so only spend here with a checked external exit route. Use " +
-    "solana_launch_simulate_buy to preview.",
+    "and is never re-sent or rebuilt; confirmation is not proof of the requested fill. The " +
+    "curve-side exit is solana_launch_execute_sell, which stops working once the curve " +
+    "completes. Use solana_launch_simulate_buy to preview.",
   input: LaunchExecuteBuyInputSchema,
   run: (input) => executeBuy(input),
 });

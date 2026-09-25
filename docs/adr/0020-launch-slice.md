@@ -1,6 +1,8 @@
 # 0020 — Launch buys select Pump explicitly
 
-Status: accepted, 2026-09-19. Maintainer contract for issue #35.
+Status: accepted, 2026-09-19. Maintainer contract for issue #35. The "first series has no Pump sell
+tool" clause below is amended by ADR-0027, 2026-09-25: the curve-side sell exists, and the external
+exit route it made a precondition of a funded buy does not exist for a coin still on its curve.
 
 ## Context
 

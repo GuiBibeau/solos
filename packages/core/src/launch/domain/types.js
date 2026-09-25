@@ -107,3 +107,39 @@ export const LaunchExecuteBuyInputSchema = LaunchBuyInputSchema.extend({
 });
 
 /** @typedef {z.infer<typeof LaunchExecuteBuyInputSchema>} LaunchExecuteBuyInput */
+
+/**
+ * One launch sell intent.
+ *
+ * `amount` is the **exact quantity of the coin to sell, in its base units** — not a SOL figure.
+ * It rides the wire as `sell_v2`'s `amount`, and the least SOL the program may return is derived
+ * from live curve state and this slippage bound.
+ *
+ * Network fees and any account rent are reported separately.
+ */
+export const LaunchSellInputSchema = z.object({
+  mint: MintSchema.describe("Base58 mint of the coin to sell, whose bonding curve must be live"),
+  amount: U64AmountSchema.refine(
+    (value) => /^(0|[1-9]\d*)$/.test(value) && BigInt(value) > 0n,
+    "amount must be positive",
+  ).describe("Exact quantity of the coin to sell, in its base units; never a SOL amount"),
+  maxSlippageBps: z
+    .number()
+    .int()
+    .min(1)
+    .max(9999)
+    .default(50)
+    .describe("How far below the quoted SOL the enforced minimum may sit. Default 50 (0.5%)."),
+});
+
+/** @typedef {z.infer<typeof LaunchSellInputSchema>} LaunchSellInput */
+
+/** The execute tier's intent: the simulate input plus the explicit simulation opt-out. */
+export const LaunchExecuteSellInputSchema = LaunchSellInputSchema.extend({
+  skipSimulation: z
+    .boolean()
+    .default(false)
+    .describe("Skip the pre-send simulation. Validation and the enforced minimum still apply."),
+});
+
+/** @typedef {z.infer<typeof LaunchExecuteSellInputSchema>} LaunchExecuteSellInput */

@@ -15,6 +15,7 @@ import { Effect } from "effect";
 import { beginV1Message, signV1Message } from "../executor/transaction-v1.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { planPumpBuy } from "./pump-buy-plan.js";
+import { planPumpSell } from "./pump-sell-plan.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -29,12 +30,19 @@ export const PUMP_BUY_V1_CONFIG = Object.freeze({
 const LIFETIME_EXPIRED = "the pump buy lifetime expired before signing; nothing was signed";
 
 /**
+ * Assemble and sign one pump trade. Both directions share the lifetime check, the v1 policy and
+ * the signing; only the planner differs, and each planner decides its own refusals.
  * @param {{ ctx: Rpc; kit: Kit }} deps
  * @param {import("@solos/actions").SwapAction} action
+ * @param {(ctx: Rpc, action: import("@solos/actions").SwapAction, signer: Kit["signer"]) =>
+ *   import("effect").Effect.Effect<
+ *     { quote: unknown; instructions: readonly unknown[] },
+ *     import("@solos/core").BuildRejected | import("@solos/core").RpcError
+ *   >} planner
  */
-export const buildSignedPumpBuy = ({ ctx, kit }, action) =>
+const buildSignedPumpTrade = ({ ctx, kit }, action, planner) =>
   Effect.gen(function* () {
-    const plan = yield* planPumpBuy(ctx, action, kit.signer);
+    const plan = yield* planner(ctx, action, kit.signer);
     const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
       ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
     );
@@ -64,3 +72,10 @@ export const buildSignedPumpBuy = ({ ctx, kit }, action) =>
     });
     return { signed, quote: plan.quote };
   }).pipe(Effect.withSpan("executor.buildPumpBuy"));
+
+/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").SwapAction} action */
+export const buildSignedPumpBuy = (deps, action) => buildSignedPumpTrade(deps, action, planPumpBuy);
+
+/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").SwapAction} action */
+export const buildSignedPumpSell = (deps, action) =>
+  buildSignedPumpTrade(deps, action, planPumpSell);

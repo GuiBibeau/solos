@@ -69,3 +69,35 @@ export const quoteBuy = (curve, { budgetLamports, totalFeeBps, slippageBps }) =>
     minTokensOut: minTokensOut(expectedTokens, slippageBps),
   };
 };
+
+/**
+ * The SOL a curve releases for `tokensIn`, before fees. The same constant product as the buy,
+ * read in the other direction.
+ * @param {{ virtualTokenReserves: bigint; virtualQuoteReserves: bigint }} curve
+ * @param {bigint} tokensIn
+ */
+export const solForTokens = (curve, tokensIn) => {
+  const denominator = curve.virtualTokenReserves + tokensIn;
+  if (denominator <= 0n || tokensIn <= 0n) return 0n;
+  return (curve.virtualQuoteReserves * tokensIn) / denominator;
+};
+
+/**
+ * Quote one sell against a decoded curve.
+ *
+ * Fees come off the proceeds rather than dividing them: a seller receives the curve's output
+ * less the protocol and creator share. As on the buy, every step floors against the trader and
+ * the minimum is what the program enforces — `min_sol_output` — so an estimate that is too high
+ * reverts rather than filling badly.
+ * @param {{ virtualTokenReserves: bigint; virtualQuoteReserves: bigint }} curve
+ * @param {{ tokensIn: bigint; totalFeeBps: bigint; slippageBps: number }} intent
+ */
+export const quoteSell = (curve, { tokensIn, totalFeeBps, slippageBps }) => {
+  const gross = solForTokens(curve, tokensIn);
+  const afterFees = (gross * (BPS - totalFeeBps)) / BPS;
+  return {
+    grossSol: gross,
+    expectedSol: afterFees,
+    minSolOutput: (afterFees * (BPS - BigInt(slippageBps))) / BPS,
+  };
+};

@@ -6,8 +6,10 @@ describe("tool registry", () => {
   test("has at least the wallet, transfer, market, launch, liquidity, perp, portfolio, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_launch_execute_buy",
+      "solana_launch_execute_sell",
       "solana_launch_get_curve",
       "solana_launch_simulate_buy",
+      "solana_launch_simulate_sell",
       "solana_lend_execute_deposit",
       "solana_lend_execute_withdraw",
       "solana_lend_get_position",

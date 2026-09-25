@@ -26,7 +26,7 @@ import { PUMP_PROGRAM } from "./pump-program.js";
 const b58 = getBase58Decoder();
 
 /** @param {Rpc} ctx @param {string} key */
-const accountAt = (ctx, key) =>
+export const accountAt = (ctx, key) =>
   rpcCall("getAccountInfo", ctx.url, () =>
     ctx.rpc.getAccountInfo(address(key), { encoding: "base64" }).send(),
   ).pipe(Effect.map(({ value }) => value));
@@ -193,7 +193,7 @@ export const planPumpBuy = (ctx, action, signer) =>
 
 /** Kit's AccountRole numbering: writable and signer are independent bits. */
 /** @param {{ writable: boolean; signer: boolean }} account */
-const roleOf = ({ writable, signer }) => (writable ? 1 : 0) + (signer ? 2 : 0);
+export const roleOf = ({ writable, signer }) => (writable ? 1 : 0) + (signer ? 2 : 0);
 
 const CURVE_ABSENT = "no pump bonding curve exists for this mint; nothing was signed or sent";
 const CURVE_MISOWNED = "the curve account is not owned by the pinned pump program";

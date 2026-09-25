@@ -160,3 +160,16 @@ export const buyAccounts = async (input) => {
     ro(PUMP_PROGRAM),
   ];
 };
+
+/**
+ * `sell_v2`'s account list is the buy's, in the same order, without the global volume
+ * accumulator — verified against the pinned IDL rather than assumed, so the sell reuses the
+ * buy's derivations instead of repeating them.
+ */
+const GLOBAL_VOLUME_INDEX = 19;
+
+/** @param {BuyAccountInputs} input */
+export const sellAccounts = async (input) => {
+  const accounts = await buyAccounts(input);
+  return accounts.filter((_, index) => index !== GLOBAL_VOLUME_INDEX);
+};

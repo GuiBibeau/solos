@@ -49,7 +49,13 @@ const overspent = (spent, allowed) =>
 /**
  * The lamports a swap owes the wallet back: its minimum output, when that output is SOL. Zero
  * for a token output, which the route program bounds on chain instead.
- * A pump buy carries no envelope; its output is the coin, never SOL, so it owes nothing back.
+ *
+ * A pump trade carries no envelope, so both directions read zero here. That is correct rather
+ * than a gap: this credit exists because a Jupiter envelope is provider-supplied instruction
+ * data whose real effect only a simulation reveals. A pump sell's floor is `min_sol_output` in
+ * an instruction solOS built itself against the pinned program, enforced by that program — a
+ * stronger guarantee than the one this credit reconstructs, and one a crafted route cannot
+ * reach. The overhead allowance still caps what such a trade may take.
  * @param {{ otherAmountThreshold?: string } | undefined} envelope
  * @param {import("@solos/actions").SwapAction} action
  */

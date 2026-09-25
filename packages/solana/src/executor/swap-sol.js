@@ -1,8 +1,9 @@
 // @ts-check
 import { getBase64EncodedWireTransaction } from "@solana/kit";
+import { WSOL_MINT } from "@solos/actions";
 import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
-import { buildSignedPumpBuy } from "../launch/pump-buy-build.js";
+import { buildSignedPumpBuy, buildSignedPumpSell } from "../launch/pump-buy-build.js";
 import { preflightSwapBuild } from "./swap-preflight.js";
 import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
 import { minSolCredit } from "./swap-spend-bound.js";
@@ -26,16 +27,21 @@ export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
 /**
  * Fetch, validate, assemble, and sign one swap.
  *
- * The venue comes from the Action and nothing else: a `pump` buy is built against the bonding
+ * The venue comes from the Action and nothing else: a `pump` trade is built against the bonding
  * curve, and an ordinary swap of the same coin still goes to Jupiter. Neither is ever inferred
- * from the output mint, and a failed build is never retried at the other venue. A pump buy
- * carries no Jupiter envelope, so callers reading one must tolerate its absence.
+ * from a mint, and a failed build is never retried at the other venue. A pump trade carries no
+ * Jupiter envelope, so callers reading one must tolerate its absence.
+ *
+ * Within the venue, which side holds wSOL is the direction: the Action contract already
+ * guarantees exactly one side does, so wSOL in means buying the coin and wSOL out means selling
+ * it. That is a reading of the validated Action, not an inference about a mint.
  * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
  */
 export const buildSignedSwap = ({ ctx, kit, build }, action) =>
   Effect.gen(function* () {
     if (action.venue === "pump") {
-      const { signed } = yield* buildSignedPumpBuy({ ctx, kit }, action);
+      const trade = action.inputMint === WSOL_MINT ? buildSignedPumpBuy : buildSignedPumpSell;
+      const { signed } = yield* trade({ ctx, kit }, action);
       return { signed, envelope: undefined };
     }
     if (action.venue !== undefined && action.venue !== "jupiter") {

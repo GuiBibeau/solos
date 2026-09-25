@@ -19,8 +19,8 @@ import { toBuyAction, validateBuyInput } from "./to-buy-action.js";
  * submissions keep their signature in the structured failure — confirmation is not proof of the
  * requested economic fill.
  *
- * There is no solOS Pump sell tool, so an operator must have a checked external exit route
- * before spending here.
+ * The curve-side exit is `executeSell`. It is not a guaranteed exit: a curve that completes
+ * stops trading on the curve, and neither direction is ever rerouted to another venue.
  * @param {import("../domain/types.js").LaunchExecuteBuyInput} input
  * @returns {import("effect").Effect.Effect<
  *   import("@solos/actions").ExecutionResult,
