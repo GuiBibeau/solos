@@ -53,7 +53,7 @@ export const meteoraPositionBytes = (o) => {
 
 /**
  * @param {{ mintX: string; mintY: string; activeId?: number; binStep?: number;
- *   discriminator?: Uint8Array; bytes?: number }} o
+ *   reserveX?: string; reserveY?: string; discriminator?: Uint8Array; bytes?: number }} o
  */
 export const meteoraPairBytes = (o) => {
   const full = new Uint8Array(LB_PAIR_BYTES);
@@ -63,6 +63,8 @@ export const meteoraPairBytes = (o) => {
   view.setUint16(LB_PAIR_OFFSETS.binStep, o.binStep ?? 1, true);
   full.set(keyBytes(o.mintX), LB_PAIR_OFFSETS.tokenMintX);
   full.set(keyBytes(o.mintY), LB_PAIR_OFFSETS.tokenMintY);
+  if (o.reserveX !== undefined) full.set(keyBytes(o.reserveX), LB_PAIR_OFFSETS.reserveX);
+  if (o.reserveY !== undefined) full.set(keyBytes(o.reserveY), LB_PAIR_OFFSETS.reserveY);
   return o.bytes === undefined ? full : full.slice(0, o.bytes);
 };
 

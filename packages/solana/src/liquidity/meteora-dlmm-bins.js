@@ -13,7 +13,13 @@
  * Unclaimed fees and rewards are not principal (ADR-0022).
  */
 import { address, getAddressEncoder, getProgramDerivedAddress, getUtf8Encoder } from "@solana/kit";
-import { BIN_ARRAY_SEED, BINS_PER_ARRAY, METEORA_DLMM_PROGRAM } from "./meteora-dlmm-program.js";
+import {
+  BIN_ARRAY_SEED,
+  BINS_PER_ARRAY,
+  BITMAP_SEED,
+  EVENT_AUTHORITY_SEED,
+  METEORA_DLMM_PROGRAM,
+} from "./meteora-dlmm-program.js";
 
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
@@ -54,6 +60,23 @@ export const binArrayAddress = (lbPair, index) => {
     ],
   }).then(([pda]) => pda);
 };
+
+/** Bitmap-extension PDA. Present on the instruction only when an index overflows the default bitmap.
+ * @param {string} lbPair
+ * @returns {Promise<string>}
+ */
+export const bitmapExtensionAddress = (lbPair) =>
+  getProgramDerivedAddress({
+    programAddress: address(METEORA_DLMM_PROGRAM),
+    seeds: [utf8.encode(BITMAP_SEED), new Uint8Array(addressEncoder.encode(address(lbPair)))],
+  }).then(([pda]) => pda);
+
+/** Anchor event authority PDA for `add_liquidity2`. @returns {Promise<string>} */
+export const eventAuthorityAddress = () =>
+  getProgramDerivedAddress({
+    programAddress: address(METEORA_DLMM_PROGRAM),
+    seeds: [utf8.encode(EVENT_AUTHORITY_SEED)],
+  }).then(([pda]) => pda);
 
 /**
  * Occupied bins inside the declared window, plus the exact share sum (ADR-0022: the sum may
