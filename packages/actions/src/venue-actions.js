@@ -9,6 +9,8 @@ import {
   U64AmountSchema,
 } from "./trading-primitives.js";
 
+export { OpenPositionActionSchema } from "./open-position.js";
+
 const traderScope = {
   traderPdaIndex: z.literal(0),
   traderSubaccountIndex: z.literal(0),
@@ -106,40 +108,8 @@ export const RemoveLiquidityActionSchema = z.object({
 });
 
 /**
- * Open a new concentrated-liquidity position at a range the **caller** chose.
- *
- * solOS never picks a range — that is strategy, and ADR-0006 keeps strategy upstream. It executes
- * one that was chosen. A range unaligned to the pool's tick spacing is refused rather than
- * rounded, because rounding would be choosing.
- */
-export const OpenPositionActionSchema = z
-  .object({
-    type: z.literal("open_position"),
-    protocol: LiquidityProtocolSchema,
-    pool: AddressSchema,
-    tickLower: z.number().int().describe("Lower tick, inclusive; must align to the pool spacing"),
-    tickUpper: z.number().int().describe("Upper tick, exclusive; must align to the pool spacing"),
-    amountA: U64AmountSchema.describe("Maximum token A spend in canonical pool mint order"),
-    amountB: U64AmountSchema.describe("Maximum token B spend in canonical pool mint order"),
-    maxSlippageBps: SlippageBpsSchema,
-    wrapSol: z
-      .boolean()
-      .default(false)
-      .describe(
-        "Wrap exactly the native SOL the quote is short on a wSOL side, inside this transaction, and unwrap the remainder when this transaction created the account. False means a wSOL side must already be funded",
-      ),
-  })
-  .refine((value) => value.tickLower < value.tickUpper, {
-    path: ["tickLower"],
-    message: "tickLower must be strictly below tickUpper",
-  })
-  .refine((value) => /[1-9]/.test(value.amountA + value.amountB), {
-    message: "at least one token spend budget must be positive",
-  });
-
-/**
- * Close an emptied position and reclaim its rent. The venue refuses while any liquidity, fee or
- * reward is still owed, so this always follows a full removal.
+ * Close an emptied position and reclaim its rent. Raydium refuses while liquidity, fees, or
+ * rewards remain. Meteora refuses while any liquidity share remains. Both follow a full removal.
  */
 export const ClosePositionActionSchema = z.object({
   type: z.literal("close_position"),
@@ -147,7 +117,7 @@ export const ClosePositionActionSchema = z.object({
   position: AddressSchema.describe("Existing protocol position account, never NFT mint"),
 });
 
-/** @typedef {z.infer<typeof OpenPositionActionSchema>} OpenPositionAction */
+/** @typedef {import("./open-position.js").OpenPositionAction} OpenPositionAction */
 /** @typedef {z.infer<typeof ClosePositionActionSchema>} ClosePositionAction */
 /** @typedef {z.infer<typeof AddLiquidityActionSchema>} AddLiquidityAction */
 /** @typedef {z.infer<typeof RemoveLiquidityActionSchema>} RemoveLiquidityAction */

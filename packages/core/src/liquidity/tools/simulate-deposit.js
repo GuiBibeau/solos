@@ -21,7 +21,7 @@ export const simulateDepositTool = defineTool({
     "the Meteora position. New positions and bin-range changes are refused. A missing funding " +
     "account on a side the quote needs nothing from is created idempotently. The executor " +
     "builds and simulates exactly the transaction it would send. Nothing is sent. Use " +
-    "solana_liquidity_execute_deposit to send. Opens and closes still reject meteora.",
+    "solana_liquidity_execute_deposit to send. Opens and closes cover raydium and an empty meteora position.",
   input: LiquidityDepositInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

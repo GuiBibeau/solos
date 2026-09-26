@@ -74,3 +74,17 @@ export const PositionOpenQuoteSchema = z.object({
     "Encoded on-chain maximum token B spend, base units decimal string",
   ),
 });
+
+/**
+ * An empty Meteora open. The position account is generated per build, so a simulation's pubkey
+ * is not the one execute signs. The execute result's `position` is the account that was signed.
+ */
+export const MeteoraPositionOpenQuoteSchema = z.object({
+  kind: z.literal("meteora_position_open"),
+  pool: AddressSchema.describe("LbPair the position is opened on"),
+  lowerBinId: z.number().int().describe("Lower bin id encoded in initialize_position"),
+  width: z.number().int().describe("Width encoded in initialize_position, not clamped"),
+  position: AddressSchema.describe(
+    "PositionV2 account this build signs for. The secret key is not included",
+  ),
+});

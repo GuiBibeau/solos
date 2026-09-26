@@ -6,7 +6,11 @@
  * rounding, because rounding a range is choosing one — and choosing is strategy, which ADR-0006
  * keeps upstream of this layer.
  */
-import { ClosePositionActionSchema, OpenPositionActionSchema } from "@solos/actions";
+import {
+  ClosePositionActionSchema,
+  OpenPositionActionSchema,
+  openPositionIssue,
+} from "@solos/actions";
 import { Effect } from "effect";
 import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { simulateAction } from "../../shared/use-cases/simulate-action.js";
@@ -18,17 +22,44 @@ import { hasLifecycle } from "../domain/types.js";
 const invalid = (reason) => new LiquidityInputInvalid({ reason });
 
 /**
+ * Meteora's refusal is named here, ahead of the generic schema sentence, so an illegal width
+ * says what was wrong with that width. Close intents are not opens and are left alone.
+ * @param {unknown} input
+ * @returns {string | null}
+ */
+const meteoraOpenRefusal = (input) => {
+  if (typeof input !== "object" || input === null) return null;
+  if (/** @type {{ protocol?: unknown }} */ (input).protocol !== "meteora") return null;
+  return openPositionIssue(input);
+};
+
+/**
+ * A custom schema issue names the field that failed. Anything else keeps the verb's sentence.
+ * @param {{ success: boolean; error?: { issues: readonly { code: string; message: string }[] } }} parsed
+ * @param {string} reason
+ */
+const parseReason = (parsed, reason) => {
+  if (parsed.success) return reason;
+  const custom = parsed.error?.issues.find((issue) => issue.code === "custom");
+  return custom === undefined ? reason : custom.message;
+};
+
+/**
  * Validate one lifecycle intent into its published Action, gating the protocol the same way
  * every other liquidity verb does.
  * @template T
  * @param {{ schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } };
- *   toAction: (request: T) => unknown; reason: string }} verb
+ *   toAction: (request: T) => unknown; reason: string; meteoraOpen: boolean }} verb
  * @param {unknown} input
  */
-const validated = ({ schema, toAction, reason }, input) =>
+const validated = ({ schema, toAction, reason, meteoraOpen }, input) =>
   Effect.gen(function* () {
+    if (meteoraOpen === true) {
+      const refusal = meteoraOpenRefusal(input);
+      if (refusal !== null) return yield* invalid(refusal);
+    }
     const parsed = schema.safeParse(input);
-    if (!parsed.success) return yield* invalid(reason);
+    if (!parsed.success) return yield* invalid(parseReason(parsed, reason));
     const protocol = /** @type {{ protocol: string }} */ (parsed.data).protocol;
     if (!hasLifecycle(protocol)) return yield* new LiquidityUnsupportedProtocol({ protocol });
     const action = toAction(parsed.data);
@@ -48,14 +79,17 @@ const lifted = (schema, type) => (/** @type {unknown} */ input) => {
 const OPEN = {
   schema: OpenPositionInput,
   toAction: lifted(OpenPositionActionSchema, "open_position"),
+  meteoraOpen: true,
   reason:
-    "an open needs a protocol with an adapter, a base58 pool, integer ticks with lower below " +
-    "upper, u64 base-unit budgets with at least one positive, and 0..9999 bps slippage",
+    "an open needs a protocol with an adapter and a base58 pool. raydium also needs integer " +
+    "ticks with lower below upper, u64 base-unit budgets with at least one positive, and " +
+    "0..9999 bps slippage. meteora needs integer lowerBinId and width and takes no token budget",
 };
 
 const CLOSE = {
   schema: ClosePositionInput,
   toAction: lifted(ClosePositionActionSchema, "close_position"),
+  meteoraOpen: false,
   reason: "a close needs a protocol with an adapter and a base58 position account",
 };
 

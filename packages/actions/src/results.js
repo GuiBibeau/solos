@@ -4,6 +4,7 @@ import { ActionSchema } from "./action.js";
 import {
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
+  MeteoraPositionOpenQuoteSchema,
   PositionOpenQuoteSchema,
 } from "./liquidity-quotes.js";
 import {
@@ -14,6 +15,7 @@ import { PortfolioStateSchema } from "./portfolio.js";
 export {
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
+  MeteoraPositionOpenQuoteSchema,
   PositionOpenQuoteSchema,
 } from "./liquidity-quotes.js";
 export {
@@ -96,6 +98,7 @@ export const VenueQuoteSchema = z
     PerpCollateralQuoteSchema,
     LiquidityRemovalQuoteSchema,
     LiquidityDepositQuoteSchema,
+    MeteoraPositionOpenQuoteSchema,
     PositionOpenQuoteSchema,
     LendDepositQuoteSchema,
     LendWithdrawQuoteSchema,
@@ -127,6 +130,9 @@ export const ExecutionResultSchema = z.object({
   executedAt: TimestampSchema,
   simulated: z.boolean().describe("Whether a simulation ran before sending"),
   error: z.string().nullable(),
+  position: AddressSchema.optional().describe(
+    "PositionV2 account a confirmed meteora open created. The secret key is never returned. Absent for every other action",
+  ),
 });
 
 /** @typedef {z.infer<typeof ViolationSchema>} Violation */
@@ -136,6 +142,7 @@ export const ExecutionResultSchema = z.object({
 /** @typedef {z.infer<typeof LiquidityRemovalQuoteSchema>} LiquidityRemovalQuote */
 /** @typedef {z.infer<typeof LiquidityDepositQuoteSchema>} LiquidityDepositQuote */
 /** @typedef {z.infer<typeof PositionOpenQuoteSchema>} PositionOpenQuote */
+/** @typedef {z.infer<typeof MeteoraPositionOpenQuoteSchema>} MeteoraPositionOpenQuote */
 /** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
 /** @typedef {z.infer<typeof LendWithdrawQuoteSchema>} LendWithdrawQuote */
 /** @typedef {z.infer<typeof PerpOnboardQuoteSchema>} PerpOnboardQuote */

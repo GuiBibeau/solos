@@ -11,9 +11,7 @@ import { executeSwap } from "./execute-swap.js";
 import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
 import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { simulatePerpAction, executePerpAction } from "./perp-dispatch.js";
-import { buildSignedRaydiumClose } from "./raydium-close-build.js";
-import { openQuoteOf } from "./raydium-open-quote.js";
-import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
+import { plannedClose, plannedOpen } from "./position-lifecycle-dispatch.js";
 import { simulationErrorText } from "./simulation-error-text.js";
 import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";
@@ -49,9 +47,7 @@ const PERP_ACTIONS = new Set([
  */
 const build = ({ ctx, kit }, action) => {
   if (action.type === "transfer_sol") return buildSignedTransfer(ctx, kit, action);
-  if (action.type === "close_position") {
-    return Effect.map(buildSignedRaydiumClose({ ctx, kit }, action), ({ signed }) => signed);
-  }
+  if (action.type === "close_position") return plannedClose({ ctx, kit }, action);
   return Effect.fail(new UnsupportedAction({ actionType: action.type, executor: EXECUTOR_NAME }));
 };
 
@@ -69,7 +65,7 @@ const quoted = (planned, toQuote) =>
  * amounts and encoded bounds are what the caller records (ADR-0022 QA reconciliation).
  * @param {Deps} deps
  * @param {Action} action
- * @returns {import("effect").Effect.Effect<{ signed: Signed; venueQuote: import("@solos/actions").VenueQuote | null; credit?: bigint }, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<{ signed: Signed; venueQuote: import("@solos/actions").VenueQuote | null; credit?: bigint; position?: string }, import("@solos/core").ExecutorError>}
  */
 const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) => {
   switch (action.type) {
@@ -80,9 +76,7 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market, phoenix }, action) 
       return quoted(buildSignedLiquidityDeposit({ ctx, kit }, action), depositQuoteOf);
     }
     case "open_position": {
-      return quoted(buildSignedRaydiumOpen({ ctx, kit }, action), (plan) =>
-        openQuoteOf(action, plan),
-      );
+      return plannedOpen({ ctx, kit }, action);
     }
     case "lend": {
       return quoted(buildSignedLendDeposit({ ctx, kit, market }, action), (plan) =>
@@ -149,22 +143,22 @@ const execute = ({ ctx, kit, build: buildSwap, market, phoenix }, action, option
     if (action.type === "swap") {
       return yield* executeSwap({ ctx, kit, build: buildSwap }, action, options.skipSimulation);
     }
-    const { signed } = yield* plannedSigned(
-      { ctx, kit, build: buildSwap, market, phoenix },
-      action,
-    );
+    const planned = yield* plannedSigned({ ctx, kit, build: buildSwap, market, phoenix }, action);
     const signature = yield* submitSimulated(
-      { ctx, signed, checkLifetime: action.type === "withdraw_lend" },
+      { ctx, signed: planned.signed, checkLifetime: action.type === "withdraw_lend" },
       options.skipSimulation,
     );
-    return {
+    const confirmed = {
       action,
-      status: "confirmed",
+      status: /** @type {const} */ ("confirmed"),
       signature,
       executedAt: yield* Clock.currentTimeMillis,
       simulated: !options.skipSimulation,
       error: null,
     };
+    return planned.position === undefined
+      ? confirmed
+      : { ...confirmed, position: planned.position };
   });
 
 /**
