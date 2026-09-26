@@ -53,9 +53,20 @@ bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
 bun run solos liquidity simulate-withdraw --protocol meteora \
   --position <position-account> --bps <1..10000>
 
+# Simulate an empty Meteora DLMM open. Nothing is submitted.
+bun run solos liquidity simulate-open --protocol meteora --pool <pair> \
+  --lower-bin-id <bin> --width <1..70>
+
+# Simulate closing that position after every liquidity share is gone. Nothing is submitted.
+bun run solos liquidity simulate-close --protocol meteora --position <position-account>
+
 # Portfolio, including that owner's Meteora DLMM positions. Read-only.
 bun run solos portfolio state --owner <owner>
 ```
+
+Open and close an empty Meteora DLMM position:
+[open](docs/reference/tools/liquidity.md#open-an-empty-meteora-dlmm-position),
+[close](docs/reference/tools/liquidity.md#close-an-empty-meteora-dlmm-position).
 
 The same quote over MCP:
 

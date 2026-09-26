@@ -12,13 +12,13 @@ return the shared `LpPosition` contract:
   `PersonalPositionState` PDA on raydium — never the position NFT mint and never the pool
   (ADR-0022). There is no mint-based inference and no fallback. Unknown protocol values fail
   input validation (`LiquidityInputInvalid`) before anything else.
-- **What each venue supports.** orca: read, deposit, withdraw. raydium: read, deposit, withdraw,
-  and opening and closing a position — the only venue whose position lifecycle solOS encodes, so
-  an open or close naming any other protocol is refused before any RPC. meteora: point reads,
-  owner enumeration, deposit into an existing position, and withdrawal from that position.
-  There is no `liquidity list` command; `solos portfolio state` is the enumeration path. Open
-  and close still refuse meteora with `LiquidityUnsupportedProtocol` before any network access
-  (#144).
+- **What each venue supports.** orca: read, deposit, withdraw. An open or close that names
+  orca fails `LiquidityUnsupportedProtocol` before any RPC. raydium: read, deposit, withdraw,
+  and opening and closing a position. meteora: point reads, owner enumeration, deposit,
+  withdrawal, an empty open, and close of an emptied position. There is no `liquidity list`
+  command; `solos portfolio state` is the enumeration path. Open is
+  [below](#open-an-empty-meteora-dlmm-position). Close is
+  [below](#close-an-empty-meteora-dlmm-position).
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
@@ -123,8 +123,9 @@ ADR-0022: no live deposit/open without a checked exit path.
 <position-account> [--owner <address>]` read one existing PositionV2 and return the same
 `LpPosition` shape. A deposit into that position is
 [below](#deposits-into-an-existing-meteora-position). A withdrawal is
-[below](#withdrawals-from-an-existing-meteora-position). Open and close still refuse
-meteora with `LiquidityUnsupportedProtocol` before any network access (#144).
+[below](#withdrawals-from-an-existing-meteora-position). An empty open is
+[below](#open-an-empty-meteora-dlmm-position). Close of an emptied position is
+[below](#close-an-empty-meteora-dlmm-position).
 
 - **`position` is the PositionV2 account pubkey**, never an NFT mint and never the pair
   (ADR-0022). `instrument` is that account's `lb_pair`. There is no position NFT.
@@ -182,8 +183,8 @@ is the same flag as in [Deposits into existing positions](#deposits-into-existin
   Zero slippage allows zero bins of movement. That check is not an argument of
   `add_liquidity2` and is not enforced on chain. The on-chain bound is the signed
   `amount_x` and `amount_y` caps.
-- **Open and close still refuse meteora** with `LiquidityUnsupportedProtocol` before any
-  network access (#144).
+- **Deposit does not create the position.** An empty open is
+  [below](#open-an-empty-meteora-dlmm-position).
 
 ```sh
 SOLANA_RPC_URL=... bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
@@ -220,10 +221,10 @@ position's `lb_pair`.
   carries `max_active_bin_slippage` of `ceil(maxSlippageBps / binStep)` bins, and the program
   refuses when the active bin moves farther than that. solOS re-checks the same bound before
   send.
-- **Open and close still refuse meteora** with `LiquidityUnsupportedProtocol` before any
-  network access (#144). ADR-0022's execution gate still describes `remove_liquidity` as
-  unable to encode minimum receipts; the live withdraw is remove-only `rebalance_liquidity`
-  (#139, #156).
+- **Close is a separate command.** See
+  [Close an empty Meteora DLMM position](#close-an-empty-meteora-dlmm-position). ADR-0022's
+  execution gate still describes `remove_liquidity` as unable to encode minimum receipts; the
+  live withdraw is remove-only `rebalance_liquidity` (#139, #156).
 
 ```sh
 SOLANA_RPC_URL=... bun run solos liquidity simulate-withdraw --protocol meteora \
@@ -231,6 +232,67 @@ SOLANA_RPC_URL=... bun run solos liquidity simulate-withdraw --protocol meteora 
 ```
 
 The funded round is recorded in [liquidity QA](../../liquidity-qa.md).
+
+### Open an empty Meteora DLMM position
+
+`solana_liquidity_simulate_open_position` / `solana_liquidity_execute_open_position` (MCP) and
+`solos liquidity simulate-open` / `solos liquidity open` (CLI) create one empty PositionV2 on
+an LbPair. Pass `protocol: "meteora"`, the LbPair as `pool`, and integer `lowerBinId` and
+`width`. The open moves no pool tokens. Add shares afterwards with
+[Deposits into an existing Meteora position](#deposits-into-an-existing-meteora-position).
+
+1. Choose the window. `lowerBinId` is the inclusive lower bin. `width` is the bin count, an
+   integer from 1 to 70. The upper bin is `lowerBinId + width - 1`. A width outside 1..70, a
+   `lowerBinId` outside -443636..443636, or a window that ends past 443636 fails
+   `LiquidityInputInvalid` before any RPC. solOS does not clamp the window. A tick range
+   (`tickLower`, `tickUpper`) or a token budget (`amountA`, `amountB`) fails the same way:
+   the open takes `lowerBinId` and `width` only. `maxSlippageBps` and `wrapSol` have no
+   effect on this open.
+2. Simulate. Nothing is submitted. `venueQuote.kind` is `meteora_position_open`. The quote
+   carries `pool`, `lowerBinId`, `width`, and `position`. That `position` is the key this
+   build signs. `open` generates a new key.
+3. Open with the same arguments. `open` takes `[--skip-simulation]`. The default simulates
+   the exact transaction and sends nothing when that simulation fails. The confirmed result's
+   `position` is the PositionV2 account this open created. That account is a fresh keypair
+   and the second signer. The result returns the pubkey only. The instruction is
+   `initialize_position`. It names no token accounts. The signer pays the new account's rent.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity simulate-open --protocol meteora --pool <pair> \
+  --lower-bin-id <bin> --width <1..70>
+```
+
+The funded open, the later deposits and withdraw, and the close are recorded in
+[liquidity QA](../../liquidity-qa.md#meteora-dlmm-open-to-close-144) and
+[features/feature-map.json](../../../features/feature-map.json). The ship commit is
+`7f17712c42e98cd33e6422cc1eba6e05c8e62edf`.
+
+### Close an empty Meteora DLMM position
+
+`solana_liquidity_simulate_close_position` / `solana_liquidity_execute_close_position` (MCP)
+and `solos liquidity simulate-close` / `solos liquidity close` (CLI) close one emptied
+PositionV2 and return its rent to the owner.
+
+1. Remove every liquidity share first.
+   [Withdraw](#withdrawals-from-an-existing-meteora-position) at `bps` 10000 leaves the share
+   sum at zero. That withdrawal keeps the account and leaves pending fees and rewards
+   unclaimed.
+2. Simulate close. `position` is the PositionV2 account, never an NFT mint and never the
+   pair. The signer must equal the `owner` field at byte 40. A remaining liquidity share
+   fails `BuildRejected` before `close_position2` is built. The reason includes the share
+   sum. Pending fees and rewards stay unclaimed. The emptiness check uses the share sum.
+3. Close with the same arguments. `close` takes `[--skip-simulation]`. The default simulates
+   first and sends nothing when that simulation fails. The signer is the only signer. Rent
+   returns to that owner.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity simulate-close --protocol meteora \
+  --position <position-account>
+```
+
+The funded close is in the same
+[QA note](../../liquidity-qa.md#meteora-dlmm-open-to-close-144) and
+[feature map](../../../features/feature-map.json).
 
 ### Owner enumeration
 
