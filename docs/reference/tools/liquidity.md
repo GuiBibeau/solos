@@ -14,9 +14,10 @@ return the shared `LpPosition` contract:
   input validation (`LiquidityInputInvalid`) before anything else.
 - **What each venue supports.** orca: read, deposit, withdraw. raydium: read, deposit, withdraw,
   and opening and closing a position — the only venue whose position lifecycle solOS encodes, so
-  an open or close naming any other protocol is refused before any RPC. meteora: reads only,
-  through `solana_liquidity_get_position` and `solos liquidity position`; deposits, withdrawals
-  and listing still refuse it with `LiquidityUnsupportedProtocol` before any network access.
+  an open or close naming any other protocol is refused before any RPC. meteora: point reads and
+  owner enumeration. There is no `liquidity list` command; `solos portfolio state` is the
+  enumeration path. Deposits and withdrawals still refuse meteora with
+  `LiquidityUnsupportedProtocol` before any network access.
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
@@ -116,8 +117,8 @@ ADR-0022: no live deposit/open without a checked exit path.
 
 `solana_liquidity_get_position` and `solos liquidity position --protocol meteora --position
 <position-account> [--owner <address>]` read one existing PositionV2 and return the same
-`LpPosition` shape. Deposits, withdrawals, and listing still refuse meteora with
-`LiquidityUnsupportedProtocol` before any network access. Owner enumeration is #141.
+`LpPosition` shape. Deposits and withdrawals still refuse meteora with
+`LiquidityUnsupportedProtocol` before any network access.
 
 - **`position` is the PositionV2 account pubkey**, never an NFT mint and never the pair
   (ADR-0022). `instrument` is that account's `lb_pair`. There is no position NFT.
@@ -147,3 +148,14 @@ SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '
 ```
 
 The zero-spend read is recorded in [liquidity QA](../../liquidity-qa.md).
+
+### Owner enumeration
+
+There is no `liquidity list` command. `solos portfolio state [--owner <address>]` and
+`solana_portfolio_get_state` include meteora beside orca and raydium. The meteora scan is
+`getProgramAccounts` on `LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo`: the PositionV2
+discriminator at offset 0 and the owner pubkey at offset 40. Identity is the position
+account pubkey. `receiptMints` is empty. A match that does not decode fails the whole
+enumeration with `LiquidityPositionUnavailable`, never a skipped account. More than 256
+matches fails `LiquidityEnumerationIncomplete` ("owner holds more than 256 candidate
+positions"). That bound is per venue. One venue failing fails the portfolio read.

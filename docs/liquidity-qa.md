@@ -86,8 +86,8 @@ Offline tests seed PositionV2, LbPair, and BinArray accounts under
 the pinned bin math. They do not prove what a live pair holds.
 
 **Status: the zero-spend read is done.** Run on 2026-09-26. Nothing was signed or sent.
-Deposits, withdrawals, and listing still refuse meteora with `LiquidityUnsupportedProtocol`
-before any network access. Enumeration is #141.
+Deposits and withdrawals still refuse meteora with `LiquidityUnsupportedProtocol` before
+any network access. Owner enumeration is a separate zero-spend round below.
 
 The position is a third party's, so the command names `--owner`. Startup still needs
 `SOLANA_RPC_URL` and a configured signer.
@@ -115,7 +115,30 @@ A different `--owner` returns `LiquidityPositionUnavailable` ("position owner do
 the requested owner"). `liquidity deposit`, `simulate-deposit`, `withdraw`, and
 `simulate-withdraw` with `--protocol meteora` still fail `LiquidityUnsupportedProtocol`
 before any account read. Do not report a Meteora deposit or removal round: there is no
-adapter for those, and enumeration remains #141.
+adapter for those.
+
+## Meteora DLMM owner enumeration
+
+**Status: the zero-spend enumeration is done.** Run on 2026-09-26. Kernel was green on
+`cff0c44`, a post-batch re-check of that round. Nothing was signed or sent. There is no list
+command. Portfolio state is the path.
+
+```
+$ solos portfolio state --owner 8m23JRic714aXZQmDXawzXo6YUN9R4qN5z5BLHUZtLBi
+```
+
+Recorded result:
+
+- 8 meteora LP positions
+- includes `mpJ2Ewzr5ncHHkgvLKa9jiyZS5LBxJvDRuqZsJoKmmM` with liquidity
+  `1179069276345261306613608345909`
+- spot-check of that position's token B: `63939249994`
+
+The earlier point read of the same position reported token B `63939249963` (Kernel
+`63939249979`). The amount is `floor(share * reserve / supply)` per occupied bin, so a
+reserve move between reads changes it. Meteora `receiptMints` is empty. A scan match that
+does not decode is `LiquidityPositionUnavailable` for the whole enumeration. More than 256
+matches is `LiquidityEnumerationIncomplete`. Deposits and withdrawals stay refused.
 
 ## Deposits into an existing position (#30)
 
