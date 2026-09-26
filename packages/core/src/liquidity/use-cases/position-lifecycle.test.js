@@ -4,6 +4,7 @@ import { Cause, Effect, Layer, Option } from "effect";
 import { ActionExecutor } from "../../shared/ports/action-executor.js";
 import { EventBus } from "../../shared/ports/event-bus.js";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { ExecuteOpenPositionInput } from "../domain/lifecycle-types.js";
 import {
   executeOpenPosition,
   simulateClosePosition,
@@ -70,6 +71,17 @@ const raydium = {
 };
 
 describe("position lifecycle validation", () => {
+  test("the execute open schema still refuses an illegal meteora width", () => {
+    const parsed = ExecuteOpenPositionInput.safeParse({
+      protocol: "meteora",
+      pool: ADDRESS,
+      lowerBinId: 0,
+      width: 71,
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues[0]?.message).toContain("not clamped");
+  });
+
   test("an illegal meteora width is refused by name and never reaches the executor", async () => {
     seen = undefined;
     const wide = await failureOf(

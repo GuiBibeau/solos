@@ -76,7 +76,9 @@ export const OpenPositionInput = z
 
 /** @typedef {z.infer<typeof OpenPositionInput>} LiquidityOpenInput */
 
-export const ExecuteOpenPositionInput = OpenPositionInput.extend({
+// Zod 4 rejects `.extend()` on an object that already has checks. `safeExtend` keeps the
+// open refinement and adds `skipSimulation` without dropping it.
+export const ExecuteOpenPositionInput = OpenPositionInput.safeExtend({
   skipSimulation: z.boolean().default(false).describe("Skip the pre-send simulation only"),
 });
 
