@@ -26,8 +26,8 @@ export const executeWithdrawTool = defineTool({
     "removed principal). Simulates the exact transaction first and sends nothing when " +
     "simulation, validation, or the blockhash lifetime fails; skipSimulation bypasses only " +
     "the simulation, never validation. Never re-sends after an ambiguous submission. Use " +
-    "solana_liquidity_simulate_withdraw to preview without sending. Only orca is " +
-    "implemented: meteora and raydium fail before any network access.",
+    "solana_liquidity_simulate_withdraw to preview without sending. orca and raydium are " +
+    "implemented: meteora fails before any network access.",
   input: LiquidityExecuteWithdrawInputSchema,
   check: (input) => {
     if (!isReadable(input.protocol)) {

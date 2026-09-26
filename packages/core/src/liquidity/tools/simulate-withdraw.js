@@ -25,8 +25,8 @@ export const simulateWithdrawTool = defineTool({
     "distinct from removed principal). The executor builds and simulates exactly the " +
     "transaction it would send, reporting compute units and program logs; nothing is ever " +
     "sent or signed for submission, and a later execute re-plans and may differ. Use " +
-    "solana_liquidity_execute_withdraw to send. Only orca is implemented: meteora and " +
-    "raydium fail before any network access.",
+    "solana_liquidity_execute_withdraw to send. orca and raydium are implemented: meteora " +
+    "fails before any network access.",
   input: LiquidityWithdrawInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

@@ -1,0 +1,129 @@
+// @ts-check
+/**
+ * Wrapping native SOL for a funding side, inside the transaction that spends it.
+ *
+ * Most Solana concentrated liquidity is SOL-paired, and a wallet holding native SOL held nothing
+ * the venues could take: they take wSOL, an SPL token, and nothing here wrapped it. This closes
+ * that gap without ever wrapping on its own initiative — the caller asks for it explicitly, and
+ * the amount is the shortfall against the quote, never the whole budget.
+ *
+ * Everything happens in one transaction: create the account if it is absent, move exactly the
+ * lamports the quote is short, sync it, spend it, and close it again. A failure anywhere fails
+ * the whole transaction, so no state exists in which SOL sits wrapped because a deposit did not
+ * land. The account is closed only when this transaction created it — a pre-existing wSOL
+ * account belongs to the caller, and taking its rent is not this code's business.
+ */
+import { getTransferSolInstruction } from "@solana-program/system";
+import {
+  getCloseAccountInstruction,
+  getCreateAssociatedTokenInstruction,
+  getSyncNativeInstruction,
+  getTokenDecoder,
+} from "@solana-program/token";
+import { Effect } from "effect";
+import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
+import { liquidityRead } from "./liquidity-token-accounts.js";
+
+export const WSOL_MINT = "So11111111111111111111111111111111111111112";
+
+const tokenDecoder = getTokenDecoder();
+
+/** Nothing to wrap: the common case, and the only one for a non-SOL side. */
+const NOTHING = Object.freeze({ prefix: [], suffix: [], covered: 0n });
+
+/** @param {string} value */
+const asAddress = (value) =>
+  /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (value));
+
+/**
+ * A create that refuses an account that already exists, so the close below can only ever apply
+ * to one this transaction made.
+ * @param {import("../signer/kit-signer.js").KitSignerShape} kit @param {string} ata
+ */
+const createWsolAccount = (kit, ata) =>
+  getCreateAssociatedTokenInstruction({
+    payer: kit.signer,
+    ata: asAddress(ata),
+    owner: asAddress(kit.signer.address),
+    mint: asAddress(WSOL_MINT),
+  });
+
+/**
+ * @param {{ kit: import("../signer/kit-signer.js").KitSignerShape; ata: string;
+ *   lamports: bigint; isAbsent: boolean }} wrap
+ */
+export const wrapInstructions = ({ kit, ata, lamports, isAbsent }) => ({
+  prefix: [
+    // Deliberately NOT the idempotent create. Whether this transaction closes the account is
+    // decided from a preflight read, and an account that appears between that read and
+    // inclusion would make an idempotent create a silent no-op while the close below still
+    // ran — unwrapping a balance and reclaiming rent that were never this transaction's. A
+    // plain create fails on an account that already exists, so a lost race aborts everything
+    // atomically instead: nothing wrapped, nothing closed, nothing spent.
+    ...(isAbsent ? [createWsolAccount(kit, ata)] : []),
+    getTransferSolInstruction({
+      source: kit.signer,
+      destination: asAddress(ata),
+      amount: lamports,
+    }),
+    getSyncNativeInstruction({ account: asAddress(ata) }),
+  ],
+  // Only an account this transaction created is closed again — guaranteed by the create above
+  // rather than by the read: unused lamports and the rent come back as native SOL.
+  suffix: isAbsent
+    ? [
+        getCloseAccountInstruction({
+          account: asAddress(ata),
+          destination: asAddress(kit.signer.address),
+          owner: kit.signer,
+        }),
+      ]
+    : [],
+  covered: lamports,
+});
+
+/**
+ * Whether a side needs wrapping at all, decided from values alone. Separated from the read so
+ * the rule can be checked without a chain: an unasked wrap, a non-SOL side, a side owed nothing
+ * and a side already holding enough all decide the same way here as they would anywhere.
+ * @param {{ mint: string; required: bigint; held: bigint; wrapSol: boolean }} side
+ * @returns {bigint} lamports to wrap, zero when none
+ */
+export const wrapShortfall = ({ mint, required, held, wrapSol }) => {
+  if (!wrapSol || mint !== WSOL_MINT || required === 0n) return 0n;
+  return held >= required ? 0n : required - held;
+};
+
+/**
+ * What one funding side needs wrapped, if anything. `covered` is what the funding rule may then
+ * count as held: the wrap lands in the same transaction, before the spend.
+ * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape;
+ *   kit: import("../signer/kit-signer.js").KitSignerShape;
+ *   mint: string; ata: string; required: bigint; wrapSol: boolean }} side
+ */
+export const wrapPlan = ({ ctx, kit, mint, ata, required, wrapSol }) =>
+  Effect.gen(function* () {
+    if (wrapShortfall({ mint, required, held: 0n, wrapSol }) === 0n) return NOTHING;
+    const [row] = yield* fetchAccounts(liquidityRead(ctx), [ata]);
+    const isAbsent = row === null || row === undefined;
+    const held = isAbsent ? 0n : tokenDecoder.decode(row.bytes).amount;
+    const lamports = wrapShortfall({ mint, required, held, wrapSol });
+    if (lamports === 0n) return NOTHING;
+    return wrapInstructions({ kit, ata, lamports, isAbsent });
+  });
+
+/**
+ * The wrap for whichever side of a two-sided plan is wSOL, or nothing. Only one side can be,
+ * since a pool cannot pair a mint with itself.
+ * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape;
+ *   kit: import("../signer/kit-signer.js").KitSignerShape; wrapSol: boolean;
+ *   sides: ReadonlyArray<{ mint: string; ata: string; required: bigint }> }} plan
+ */
+export const wrapForSides = ({ ctx, kit, wrapSol, sides }) =>
+  Effect.gen(function* () {
+    for (const side of sides) {
+      const wrap = yield* wrapPlan({ ctx, kit, wrapSol, ...side });
+      if (wrap.covered > 0n) return wrap;
+    }
+    return NOTHING;
+  });

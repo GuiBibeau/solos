@@ -54,23 +54,37 @@ export const createAta = (kit, mint, { ata, program }) =>
   });
 
 /**
+ * Whether a side needs nothing added. An account that exists is satisfied once its balance plus
+ * any wrap covers the spend. An absent one is satisfied only by a wrap, which creates it as well
+ * as funding it — otherwise it must still be created, because the instruction lists it either way.
+ * @param {{ isAbsent: boolean; balance: bigint; covered: bigint; required: bigint }} side
+ */
+const isSatisfied = ({ isAbsent, balance, covered, required }) =>
+  isAbsent ? covered > 0n && covered >= required : balance + covered >= required;
+
+/**
  * One funding side of a spend: nothing to do when it already covers the quote, an idempotent
  * create when the quote needs nothing from it, and a typed refusal when it is short or absent
  * but needed — a spend from an account that cannot cover it is not simulable honestly.
+ * `covered` is what a wrap in this same transaction will add before the spend, so a side funded
+ * by wrapping native SOL is not refused for a balance it is about to have.
  * @param {{ kit: Kit; row: FetchedAccount | null | undefined; required: bigint; mint: string;
- *   ata: string; program?: string; label: "A" | "B"; verb: string }} side
+ *   ata: string; program?: string; label: "A" | "B"; verb: string; covered?: bigint }} side
  * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
  */
-export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb }) => {
-  const held = row === null || row === undefined ? null : tokenDecoder.decode(row.bytes).amount;
-  if (held !== null && held >= required) return Effect.succeed(null);
+export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb, covered }) => {
+  const isAbsent = row === null || row === undefined;
+  const balance = isAbsent ? 0n : tokenDecoder.decode(row.bytes).amount;
+  if (isSatisfied({ isAbsent, balance, covered: covered ?? 0n, required })) {
+    return Effect.succeed(null);
+  }
   if (required > 0n) {
-    const detail =
-      held === null
-        ? "the funding account does not exist"
-        : `${held} available, the ${verb} needs ${required}`;
+    const detail = isAbsent
+      ? "the funding account does not exist"
+      : `${balance} available, the ${verb} needs ${required}`;
     return fail(`insufficient token ${label} balance: ${detail}`);
   }
+  // Absent and owed nothing: the instruction still lists the account, so it has to exist.
   return Effect.succeed(createAta(kit, mint, { ata, program }));
 };
 

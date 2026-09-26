@@ -11,7 +11,6 @@
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
-import { needsBitmapExtension } from "../liquidity/raydium-clmm-accounts.js";
 import { decodePoolState } from "../liquidity/raydium-clmm-decode.js";
 import {
   openPositionAccounts,
@@ -20,11 +19,13 @@ import {
 } from "../liquidity/raydium-clmm-open.js";
 import { mintPrograms } from "../liquidity/raydium-clmm-plan-reads.js";
 import { RAYDIUM_CLMM_PROGRAM } from "../liquidity/raydium-clmm-program.js";
-import { depositLiquidityForBudgets, spendBound } from "../liquidity/whirlpool-deposit-quote.js";
+import { spendBound } from "../liquidity/whirlpool-deposit-quote.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
 import { openFunding } from "./raydium-open-funding.js";
 import { openParts } from "./raydium-open-parts.js";
+import { openQuote, openSides } from "./raydium-open-quote.js";
 import { notRaydium, signRaydiumPosition } from "./raydium-position-sign.js";
+import { wrapForSides } from "./wrap-sol.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -66,70 +67,6 @@ const readerRows = (ctx) => ({
 });
 
 /**
- * The pure half of an open: align the range to the pool, refuse a range the instruction cannot
- * address yet, and fit the budgets. All of it is decided before a key is generated.
- * @param {any} action @param {any} pool
- */
-const openQuote = (action, pool) => {
-  const { tickSpacing } = pool;
-  // Refused, never rounded: rounding a range is choosing one, which is the caller's job.
-  if (action.tickLower % tickSpacing !== 0 || action.tickUpper % tickSpacing !== 0) {
-    return {
-      ok: /** @type {const} */ (false),
-      reason: `tick range ${action.tickLower}..${action.tickUpper} is not aligned to the pool's tick spacing of ${tickSpacing}`,
-    };
-  }
-  const ticks = { tickLower: action.tickLower, tickUpper: action.tickUpper, tickSpacing };
-  if (needsBitmapExtension(ticks)) {
-    return {
-      ok: /** @type {const} */ (false),
-      reason:
-        "this range needs the pool's tick-array bitmap extension, which opening does not pass",
-    };
-  }
-  const quote = depositLiquidityForBudgets({
-    sqrtPrice: pool.sqrtPrice,
-    tickLowerIndex: action.tickLower,
-    tickUpperIndex: action.tickUpper,
-    amountA: BigInt(action.amountA),
-    amountB: BigInt(action.amountB),
-  });
-  if (quote.status === "quoted") {
-    return {
-      ok: /** @type {const} */ (true),
-      liquidity: quote.liquidity,
-      requiredA: quote.requiredA,
-      requiredB: quote.requiredB,
-    };
-  }
-  return {
-    ok: /** @type {const} */ (false),
-    reason:
-      quote.status === "zero"
-        ? "the budgets buy no liquidity at this price for this range"
-        : quote.reason,
-  };
-};
-
-/**
- * What the caller records for an open (ADR-0022): the range and the bounds actually encoded. No
- * NFT mint — that key is per build, so the one a simulation shows is not the one execute signs.
- * @param {any} action
- * @param {{ readonly liquidity: bigint; readonly requiredA: bigint; readonly requiredB: bigint }} plan
- */
-export const openQuoteOf = (action, plan) => ({
-  kind: /** @type {const} */ ("position_open"),
-  pool: action.pool,
-  tickLower: action.tickLower,
-  tickUpper: action.tickUpper,
-  liquidity: String(plan.liquidity),
-  requiredA: String(plan.requiredA),
-  requiredB: String(plan.requiredB),
-  tokenMaxA: String(spendBound(plan.requiredA, BigInt(action.amountA), action.maxSlippageBps)),
-  tokenMaxB: String(spendBound(plan.requiredB, BigInt(action.amountB), action.maxSlippageBps)),
-});
-
-/**
  * The open instruction itself. The NFT mint signs through its own account meta — index 2 — which
  * is how Kit learns about the second signer without a separate list to keep in step.
  * @param {any} action
@@ -154,6 +91,31 @@ const openInstruction = (action, quote, built) =>
     }),
   );
 
+/**
+ * Every instruction an open needs, in the order it needs them: the wrap that funds a wSOL side,
+ * the creates for a side the quote does not spend from, the open itself, and the unwrap of an
+ * account this transaction created.
+ * @param {{ ctx: Rpc; kit: Kit; action: any; quote: any;
+ *   built: Awaited<ReturnType<typeof openParts>> }} parts
+ */
+const fundedOpen = ({ ctx, kit, action, quote, built }) =>
+  Effect.gen(function* () {
+    const wrap = yield* wrapForSides({
+      ctx,
+      kit,
+      wrapSol: action.wrapSol === true,
+      sides: openSides(built.accounts, quote),
+    });
+    const setup = yield* openFunding({
+      read: liquidityRead(ctx),
+      kit,
+      quote,
+      accounts: built.accounts,
+      covered: wrap.covered,
+    });
+    return [...wrap.prefix, ...setup, openInstruction(action, quote, built), ...wrap.suffix];
+  });
+
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
 export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
@@ -170,18 +132,8 @@ export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
         programs: read.programs,
       }),
     );
-    const instruction = openInstruction(action, quote, built);
-    const setup = yield* openFunding({
-      read: liquidityRead(ctx),
-      kit,
-      quote,
-      accounts: built.accounts,
-    });
-    const signed = yield* signRaydiumPosition({
-      ctx,
-      kit,
-      instructions: [...setup, instruction],
-    });
+    const funded = yield* fundedOpen({ ctx, kit, action, quote, built });
+    const signed = yield* signRaydiumPosition({ ctx, kit, instructions: funded });
     return {
       signed,
       plan: {

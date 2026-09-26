@@ -35,6 +35,12 @@ export const OpenPositionInput = z.object({
     .max(9999)
     .default(50)
     .describe("Price-movement tolerance in basis points"),
+  wrapSol: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Wrap exactly the native SOL the quote is short on a wSOL side, in this same transaction, and unwrap the remainder when this transaction created the account. Leave false when the wSOL side is already funded",
+    ),
 });
 
 /** @typedef {z.infer<typeof OpenPositionInput>} LiquidityOpenInput */

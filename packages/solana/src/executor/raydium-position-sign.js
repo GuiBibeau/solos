@@ -13,8 +13,14 @@ import {
 import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { RAYDIUM_V1_CONFIG } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
+
+/** Local v1 policy for a Raydium liquidity instruction: room for two tick arrays and the ATAs. */
+export const RAYDIUM_V1_CONFIG = Object.freeze({
+  computeUnitLimit: 400_000,
+  loadedAccountsDataSizeLimit: 33_554_432,
+  priorityFeeLamports: 100_000n,
+});
 
 /**
  * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape;

@@ -146,6 +146,8 @@ describe("the deposit twins pass add_liquidity through the ActionExecutor", () =
       amountA: "1000000",
       amountB: "0",
       maxSlippageBps: 50,
+      // Defaulted, not inferred: solOS never wraps native SOL unless asked.
+      wrapSol: false,
     });
   });
 

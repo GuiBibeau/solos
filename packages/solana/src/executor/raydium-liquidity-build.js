@@ -3,10 +3,6 @@
  * Assemble and sign one Raydium CLMM add or remove under the local v1 policy. Nothing here can
  * send. A refused plan never becomes bytes.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
@@ -18,25 +14,18 @@ import {
   raydiumInstruction,
 } from "../liquidity/raydium-clmm-instruction.js";
 import { raydiumDepositPlan, raydiumWithdrawPlan } from "../liquidity/raydium-clmm-plan.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import {
   fundingSide,
   liquidityRead,
   receivingSide,
   setupSides,
 } from "./liquidity-token-accounts.js";
+import { signRaydiumPosition } from "./raydium-position-sign.js";
 import { rewardSetup } from "./raydium-reward-setup.js";
-import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
+import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
-
-/** Local v1 policy for a Raydium liquidity instruction: room for two tick arrays and the ATAs. */
-export const RAYDIUM_V1_CONFIG = Object.freeze({
-  computeUnitLimit: 400_000,
-  loadedAccountsDataSizeLimit: 33_554_432,
-  priorityFeeLamports: 100_000n,
-});
 
 /** The plan's reader seam bound to real RPC. @param {Rpc} ctx @param {string} owner */
 const readerFor = (ctx, owner) => {
@@ -47,13 +36,19 @@ const readerFor = (ctx, owner) => {
   };
 };
 
+/** The two funding sides of a Raydium plan, in instruction order. @param {any} plan */
+const raydiumSides = (plan) => [
+  { mint: plan.mintA, ata: plan.accounts.tokenAccount0, required: plan.requiredA },
+  { mint: plan.mintB, ata: plan.accounts.tokenAccount1, required: plan.requiredB },
+];
+
 /**
  * Prove the two owner token accounts. A deposit needs them funded for whatever the quote
  * requires; a removal only needs them to exist, and creates a missing one when it is owed
  * nothing. Both rules are the shared ones, so Orca and Raydium refuse identically.
- * @param {{ ctx: Rpc; kit: Kit; plan: any; verb: "deposit" | "removal" }} parts
+ * @param {{ ctx: Rpc; kit: Kit; plan: any; verb: "deposit" | "removal"; covered?: bigint }} parts
  */
-const tokenSetup = ({ ctx, kit, plan, verb }) =>
+const tokenSetup = ({ ctx, kit, plan, verb, covered }) =>
   setupSides(
     liquidityRead(ctx),
     {
@@ -74,35 +69,11 @@ const tokenSetup = ({ ctx, kit, plan, verb }) =>
             ...side,
             verb,
             required: label === "A" ? plan.requiredA : plan.requiredB,
+            covered: side.mint === WSOL_MINT ? covered : 0n,
           })
         : receivingSide({ ...side, owed: label === "A" ? plan.minA : plan.minB });
     },
   );
-
-/**
- * One fresh blockhash lifetime, any ATA creates, then exactly one Raydium instruction.
- * @param {{ ctx: Rpc; kit: Kit; creates: any[]; instruction: any }} parts
- */
-const signRaydium = ({ ctx, kit, creates, instruction }) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: RAYDIUM_V1_CONFIG }),
-    );
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions(
-            /** @type {any} */ ([...creates, instruction]),
-            message,
-          ),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action
@@ -123,7 +94,13 @@ export const buildSignedRaydiumDeposit = ({ ctx, kit }, action) =>
       },
     });
     if (plan.status === "reject") return yield* new BuildRejected({ reason: plan.reason });
-    const creates = yield* tokenSetup({ ctx, kit, plan, verb: "deposit" });
+    const wrap = yield* wrapForSides({
+      ctx,
+      kit,
+      wrapSol: action.wrapSol === true,
+      sides: raydiumSides(plan),
+    });
+    const creates = yield* tokenSetup({ ctx, kit, plan, verb: "deposit", covered: wrap.covered });
     const instruction = raydiumInstruction(
       increaseLiquidityV2Accounts(plan.accounts),
       increaseLiquidityV2Data({
@@ -132,7 +109,11 @@ export const buildSignedRaydiumDeposit = ({ ctx, kit }, action) =>
         amount1Max: plan.tokenMaxB,
       }),
     );
-    const signed = yield* signRaydium({ ctx, kit, creates, instruction });
+    const signed = yield* signRaydiumPosition({
+      ctx,
+      kit,
+      instructions: [...wrap.prefix, ...creates, instruction, ...wrap.suffix],
+    });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildRaydiumDeposit"));
 
@@ -163,11 +144,10 @@ export const buildSignedRaydiumWithdraw = ({ ctx, kit }, action) =>
         amount1Min: plan.minB,
       }),
     );
-    const signed = yield* signRaydium({
+    const signed = yield* signRaydiumPosition({
       ctx,
       kit,
-      creates: [...creates, ...rewardCreates],
-      instruction,
+      instructions: [...creates, ...rewardCreates, instruction],
     });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildRaydiumWithdraw"));

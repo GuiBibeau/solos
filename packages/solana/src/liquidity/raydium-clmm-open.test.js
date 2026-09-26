@@ -8,6 +8,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { getU64Decoder } from "@solana/kit";
+import { TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "./raydium-clmm-instruction.js";
 import {
   CLOSE_POSITION_DISCRIMINATOR,
   OPEN_POSITION_T22_DISCRIMINATOR,
@@ -102,6 +103,16 @@ describe("raydium open_position_with_token22_nft wire form", () => {
   });
 });
 
+/** One close, differing only in the token program the NFT is held under. @param {string} nftProgram */
+const closeAccounts = (nftProgram) =>
+  closePositionAccounts({
+    nftOwner: A.payer,
+    nftMint: A.nftMint,
+    nftAccount: A.nftAccount,
+    personalPosition: A.personalPosition,
+    nftProgram,
+  });
+
 describe("raydium close_position wire form", () => {
   test("data is the bare discriminator; every guard is on chain", () => {
     expect(closePositionData()).toEqual(Uint8Array.from(CLOSE_POSITION_DISCRIMINATOR));
@@ -109,15 +120,24 @@ describe("raydium close_position wire form", () => {
   });
 
   test("6 accounts, one signer, and the NFT mint writable so it can be burned", () => {
-    const accounts = closePositionAccounts({
-      nftOwner: A.payer,
-      nftMint: A.nftMint,
-      nftAccount: A.nftAccount,
-      personalPosition: A.personalPosition,
-    });
+    const accounts = closeAccounts(TOKEN_2022_PROGRAM);
     expect(accounts).toHaveLength(6);
     expect(accounts.filter((account) => account.role >= 2)).toHaveLength(1);
     expect(accounts[1]).toMatchObject({ role: 1 });
     expect(accounts[3]).toMatchObject({ role: 1 });
+  });
+
+  // `open_position_v2` mints a classic SPL NFT and most positions in existence are those, so a
+  // close that always named Token-2022 could only ever close the positions solOS opened itself.
+  test("the last account is whichever token program holds the NFT", () => {
+    expect(String(closeAccounts(TOKEN_PROGRAM)[5]?.address)).toBe(TOKEN_PROGRAM);
+    expect(String(closeAccounts(TOKEN_2022_PROGRAM)[5]?.address)).toBe(TOKEN_2022_PROGRAM);
+    expect(closeAccounts(TOKEN_PROGRAM)[5]?.role).toBe(0);
+  });
+
+  test("and it is the only account that moves with it", () => {
+    const classic = closeAccounts(TOKEN_PROGRAM);
+    const modern = closeAccounts(TOKEN_2022_PROGRAM);
+    expect(classic.slice(0, 5)).toEqual(modern.slice(0, 5));
   });
 });

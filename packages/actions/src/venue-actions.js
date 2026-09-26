@@ -86,6 +86,12 @@ export const AddLiquidityActionSchema = z
     amountA: U64AmountSchema.describe("Maximum token A spend in canonical pool mint order"),
     amountB: U64AmountSchema.describe("Maximum token B spend in canonical pool mint order"),
     maxSlippageBps: SlippageBpsSchema,
+    wrapSol: z
+      .boolean()
+      .default(false)
+      .describe(
+        "Wrap exactly the native SOL the quote is short on a wSOL side, inside this transaction, and unwrap the remainder when this transaction created the account. False means a wSOL side must already be funded",
+      ),
   })
   .refine((value) => /[1-9]/.test(value.amountA + value.amountB), {
     message: "at least one token spend budget must be positive",
@@ -116,6 +122,12 @@ export const OpenPositionActionSchema = z
     amountA: U64AmountSchema.describe("Maximum token A spend in canonical pool mint order"),
     amountB: U64AmountSchema.describe("Maximum token B spend in canonical pool mint order"),
     maxSlippageBps: SlippageBpsSchema,
+    wrapSol: z
+      .boolean()
+      .default(false)
+      .describe(
+        "Wrap exactly the native SOL the quote is short on a wSOL side, inside this transaction, and unwrap the remainder when this transaction created the account. False means a wSOL side must already be funded",
+      ),
   })
   .refine((value) => value.tickLower < value.tickUpper, {
     path: ["tickLower"],

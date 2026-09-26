@@ -7,7 +7,7 @@ import { withSolos } from "../runtime.js";
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access.",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access.",
   ),
 );
 
