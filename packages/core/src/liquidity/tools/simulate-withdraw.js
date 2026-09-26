@@ -1,16 +1,16 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityWithdrawInputSchema } from "../domain/types.js";
+import { LiquidityWithdrawInputSchema, isReadable } from "../domain/types.js";
 import { simulateWithdraw } from "../use-cases/simulate-withdraw.js";
 
 export const simulateWithdrawTool = defineTool({
   name: "solana_liquidity_simulate_withdraw",
   group: "liquidity",
   tier: "simulate",
-  title: "Simulate Orca position withdrawal",
+  title: "Simulate position withdrawal",
   description:
-    "Simulate removing liquidity from one existing Orca Whirlpool position without " +
+    "Simulate removing liquidity from one existing Orca or Raydium position without " +
     "submitting anything. bps is the fraction of the position's CURRENT liquidity to " +
     "remove, 1..10000 where 10000 means all of it; fractional liquidity units round down, " +
     "and a removal computing to zero liquidity is rejected. The executor quotes the " +
@@ -31,7 +31,7 @@ export const simulateWithdrawTool = defineTool({
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

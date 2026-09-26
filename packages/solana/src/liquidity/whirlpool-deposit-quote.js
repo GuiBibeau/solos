@@ -74,3 +74,17 @@ const pickLiquidity = (status, fromA, fromB) => {
   // eslint-disable-next-line unicorn/prefer-math-min-max -- Math.min coerces to Number
   return fromB < fromA ? fromB : fromA;
 };
+
+/**
+ * The encoded on-chain spend bounds: the quoted required spend plus the requested slippage
+ * tolerance (rounded up), capped by the absolute budget. A tighter tolerance therefore
+ * produces tighter bounds, and the budgets are never exceeded whatever the tolerance.
+ * @param {bigint} required @param {bigint} budget @param {number} slippageBps
+ * @returns {bigint}
+ */
+export const spendBound = (required, budget, slippageBps) => {
+  const tolerance = required * BigInt(10_000 + slippageBps);
+  const withTolerance = (tolerance + 9999n) / 10_000n;
+  // eslint-disable-next-line unicorn/prefer-math-min-max -- Math.min coerces to Number
+  return withTolerance < budget ? withTolerance : budget;
+};

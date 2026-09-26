@@ -99,5 +99,43 @@ export const RemoveLiquidityActionSchema = z.object({
   maxSlippageBps: SlippageBpsSchema,
 });
 
+/**
+ * Open a new concentrated-liquidity position at a range the **caller** chose.
+ *
+ * solOS never picks a range — that is strategy, and ADR-0006 keeps strategy upstream. It executes
+ * one that was chosen. A range unaligned to the pool's tick spacing is refused rather than
+ * rounded, because rounding would be choosing.
+ */
+export const OpenPositionActionSchema = z
+  .object({
+    type: z.literal("open_position"),
+    protocol: LiquidityProtocolSchema,
+    pool: AddressSchema,
+    tickLower: z.number().int().describe("Lower tick, inclusive; must align to the pool spacing"),
+    tickUpper: z.number().int().describe("Upper tick, exclusive; must align to the pool spacing"),
+    amountA: U64AmountSchema.describe("Maximum token A spend in canonical pool mint order"),
+    amountB: U64AmountSchema.describe("Maximum token B spend in canonical pool mint order"),
+    maxSlippageBps: SlippageBpsSchema,
+  })
+  .refine((value) => value.tickLower < value.tickUpper, {
+    path: ["tickLower"],
+    message: "tickLower must be strictly below tickUpper",
+  })
+  .refine((value) => /[1-9]/.test(value.amountA + value.amountB), {
+    message: "at least one token spend budget must be positive",
+  });
+
+/**
+ * Close an emptied position and reclaim its rent. The venue refuses while any liquidity, fee or
+ * reward is still owed, so this always follows a full removal.
+ */
+export const ClosePositionActionSchema = z.object({
+  type: z.literal("close_position"),
+  protocol: LiquidityProtocolSchema,
+  position: AddressSchema.describe("Existing protocol position account, never NFT mint"),
+});
+
+/** @typedef {z.infer<typeof OpenPositionActionSchema>} OpenPositionAction */
+/** @typedef {z.infer<typeof ClosePositionActionSchema>} ClosePositionAction */
 /** @typedef {z.infer<typeof AddLiquidityActionSchema>} AddLiquidityAction */
 /** @typedef {z.infer<typeof RemoveLiquidityActionSchema>} RemoveLiquidityAction */

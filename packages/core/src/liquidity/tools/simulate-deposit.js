@@ -1,16 +1,16 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityDepositInputSchema } from "../domain/types.js";
+import { LiquidityDepositInputSchema, isReadable } from "../domain/types.js";
 import { simulateDeposit } from "../use-cases/simulate-deposit.js";
 
 export const simulateDepositTool = defineTool({
   name: "solana_liquidity_simulate_deposit",
   group: "liquidity",
   tier: "simulate",
-  title: "Simulate Orca position deposit",
+  title: "Simulate position deposit",
   description:
-    "Simulate adding liquidity to one existing Orca Whirlpool position without submitting " +
+    "Simulate adding liquidity to one existing Orca or Raydium position without submitting " +
     "anything. amountA and amountB are the maximum spends of each token in the pool's " +
     "canonical mint order; the executor computes the liquidity they can fund, rounds down to " +
     "fit both budgets, and encodes spend bounds at the quoted amounts plus the requested " +
@@ -29,7 +29,7 @@ export const simulateDepositTool = defineTool({
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

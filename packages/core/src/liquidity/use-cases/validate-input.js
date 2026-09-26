@@ -2,6 +2,7 @@
 import { AddLiquidityActionSchema, RemoveLiquidityActionSchema } from "@solos/actions";
 import { Effect } from "effect";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { isReadable } from "../domain/types.js";
 
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | LiquidityUnsupportedProtocol} DepositValidationError */
 /** @typedef {import("../domain/types.js").LiquidityDepositInput} LiquidityDepositInput */
@@ -30,7 +31,7 @@ export const validateDepositInput = (schema, input) =>
         reason: "at least one token spend budget must be positive",
       });
     }
-    if (parsed.data.protocol !== "orca") {
+    if (!isReadable(parsed.data.protocol)) {
       return yield* new LiquidityUnsupportedProtocol({ protocol: parsed.data.protocol });
     }
     return parsed.data;
@@ -78,7 +79,7 @@ export const validateWithdrawInput = (schema, input) =>
           "1..10000, and maxSlippageBps in 0..9999 when given",
       });
     }
-    if (parsed.data.protocol !== "orca") {
+    if (!isReadable(parsed.data.protocol)) {
       return yield* new LiquidityUnsupportedProtocol({ protocol: parsed.data.protocol });
     }
     return parsed.data;

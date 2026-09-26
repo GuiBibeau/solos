@@ -28,6 +28,16 @@ export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
 export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
 
 /**
+ * Protocols whose positions solOS can create and retire, which is narrower than the ones it can
+ * read: Orca positions are opened by a different instruction family that nothing here encodes,
+ * so asking for one is refused rather than silently built against Raydium.
+ */
+export const LIFECYCLE_PROTOCOLS = Object.freeze(["raydium"]);
+
+/** @param {string} protocol */
+export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol);
+
+/**
  * One position read: `position` is the protocol position account (the Whirlpool
  * position PDA), never the position NFT mint and never the pool. An omitted owner means the
  * configured signer; an explicit owner is honored verbatim.
@@ -63,7 +73,7 @@ export const LiquidityListPositionsInputSchema = z.object({
 /** One enumeration request, after input validation. @typedef {{ readonly protocol: "orca" | "meteora" | "raydium"; readonly owner: Address }} LiquidityListPositionsRequest */
 
 /** One deposit budget: a u64 decimal string in base units, zero allowed. */
-const DepositBudgetSchema = z
+export const DepositBudgetSchema = z
   .string()
   .regex(/^\d+$/, "a u64 decimal string in base units")
   .pipe(
@@ -77,7 +87,7 @@ const DepositBudgetSchema = z
 /** The deposit request fields before the cross-field budget rule. */
 const DepositInputBaseSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
   ),
   pool: AddressSchema.describe(
     "Pool address the position belongs to; the deposit fails typed when the position references a different pool",
@@ -110,7 +120,7 @@ export const LiquidityDepositInputSchema = DepositInputBaseSchema;
  * slippage-bounded minimum receipts. The bounds live here and in the Action contract. */
 export const LiquidityWithdrawInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. Only orca (Whirlpools) is implemented; meteora and raydium fail before any network access",
+    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
   ),
   position: AddressSchema.describe(
     "Protocol position-account address (the Whirlpool position PDA), never the NFT mint and never the pool; the position is never closed and its NFT is never burned",

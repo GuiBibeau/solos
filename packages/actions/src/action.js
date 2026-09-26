@@ -9,6 +9,8 @@ import {
   LendActionSchema,
   OpenPerpActionSchema,
   OnboardPerpActionSchema,
+  ClosePositionActionSchema,
+  OpenPositionActionSchema,
   RemoveLiquidityActionSchema,
   WithdrawLendActionSchema,
   WithdrawPerpCollateralActionSchema,
@@ -79,6 +81,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   WithdrawLendActionSchema,
   AddLiquidityActionSchema,
   RemoveLiquidityActionSchema,
+  OpenPositionActionSchema,
+  ClosePositionActionSchema,
 ]);
 
 /** @typedef {z.infer<typeof ActionSchema>} Action */
@@ -99,15 +103,19 @@ export const ACTION_TYPES = [
   "withdraw_lend",
   "add_liquidity",
   "remove_liquidity",
+  "open_position",
+  "close_position",
 ];
 
 export {
   AddLiquidityActionSchema,
   ClosePerpActionSchema,
+  ClosePositionActionSchema,
   DepositPerpCollateralActionSchema,
   LendActionSchema,
   OpenPerpActionSchema,
   OnboardPerpActionSchema,
+  OpenPositionActionSchema,
   RemoveLiquidityActionSchema,
   WithdrawLendActionSchema,
   WithdrawPerpCollateralActionSchema,

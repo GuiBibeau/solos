@@ -2,10 +2,20 @@
 import { z } from "zod";
 import { ActionSchema } from "./action.js";
 import {
+  LiquidityDepositQuoteSchema,
+  LiquidityRemovalQuoteSchema,
+  PositionOpenQuoteSchema,
+} from "./liquidity-quotes.js";
+import {
   PerpCollateralQuoteSchema,
   PerpCollateralReconciliationSchema,
 } from "./perp-collateral-results.js";
 import { PortfolioStateSchema } from "./portfolio.js";
+export {
+  LiquidityDepositQuoteSchema,
+  LiquidityRemovalQuoteSchema,
+  PositionOpenQuoteSchema,
+} from "./liquidity-quotes.js";
 export {
   PerpCollateralQuoteSchema,
   PerpCollateralReconciliationSchema,
@@ -21,46 +31,6 @@ import {
 export const ViolationSchema = z.object({
   rule: z.string().min(1),
   message: z.string(),
-});
-
-/** The planned removal's quote and encoded minimum receipts, at the pre-send pool price. */
-export const LiquidityRemovalQuoteSchema = z.object({
-  kind: z.literal("removal"),
-  liquidity: AmountSchema.describe(
-    "Exact liquidity units the plan removes from the position, u128 decimal string",
-  ),
-  estA: AmountSchema.describe(
-    "Quoted token A proceeds at the pre-send pool price, base units decimal string",
-  ),
-  estB: AmountSchema.describe(
-    "Quoted token B proceeds at the pre-send pool price, base units decimal string",
-  ),
-  minA: AmountSchema.describe(
-    "Encoded on-chain minimum token A receipts, base units decimal string",
-  ),
-  minB: AmountSchema.describe(
-    "Encoded on-chain minimum token B receipts, base units decimal string",
-  ),
-});
-
-/** The planned deposit's liquidity fit and encoded spend bounds, at the pre-send pool price. */
-export const LiquidityDepositQuoteSchema = z.object({
-  kind: z.literal("deposit"),
-  liquidity: AmountSchema.describe(
-    "Exact liquidity units the plan adds to the position, u128 decimal string",
-  ),
-  requiredA: AmountSchema.describe(
-    "Quoted token A spend at the pre-send pool price, base units decimal string",
-  ),
-  requiredB: AmountSchema.describe(
-    "Quoted token B spend at the pre-send pool price, base units decimal string",
-  ),
-  tokenMaxA: AmountSchema.describe(
-    "Encoded on-chain maximum token A spend, base units decimal string",
-  ),
-  tokenMaxB: AmountSchema.describe(
-    "Encoded on-chain maximum token B spend, base units decimal string",
-  ),
 });
 
 /** The venue quote of one planned lend deposit, or null for actions without one. */
@@ -126,6 +96,7 @@ export const VenueQuoteSchema = z
     PerpCollateralQuoteSchema,
     LiquidityRemovalQuoteSchema,
     LiquidityDepositQuoteSchema,
+    PositionOpenQuoteSchema,
     LendDepositQuoteSchema,
     LendWithdrawQuoteSchema,
   ])
@@ -164,6 +135,7 @@ export const ExecutionResultSchema = z.object({
 
 /** @typedef {z.infer<typeof LiquidityRemovalQuoteSchema>} LiquidityRemovalQuote */
 /** @typedef {z.infer<typeof LiquidityDepositQuoteSchema>} LiquidityDepositQuote */
+/** @typedef {z.infer<typeof PositionOpenQuoteSchema>} PositionOpenQuote */
 /** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
 /** @typedef {z.infer<typeof LendWithdrawQuoteSchema>} LendWithdrawQuote */
 /** @typedef {z.infer<typeof PerpOnboardQuoteSchema>} PerpOnboardQuote */

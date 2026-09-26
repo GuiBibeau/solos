@@ -1,16 +1,16 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityExecuteWithdrawInputSchema } from "../domain/types.js";
+import { LiquidityExecuteWithdrawInputSchema, isReadable } from "../domain/types.js";
 import { executeWithdraw } from "../use-cases/execute-withdraw.js";
 
 export const executeWithdrawTool = defineTool({
   name: "solana_liquidity_execute_withdraw",
   group: "liquidity",
   tier: "execute",
-  title: "Execute Orca position withdrawal",
+  title: "Execute position withdrawal",
   description:
-    "Remove liquidity from one existing Orca Whirlpool position to the configured signer " +
+    "Remove liquidity from one existing Orca or Raydium position to the configured signer " +
     "wallet and wait for confirmation. Signs and submits a real transaction that moves " +
     "funds. bps is the fraction of the position's CURRENT liquidity to remove, 1..10000 " +
     "where 10000 means all of it; fractional liquidity units round down, and a removal " +
@@ -30,7 +30,7 @@ export const executeWithdrawTool = defineTool({
     "implemented: meteora and raydium fail before any network access.",
   input: LiquidityExecuteWithdrawInputSchema,
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

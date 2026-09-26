@@ -4,11 +4,17 @@ import { executeDeposit, getLpPosition, simulateDeposit } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import {
+  closeCommand,
+  openCommand,
+  simulateCloseCommand,
+  simulateOpenCommand,
+} from "./liquidity-lifecycle.js";
 import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.js";
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools) is implemented throughout; raydium (CLMM) for reads so far; meteora fails before any network access.",
+    "Liquidity protocol. orca (Whirlpools) is implemented throughout; raydium (CLMM) is implemented for reads, deposits and removals; meteora fails before any network access.",
   ),
 );
 
@@ -90,7 +96,7 @@ const simulateDepositCommand = Command.make("simulate-deposit", depositOptions, 
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate adding liquidity to one existing Orca position without submitting anything; bounds are the quoted spends plus slippage, capped by the budgets",
+    "Simulate adding liquidity to one existing Orca or Raydium position without submitting anything; bounds are the quoted spends plus slippage, capped by the budgets",
   ),
 );
 
@@ -108,13 +114,13 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Add liquidity to one existing Orca position and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+    "Add liquidity to one existing Orca or Raydium position and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
   ),
 );
 
 export const liquidity = Command.make("liquidity").pipe(
   Command.withDescription(
-    "Liquidity venues: Orca Whirlpool position reads, deposits into and bounded removals from explicitly identified existing positions",
+    "Liquidity venues: Orca and Raydium position reads, deposits into and bounded removals from explicitly identified positions, and opening or closing a Raydium position at a range you choose",
   ),
   Command.withSubcommands([
     positionCommand,
@@ -122,5 +128,9 @@ export const liquidity = Command.make("liquidity").pipe(
     depositCommand,
     simulateWithdrawCommand,
     withdrawCommand,
+    simulateOpenCommand,
+    openCommand,
+    simulateCloseCommand,
+    closeCommand,
   ]),
 );

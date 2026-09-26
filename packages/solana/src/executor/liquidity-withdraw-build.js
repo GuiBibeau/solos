@@ -23,8 +23,9 @@ import {
 } from "../liquidity/whirlpool-withdraw-instruction.js";
 import { withdrawPlan } from "../liquidity/whirlpool-withdraw-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
-import { createAta, fail, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
-import { beginV1Message, signV1Message, rejectionAfterV1Policy } from "./transaction-v1.js";
+import { liquidityRead, receivingSide, setupSides } from "./liquidity-token-accounts.js";
+import { buildSignedRaydiumWithdraw } from "./raydium-liquidity-build.js";
+import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
 const EXECUTOR = "direct-signer";
 
@@ -33,7 +34,13 @@ const EXECUTOR = "direct-signer";
 /** @typedef {import("@solos/actions").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {Awaited<ReturnType<typeof signV1Message>>} Signed */
 /** @typedef {Parameters<typeof appendTransactionMessageInstructions>[0][number]} SetupInstruction */
-/** @typedef {{ readonly signed: Signed; readonly plan: import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk }} PlannedWithdraw */
+/**
+ * What a planned withdrawal carries, narrowed to the fields `withdrawQuoteOf` consumes so both
+ * venues satisfy it.
+ * @typedef {{ readonly liquidity: bigint; readonly estA: bigint; readonly estB: bigint;
+ *   readonly minA: bigint; readonly minB: bigint }} WithdrawQuoteSource
+ */
+/** @typedef {{ readonly signed: Signed; readonly plan: WithdrawQuoteSource }} PlannedWithdraw */
 
 /**
  * Prove each receiving side. A present account needs nothing. An absent side is allowed only
@@ -45,20 +52,16 @@ const EXECUTOR = "direct-signer";
  * @param {import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk} plan
  */
 const receiptSetup = (read, kit, plan) =>
-  setupSides(read, plan.accounts, ({ row, label }) => {
-    if (row !== null && row !== undefined) return Effect.succeed(null);
-    const minimum = label === "A" ? plan.minA : plan.minB;
-    if (minimum > 0n) {
-      return fail(
-        `the token ${label} receiving account does not exist and the position owes it ` +
-          `${minimum} base units at the current price`,
-      );
-    }
-    const mint = label === "A" ? plan.mintA : plan.mintB;
-    const target =
-      label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB;
-    return Effect.succeed(createAta(kit, mint, target));
-  });
+  setupSides(read, plan.accounts, ({ row, label }) =>
+    receivingSide({
+      kit,
+      row,
+      label,
+      owed: label === "A" ? plan.minA : plan.minB,
+      mint: label === "A" ? plan.mintA : plan.mintB,
+      ata: label === "A" ? plan.accounts.tokenOwnerAccountA : plan.accounts.tokenOwnerAccountB,
+    }),
+  );
 
 /**
  * Run the plan against real RPC; its typed rejects surface as values the caller maps to
@@ -127,7 +130,7 @@ const signWithdraw = ({ ctx, kit, plan, creates }) =>
 /**
  * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
  * decimal strings, at the pre-send pool price.
- * @param {import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk} plan
+ * @param {WithdrawQuoteSource} plan
  * @returns {import("@solos/actions").LiquidityRemovalQuote}
  */
 export const withdrawQuoteOf = (plan) => ({
@@ -146,6 +149,9 @@ export const withdrawQuoteOf = (plan) => ({
  */
 export const buildSignedLiquidityWithdraw = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
+    if (action.protocol === "raydium") {
+      return yield* buildSignedRaydiumWithdraw({ ctx, kit }, action);
+    }
     if (action.protocol !== "orca") {
       return yield* new UnsupportedAction({
         actionType: `remove_liquidity:${action.protocol}`,

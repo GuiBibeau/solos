@@ -35,6 +35,18 @@ export {
 } from "./domain/types.js";
 export { executeDepositTool } from "./tools/execute-deposit.js";
 export { getLpPositionTool } from "./tools/get-position.js";
+export {
+  executeClosePositionTool,
+  executeOpenPositionTool,
+  simulateClosePositionTool,
+  simulateOpenPositionTool,
+} from "./tools/position-lifecycle.js";
+export {
+  executeClosePosition,
+  executeOpenPosition,
+  simulateClosePosition,
+  simulateOpenPosition,
+} from "./use-cases/position-lifecycle.js";
 export { simulateDepositTool } from "./tools/simulate-deposit.js";
 export { executeWithdrawTool } from "./tools/execute-withdraw.js";
 export { simulateWithdrawTool } from "./tools/simulate-withdraw.js";
@@ -42,14 +54,22 @@ export { simulateWithdrawTool } from "./tools/simulate-withdraw.js";
 import { executeDepositTool } from "./tools/execute-deposit.js";
 import { executeWithdrawTool } from "./tools/execute-withdraw.js";
 import { getLpPositionTool } from "./tools/get-position.js";
+import {
+  executeClosePositionTool,
+  executeOpenPositionTool,
+  simulateClosePositionTool,
+  simulateOpenPositionTool,
+} from "./tools/position-lifecycle.js";
 import { simulateDepositTool } from "./tools/simulate-deposit.js";
 import { simulateWithdrawTool } from "./tools/simulate-withdraw.js";
 
 /**
  * The liquidity slice's public verbs. Position reads and owner enumeration are reads; the
- * deposit twins add liquidity to an explicitly identified existing Orca position and the
- * withdraw twins remove a bounded percentage of one — no new positions, ranges, closures,
- * claims, or rebalancing.
+ * deposit twins add liquidity to an explicitly identified existing position and the withdraw
+ * twins remove a bounded percentage of one. The open and close twins create and retire a
+ * position at a range the **caller** supplies — solOS validates that range and never chooses
+ * one, so strategy stays upstream (ADR-0006). No rebalancing and no separate claim: a full
+ * removal already sweeps fees and rewards.
  * @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>}
  */
 export const liquidityTools = [
@@ -58,4 +78,8 @@ export const liquidityTools = [
   executeDepositTool,
   simulateWithdrawTool,
   executeWithdrawTool,
+  simulateOpenPositionTool,
+  executeOpenPositionTool,
+  simulateClosePositionTool,
+  executeClosePositionTool,
 ];

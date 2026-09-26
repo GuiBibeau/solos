@@ -70,4 +70,16 @@ export const POOL_STATE_OFFSETS = Object.freeze({
   tickSpacing: 235,
   sqrtPriceX64: 253,
   tickCurrent: 269,
+  rewardInfos: 397,
 });
+
+/**
+ * One `RewardInfo` in `PoolState.reward_infos`, and the fields a removal needs from it.
+ *
+ * A pool with any initialized reward requires exactly three remaining accounts per reward on
+ * `decrease_liquidity_v2`; passing none fails the removal outright, even when only liquidity was
+ * wanted. Verified against pool `3ucNos4...`, whose reward 0 is RAY with vault `HsBUudV9...`.
+ */
+export const REWARD_INFO_BYTES = 169;
+export const REWARD_INFO_COUNT = 3;
+export const REWARD_INFO_OFFSETS = Object.freeze({ state: 0, mint: 57, vault: 89 });

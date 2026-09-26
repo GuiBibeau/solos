@@ -1,16 +1,16 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityExecuteDepositInputSchema } from "../domain/types.js";
+import { LiquidityExecuteDepositInputSchema, isReadable } from "../domain/types.js";
 import { executeDeposit } from "../use-cases/execute-deposit.js";
 
 export const executeDepositTool = defineTool({
   name: "solana_liquidity_execute_deposit",
   group: "liquidity",
   tier: "execute",
-  title: "Execute Orca position deposit",
+  title: "Execute position deposit",
   description:
-    "Add liquidity to one existing Orca Whirlpool position from the configured signer wallet " +
+    "Add liquidity to one existing Orca or Raydium position from the configured signer wallet " +
     "and wait for confirmation. Signs and submits a real transaction that moves funds. " +
     "amountA and amountB are the maximum spends of each token in the pool's canonical mint " +
     "order; the executor computes the liquidity they can fund, rounds down to fit both " +
@@ -29,7 +29,7 @@ export const executeDepositTool = defineTool({
     "access.",
   input: LiquidityExecuteDepositInputSchema,
   check: (input) => {
-    if (input.protocol !== "orca") {
+    if (!isReadable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },

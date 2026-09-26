@@ -14,7 +14,7 @@ import { findAssociatedTokenPda } from "@solana-program/token";
 import { Effect } from "effect";
 import { positionAddress } from "./whirlpool-decode.js";
 import { TOKEN_PROGRAM, tickArrayAddress } from "./whirlpool-deposit-instruction.js";
-import { depositLiquidityForBudgets } from "./whirlpool-deposit-quote.js";
+import { depositLiquidityForBudgets, spendBound } from "./whirlpool-deposit-quote.js";
 import {
   guardMints,
   guardPool,
@@ -70,20 +70,6 @@ const ata = (owner, mint) =>
     mint: address(mint),
     tokenProgram: address(TOKEN_PROGRAM),
   }).then(([pda]) => pda);
-
-/**
- * The encoded on-chain spend bounds: the quoted required spend plus the requested slippage
- * tolerance (rounded up), capped by the absolute budget. A tighter tolerance therefore
- * produces tighter bounds, and the budgets are never exceeded whatever the tolerance.
- * @param {bigint} required @param {bigint} budget @param {number} slippageBps
- * @returns {bigint}
- */
-const spendBound = (required, budget, slippageBps) => {
-  const tolerance = required * BigInt(10_000 + slippageBps);
-  const withTolerance = (tolerance + 9999n) / 10_000n;
-  // eslint-disable-next-line unicorn/prefer-math-min-max -- Math.min coerces to Number
-  return withTolerance < budget ? withTolerance : budget;
-};
 
 /**
  * Derive every instruction account for one planned deposit. The PDAs derive offline; the

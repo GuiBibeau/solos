@@ -24,6 +24,9 @@ import {
   POOL_STATE_DISCRIMINATOR,
   POOL_STATE_OFFSETS,
   POSITION_SEED,
+  REWARD_INFO_BYTES,
+  REWARD_INFO_COUNT,
+  REWARD_INFO_OFFSETS,
   RAYDIUM_CLMM_PROGRAM,
 } from "./raydium-clmm-program.js";
 
@@ -31,10 +34,10 @@ const base58 = getBase58Decoder();
 const utf8 = getUtf8Encoder();
 
 /** The last byte a pool read touches, so a shorter account is refused before decoding. */
-const POOL_STATE_MIN_BYTES = POOL_STATE_OFFSETS.tickCurrent + 4;
+const POOL_STATE_MIN_BYTES = POOL_STATE_OFFSETS.rewardInfos + REWARD_INFO_BYTES * REWARD_INFO_COUNT;
 
 /** @typedef {{ readonly poolId: string; readonly nftMint: string; readonly liquidity: bigint; readonly tickLowerIndex: number; readonly tickUpperIndex: number }} RaydiumPositionLayout */
-/** @typedef {{ readonly sqrtPrice: bigint; readonly tokenMint0: string; readonly tokenMint1: string; readonly decimals0: number; readonly decimals1: number; readonly tickSpacing: number; readonly tickCurrent: number }} RaydiumPoolLayout */
+/** @typedef {{ readonly sqrtPrice: bigint; readonly tokenMint0: string; readonly tokenMint1: string; readonly tokenVault0: string; readonly tokenVault1: string; readonly decimals0: number; readonly decimals1: number; readonly tickSpacing: number; readonly tickCurrent: number; readonly rewards: ReadonlyArray<{ readonly mint: string; readonly vault: string }> }} RaydiumPoolLayout */
 /** @typedef {{ readonly status: "decoded"; readonly layout: RaydiumPositionLayout } | { readonly status: "corrupt"; readonly reason: string }} RaydiumPositionRead */
 /** @typedef {{ readonly status: "decoded"; readonly layout: RaydiumPoolLayout } | { readonly status: "corrupt"; readonly reason: string }} RaydiumPoolRead */
 
@@ -61,6 +64,23 @@ const readU128 = (view, offset) =>
 
 /** @param {Uint8Array} bytes @param {number} offset */
 const readAddress = (bytes, offset) => base58.decode(bytes.slice(offset, offset + 32));
+
+/**
+ * The pool's initialized rewards, in reward index order — the order `decrease_liquidity_v2`
+ * requires its remaining-account groups to be in. A zero state is an unused slot.
+ * @param {Uint8Array} bytes
+ */
+const initializedRewards = (bytes) =>
+  Array.from({ length: REWARD_INFO_COUNT }, (_unused, index) => {
+    const at = POOL_STATE_OFFSETS.rewardInfos + REWARD_INFO_BYTES * index;
+    return {
+      state: bytes[at + REWARD_INFO_OFFSETS.state] ?? 0,
+      mint: readAddress(bytes, at + REWARD_INFO_OFFSETS.mint),
+      vault: readAddress(bytes, at + REWARD_INFO_OFFSETS.vault),
+    };
+  })
+    .filter((reward) => reward.state !== 0)
+    .map(({ mint, vault }) => ({ mint, vault }));
 
 /** @param {string} reason @returns {{ readonly status: "corrupt"; readonly reason: string }} */
 const corrupt = (reason) => ({ status: "corrupt", reason });
@@ -115,10 +135,13 @@ export const decodePoolState = (bytes) => {
       sqrtPrice: readU128(view, POOL_STATE_OFFSETS.sqrtPriceX64),
       tokenMint0: readAddress(bytes, POOL_STATE_OFFSETS.tokenMint0),
       tokenMint1: readAddress(bytes, POOL_STATE_OFFSETS.tokenMint1),
+      tokenVault0: readAddress(bytes, POOL_STATE_OFFSETS.tokenVault0),
+      tokenVault1: readAddress(bytes, POOL_STATE_OFFSETS.tokenVault1),
       decimals0: bytes[POOL_STATE_OFFSETS.mintDecimals0] ?? 0,
       decimals1: bytes[POOL_STATE_OFFSETS.mintDecimals1] ?? 0,
       tickSpacing: view.getUint16(POOL_STATE_OFFSETS.tickSpacing, true),
       tickCurrent: view.getInt32(POOL_STATE_OFFSETS.tickCurrent, true),
+      rewards: initializedRewards(bytes),
     },
   };
 };
