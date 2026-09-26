@@ -7,26 +7,26 @@ import { withSolos } from "../runtime.js";
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access.",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented. The wallet receives token A and token B principal. Meteora does not claim fees or rewards in this transaction.",
   ),
 );
 
 const position = Options.text("position").pipe(
   Options.withDescription(
-    "Protocol position-account address (the Whirlpool position PDA); the position is never closed and its NFT is never burned.",
+    "Protocol position account: Whirlpool PDA, Raydium personal position, or Meteora PositionV2 (owner field). Never an NFT mint. The position is not closed and its range is not changed.",
   ),
 );
 
 const bps = Options.integer("bps").pipe(
   Options.withDescription(
-    "Percentage of the position's CURRENT liquidity to remove, 1..10000, where 10000 removes all of it; fractional units round down.",
+    "Fraction of CURRENT liquidity to remove, 1..10000. Meteora applies it to each occupied bin. 10000 removes every share. Fractional shares round down.",
   ),
 );
 
 const maxSlippageBps = Options.integer("max-slippage-bps").pipe(
   Options.withDefault(50),
   Options.withDescription(
-    "Price-movement tolerance in basis points, 0..9999. The on-chain minimum receipts are the quoted amounts minus this tolerance. Default 50.",
+    "Price-movement tolerance in basis points, 0..9999. On-chain minimum receipts are floor(quoted principal * (10000 - tolerance) / 10000). Fees are not included. Default 50.",
   ),
 );
 
@@ -53,7 +53,7 @@ export const simulateWithdrawCommand = Command.make(
     ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate removing a percentage of one existing Orca or Raydium position's liquidity without submitting anything; minimum receipts are the quotes minus slippage",
+    "Simulate removing liquidity from one existing Orca, Raydium, or Meteora position without submitting anything. The wallet would receive token A/B principal only; Meteora does not claim fees. Minimum receipts are the quotes minus slippage",
   ),
 );
 
@@ -72,6 +72,6 @@ export const withdrawCommand = Command.make(
     ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Remove a percentage of one existing Orca or Raydium position's liquidity and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+    "Remove liquidity from one existing Orca, Raydium, or Meteora position and wait for confirmation. The wallet receives token A/B principal; Meteora does not claim fees. Simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
   ),
 );

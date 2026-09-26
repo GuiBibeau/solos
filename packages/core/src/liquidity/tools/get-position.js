@@ -19,9 +19,9 @@ export const getLpPositionTool = defineTool({
     "owner field must equal the requested owner. A missing, foreign-owned, or corrupt " +
     "position is a typed error, never a fabricated zero; an owned zero-liquidity position " +
     "is a successful zero read. owner defaults to the configured signer, so any third " +
-    "party's position can be read by naming its owner. valueUsd is always null. Withdrawals " +
-    "still reject meteora; deposits add to the existing bins only. Read-only: nothing is " +
-    "deposited, withdrawn, claimed, or signed.",
+    "party's position can be read by naming its owner. valueUsd is always null. Deposits " +
+    "and withdrawals stay inside the existing bins. Opens and closes still reject meteora. " +
+    "Read-only: nothing is deposited, withdrawn, claimed, or signed.",
   input: LiquidityGetPositionInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

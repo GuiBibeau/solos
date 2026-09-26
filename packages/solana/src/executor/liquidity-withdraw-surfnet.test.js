@@ -2,13 +2,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { tickIndexToSqrtPrice } from "@orca-so/whirlpools-core";
 import { getBase64Codec, getTransactionDecoder } from "@solana/kit";
-import {
-  BuildRejected,
-  executeWithdraw,
-  LiquidityUnsupportedProtocol,
-  SimulationFailed,
-  simulateWithdraw,
-} from "@solos/core";
+import { BuildRejected, executeWithdraw, SimulationFailed, simulateWithdraw } from "@solos/core";
 import { Cause, Effect, Option } from "effect";
 import { SolanaTestLive } from "../index.js";
 import { seedWhirlpool, seedWhirlpoolPosition } from "../liquidity/liquidity-seeds.js";
@@ -186,20 +180,6 @@ describe("liquidity withdraw executor against Surfnet [integration]", () => {
       "does not hold the position NFT",
     );
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
-  });
-
-  test("meteora fails the protocol gate before the executor touches anything", async () => {
-    const seed = randomSeed();
-    const reads = rpc.callsFor("getMultipleAccounts").length;
-    const failure = await failureOf(
-      simulateWithdraw({
-        ...intent("2".repeat(44)),
-        protocol: /** @type {"orca"} */ ("meteora"),
-      }),
-      seed,
-    );
-    expect(failure).toBeInstanceOf(LiquidityUnsupportedProtocol);
-    expect(rpc.callsFor("getMultipleAccounts").length).toBe(reads);
   });
 
   test("the execute twin also refuses to send when its simulation fails", async () => {

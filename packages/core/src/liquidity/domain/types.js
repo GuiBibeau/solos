@@ -13,8 +13,8 @@ import { AddressSchema } from "../../shared/domain/address.js";
 /**
  * The venue selector, mirroring the merged contract enum in `@solos/actions`
  * (trading-primitives LiquidityProtocolSchema, not exported from the published index).
- * Point reads and owner enumeration cover orca, raydium, and meteora. Withdrawals are narrower
- * than deposits: meteora can be deposited into and still cannot be withdrawn.
+ * Point reads, deposits, withdrawals, and owner enumeration cover orca, raydium, and meteora.
+ * Opens and closes stay on raydium.
  */
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 
@@ -22,12 +22,12 @@ export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
  * Protocols with a withdrawal adapter. Deposits are {@link DEPOSIT_PROTOCOLS}. Owner
  * enumeration is {@link ENUMERATION_PROTOCOLS}.
  */
-export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
+export const READ_PROTOCOLS = Object.freeze(["orca", "raydium", "meteora"]);
 
 /** @param {string} protocol */
 export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
 
-/** Protocols with a deposit adapter. Withdrawals stay on {@link READ_PROTOCOLS}. */
+/** Protocols with a deposit adapter. Withdrawals are {@link READ_PROTOCOLS}. */
 export const DEPOSIT_PROTOCOLS = Object.freeze(["orca", "raydium", "meteora"]);
 
 /** @param {string} protocol */
@@ -67,7 +67,7 @@ export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol)
  */
 export const LiquidityGetPositionInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Withdrawals still reject meteora; deposits add to the position's existing bins only",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals stay inside the position's existing bins. Opens and closes still reject meteora",
   ),
   position: AddressSchema.describe(
     "Protocol position-account address: the Whirlpool position PDA on orca, the PersonalPositionState PDA on raydium, the PositionV2 account on meteora. Never an NFT mint and never the pool",
@@ -80,7 +80,7 @@ export const LiquidityGetPositionInputSchema = z.object({
 /** One owner enumeration: whose LP positions to list. Omitted means the configured signer. */
 export const LiquidityListPositionsInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Withdrawals still reject meteora; deposits add to the position's existing bins only",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Deposits and withdrawals stay inside the position's existing bins. Opens and closes still reject meteora",
   ),
   owner: AddressSchema.optional().describe(
     "Owner to enumerate. Defaults to the configured signer wallet",
@@ -110,7 +110,7 @@ export const DepositBudgetSchema = z
 /** The deposit request fields before the cross-field budget rule. */
 const DepositInputBaseSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Withdrawals still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Opens and closes still reject meteora",
   ),
   pool: AddressSchema.describe(
     "Pool address the position belongs to; the deposit fails typed when the position references a different pool",
@@ -149,10 +149,10 @@ export const LiquidityDepositInputSchema = DepositInputBaseSchema;
  * slippage-bounded minimum receipts. The bounds live here and in the Action contract. */
 export const LiquidityWithdrawInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) withdrawals are implemented. Opens and closes still reject meteora",
   ),
   position: AddressSchema.describe(
-    "Protocol position-account address (the Whirlpool position PDA), never the NFT mint and never the pool; the position is never closed and its NFT is never burned",
+    "Protocol position account: the Whirlpool PDA, the Raydium personal position, or the Meteora PositionV2 account (its owner field). Never an NFT mint and never the pool. The position is not closed and its range is not changed",
   ),
   bps: z
     .number()
@@ -160,7 +160,7 @@ export const LiquidityWithdrawInputSchema = z.object({
     .min(1)
     .max(10_000)
     .describe(
-      "Percentage of the position's CURRENT liquidity to remove, in basis points: 1..10000, where 10000 removes all liquidity now held. Fractional units are rounded down; a removal that computes to zero liquidity is rejected",
+      "Fraction of the position's CURRENT liquidity to remove, in basis points: 1..10000. Meteora applies it independently to each occupied bin. 10000 removes every share. Fractional shares round down; a removal that computes to zero liquidity is rejected",
     ),
   maxSlippageBps: z
     .number()
@@ -169,7 +169,7 @@ export const LiquidityWithdrawInputSchema = z.object({
     .max(9999)
     .default(50)
     .describe(
-      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). The on-chain minimum token receipts are the quoted amounts minus this tolerance; a price move that would pay a side under its minimum aborts on chain",
+      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). Minimum receipts are floor(quoted principal * (10000 - tolerance) / 10000) and are encoded on chain. The quote is liquidity principal only: Meteora does not claim fees or rewards in this transaction. Meteora also refuses on chain if the active bin moves more than ceil(maxSlippageBps / binStep) bins",
     ),
 });
 
