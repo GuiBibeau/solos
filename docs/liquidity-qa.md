@@ -145,9 +145,9 @@ matches is `LiquidityEnumerationIncomplete`. The withdrawal round is
 ## Meteora DLMM deposit (#154)
 
 **Status: one funded mainnet deposit is recorded.** Kernel ran it on the #154 head
-`87b514be86046b23d1412e26481138804ad33ae2`. Open and close still refuse meteora. Gui asked
-to recuperate these funds after the track. That cleanup was not part of this round. The
-later removal is [Meteora DLMM withdraw (#156)](#meteora-dlmm-withdraw-156).
+`87b514be86046b23d1412e26481138804ad33ae2`. On that code, open and close still refuse
+meteora. Gui asked to recuperate these funds after the track. That cleanup was not part of
+this round. The later removal is [Meteora DLMM withdraw (#156)](#meteora-dlmm-withdraw-156).
 
 The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq`. The position already
 existed. Kernel ran `simulate-deposit`, then `deposit`, with `maxSlippageBps` 50 and caps of
@@ -165,34 +165,102 @@ Recorded result:
 - liquidity increased
 - simulation succeeded, 67599 compute units, `violations` `[]`
 - signature `5fnTWddQTckyCWbJkPHBn8CoaAuAkhwg8u9vmnjxKG3tnHtWPL5K7YU4TuKWDa7tzD8kDcm561J796gVY5uRi5Go`
+- venue quote `requiredA` 816578 and `requiredB` 999994, raw
+- wallet raw delta −816578 USDC and −999994 USDT
+- position raw delta +816583 USDC and +999989 USDT
 
+The wallet display line is those raw wallet deltas, rounded to three decimal places. The
+position display lines change by those raw position deltas, rounded to three decimal places.
 Asymmetric fill is expected for this bin distribution.
+
+This round did not record the exact liquidity share change, the SOL delta, the transaction
+fee, locked rent, or residual fee and reward exposure.
 
 ## Meteora DLMM withdraw (#156)
 
 **Status: one funded mainnet removal is recorded.** Kernel ran it on the #156 head
-`19473131186768189a2ca684e86b90d545f18ce1`, before that branch was updated. Open and close
-still refuse meteora (#144).
+`19473131186768189a2ca684e86b90d545f18ce1`, before that branch was updated. On that code,
+open and close still refuse meteora (#144).
 
-The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. The
-position already existed. `maxSlippageBps` was 50.
+The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. Position
+`8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM` already existed. The owner is
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`. `maxSlippageBps` was 50. Both sends use
+those accounts and that cap.
 
-Recorded result:
+The partial removal used `bps` 2500. Signature
+`5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm`.
 
-- position `8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM`
-- owner `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`
-- pair `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` (USDC/USDT)
-- maxSlippageBps 50
-- partial `bps` 2500, signature
-  `5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm`:
-  liquidity −25%; wallet +0.965 USDC / +0.989 USDT
-- full `bps` 10000, signature
-  `3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz`:
-  liquidity shares 0; position tokens 0/0
-- overall wallet from the start of the remove: +3.860 USDC / +3.956 USDT
+- simulation quote `estA` 965122 and `estB` 989012, raw
+- liquidity `144030935790571124226517579` → `108023201842928343169888189`
+- position USDC 3.860492 → 2.895370, USDT 3.956059 → 2.967047
+- wallet USDC 9.844564 → 10.809686 (+0.965122), USDT 7.383163 → 8.372175 (+0.989012)
+- SOL −0.000105, about 105000 lamports of fee
 
-The PositionV2 account may still exist empty. Full unwind and close are #144 and later
-cleanup, not this round.
+The full removal used `bps` 10000. Signature
+`3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz`.
+
+- liquidity share 0
+- position USDC 0, USDT 0
+- wallet USDC 10.809686 → 13.705056 (+2.895370), USDT 8.372175 → 11.339222 (+2.967047)
+- SOL −0.000105, about 105000 lamports of fee
+
+The two recorded wallet deltas sum to +3.860492 USDC and +3.956059 USDT.
+
+The full exit has no recorded simulation `estA` or `estB`, and no `min_withdraw_x` or
+`min_withdraw_y` floors. Residual fee and reward were not measured. The removal is
+`NoShrinkBoth` and does not claim fees.
+
+The PositionV2 account may still exist empty. Full unwind and close of this position are
+not this round. A later round opened and closed a different position. That round is
+[Meteora DLMM open to close (#144)](#meteora-dlmm-open-to-close-144).
+
+## Meteora DLMM open to close (#144)
+
+**Status: one funded mainnet open, two deposits, withdraw, and close is recorded.** The
+shipped commit is `7f17712c42e98cd33e6422cc1eba6e05c8e62edf`, the squash merge of #171. This
+note does not claim Surfpool coverage.
+
+The pool is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. The owner is
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`. Position
+`9bebk4KxuSB9xg2zaKst5cfVxBhJmrxDDy1CqpKeuxuX` was opened in this round and closed after the
+withdraw. The open used `activeId` 1, `lowerBinId` -1, and `width` 5. Deposit and withdraw
+used `maxSlippageBps` 50. The named deposit caps were 1 USDC and 1 USDT, 1000000 base units
+each.
+
+Open. Signature
+`4kB6n1r5r6FaFADb3gwFzrRG4yiXTZTb1KXY3YwxsmLSeA93oJH3LGzu7v5RkyWhPrViNi1phvUTceSwGX5w2utd`.
+Simulation compute units 10030. SOL −0.04200984, recorded as rent.
+
+Two deposits landed about 36 seconds apart. Each call set `amountX` 703250 and `amountY`
+999993, both within the named 1000000 caps. Each wallet transfer was −703249 USDC and
+−999991 USDT.
+
+The first deposit signature is
+`5UUmAgf52LQ35miTBF6NcUP2EwM5SvAJgsrD2Uud9TYD7rGAZRzUTdfpBEP6vRyeh3oAg8YGKBSU481d8ppPZMw3`.
+Simulation compute units and the venue quote were not recorded for this send.
+
+The second deposit signature is
+`2fSMieCgZCzmMtmfqsfUMfVZQAq8M8UjiRWphKLY2PZ4d9BVbzau1YHwqpkHKdh6pV9YNb3K7hKp5p8X1iX9DybT`.
+It used the same `amountX`, `amountY`, and wallet transfer. Simulation compute units were
+48577. Venue `requiredA` was 703249 and `requiredB` was 999991, equal to that wallet transfer.
+
+The two wallet transfers sum to −1406498 USDC and −1999982 USDT.
+
+Withdraw. Signature
+`659VgBqNiZ9ic27Rm9kkc3zYsQRWUEAxNgo7HquBrJvsK54iqjM3vxaYzNr7bSXh9fLUQMMiQc7h76vALunbZH11`.
+Simulation compute units 45689. The withdraw returned essentially that combined deposit
+transfer. Exact withdraw token amounts were not recorded. `bps`, `estA`, `estB`,
+`min_withdraw_x`, and `min_withdraw_y` were not recorded.
+
+Close. Signature
+`2cqDXY74xB2LymtVw2T1wuUceaXRhV86KjzZk7pZ66bsbUfsRfaW9UsZoXhGU2vkBT9XhdASdMyY7Xt5drux2DzF`.
+Simulation compute units 6364. SOL +0.04179484, recorded as rent returned. The position
+account was closed.
+
+From before the open to after the close, the wallet token net is +18 USDC and −23 USDT base
+units. The recorded net SOL fee is −0.00053. That figure is not the ~0.057 SOL rent estimate.
+This note does not derive the net by subtracting the open and close SOL lines. Deposit and
+withdraw SOL deltas were not recorded. Residual fee and reward were not measured.
 
 ## Deposits into an existing position (#30)
 

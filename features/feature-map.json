@@ -1,1 +1,255 @@
-[]
+[
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "meteora",
+    "issue": 154,
+    "codeSha": "87b514be86046b23d1412e26481138804ad33ae2",
+    "cluster": "mainnet",
+    "position": "8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-deposit-154",
+    "sends": [
+      {
+        "signature": "5fnTWddQTckyCWbJkPHBn8CoaAuAkhwg8u9vmnjxKG3tnHtWPL5K7YU4TuKWDa7tzD8kDcm561J796gVY5uRi5Go",
+        "simulation": {
+          "computeUnits": 67599,
+          "violations": []
+        },
+        "venue": {
+          "requiredA": "816578",
+          "requiredB": "999994"
+        },
+        "wallet": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "-816578" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "-999994" }
+        },
+        "positionTokens": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "816583" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "999989" }
+        }
+      }
+    ],
+    "gaps": [
+      "Open and close still refuse meteora on this code SHA.",
+      "Recuperation of the deposited funds was not part of this round. Removal is #156.",
+      "The exact liquidity share change was not recorded. The notes only say liquidity increased.",
+      "The SOL delta, transaction fee, and locked rent were not recorded.",
+      "Residual fee and reward exposure after the deposit was not recorded."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "meteora",
+    "issue": 156,
+    "codeSha": "19473131186768189a2ca684e86b90d545f18ce1",
+    "cluster": "mainnet",
+    "position": "8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-withdraw-156",
+    "sends": [
+      {
+        "bps": 2500,
+        "signature": "5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm",
+        "simulation": {
+          "estA": "965122",
+          "estB": "989012"
+        },
+        "liquidity": {
+          "before": "144030935790571124226517579",
+          "after": "108023201842928343169888189"
+        },
+        "positionTokens": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "3.860492",
+            "after": "2.895370"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "display",
+            "before": "3.956059",
+            "after": "2.967047"
+          }
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "9.844564",
+            "after": "10.809686",
+            "delta": "+0.965122"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "display",
+            "before": "7.383163",
+            "after": "8.372175",
+            "delta": "+0.989012"
+          },
+          "sol": { "delta": "-0.000105", "feeLamportsApprox": "~105000" }
+        }
+      },
+      {
+        "bps": 10000,
+        "signature": "3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz",
+        "liquidity": { "after": "0" },
+        "positionTokens": {
+          "a": { "symbol": "USDC", "unit": "display", "after": "0" },
+          "b": { "symbol": "USDT", "unit": "display", "after": "0" }
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "10.809686",
+            "after": "13.705056",
+            "delta": "+2.895370"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "display",
+            "before": "8.372175",
+            "after": "11.339222",
+            "delta": "+2.967047"
+          },
+          "sol": { "delta": "-0.000105", "feeLamportsApprox": "~105000" }
+        }
+      }
+    ],
+    "gaps": [
+      "The full exit has no recorded simulation estA or estB, and no min_withdraw_x or min_withdraw_y floors.",
+      "Residual fee and reward were not measured. The path is NoShrinkBoth and does not claim fees.",
+      "The PositionV2 account may still exist empty. Close is #144, not this round."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "open_position",
+    "protocol": "meteora",
+    "issue": 144,
+    "codeSha": "7f17712c42e98cd33e6422cc1eba6e05c8e62edf",
+    "cluster": "mainnet",
+    "position": "9bebk4KxuSB9xg2zaKst5cfVxBhJmrxDDy1CqpKeuxuX",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-open-to-close-144",
+    "open": { "activeId": 1, "lowerBinId": -1, "width": 5 },
+    "sends": [
+      {
+        "signature": "4kB6n1r5r6FaFADb3gwFzrRG4yiXTZTb1KXY3YwxsmLSeA93oJH3LGzu7v5RkyWhPrViNi1phvUTceSwGX5w2utd",
+        "simulation": { "computeUnits": 10030 },
+        "wallet": { "sol": { "delta": "-0.04200984" } }
+      }
+    ],
+    "gaps": ["Residual fee and reward were not measured.", "Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "meteora",
+    "issue": 144,
+    "codeSha": "7f17712c42e98cd33e6422cc1eba6e05c8e62edf",
+    "cluster": "mainnet",
+    "position": "9bebk4KxuSB9xg2zaKst5cfVxBhJmrxDDy1CqpKeuxuX",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-open-to-close-144",
+    "sends": [
+      {
+        "signature": "5UUmAgf52LQ35miTBF6NcUP2EwM5SvAJgsrD2Uud9TYD7rGAZRzUTdfpBEP6vRyeh3oAg8YGKBSU481d8ppPZMw3",
+        "instructionAmounts": { "amountX": "703250", "amountY": "999993" },
+        "budgets": {
+          "a": { "symbol": "USDC", "unit": "raw", "amount": "1000000" },
+          "b": { "symbol": "USDT", "unit": "raw", "amount": "1000000" }
+        },
+        "wallet": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "-703249" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "-999991" }
+        }
+      },
+      {
+        "signature": "2fSMieCgZCzmMtmfqsfUMfVZQAq8M8UjiRWphKLY2PZ4d9BVbzau1YHwqpkHKdh6pV9YNb3K7hKp5p8X1iX9DybT",
+        "simulation": { "computeUnits": 48577 },
+        "venue": { "requiredA": "703249", "requiredB": "999991" },
+        "instructionAmounts": { "amountX": "703250", "amountY": "999993" },
+        "budgets": {
+          "a": { "symbol": "USDC", "unit": "raw", "amount": "1000000" },
+          "b": { "symbol": "USDT", "unit": "raw", "amount": "1000000" }
+        },
+        "wallet": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "-703249" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "-999991" }
+        }
+      }
+    ],
+    "gaps": [
+      "Simulation compute units and venue required amounts were recorded for the second send only.",
+      "Residual fee and reward were not measured.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "meteora",
+    "issue": 144,
+    "codeSha": "7f17712c42e98cd33e6422cc1eba6e05c8e62edf",
+    "cluster": "mainnet",
+    "position": "9bebk4KxuSB9xg2zaKst5cfVxBhJmrxDDy1CqpKeuxuX",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-open-to-close-144",
+    "sends": [
+      {
+        "signature": "659VgBqNiZ9ic27Rm9kkc3zYsQRWUEAxNgo7HquBrJvsK54iqjM3vxaYzNr7bSXh9fLUQMMiQc7h76vALunbZH11",
+        "simulation": { "computeUnits": 45689 }
+      }
+    ],
+    "gaps": [
+      "Exact withdraw token amounts were not recorded. The notes say the withdraw returned essentially the sum of the two deposit transfers.",
+      "bps, estA, estB, min_withdraw_x, and min_withdraw_y were not recorded.",
+      "Residual fee and reward were not measured.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "close_position",
+    "protocol": "meteora",
+    "issue": 144,
+    "codeSha": "7f17712c42e98cd33e6422cc1eba6e05c8e62edf",
+    "cluster": "mainnet",
+    "position": "9bebk4KxuSB9xg2zaKst5cfVxBhJmrxDDy1CqpKeuxuX",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-open-to-close-144",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.00053",
+      "tokens": {
+        "a": { "symbol": "USDC", "unit": "raw", "delta": "+18" },
+        "b": { "symbol": "USDT", "unit": "raw", "delta": "-23" }
+      }
+    },
+    "sends": [
+      {
+        "signature": "2cqDXY74xB2LymtVw2T1wuUceaXRhV86KjzZk7pZ66bsbUfsRfaW9UsZoXhGU2vkBT9XhdASdMyY7Xt5drux2DzF",
+        "simulation": { "computeUnits": 6364 },
+        "wallet": { "sol": { "delta": "+0.04179484" } }
+      }
+    ],
+    "gaps": [
+      "The recorded net SOL fee is -0.00053. It is not the ~0.057 SOL rent estimate. Deposit and withdraw SOL deltas were not recorded, so this note does not subtract the open and close SOL lines to produce that net.",
+      "Residual fee and reward were not measured.",
+      "Surfpool coverage is not claimed."
+    ]
+  }
+]
