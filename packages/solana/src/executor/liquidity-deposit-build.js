@@ -22,6 +22,7 @@ import {
 import { depositPlan } from "../liquidity/whirlpool-deposit-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { fundingSide, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { buildSignedMeteoraDeposit } from "./meteora-liquidity-build.js";
 import { buildSignedRaydiumDeposit } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
@@ -155,7 +156,8 @@ export const depositQuoteOf = (plan) => ({
 });
 
 /**
- * Build and sign one deposit. Refuses anything but an Orca position before any RPC.
+ * Build and sign one deposit. Orca is assembled here. Raydium and Meteora dispatch to their
+ * own builders. Any other protocol is refused before RPC.
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {AddLiquidityAction} action
  * @returns {import("effect").Effect.Effect<PlannedDeposit, import("@solos/core").ExecutorError>}
  */
@@ -163,6 +165,9 @@ export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol === "raydium") {
       return yield* buildSignedRaydiumDeposit({ ctx, kit }, action);
+    }
+    if (action.protocol === "meteora") {
+      return yield* buildSignedMeteoraDeposit({ ctx, kit }, action);
     }
     if (action.protocol !== "orca") {
       return yield* new UnsupportedAction({
