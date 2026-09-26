@@ -131,6 +131,21 @@ export const mintPrograms = (reader, pool) =>
   });
 
 /**
+ * The token program that owns the position NFT, read off the custody account instead of assumed.
+ * Raydium mints a position NFT under whichever program opened it: `open_position_v2` mints a
+ * classic SPL one and most positions in existence are those, while the Token-2022 form solOS
+ * opens with mints a Token-2022 one. `close_position` is checked against the real one, so it is
+ * read here the same way `mintPrograms` reads a pool mint's program.
+ * @param {Pick<Reader, "rows">} reader @param {string} nftAccount
+ */
+export const positionNftProgram = (reader, nftAccount) =>
+  Effect.map(reader.rows([nftAccount]), ([row]) =>
+    row === null || row === undefined
+      ? reject(`the position NFT account ${nftAccount} is missing`)
+      : { program: row.owner },
+  );
+
+/**
  * Every account the instruction lists, derived from the guarded reads. The bitmap extension is
  * included only when the arithmetic says the position's arrays fall outside the default bitmap.
  * @param {{ owner: string; positionAddress: string; nftAccount: string;

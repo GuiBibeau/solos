@@ -98,15 +98,22 @@ export const seedRaydiumPool = async (rpcUrl, o) => {
 /**
  * Seed one Raydium position at its derived PDA, with the NFT in the owner's ATA as the custody
  * proof — the same account the instruction passes as `position_nft_account`.
+ *
+ * `nftProgram` says which open instruction minted that NFT. The classic default is the shape a
+ * position opened by `open_position_v2` has, which is most of them; solOS's own opens produce the
+ * Token-2022 shape. The returned `nftProgram` is what a close must name as its token program.
  * @param {string} rpcUrl
  * @param {{ poolId: string; owner?: string; liquidity?: bigint; tickLower?: number;
- *   tickUpper?: number; discriminator?: Uint8Array; accountOwner?: string }} o
+ *   tickUpper?: number; discriminator?: Uint8Array; accountOwner?: string;
+ *   nftProgram?: string }} o
  */
 export const seedRaydiumPosition = async (rpcUrl, o) => {
   const write = accountWriter(rpcUrl);
   const nftMint = randomAddress();
+  const nftProgram = o.nftProgram ?? TOKEN_PROGRAM;
   if (o.owner !== undefined) {
-    await write(await ataAddress(o.owner, nftMint), TOKEN_PROGRAM, nftBytes(o.owner, nftMint));
+    const custody = await ataAddress(o.owner, nftMint, nftProgram);
+    await write(custody, nftProgram, nftBytes(o.owner, nftMint));
   }
   const position = await personalPositionAddress(nftMint);
   await write(
@@ -114,5 +121,5 @@ export const seedRaydiumPosition = async (rpcUrl, o) => {
     o.accountOwner ?? RAYDIUM_CLMM_PROGRAM,
     raydiumPositionBytes({ ...o, nftMint }),
   );
-  return { position, nftMint };
+  return { position, nftMint, nftProgram };
 };
