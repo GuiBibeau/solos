@@ -11,7 +11,8 @@
  * Complete or failed. More than MAX_POSITION_CANDIDATES accounts is
  * LiquidityEnumerationIncomplete. One undecodable account fails the whole enumeration
  * with LiquidityPositionUnavailable, the same typed error Orca and Raydium raise for a
- * present account that does not decode.
+ * present account that does not decode. Pairs, bin arrays, and mints are then fetched
+ * once across the whole set, not once per position.
  */
 import { address, getBase58Decoder } from "@solana/kit";
 import { LiquidityEnumerationIncomplete, LiquidityPositionUnavailable } from "@solos/core";
@@ -20,12 +21,12 @@ import { base64AccountData } from "../market/mint-account.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { MAX_POSITION_CANDIDATES } from "./liquidity-enumerate-select.js";
 import { decodePositionV2 } from "./meteora-dlmm-decode.js";
+import { positionsFromFound } from "./meteora-dlmm-enumerate-accounts.js";
 import {
   METEORA_DLMM_PROGRAM,
   POSITION_V2_DISCRIMINATOR,
   POSITION_V2_OFFSETS,
 } from "./meteora-dlmm-program.js";
-import { meteoraLpFromLayout } from "./meteora-dlmm-read.js";
 
 /** @typedef {import("../market/account-read.js").AccountRead} AccountRead */
 /** @typedef {import("./meteora-dlmm-decode.js").MeteoraPositionLayout} MeteoraPositionLayout */
@@ -127,10 +128,6 @@ export const listMeteoraPositionsLive = (read, request) =>
       (row) => decodeOwnedPosition(request.owner, scannedPosition(row)),
       { concurrency: 1 },
     );
-    const positions = yield* Effect.forEach(
-      found,
-      (item) => meteoraLpFromLayout(read, item.address, item.layout),
-      { concurrency: 1 },
-    );
+    const positions = yield* positionsFromFound(read, found);
     return { positions, perpAccounts: [], receiptMints: [] };
   });

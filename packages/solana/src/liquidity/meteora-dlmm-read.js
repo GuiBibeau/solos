@@ -167,8 +167,8 @@ const pairDecimals = (read, position, pair) =>
   });
 
 /**
- * Map an already-decoded PositionV2 into the LP contract. The point read and owner
- * enumeration share this so a listed position cannot drift from a direct read.
+ * Map an already-decoded PositionV2 into the LP contract for one point read. Owner
+ * enumeration batches the same guards across positions instead of calling this per row.
  * @param {AccountRead} read
  * @param {string} position
  * @param {MeteoraPositionLayout} layout
