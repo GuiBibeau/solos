@@ -66,4 +66,4 @@ The full catalog is [Tools](docs/reference/tools/index.md). A deeper Learn path 
 
 ## License
 
-Apache-2.0. Copyright 2026 Solana Foundation.
+Apache-2.0. Copyright 2026 Guillaume Bibeau Laviolette.
