@@ -145,9 +145,9 @@ matches is `LiquidityEnumerationIncomplete`. The withdrawal round is
 ## Meteora DLMM deposit (#154)
 
 **Status: one funded mainnet deposit is recorded.** Kernel ran it on the #154 head
-`87b514be86046b23d1412e26481138804ad33ae2`. Open and close still refuse meteora. Gui asked
-to recuperate these funds after the track. That cleanup was not part of this round. The
-later removal is [Meteora DLMM withdraw (#156)](#meteora-dlmm-withdraw-156).
+`87b514be86046b23d1412e26481138804ad33ae2`. On that code, open and close still refuse
+meteora. Gui asked to recuperate these funds after the track. That cleanup was not part of
+this round. The later removal is [Meteora DLMM withdraw (#156)](#meteora-dlmm-withdraw-156).
 
 The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq`. The position already
 existed. Kernel ran `simulate-deposit`, then `deposit`, with `maxSlippageBps` 50 and caps of
@@ -173,11 +173,14 @@ The wallet display line is those raw wallet deltas, rounded to three decimal pla
 position display lines change by those raw position deltas, rounded to three decimal places.
 Asymmetric fill is expected for this bin distribution.
 
+This round did not record the exact liquidity share change, the SOL delta, the transaction
+fee, locked rent, or residual fee and reward exposure.
+
 ## Meteora DLMM withdraw (#156)
 
 **Status: one funded mainnet removal is recorded.** Kernel ran it on the #156 head
-`19473131186768189a2ca684e86b90d545f18ce1`, before that branch was updated. Open and close
-still refuse meteora (#144).
+`19473131186768189a2ca684e86b90d545f18ce1`, before that branch was updated. On that code,
+open and close still refuse meteora (#144).
 
 The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. Position
 `8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM` already existed. The owner is
@@ -207,8 +210,49 @@ The full exit has no recorded simulation `estA` or `estB`, and no `min_withdraw_
 `min_withdraw_y` floors. Residual fee and reward were not measured. The removal is
 `NoShrinkBoth` and does not claim fees.
 
-The PositionV2 account may still exist empty. Full unwind and close are #144 and later
-cleanup, not this round.
+The PositionV2 account may still exist empty. Full unwind and close of this position are
+not this round. A later round opened and closed a different position. That round is
+[Meteora DLMM open to close (#144)](#meteora-dlmm-open-to-close-144).
+
+## Meteora DLMM open to close (#144)
+
+**Status: one funded mainnet open, deposit, withdraw, and close is recorded.** Kernel ran it
+on the #171 head `4e11eb8d640b41147c5f96c67a536dfe5444ff5c`. #171 has not merged. This note
+does not claim Surfpool coverage.
+
+The pool is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. The owner is
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`. Position
+`9bebk4KxuSB9xg2zaKst5cfVxBhJmrxDDy1CqpKeuxuX` was opened in this round and closed after the
+withdraw. The open used `activeId` 1, `lowerBinId` -1, and `width` 5. Deposit and withdraw
+used `maxSlippageBps` 50. The named deposit caps were 1 USDC and 1 USDT, 1000000 base units
+each.
+
+Open. Signature
+`4kB6n1r5r6FaFADb3gwFzrRG4yiXTZTb1KXY3YwxsmLSeA93oJH3LGzu7v5RkyWhPrViNi1phvUTceSwGX5w2utd`.
+Simulation compute units 10030. SOL −0.04200984, recorded as rent.
+
+Deposit. Signature
+`2fSMieCgZCzmMtmfqsfUMfVZQAq8M8UjiRWphKLY2PZ4d9BVbzau1YHwqpkHKdh6pV9YNb3K7hKp5p8X1iX9DybT`.
+Simulation compute units 48577. The simulation quote was `requiredA` about 703249 and
+`requiredB` about 999991. The on-chain spend was −1406498 USDC and −1999982 USDT. That spend
+is over the named 1000000 and 1000000 caps. Forge is investigating caps and allocate against
+`maxSlippage`. This note records the gap and does not record a fix.
+
+Withdraw. Signature
+`659VgBqNiZ9ic27Rm9kkc3zYsQRWUEAxNgo7HquBrJvsK54iqjM3vxaYzNr7bSXh9fLUQMMiQc7h76vALunbZH11`.
+Simulation compute units 45689. The withdraw returned essentially that on-chain deposit
+spend. Exact withdraw token amounts were not recorded. `bps`, `estA`, `estB`,
+`min_withdraw_x`, and `min_withdraw_y` were not recorded.
+
+Close. Signature
+`2cqDXY74xB2LymtVw2T1wuUceaXRhV86KjzZk7pZ66bsbUfsRfaW9UsZoXhGU2vkBT9XhdASdMyY7Xt5drux2DzF`.
+Simulation compute units 6364. SOL +0.04179484, recorded as rent returned. The position
+account was closed.
+
+From before the open to after the close, the wallet token net is +18 USDC and −23 USDT base
+units. The recorded net SOL fee is −0.00053. That figure is not the ~0.057 SOL rent estimate.
+This note does not derive the net by subtracting the open and close SOL lines. Deposit and
+withdraw SOL deltas were not recorded. Residual fee and reward were not measured.
 
 ## Deposits into an existing position (#30)
 
