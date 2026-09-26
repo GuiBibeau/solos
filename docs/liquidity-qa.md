@@ -86,8 +86,9 @@ Offline tests seed PositionV2, LbPair, and BinArray accounts under
 the pinned bin math. They do not prove what a live pair holds.
 
 **Status: the zero-spend read is done.** Run on 2026-09-26. Nothing was signed or sent.
-Deposits and withdrawals still refuse meteora with `LiquidityUnsupportedProtocol` before
-any network access. Owner enumeration is a separate zero-spend round below.
+Withdraw, open, and close still refuse meteora with `LiquidityUnsupportedProtocol` before
+any network access. The funded deposit round is
+[below](#meteora-dlmm-deposit-154). Owner enumeration is a separate zero-spend round.
 
 The position is a third party's, so the command names `--owner`. Startup still needs
 `SOLANA_RPC_URL` and a configured signer.
@@ -112,10 +113,9 @@ Recorded result:
 - the bin window sits entirely below the active bin, so the position is all token Y
 
 A different `--owner` returns `LiquidityPositionUnavailable` ("position owner does not match
-the requested owner"). `liquidity deposit`, `simulate-deposit`, `withdraw`, and
-`simulate-withdraw` with `--protocol meteora` still fail `LiquidityUnsupportedProtocol`
-before any account read. Do not report a Meteora deposit or removal round: there is no
-adapter for those.
+the requested owner"). `withdraw` and `simulate-withdraw` with `--protocol meteora` still
+fail `LiquidityUnsupportedProtocol` before any account read. Open and close do the same.
+The deposit round is [below](#meteora-dlmm-deposit-154).
 
 ## Meteora DLMM owner enumeration
 
@@ -138,9 +138,38 @@ The earlier point read of the same position reported token B `63939249963` (Kern
 `63939249979`). The amount is `floor(share * reserve / supply)` per occupied bin, so a
 reserve move between reads changes it. Meteora `receiptMints` is empty. A scan match that
 does not decode is `LiquidityPositionUnavailable` for the whole enumeration. More than 256
-matches is `LiquidityEnumerationIncomplete`. Deposits and withdrawals stay refused.
+matches is `LiquidityEnumerationIncomplete`. Withdrawals stay refused.
+
+## Meteora DLMM deposit (#154)
+
+**Status: one funded mainnet deposit is recorded.** Kernel ran it on the #154 head
+`87b514be86046b23d1412e26481138804ad33ae2`. Withdraw, open, and close still refuse meteora.
+Gui asked to recuperate these funds after the track. That cleanup is planned and was not
+part of this round.
+
+The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq`. The position already
+existed. Kernel ran `simulate-deposit`, then `deposit`, with `maxSlippageBps` 50 and caps of
+1 USDC and 1 USDT.
+
+Recorded result:
+
+- position `8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM`
+- owner `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`
+- pair `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` (USDC/USDT)
+- caps 1 USDC and 1 USDT
+- wallet −0.817 USDC and −1.000 USDT
+- position token A 3.045 → 3.862 USDC
+- position token B 2.955 → 3.955 USDT
+- liquidity increased
+- simulation succeeded, 67599 compute units, `violations` `[]`
+- signature `5fnTWddQTckyCWbJkPHBn8CoaAuAkhwg8u9vmnjxKG3tnHtWPL5K7YU4TuKWDa7tzD8kDcm561J796gVY5uRi5Go`
+
+Asymmetric fill is expected for this bin distribution.
 
 ## Deposits into an existing position (#30)
+
+Orca and Raydium. The Meteora funded round is
+[Meteora DLMM deposit (#154)](#meteora-dlmm-deposit-154).
 
 `solana_liquidity_simulate_deposit` / `solana_liquidity_execute_deposit` and
 `solos liquidity simulate-deposit` / `deposit` add liquidity to one explicitly identified

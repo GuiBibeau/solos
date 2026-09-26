@@ -42,8 +42,12 @@ bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 # Phoenix SOL-PERP position for the configured trader.
 bun run solos perp position --market SOL-PERP
 
-# One Meteora DLMM position. Read-only; deposits still reject meteora.
+# One Meteora DLMM position.
 bun run solos liquidity position --protocol meteora --position <position-account>
+
+# Simulate a deposit into that existing position. Caps are maximum spends. Nothing is submitted.
+bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
+  --position <position-account> --amount-a <base-units> --amount-b <base-units>
 
 # Portfolio, including that owner's Meteora DLMM positions. Read-only.
 bun run solos portfolio state --owner <owner>
