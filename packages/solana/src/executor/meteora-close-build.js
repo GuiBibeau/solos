@@ -2,16 +2,20 @@
 /**
  * Close an empty Meteora DLMM position with `close_position2`.
  *
- * The IDL names five accounts and no bin arrays. Emptiness is decided here, from the share
- * sum, before any instruction is built: a position that still holds liquidity is refused
- * with that sum in the reason. Pending fees and rewards are not part of this guard.
+ * Emptiness is decided here, from the share sum, before any instruction is built: a position
+ * that still holds liquidity is refused with that sum in the reason. The instruction then
+ * names the five IDL accounts plus the two bin arrays the pinned CLI appends for this
+ * position's lower bin. Pending fees and rewards are not part of this guard.
  */
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
-import { eventAuthorityAddress } from "../liquidity/meteora-dlmm-bins.js";
+import { binArrayAddress, eventAuthorityAddress } from "../liquidity/meteora-dlmm-bins.js";
 import { decodePositionV2 } from "../liquidity/meteora-dlmm-decode.js";
-import { closePosition2Instruction } from "../liquidity/meteora-dlmm-position-ix.js";
+import {
+  closeCoverageIndexes,
+  closePosition2Instruction,
+} from "../liquidity/meteora-dlmm-position-ix.js";
 import { METEORA_DLMM_PROGRAM } from "../liquidity/meteora-dlmm-program.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
 import { notMeteora, signMeteoraPosition } from "./meteora-position-sign.js";
@@ -62,6 +66,16 @@ const sharesIssue = (layout, owner) => {
   return null;
 };
 
+/**
+ * Writable bin-array PDAs for this position. Indexes come from its stored `lower_bin_id`.
+ * @param {string} lbPair
+ * @param {number} lowerBinId
+ */
+const coverageOf = (lbPair, lowerBinId) =>
+  Effect.promise(() =>
+    Promise.all(closeCoverageIndexes(lowerBinId).map((index) => binArrayAddress(lbPair, index))),
+  );
+
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").ClosePositionAction} action */
 export const buildSignedMeteoraClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
@@ -71,11 +85,13 @@ export const buildSignedMeteoraClose = ({ ctx, kit }, action) =>
     const issue = sharesIssue(read.layout, kit.signer.address);
     if (issue !== null) return yield* rejected(issue);
     const eventAuthority = yield* Effect.promise(() => eventAuthorityAddress());
+    const binArrays = yield* coverageOf(read.layout.lbPair, read.layout.lowerBinId);
     const instruction = closePosition2Instruction({
       position: action.position,
       sender: kit.signer.address,
       rentReceiver: kit.signer.address,
       eventAuthority,
+      binArrays,
     });
     const signed = yield* signMeteoraPosition({ ctx, kit, instructions: [instruction] });
     return { signed, plan: { position: action.position } };

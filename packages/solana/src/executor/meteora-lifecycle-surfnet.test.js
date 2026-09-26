@@ -5,6 +5,7 @@
  * not sent. A refused width or a position that still holds shares never gets that far.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { AccountRole } from "@solana/kit";
 import {
   BuildRejected,
   LiquidityInputInvalid,
@@ -17,9 +18,11 @@ import {
 import { Cause, Effect, Option } from "effect";
 import { SolanaTestLive } from "../index.js";
 import { randomAddress } from "../liquidity/liquidity-token-fixture.js";
+import { binArrayAddress, eventAuthorityAddress } from "../liquidity/meteora-dlmm-bins.js";
 import {
   CLOSE_POSITION2_DISCRIMINATOR,
   INITIALIZE_POSITION_DISCRIMINATOR,
+  closeCoverageIndexes,
 } from "../liquidity/meteora-dlmm-position-ix.js";
 import { METEORA_DLMM_PROGRAM } from "../liquidity/meteora-dlmm-program.js";
 import { seedMeteoraPair, seedMeteoraPosition } from "../liquidity/meteora-dlmm-seeds.js";
@@ -75,20 +78,23 @@ const seedPair = () =>
     binStep: 1,
   });
 
+const ONE_BIN = Object.freeze({ lowerBinId: 0, upperBinId: 0 });
+
 /**
  * @param {string} owner
  * @param {readonly { index: number; share: bigint }[]} shares
+ * @param {{ lowerBinId: number; upperBinId: number }} [binWindow]
  */
-const seedPosition = async (owner, shares) => {
+const seedPosition = async (owner, shares, binWindow = ONE_BIN) => {
   const pair = await seedPair();
   const position = await seedMeteoraPosition(surfnet.rpcUrl, {
     lbPair: pair,
     owner,
-    lowerBinId: 0,
-    upperBinId: 0,
+    lowerBinId: binWindow.lowerBinId,
+    upperBinId: binWindow.upperBinId,
     shares,
   });
-  return position;
+  return { pair, position };
 };
 
 /** The last simulated transaction, compiled plus its Meteora instruction. */
@@ -176,14 +182,18 @@ describe("meteora position lifecycle against Surfnet [integration]", () => {
     const held = await seedPosition(owner, [{ index: 0, share: 1_000_000n }]);
     const before = traffic();
     const refused = await failureOf(
-      simulateClosePosition({ protocol: "meteora", position: held }),
+      simulateClosePosition({ protocol: "meteora", position: held.position }),
       seed,
     );
     expect(refused).toBeInstanceOf(BuildRejected);
     expect(reasonOf(refused)).toContain("1000000");
     expect(reasonOf(refused)).toContain("liquidity shares");
     const executed = await failureOf(
-      executeClosePosition({ protocol: "meteora", position: held, skipSimulation: false }),
+      executeClosePosition({
+        protocol: "meteora",
+        position: held.position,
+        skipSimulation: false,
+      }),
       seed,
     );
     expect(executed).toBeInstanceOf(BuildRejected);
@@ -191,9 +201,9 @@ describe("meteora position lifecycle against Surfnet [integration]", () => {
     expect(traffic().sims).toBe(before.sims);
     expect(traffic().reads).toBeGreaterThan(before.reads);
 
-    const empty = await seedPosition(owner, []);
+    const empty = await seedPosition(owner, [], { lowerBinId: 70, upperBinId: 70 });
     const closed = await failureOf(
-      simulateClosePosition({ protocol: "meteora", position: empty }),
+      simulateClosePosition({ protocol: "meteora", position: empty.position }),
       seed,
     );
     expect(closed).toBeInstanceOf(SimulationFailed);
@@ -203,10 +213,23 @@ describe("meteora position lifecycle against Surfnet [integration]", () => {
     expect(compiled.header.numSignerAccounts).toBe(1);
     if (instruction === undefined) throw new Error("missing close_position2 instruction");
     expect(instruction.data).toEqual(Uint8Array.from(CLOSE_POSITION2_DISCRIMINATOR));
-    const accounts = instruction.accounts?.map((meta) =>
+    const accounts = instruction.accounts ?? [];
+    const addresses = accounts.map((meta) =>
       typeof meta === "string" ? meta : String(meta.address),
     );
-    expect(accounts).toContain(empty);
-    expect(accounts?.[1]).toBe(owner);
+    const coverage = await Promise.all(
+      closeCoverageIndexes(70).map((index) => binArrayAddress(empty.pair, index)),
+    );
+    const eventAuthority = await eventAuthorityAddress();
+    expect(addresses.slice(0, 5)).toEqual([
+      empty.position,
+      owner,
+      owner,
+      eventAuthority,
+      METEORA_DLMM_PROGRAM,
+    ]);
+    expect(addresses.slice(5)).toEqual(coverage);
+    expect(accounts[5]?.role).toBe(AccountRole.WRITABLE);
+    expect(accounts[6]?.role).toBe(AccountRole.WRITABLE);
   });
 });
