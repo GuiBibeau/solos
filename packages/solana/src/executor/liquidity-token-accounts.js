@@ -54,6 +54,15 @@ export const createAta = (kit, mint, { ata, program }) =>
   });
 
 /**
+ * Whether a side needs nothing added. An account that exists is satisfied once its balance plus
+ * any wrap covers the spend. An absent one is satisfied only by a wrap, which creates it as well
+ * as funding it — otherwise it must still be created, because the instruction lists it either way.
+ * @param {{ isAbsent: boolean; balance: bigint; covered: bigint; required: bigint }} side
+ */
+const isSatisfied = ({ isAbsent, balance, covered, required }) =>
+  isAbsent ? covered > 0n && covered >= required : balance + covered >= required;
+
+/**
  * One funding side of a spend: nothing to do when it already covers the quote, an idempotent
  * create when the quote needs nothing from it, and a typed refusal when it is short or absent
  * but needed — a spend from an account that cannot cover it is not simulable honestly.
@@ -64,17 +73,18 @@ export const createAta = (kit, mint, { ata, program }) =>
  * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
  */
 export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb, covered }) => {
-  const balance = row === null || row === undefined ? null : tokenDecoder.decode(row.bytes).amount;
-  // A wrap in this same transaction creates the account too, so an absent side it covers is
-  // already funded by the time the spend runs.
-  if ((balance ?? 0n) + (covered ?? 0n) >= required) return Effect.succeed(null);
+  const isAbsent = row === null || row === undefined;
+  const balance = isAbsent ? 0n : tokenDecoder.decode(row.bytes).amount;
+  if (isSatisfied({ isAbsent, balance, covered: covered ?? 0n, required })) {
+    return Effect.succeed(null);
+  }
   if (required > 0n) {
-    const detail =
-      balance === null
-        ? "the funding account does not exist"
-        : `${balance} available, the ${verb} needs ${required}`;
+    const detail = isAbsent
+      ? "the funding account does not exist"
+      : `${balance} available, the ${verb} needs ${required}`;
     return fail(`insufficient token ${label} balance: ${detail}`);
   }
+  // Absent and owed nothing: the instruction still lists the account, so it has to exist.
   return Effect.succeed(createAta(kit, mint, { ata, program }));
 };
 

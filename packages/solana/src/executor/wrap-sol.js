@@ -63,6 +63,18 @@ const wrapInstructions = ({ kit, ata, lamports, isAbsent }) => ({
 });
 
 /**
+ * Whether a side needs wrapping at all, decided from values alone. Separated from the read so
+ * the rule can be checked without a chain: an unasked wrap, a non-SOL side, a side owed nothing
+ * and a side already holding enough all decide the same way here as they would anywhere.
+ * @param {{ mint: string; required: bigint; held: bigint; wrapSol: boolean }} side
+ * @returns {bigint} lamports to wrap, zero when none
+ */
+export const wrapShortfall = ({ mint, required, held, wrapSol }) => {
+  if (!wrapSol || mint !== WSOL_MINT || required === 0n) return 0n;
+  return held >= required ? 0n : required - held;
+};
+
+/**
  * What one funding side needs wrapped, if anything. `covered` is what the funding rule may then
  * count as held: the wrap lands in the same transaction, before the spend.
  * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape;
@@ -71,12 +83,13 @@ const wrapInstructions = ({ kit, ata, lamports, isAbsent }) => ({
  */
 export const wrapPlan = ({ ctx, kit, mint, ata, required, wrapSol }) =>
   Effect.gen(function* () {
-    if (!wrapSol || mint !== WSOL_MINT || required === 0n) return NOTHING;
+    if (wrapShortfall({ mint, required, held: 0n, wrapSol }) === 0n) return NOTHING;
     const [row] = yield* fetchAccounts(liquidityRead(ctx), [ata]);
     const isAbsent = row === null || row === undefined;
     const held = isAbsent ? 0n : tokenDecoder.decode(row.bytes).amount;
-    if (held >= required) return NOTHING;
-    return wrapInstructions({ kit, ata, lamports: required - held, isAbsent });
+    const lamports = wrapShortfall({ mint, required, held, wrapSol });
+    if (lamports === 0n) return NOTHING;
+    return wrapInstructions({ kit, ata, lamports, isAbsent });
   });
 
 /**

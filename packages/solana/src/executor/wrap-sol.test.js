@@ -1,162 +1,111 @@
 // @ts-check
 /**
- * What a wrap emits, and — more importantly — what it refuses to emit.
+ * The two rules that decide a funding side, over values rather than a chain.
  *
- * The dangerous mistakes here are wrapping when nobody asked, wrapping more than the quote is
- * short, and closing an account this transaction did not create. Each has its own case.
+ * `wrapShortfall` says how much native SOL to wrap; `fundingSide` says what the transaction must
+ * carry for that side. Both are pure over a fetched row, so the adapter that reads them is
+ * exercised on Surfpool (`raydium-lifecycle-surfnet.test.js`) and the rules themselves here.
+ *
+ * The dangerous mistakes are wrapping when nobody asked, wrapping more than the quote is short,
+ * closing an account this transaction did not create, and — the one that fails on chain rather
+ * than in a guard — forgetting to create a side the quote spends nothing from. Both venues list
+ * both token accounts on the instruction whatever the range covers.
  */
 import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
-import { WSOL_MINT, wrapForSides, wrapPlan } from "./wrap-sol.js";
+import { fundingSide } from "./liquidity-token-accounts.js";
+import { WSOL_MINT, wrapShortfall } from "./wrap-sol.js";
 
 const OWNER = "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f";
 const ATA = "BqMR3NTtNd5qvsFUuBvSrn9zmjGnqhFxniQhjFAF4MFX";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 const kit = /** @type {any} */ ({ signer: { address: OWNER } });
 
-/** A token account holding `amount`, as the decoder reads it. */
-const tokenBytes = (/** @type {bigint} */ amount) => {
+/** A fetched row holding `amount`, as the token decoder reads it. */
+const rowHolding = (/** @type {bigint} */ amount) => {
   const bytes = new Uint8Array(165);
   new DataView(bytes.buffer).setBigUint64(64, amount, true);
-  bytes[108] = 1; // initialized
-  return bytes;
+  bytes[108] = 1;
+  return { owner: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", bytes };
 };
 
-/** An RPC stub whose single account is either absent or holds `amount`. */
-const ctxWith = (/** @type {bigint | null} */ amount) =>
-  /** @type {any} */ ({
-    url: "http://stub",
-    rpc: {
-      getMultipleAccounts: () => ({
-        send: async () => ({
-          value: [
-            amount === null
-              ? null
-              : {
-                  owner: TOKEN_PROGRAM,
-                  data: [Buffer.from(tokenBytes(amount)).toString("base64"), "base64"],
-                  lamports: 1n,
-                  executable: false,
-                  rentEpoch: 0n,
-                  space: 165n,
-                },
-          ],
-        }),
-      }),
-    },
+/** @param {any} side */
+const setupFor = (side) =>
+  Effect.runSync(
+    Effect.either(
+      fundingSide({ kit, mint: WSOL_MINT, ata: ATA, label: "A", verb: "deposit", ...side }),
+    ),
+  );
+
+describe("how much native SOL a side needs wrapped", () => {
+  test("nothing is wrapped unless the caller asked", () => {
+    expect(wrapShortfall({ mint: WSOL_MINT, required: 1_000_000n, held: 0n, wrapSol: false })).toBe(
+      0n,
+    );
   });
 
-const run = (/** @type {any} */ effect) => Effect.runPromise(effect);
-
-describe("wrapping native SOL for a funding side", () => {
-  test("nothing is wrapped unless the caller asked", async () => {
-    const wrap = await run(
-      wrapPlan({
-        ctx: ctxWith(null),
-        kit,
-        mint: WSOL_MINT,
-        ata: ATA,
-        required: 1_000_000n,
-        wrapSol: false,
-      }),
-    );
-    expect(wrap).toMatchObject({ covered: 0n });
-    expect(wrap.prefix).toHaveLength(0);
-    expect(wrap.suffix).toHaveLength(0);
+  test("a non-wSOL side is never wrapped, whatever the flag says", () => {
+    expect(wrapShortfall({ mint: USDC, required: 1_000_000n, held: 0n, wrapSol: true })).toBe(0n);
   });
 
-  test("a non-wSOL side is never wrapped, whatever the flag says", async () => {
-    const wrap = await run(
-      wrapPlan({ ctx: ctxWith(null), kit, mint: USDC, ata: ATA, required: 1n, wrapSol: true }),
-    );
-    expect(wrap.covered).toBe(0n);
+  test("a side owed nothing is never wrapped, even when it is wSOL", () => {
+    expect(wrapShortfall({ mint: WSOL_MINT, required: 0n, held: 0n, wrapSol: true })).toBe(0n);
   });
 
-  test("a side that already holds enough is left alone", async () => {
-    const wrap = await run(
-      wrapPlan({
-        ctx: ctxWith(5_000_000n),
-        kit,
-        mint: WSOL_MINT,
-        ata: ATA,
-        required: 1_000_000n,
-        wrapSol: true,
-      }),
-    );
-    expect(wrap.covered).toBe(0n);
-    expect(wrap.prefix).toHaveLength(0);
+  test("a side already holding enough is left alone", () => {
+    expect(
+      wrapShortfall({ mint: WSOL_MINT, required: 1_000_000n, held: 5_000_000n, wrapSol: true }),
+    ).toBe(0n);
   });
 
-  test("an absent account is created, funded with exactly the shortfall, synced and closed", async () => {
-    const wrap = await run(
-      wrapPlan({
-        ctx: ctxWith(null),
-        kit,
-        mint: WSOL_MINT,
-        ata: ATA,
-        required: 1_000_000n,
-        wrapSol: true,
-      }),
-    );
-    expect(wrap.covered).toBe(1_000_000n);
-    expect(wrap.prefix).toHaveLength(3);
-    // The close is what keeps the wallet where it started: rent and any unused lamports return.
-    expect(wrap.suffix).toHaveLength(1);
+  test("exactly the shortfall is wrapped, never the whole requirement", () => {
+    expect(
+      wrapShortfall({ mint: WSOL_MINT, required: 1_000_000n, held: 400_000n, wrapSol: true }),
+    ).toBe(600_000n);
   });
 
-  test("a partly funded account is topped up by the difference, never the whole requirement", async () => {
-    const wrap = await run(
-      wrapPlan({
-        ctx: ctxWith(400_000n),
-        kit,
-        mint: WSOL_MINT,
-        ata: ATA,
-        required: 1_000_000n,
-        wrapSol: true,
-      }),
+  test("an empty side wraps the whole requirement", () => {
+    expect(wrapShortfall({ mint: WSOL_MINT, required: 1_000_000n, held: 0n, wrapSol: true })).toBe(
+      1_000_000n,
     );
-    expect(wrap.covered).toBe(600_000n);
+  });
+});
+
+describe("what a funding side puts in the transaction", () => {
+  test("a side owed nothing whose account is absent is still created", () => {
+    // Both venues list both token accounts whatever the range covers, so skipping this create
+    // fails on chain with AccountNotInitialized rather than in any guard.
+    const setup = setupFor({ row: null, required: 0n });
+    expect(setup._tag).toBe("Right");
+    expect(setup._tag === "Right" && setup.right).not.toBeNull();
   });
 
-  test("a pre-existing account is topped up but never closed", async () => {
-    const wrap = await run(
-      wrapPlan({
-        ctx: ctxWith(0n),
-        kit,
-        mint: WSOL_MINT,
-        ata: ATA,
-        required: 1_000_000n,
-        wrapSol: true,
-      }),
-    );
-    expect(wrap.covered).toBe(1_000_000n);
-    // No create, because it exists; no close, because closing it would take rent that is the
-    // caller's and an account they may be relying on.
-    expect(wrap.prefix).toHaveLength(2);
-    expect(wrap.suffix).toHaveLength(0);
+  test("a side owed nothing whose account exists needs no instruction", () => {
+    const setup = setupFor({ row: rowHolding(0n), required: 0n });
+    expect(setup._tag === "Right" && setup.right).toBeNull();
   });
 
-  test("a side needing nothing is not wrapped even when it is wSOL and absent", async () => {
-    const wrap = await run(
-      wrapPlan({ ctx: ctxWith(null), kit, mint: WSOL_MINT, ata: ATA, required: 0n, wrapSol: true }),
-    );
-    expect(wrap.covered).toBe(0n);
+  test("a side that already covers the spend needs no instruction", () => {
+    const setup = setupFor({ row: rowHolding(5_000_000n), required: 1_000_000n });
+    expect(setup._tag === "Right" && setup.right).toBeNull();
   });
 
-  test("across a pair, only the wSOL side is wrapped", async () => {
-    const wrap = await run(
-      wrapForSides({
-        ctx: ctxWith(null),
-        kit,
-        wrapSol: true,
-        sides: [
-          { mint: USDC, ata: ATA, required: 2_000_000n },
-          { mint: WSOL_MINT, ata: ATA, required: 1_000_000n },
-        ],
-      }),
-    );
-    expect(wrap.covered).toBe(1_000_000n);
+  test("a wrap that covers an absent side satisfies it without a separate create", () => {
+    // The wrap's own create is already in the transaction; a second one would be redundant.
+    const setup = setupFor({ row: null, required: 1_000_000n, covered: 1_000_000n });
+    expect(setup._tag === "Right" && setup.right).toBeNull();
+  });
+
+  test("a short side is refused with the balance it actually has", () => {
+    const setup = setupFor({ row: rowHolding(400_000n), required: 1_000_000n });
+    expect(setup._tag).toBe("Left");
+    expect(setup._tag === "Left" && setup.left.reason).toContain("400000 available");
+  });
+
+  test("an absent side that is owed something is refused by name", () => {
+    const setup = setupFor({ row: null, required: 1_000_000n });
+    expect(setup._tag).toBe("Left");
+    expect(setup._tag === "Left" && setup.left.reason).toContain("does not exist");
   });
 });
