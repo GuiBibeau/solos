@@ -14,10 +14,10 @@ return the shared `LpPosition` contract:
   input validation (`LiquidityInputInvalid`) before anything else.
 - **What each venue supports.** orca: read, deposit, withdraw. raydium: read, deposit, withdraw,
   and opening and closing a position — the only venue whose position lifecycle solOS encodes, so
-  an open or close naming any other protocol is refused before any RPC. meteora: point reads and
-  owner enumeration. There is no `liquidity list` command; `solos portfolio state` is the
-  enumeration path. Deposits and withdrawals still refuse meteora with
-  `LiquidityUnsupportedProtocol` before any network access.
+  an open or close naming any other protocol is refused before any RPC. meteora: point reads,
+  owner enumeration, and deposit into an existing position. There is no `liquidity list`
+  command; `solos portfolio state` is the enumeration path. Withdraw, open, and close still
+  refuse meteora with `LiquidityUnsupportedProtocol` before any network access.
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
@@ -69,6 +69,9 @@ position account must already exist, the signer must hold its NFT, and the named
 be the pool the position references — nothing creates a position, selects a range, or
 rebalances.
 
+Meteora uses these commands with the contract in
+[Deposits into an existing Meteora position](#deposits-into-an-existing-meteora-position).
+
 - **Budgets are maxima, on chain.** `amountA`/`amountB` are maximum spends in the pool's
 canonical mint order (at least one positive). The executor computes the largest liquidity
 both budgets can fund at the current price — rounding down, never reinterpreting a maximum
@@ -117,8 +120,9 @@ ADR-0022: no live deposit/open without a checked exit path.
 
 `solana_liquidity_get_position` and `solos liquidity position --protocol meteora --position
 <position-account> [--owner <address>]` read one existing PositionV2 and return the same
-`LpPosition` shape. Deposits and withdrawals still refuse meteora with
-`LiquidityUnsupportedProtocol` before any network access.
+`LpPosition` shape. A deposit into that position is
+[below](#deposits-into-an-existing-meteora-position). Withdraw, open, and close still refuse
+meteora with `LiquidityUnsupportedProtocol` before any network access.
 
 - **`position` is the PositionV2 account pubkey**, never an NFT mint and never the pair
   (ADR-0022). `instrument` is that account's `lb_pair`. There is no position NFT.
@@ -148,6 +152,43 @@ SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '
 ```
 
 The zero-spend read is recorded in [liquidity QA](../../liquidity-qa.md).
+
+### Deposits into an existing Meteora position
+
+`solana_liquidity_simulate_deposit` / `solana_liquidity_execute_deposit` (MCP) and
+`solos liquidity simulate-deposit` / `solos liquidity deposit` (CLI) add liquidity to one
+existing PositionV2. The flags are the shared deposit flags: `--pool <pair> --position
+<position-account> --amount-a <base-units> --amount-b <base-units>
+[--max-slippage-bps 50] [--wrap-sol]`, plus `[--skip-simulation]` on `deposit`. `--wrap-sol`
+is the same flag as in [Deposits into existing positions](#deposits-into-existing-positions).
+
+- **The position already exists.** `position` is the PositionV2 account. The signer must be
+  the `owner` at byte 40. There is no position NFT. The named pool must be the position's
+  `lb_pair`. The call does not create a position and does not move `lower_bin_id` or
+  `upper_bin_id`.
+- **Spend is a signed `LiquidityParameter`.** The instruction is `add_liquidity2` from the
+  pinned IDL (ADR-0022). `amountA` and `amountB` are maximum spends in the pair's mint order
+  (token X, then token Y). They are signed as `amount_x` and `amount_y` caps, and those caps
+  are at most the requested budgets. `bin_liquidity_dist` lists only bins already inside the
+  position's window. X is spread over bins at or above the active bin; Y over bins at or
+  below it. Each side's 10000 bps are uniform across its eligible bins. Per-bin spends round
+  down. The active bin is fit to its reserves, and any unused cap stays in the wallet. A
+  quote that buys no shares is rejected before anything is signed. The two sides need not
+  fill in the same proportion.
+- **Active-bin drift is refused before send.** After the quote, solOS reads the pair again
+  and refuses when the active bin has moved more than `ceil(maxSlippageBps / binStep)` bins.
+  Zero slippage allows zero bins of movement. That check is not an argument of
+  `add_liquidity2` and is not enforced on chain. The on-chain bound is the signed
+  `amount_x` and `amount_y` caps.
+- **Withdraw, open, and close still refuse meteora** with `LiquidityUnsupportedProtocol`
+  before any network access.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
+  --position <position-account> --amount-a <base-units> --amount-b <base-units>
+```
+
+The funded round is recorded in [liquidity QA](../../liquidity-qa.md).
 
 ### Owner enumeration
 
