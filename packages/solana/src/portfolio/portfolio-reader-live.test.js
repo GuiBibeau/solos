@@ -206,34 +206,54 @@ describe("portfolio read model through the composed adapters [integration]", () 
     prices.stop();
   });
 
-  // The point of #129: a venue with a read adapter must reach portfolio state. Omitting one
-  // under-reports holdings silently, which "Complete enumeration" rules out — it returns every
-  // supported position or fails explicitly.
-  test("positions from every liquidity venue reach the state, without duplicates", async () => {
-    const raydiumPosition = {
+  // Omitting Meteora would make a PositionV2-only wallet look empty. Distinct accounts
+  // across the three venues must all arrive, once each.
+  test("meteora positions reach portfolio state and are not duplicated", async () => {
+    /** @param {"orca" | "raydium" | "meteora"} protocol @param {string} position */
+    const lp = (protocol, position) => ({
       kind: /** @type {"lp"} */ ("lp"),
-      protocol: /** @type {"raydium"} */ ("raydium"),
-      position: "9".repeat(43),
-      instrument: "8".repeat(43),
-      liquidity: "24012912330",
-      tokenA: { mint: WSOL, amount: "913492918", decimals: 9 },
-      tokenB: { mint: USDC, amount: "300989782", decimals: 6 },
+      protocol,
+      position,
+      instrument: randomAddress(),
+      liquidity: "1",
+      tokenA: { mint: WSOL, amount: "1", decimals: 9 },
+      tokenB: { mint: USDC, amount: "1", decimals: 6 },
       valueUsd: null,
-    };
-    const layer = testLayer(priceFixture(new Map()), {
-      liquidity: {
-        listPositions: (/** @type {{ protocol: string }} */ request) =>
-          Effect.succeed({
-            positions: request.protocol === "raydium" ? [raydiumPosition] : [],
-            perpAccounts: [],
-            receiptMints: [],
-          }),
-      },
     });
-    const state = await Effect.runPromise(getState({}).pipe(Effect.provide(layer)));
-    const lp = state.positions.filter((position) => position.kind === "lp");
-    expect(lp).toHaveLength(1);
-    expect(lp[0]).toMatchObject({ protocol: "raydium", liquidity: "24012912330" });
+    const only = lp("meteora", randomAddress());
+    const many = {
+      orca: lp("orca", randomAddress()),
+      raydium: lp("raydium", randomAddress()),
+      meteora: lp("meteora", randomAddress()),
+    };
+    const prices = priceFixture(new Map());
+    /** @param {(protocol: string) => readonly object[]} select */
+    const listed = async (select) => {
+      const layer = testLayer(prices, {
+        liquidity: {
+          listPositions: (/** @type {{ protocol: string }} */ request) =>
+            Effect.succeed({
+              positions: select(request.protocol),
+              perpAccounts: [],
+              receiptMints: [],
+            }),
+        },
+      });
+      const state = await Effect.runPromise(getState({}).pipe(Effect.provide(layer)));
+      return state.positions.filter((position) => position.kind === "lp");
+    };
+    const alone = await listed((protocol) => (protocol === "meteora" ? [only] : []));
+    expect(alone).toEqual([
+      expect.objectContaining({ protocol: "meteora", position: only.position }),
+    ]);
+    const all = await listed((protocol) => {
+      const row = many[/** @type {"orca" | "raydium" | "meteora"} */ (protocol)];
+      return row ? [row] : [];
+    });
+    expect(all.map((position) => position.protocol).toSorted((a, b) => a.localeCompare(b))).toEqual(
+      ["meteora", "orca", "raydium"],
+    );
+    prices.stop();
   });
 
   test("a venue that fails enumeration fails the read with its typed error", async () => {

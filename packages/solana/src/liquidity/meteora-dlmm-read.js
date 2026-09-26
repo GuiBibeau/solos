@@ -167,6 +167,27 @@ const pairDecimals = (read, position, pair) =>
   });
 
 /**
+ * Map an already-decoded PositionV2 into the LP contract. The point read and owner
+ * enumeration share this so a listed position cannot drift from a direct read.
+ * @param {AccountRead} read
+ * @param {string} position
+ * @param {MeteoraPositionLayout} layout
+ */
+export const meteoraLpFromLayout = (read, position, layout) =>
+  Effect.gen(function* () {
+    const pair = yield* guardedRead(read, {
+      position,
+      account: layout.lbPair,
+      absent: "referenced pair is missing",
+      foreign: "referenced pair is not owned by the pinned Meteora DLMM program",
+      decode: decodeLbPair,
+    });
+    const amounts = yield* underlying(read, position, layout);
+    const decimals = yield* pairDecimals(read, position, pair);
+    return yield* toMeteoraLpPosition(position, { layout, pair, amounts, decimals });
+  });
+
+/**
  * @param {AccountRead} read
  * @param {LiquidityGetPositionRequest} request
  */
@@ -184,14 +205,5 @@ export const getMeteoraPositionLive = (read, request) =>
         unavailable(request.position, "position owner does not match the requested owner"),
       );
     }
-    const pair = yield* guardedRead(read, {
-      position: request.position,
-      account: layout.lbPair,
-      absent: "referenced pair is missing",
-      foreign: "referenced pair is not owned by the pinned Meteora DLMM program",
-      decode: decodeLbPair,
-    });
-    const amounts = yield* underlying(read, request.position, layout);
-    const decimals = yield* pairDecimals(read, request.position, pair);
-    return yield* toMeteoraLpPosition(request.position, { layout, pair, amounts, decimals });
+    return yield* meteoraLpFromLayout(read, request.position, layout);
   });
