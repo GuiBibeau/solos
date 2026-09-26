@@ -64,7 +64,22 @@ export const LB_PAIR_OFFSETS = Object.freeze({
   binStep: 80,
   tokenMintX: 88,
   tokenMintY: 120,
+  reserveX: 152,
+  reserveY: 184,
 });
+
+/** Default bitmap covers bin-array indexes [-512, 511]. Outside it the extension PDA is required. */
+export const BIN_ARRAY_BITMAP_SIZE = 512;
+
+/** PDA seed of the bin-array bitmap extension: ["bitmap", lb pair]. */
+export const BITMAP_SEED = "bitmap";
+
+/** Anchor event authority seed, from the pinned IDL account `event_authority`. */
+export const EVENT_AUTHORITY_SEED = "__event_authority";
+
+/** @param {number} index */
+export const isOutsideDefaultBitmap = (index) =>
+  index >= BIN_ARRAY_BITMAP_SIZE || index < -BIN_ARRAY_BITMAP_SIZE;
 
 /** Absolute offsets of the BinArray header. Bins begin after it. */
 export const BIN_ARRAY_OFFSETS = Object.freeze({

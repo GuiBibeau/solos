@@ -7,7 +7,7 @@ import { toDepositAction, validateDepositInput } from "./validate-input.js";
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | import("../domain/errors.js").LiquidityUnsupportedProtocol | import("../../shared/domain/errors.js").SimulationFailed | import("../../shared/ports/action-executor.js").ExecutorError} SimulateDepositError */
 
 /**
- * Simulate adding liquidity to one existing Orca or Raydium position without sending anything: the
+ * Simulate adding liquidity to one existing Orca, Raydium, or Meteora position without sending anything: the
  * intent becomes an `add_liquidity` Action and the executor builds and simulates its own
  * fresh transaction — pool, position, custody and budgets are all re-checked against chain
  * state, and nothing is ever submitted. A later execute call re-plans and may differ.
