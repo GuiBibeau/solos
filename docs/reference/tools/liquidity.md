@@ -2,19 +2,21 @@
 
 Part of the [tool reference](index.md).
 
-## Orca Whirlpool LP positions and deposits
+## Orca Whirlpool and Raydium CLMM LP positions
 
-Reads: `solana_liquidity_get_position` (MCP) and `solos liquidity position --protocol orca --position
-<position-account> [--owner <address>]` (CLI) read one existing Whirlpool LP position and
+Reads: `solana_liquidity_get_position` (MCP) and `solos liquidity position --protocol orca|raydium
+--position <position-account> [--owner <address>]` (CLI) read one existing LP position and
 return the shared `LpPosition` contract:
 
-- **`position` is the protocol position account** (the Whirlpool position PDA), never the
-  position NFT mint and never the pool (ADR-0022). There is no mint-based inference and no
-  fallback. Meteora reads work through `solana_liquidity_get_position` and
-  `solos liquidity position`; deposits, withdrawals, and listing still refuse meteora with
-  `LiquidityUnsupportedProtocol` before any network access. Raydium CLMM reads, deposits,
-  removals, and listing are implemented. Unknown protocol values fail input validation
-  (`LiquidityInputInvalid`) even earlier.
+- **`position` is the protocol position account** — the Whirlpool position PDA on orca, the
+  `PersonalPositionState` PDA on raydium — never the position NFT mint and never the pool
+  (ADR-0022). There is no mint-based inference and no fallback. Unknown protocol values fail
+  input validation (`LiquidityInputInvalid`) before anything else.
+- **What each venue supports.** orca: read, deposit, withdraw. raydium: read, deposit, withdraw,
+  and opening and closing a position — the only venue whose position lifecycle solOS encodes, so
+  an open or close naming any other protocol is refused before any RPC. meteora: reads only,
+  through `solana_liquidity_get_position` and `solos liquidity position`; deposits, withdrawals
+  and listing still refuse it with `LiquidityUnsupportedProtocol` before any network access.
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
@@ -59,9 +61,9 @@ wallet holding native SOL (#126) or on provisioning a funded wSOL account outsid
 
 `solana_liquidity_simulate_deposit` / `solana_liquidity_execute_deposit` (MCP) and
 `solos liquidity simulate-deposit` / `solos liquidity deposit` (CLI) add liquidity to one
-explicitly identified existing Orca position — `--pool <pool> --position <position-account>
---amount-a <base-units> --amount-b <base-units> [--max-slippage-bps 50]` plus
-`[--skip-simulation]` on `deposit`. The existing-position prerequisite is absolute: the
+explicitly identified existing Orca or Raydium position — `--pool <pool> --position
+<position-account> --amount-a <base-units> --amount-b <base-units> [--max-slippage-bps 50]
+[--wrap-sol]` plus `[--skip-simulation]` on `deposit`. The existing-position prerequisite is absolute: the
 position account must already exist, the signer must hold its NFT, and the named pool must
 be the pool the position references — nothing creates a position, selects a range, or
 rebalances.
@@ -75,6 +77,16 @@ slippage tolerance, capped by the budgets**, in the instruction's `token_max_a` 
 would overspend either bound aborts the transaction. A tighter tolerance therefore accepts
 less price drift; with the budgets it can never spend more than requested. Unused funds
 stay in the wallet.
+- **Native SOL is wrapped only when asked.** Most concentrated liquidity is SOL-paired, and the
+venues take wSOL, not native SOL. `wrapSol` (CLI `--wrap-sol`) defaults to **false**: left
+alone, a wSOL side that is not already funded is refused, because moving native SOL the caller
+never named can strip the balance that pays fees and rent, and that failure is silent. Asked
+for, the wrap covers **exactly the shortfall against the quote** — never the whole budget — and
+lives in the same transaction as the spend: create the account if absent, transfer, `SyncNative`,
+deposit, close. A failure anywhere fails all of it, so no state exists in which SOL sits wrapped
+because a deposit did not land. A **pre-existing** wSOL account is topped up and never closed:
+its rent is the caller's. Note the other direction is not covered — a removal pays into the wSOL
+account and nothing unwraps it, so proceeds from a SOL-paired position arrive wrapped.
 - **One-sided adds work.** With the price below the position's range only token A is
 required (token B's budget is ignored); above the range, only token B. In range, budgets
 are two-sided: a zero budget on one side computes zero liquidity and is rejected. A

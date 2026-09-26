@@ -117,6 +117,12 @@ const DepositInputBaseSchema = z.object({
     .describe(
       "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). The on-chain spend bounds are the quoted amounts plus this tolerance, capped by the budgets, so a price move that would overspend either bound aborts on chain",
     ),
+  wrapSol: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Wrap exactly the native SOL the quote is short on a wSOL side, in this same transaction, and unwrap the remainder when this transaction created the account. Leave false when the wSOL side is already funded",
+    ),
 });
 
 /** One deposit request. The budgets are maxima, never targets; the cross-field rule that at

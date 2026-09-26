@@ -46,6 +46,7 @@ export const ADD = {
   amountA: "1000000",
   amountB: "0",
   maxSlippageBps: 50,
+  wrapSol: false,
 };
 export const REMOVE = {
   type: "remove_liquidity",
@@ -63,6 +64,7 @@ export const OPEN_POSITION = {
   amountA: "1000000",
   amountB: "0",
   maxSlippageBps: 50,
+  wrapSol: false,
 };
 export const CLOSE_POSITION = {
   type: "close_position",

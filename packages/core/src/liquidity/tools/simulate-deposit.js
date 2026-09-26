@@ -23,8 +23,8 @@ export const simulateDepositTool = defineTool({
     "builds and simulates exactly the transaction it would send, reporting compute units and " +
     "program logs; unused funds always stay in the wallet. Nothing is ever sent or signed for " +
     "submission, and a later execute re-plans and may differ. Use " +
-    "solana_liquidity_execute_deposit to send. Only orca is implemented: meteora and raydium " +
-    "fail before any network access.",
+    "solana_liquidity_execute_deposit to send. orca and raydium are implemented: meteora " +
+    "fails before any network access.",
   input: LiquidityDepositInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

@@ -25,7 +25,7 @@ export const executeDepositTool = defineTool({
     "simulation, validation, or the blockhash lifetime fails; skipSimulation bypasses only " +
     "the simulation, never validation. Never re-sends after an ambiguous submission. Unused " +
     "funds always stay in the wallet. Use solana_liquidity_simulate_deposit to preview " +
-    "without sending. Only orca is implemented: meteora and raydium fail before any network " +
+    "without sending. orca and raydium are implemented: meteora fails before any network " +
     "access.",
   input: LiquidityExecuteDepositInputSchema,
   check: (input) => {
