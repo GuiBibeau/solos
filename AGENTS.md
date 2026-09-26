@@ -26,6 +26,8 @@ set +a
 
 ## Verify with the lever, never with ad-hoc scripts
 
+Design work ends in ADRs and issues with acceptance criteria.
+
 `solos` is the repo CLI and the verification tool. Every command prints JSON and exits non-zero
 on domain errors. `bun run solos --help` is the source of truth for the surface.
 
