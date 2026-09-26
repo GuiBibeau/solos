@@ -2,15 +2,15 @@
 import { AddLiquidityActionSchema, RemoveLiquidityActionSchema } from "@solos/actions";
 import { Effect } from "effect";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { isReadable } from "../domain/types.js";
+import { isDepositable, isReadable } from "../domain/types.js";
 
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | LiquidityUnsupportedProtocol} DepositValidationError */
 /** @typedef {import("../domain/types.js").LiquidityDepositInput} LiquidityDepositInput */
 
 /**
  * Validate one deposit intent identically for every entry point — tool, CLI, harness — before
- * any executor access: schema first, then the protocol gate, so meteora and raydium fail
- * before the network and before any Layer that could reach one is built.
+ * any executor access: schema first, then the protocol gate, so a protocol without a deposit
+ * adapter fails before the network and before any Layer that could reach one is built.
  * @template {{ protocol: "orca" | "meteora" | "raydium"; amountA: string; amountB: string }} T
  * @param {{ safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } } }} schema
  * @param {unknown} input
@@ -31,7 +31,7 @@ export const validateDepositInput = (schema, input) =>
         reason: "at least one token spend budget must be positive",
       });
     }
-    if (!isReadable(parsed.data.protocol)) {
+    if (!isDepositable(parsed.data.protocol)) {
       return yield* new LiquidityUnsupportedProtocol({ protocol: parsed.data.protocol });
     }
     return parsed.data;
