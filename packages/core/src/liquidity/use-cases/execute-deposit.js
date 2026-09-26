@@ -8,7 +8,7 @@ import { toDepositAction, validateDepositInput } from "./validate-input.js";
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | import("../domain/errors.js").LiquidityUnsupportedProtocol | import("../../shared/domain/errors.js").TransactionFailed | import("../../shared/ports/action-executor.js").ExecutorError} ExecuteDepositError */
 
 /**
- * Execute a deposit into one existing Orca or Raydium position through the configured executor
+ * Execute a deposit into one existing Orca, Raydium, or Meteora position through the configured executor
  * (ADR-0013): the intent becomes an `add_liquidity` Action and only the executor touches
  * RPC, signing and submission. The exact transaction that will be submitted is simulated
  * first unless `skipSimulation` is true; a failed simulation, a rejected build or an expired

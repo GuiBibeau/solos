@@ -1,7 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityExecuteDepositInputSchema, isReadable } from "../domain/types.js";
+import { isDepositable, LiquidityExecuteDepositInputSchema } from "../domain/types.js";
 import { executeDeposit } from "../use-cases/execute-deposit.js";
 
 export const executeDepositTool = defineTool({
@@ -10,26 +10,23 @@ export const executeDepositTool = defineTool({
   tier: "execute",
   title: "Execute position deposit",
   description:
-    "Add liquidity to one existing Orca or Raydium position from the configured signer wallet " +
-    "and wait for confirmation. Signs and submits a real transaction that moves funds. " +
-    "amountA and amountB are the maximum spends of each token in the pool's canonical mint " +
-    "order; the executor computes the liquidity they can fund, rounds down to fit both " +
-    "budgets, and encodes spend bounds at the quoted amounts plus the requested slippage " +
-    "tolerance, capped by the budgets — the Whirlpool program enforces them on chain, so a " +
-    "price move that would overspend either bound aborts instead of overrunning. position is " +
-    "the protocol position account (the Whirlpool position PDA) and pool must be the pool " +
-    "that position references; the signer must hold the position NFT (whichever token " +
-    "account custodies it is used), and new positions or ranges are never created. A missing " +
-    "funding account on a side the quote needs nothing from is created idempotently. " +
-    "Simulates the exact transaction first and sends nothing when " +
-    "simulation, validation, or the blockhash lifetime fails; skipSimulation bypasses only " +
-    "the simulation, never validation. Never re-sends after an ambiguous submission. Unused " +
-    "funds always stay in the wallet. Use solana_liquidity_simulate_deposit to preview " +
-    "without sending. orca and raydium are implemented: meteora fails before any network " +
-    "access.",
+    "Add liquidity to one existing Orca, Raydium, or Meteora position from the configured " +
+    "signer and wait for confirmation. Signs and submits a real transaction that moves funds. " +
+    "amountA and amountB are maximum spends in the pool's canonical mint order. Orca and " +
+    "Raydium encode on-chain spend bounds at the quote plus slippage, capped by the budgets. " +
+    "Meteora signs those amounts as the caps and spreads them across the position's existing " +
+    "bins only; if the active bin moved more than ceil(maxSlippageBps / binStep) bins the " +
+    "deposit is refused before send, and that check is not on chain. position is the Whirlpool " +
+    "PDA, the Raydium personal position, or the Meteora PositionV2 account, never an NFT mint. " +
+    "The signer holds the Orca or Raydium position NFT, or owns the Meteora position. New " +
+    "positions and bin-range changes are refused. A missing funding account on a side the " +
+    "quote needs nothing from is created idempotently. Simulates the exact transaction first " +
+    "and sends nothing when simulation, validation, or the blockhash lifetime fails; " +
+    "skipSimulation bypasses only the simulation, never validation. Use " +
+    "solana_liquidity_simulate_deposit to preview. Withdrawals still reject meteora.",
   input: LiquidityExecuteDepositInputSchema,
   check: (input) => {
-    if (!isReadable(input.protocol)) {
+    if (!isDepositable(input.protocol)) {
       throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
     }
   },
