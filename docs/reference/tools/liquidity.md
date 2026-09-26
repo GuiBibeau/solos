@@ -15,9 +15,10 @@ return the shared `LpPosition` contract:
 - **What each venue supports.** orca: read, deposit, withdraw. raydium: read, deposit, withdraw,
   and opening and closing a position — the only venue whose position lifecycle solOS encodes, so
   an open or close naming any other protocol is refused before any RPC. meteora: point reads,
-  owner enumeration, and deposit into an existing position. There is no `liquidity list`
-  command; `solos portfolio state` is the enumeration path. Withdraw, open, and close still
-  refuse meteora with `LiquidityUnsupportedProtocol` before any network access.
+  owner enumeration, deposit into an existing position, and withdrawal from that position.
+  There is no `liquidity list` command; `solos portfolio state` is the enumeration path. Open
+  and close still refuse meteora with `LiquidityUnsupportedProtocol` before any network access
+  (#144).
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
@@ -121,8 +122,9 @@ ADR-0022: no live deposit/open without a checked exit path.
 `solana_liquidity_get_position` and `solos liquidity position --protocol meteora --position
 <position-account> [--owner <address>]` read one existing PositionV2 and return the same
 `LpPosition` shape. A deposit into that position is
-[below](#deposits-into-an-existing-meteora-position). Withdraw, open, and close still refuse
-meteora with `LiquidityUnsupportedProtocol` before any network access.
+[below](#deposits-into-an-existing-meteora-position). A withdrawal is
+[below](#withdrawals-from-an-existing-meteora-position). Open and close still refuse
+meteora with `LiquidityUnsupportedProtocol` before any network access (#144).
 
 - **`position` is the PositionV2 account pubkey**, never an NFT mint and never the pair
   (ADR-0022). `instrument` is that account's `lb_pair`. There is no position NFT.
@@ -180,12 +182,52 @@ is the same flag as in [Deposits into existing positions](#deposits-into-existin
   Zero slippage allows zero bins of movement. That check is not an argument of
   `add_liquidity2` and is not enforced on chain. The on-chain bound is the signed
   `amount_x` and `amount_y` caps.
-- **Withdraw, open, and close still refuse meteora** with `LiquidityUnsupportedProtocol`
-  before any network access.
+- **Open and close still refuse meteora** with `LiquidityUnsupportedProtocol` before any
+  network access (#144).
 
 ```sh
 SOLANA_RPC_URL=... bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
   --position <position-account> --amount-a <base-units> --amount-b <base-units>
+```
+
+The funded round is recorded in [liquidity QA](../../liquidity-qa.md).
+
+### Withdrawals from an existing Meteora position
+
+`solana_liquidity_simulate_withdraw` / `solana_liquidity_execute_withdraw` (MCP) and
+`solos liquidity simulate-withdraw` / `solos liquidity withdraw` (CLI) remove liquidity from
+one existing PositionV2. The flags are `--position <position-account> --bps <1..10000>
+[--max-slippage-bps 50]`, plus `[--skip-simulation]` on `withdraw`. The pair is the
+position's `lb_pair`.
+
+- **`position` is the PositionV2 account pubkey**, never an NFT mint. The signer must be the
+  `owner` at byte 40. The call does not close the account and does not move `lower_bin_id`
+  or `upper_bin_id`.
+- **The instruction is remove-only `rebalance_liquidity`.** Program
+  `LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo`, IDL and SDK pin
+  `576919e3e4368e542c402f000b4264724f7f23ec`. `adds` is empty. `shrink_mode` is
+  `NoShrinkBoth`, which keeps both range edges. `should_claim_fee` and `should_claim_reward`
+  are false, so the wallet receives principal only. Fee and reward balances stay on the
+  position.
+- **`bps` applies to each occupied bin.** Each bin loses `floor(share * bps / 10000)` of its
+  own shares. `bps` 10000 is a full exit: every occupied bin is removed at 10000 bps and the
+  position's liquidity shares are zero. A removal that computes to zero liquidity is rejected
+  before anything is signed.
+- **Minimum receipts are on chain.** `min_withdraw_x` and `min_withdraw_y` are
+  `floor(quoted principal * (10000 - maxSlippageBps) / 10000)` in base units of mint X and
+  mint Y. The quote is `Bin::calculate_out_amount` on the removed share only, at the same
+  pin. A nonzero quote that rounds to a zero minimum is rejected. The instruction also
+  carries `max_active_bin_slippage` of `ceil(maxSlippageBps / binStep)` bins, and the program
+  refuses when the active bin moves farther than that. solOS re-checks the same bound before
+  send.
+- **Open and close still refuse meteora** with `LiquidityUnsupportedProtocol` before any
+  network access (#144). ADR-0022's execution gate still describes `remove_liquidity` as
+  unable to encode minimum receipts; the live withdraw is remove-only `rebalance_liquidity`
+  (#139, #156).
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity simulate-withdraw --protocol meteora \
+  --position <position-account> --bps <1..10000>
 ```
 
 The funded round is recorded in [liquidity QA](../../liquidity-qa.md).
