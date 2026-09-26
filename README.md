@@ -16,6 +16,40 @@ bun run solos wallet balance
 
 Requires Bun ≥ 1.3.
 
+## Examples
+
+Commands print JSON. Reads do not sign. `swap simulate` builds the swap for the configured
+signer and does not send it. `swap execute` takes the same flags and submits only after that
+simulation succeeds. Swap calls need `JUPITER_API_KEY`.
+
+```sh
+# Indicative quote: 0.01 wSOL to USDC. Nothing is signed.
+bun run solos swap quote \
+  --input-mint So11111111111111111111111111111111111111112 \
+  --output-mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
+  --amount 10000000
+
+# Same swap, simulated for the configured signer. Nothing is submitted.
+bun run solos swap simulate \
+  --input-mint So11111111111111111111111111111111111111112 \
+  --output-mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
+  --amount 10000000
+
+# USDC supply APY, borrow APY, and available liquidity on Kamino's default market.
+bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+
+# Phoenix SOL-PERP position for the configured trader.
+bun run solos perp position --market SOL-PERP
+```
+
+The same quote over MCP:
+
+```sh
+bun run solos mcp call solana_swap_get_quote --args '{"inputMint":"So11111111111111111111111111111111111111112","outputMint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"10000000"}'
+```
+
+The full catalog is [Tools](docs/reference/tools/index.md). A deeper Learn path comes later.
+
 ## Layout
 
 `packages/` is actions, core, Solana adapters, and the MCP server. `apps/` is the harness and the
