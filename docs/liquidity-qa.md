@@ -216,9 +216,9 @@ not this round. A later round opened and closed a different position. That round
 
 ## Meteora DLMM open to close (#144)
 
-**Status: one funded mainnet open, two deposits, withdraw, and close is recorded.** Kernel ran it
-on the #171 head `4e11eb8d640b41147c5f96c67a536dfe5444ff5c`. #171 has not merged. This note
-does not claim Surfpool coverage.
+**Status: one funded mainnet open, two deposits, withdraw, and close is recorded.** The
+shipped commit is `7f17712c42e98cd33e6422cc1eba6e05c8e62edf`, the squash merge of #171. This
+note does not claim Surfpool coverage.
 
 The pool is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. The owner is
 `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`. Position
