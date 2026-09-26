@@ -13,18 +13,25 @@ import { AddressSchema } from "../../shared/domain/address.js";
 /**
  * The venue selector, mirroring the merged contract enum in `@solos/actions`
  * (trading-primitives LiquidityProtocolSchema, not exported from the published index).
- * Point reads and owner enumeration cover orca, raydium, and meteora. Deposits are narrower.
+ * Point reads and owner enumeration cover orca, raydium, and meteora. Withdrawals are narrower
+ * than deposits: meteora can be deposited into and still cannot be withdrawn.
  */
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 
 /**
- * Protocols with a deposit or withdrawal adapter. Owner enumeration is
- * {@link ENUMERATION_PROTOCOLS}. Meteora is enumerated and still not deposited.
+ * Protocols with a withdrawal adapter. Deposits are {@link DEPOSIT_PROTOCOLS}. Owner
+ * enumeration is {@link ENUMERATION_PROTOCOLS}.
  */
 export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
 
 /** @param {string} protocol */
 export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
+
+/** Protocols with a deposit adapter. Withdrawals stay on {@link READ_PROTOCOLS}. */
+export const DEPOSIT_PROTOCOLS = Object.freeze(["orca", "raydium", "meteora"]);
+
+/** @param {string} protocol */
+export const isDepositable = (protocol) => DEPOSIT_PROTOCOLS.includes(protocol);
 
 /**
  * Protocols with an owner-enumeration adapter. Each venue keeps its own candidate bound.
@@ -60,7 +67,7 @@ export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol)
  */
 export const LiquidityGetPositionInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Withdrawals still reject meteora; deposits add to the position's existing bins only",
   ),
   position: AddressSchema.describe(
     "Protocol position-account address: the Whirlpool position PDA on orca, the PersonalPositionState PDA on raydium, the PositionV2 account on meteora. Never an NFT mint and never the pool",
@@ -73,7 +80,7 @@ export const LiquidityGetPositionInputSchema = z.object({
 /** One owner enumeration: whose LP positions to list. Omitted means the configured signer. */
 export const LiquidityListPositionsInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Deposits and withdrawals still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Withdrawals still reject meteora; deposits add to the position's existing bins only",
   ),
   owner: AddressSchema.optional().describe(
     "Owner to enumerate. Defaults to the configured signer wallet",
@@ -103,13 +110,13 @@ export const DepositBudgetSchema = z
 /** The deposit request fields before the cross-field budget rule. */
 const DepositInputBaseSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Withdrawals still reject meteora",
   ),
   pool: AddressSchema.describe(
     "Pool address the position belongs to; the deposit fails typed when the position references a different pool",
   ),
   position: AddressSchema.describe(
-    "Existing protocol position account (the Whirlpool position PDA), never the NFT mint and never the pool; new positions are never created",
+    "Existing protocol position account: the Whirlpool position PDA, the Raydium personal position, or the Meteora PositionV2 account. Never an NFT mint and never the pool. New positions and bin-range changes are refused",
   ),
   amountA: DepositBudgetSchema.describe(
     "Maximum token A spend, in base units of the pool's canonical token A mint; unused funds stay in the wallet",
@@ -124,7 +131,7 @@ const DepositInputBaseSchema = z.object({
     .max(9999)
     .default(50)
     .describe(
-      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). The on-chain spend bounds are the quoted amounts plus this tolerance, capped by the budgets, so a price move that would overspend either bound aborts on chain",
+      "Price-movement tolerance in basis points, 0..9999. Default 50 (0.5%). Orca and Raydium encode on-chain spend bounds at the quote plus this tolerance, capped by the budgets. Meteora caps spend at the signed token amounts and refuses before send if the active bin moved more than ceil(maxSlippageBps / binStep) bins; that drift check is not on chain",
     ),
   wrapSol: z
     .boolean()
