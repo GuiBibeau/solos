@@ -16,7 +16,7 @@ import {
 } from "../liquidity/raydium-clmm-open.js";
 import { prepareRaydiumPlan } from "../liquidity/raydium-clmm-plan-reads.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
-import { signRaydiumPosition } from "./raydium-position-sign.js";
+import { notRaydium, signRaydiumPosition } from "./raydium-position-sign.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -24,6 +24,7 @@ import { signRaydiumPosition } from "./raydium-position-sign.js";
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
 export const buildSignedRaydiumClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
+    if (action.protocol !== "raydium") return yield* notRaydium("close_position", action.protocol);
     const owner = kit.signer.address;
     const read = liquidityRead(ctx);
     const reader = {

@@ -24,7 +24,7 @@ import { depositLiquidityForBudgets, spendBound } from "../liquidity/whirlpool-d
 import { liquidityRead } from "./liquidity-token-accounts.js";
 import { openFunding } from "./raydium-open-funding.js";
 import { openParts } from "./raydium-open-parts.js";
-import { signRaydiumPosition } from "./raydium-position-sign.js";
+import { notRaydium, signRaydiumPosition } from "./raydium-position-sign.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -157,6 +157,7 @@ const openInstruction = (action, quote, built) =>
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
 export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
+    if (action.protocol !== "raydium") return yield* notRaydium("open_position", action.protocol);
     const read = yield* readPool(ctx, action.pool);
     if (!read.ok) return yield* rejected(read.reason);
     const quote = openQuote(action, read.pool);

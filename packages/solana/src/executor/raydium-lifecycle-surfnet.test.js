@@ -24,6 +24,8 @@ import { seedRaydiumPool, seedRaydiumPosition } from "../liquidity/raydium-clmm-
 import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
 import { surfnetCheatcodes } from "../surfnet/surfnet-cli.js";
 import { ensureOfflineSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
+import { buildSignedRaydiumClose } from "./raydium-close-build.js";
+import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
 
 const TICK_SPACING = 60;
 const FUNDED = 10n ** 12n;
@@ -158,6 +160,41 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     expect(failure).toBeInstanceOf(BuildRejected);
     expect(reasonOf(failure)).toContain("no liquidity");
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
+  });
+
+  test("the builder itself refuses a non-raydium lifecycle action, whatever reached it", async () => {
+    const seed = randomSeed();
+    const kit = { signer: { address: await seedAddress(seed) } };
+    const ctx = /** @type {any} */ ({});
+    const open = await Effect.runPromiseExit(
+      buildSignedRaydiumOpen(
+        { ctx, kit: /** @type {any} */ (kit) },
+        {
+          ...openIntent({}),
+          protocol: "orca",
+        },
+      ),
+    );
+    const close = await Effect.runPromiseExit(
+      buildSignedRaydiumClose(
+        { ctx, kit: /** @type {any} */ (kit) },
+        {
+          protocol: "orca",
+          position: randomAddress(),
+        },
+      ),
+    );
+    // No ctx at all: the refusal happens before anything reads, so an orca open can never be
+    // built as a Raydium transaction even when it bypasses the use case's gate.
+    for (const [exit, type] of [
+      [open, "open_position"],
+      [close, "close_position"],
+    ]) {
+      expect(/** @type {any} */ (exit)._tag).toBe("Failure");
+      const failure = Cause.failureOption(/** @type {any} */ (exit).cause);
+      expect(Option.isSome(failure)).toBe(true);
+      expect(Option.getOrThrow(failure)).toMatchObject({ actionType: `${type}:orca` });
+    }
   });
 
   test("meteora fails the protocol gate before the executor reads anything", async () => {

@@ -5,6 +5,8 @@
 /** @typedef {import("./action.js").SwapAction} SwapAction */
 /** @typedef {import("./venue-actions.js").AddLiquidityAction} AddLiquidityAction */
 /** @typedef {import("./venue-actions.js").LendAction} LendAction */
+/** @typedef {import("./venue-actions.js").OpenPositionAction} OpenPositionAction */
+/** @typedef {import("./venue-actions.js").ClosePositionAction} ClosePositionAction */
 /** @typedef {import("./action.js").Action & { type: "deposit_perp_collateral" | "withdraw_perp_collateral" }} PerpCollateralAction */
 /** @typedef {import("./venue-actions.js").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {import("./venue-actions.js").WithdrawLendAction} WithdrawLendAction */
@@ -22,6 +24,7 @@
 /** @typedef {import("./results.js").PerpCollateralReconciliation} PerpCollateralReconciliation */
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
 /** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
+/** @typedef {import("./results.js").PositionOpenQuote} PositionOpenQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
 /** @typedef {import("./results.js").VenueQuote} VenueQuote */
 /** @typedef {import("./results.js").Violation} Violation */

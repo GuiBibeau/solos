@@ -10,6 +10,7 @@ import {
   appendTransactionMessageInstructions,
   setTransactionMessageLifetimeUsingBlockhash,
 } from "@solana/kit";
+import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { RAYDIUM_V1_CONFIG } from "./raydium-liquidity-build.js";
@@ -36,3 +37,14 @@ export const signRaydiumPosition = ({ ctx, kit, instructions }) =>
       catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
     });
   });
+
+/**
+ * Raydium is the only venue whose position lifecycle this encodes. The use cases gate on the
+ * same list, but an Action can reach the executor from anywhere, and routing an orca open into
+ * a Raydium build would report a venue the transaction never touched.
+ * @param {string} actionType @param {string} protocol
+ */
+export const notRaydium = (actionType, protocol) =>
+  Effect.fail(
+    new UnsupportedAction({ actionType: `${actionType}:${protocol}`, executor: "direct-signer" }),
+  );
