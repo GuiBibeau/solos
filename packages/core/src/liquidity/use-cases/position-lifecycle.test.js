@@ -97,9 +97,7 @@ describe("position lifecycle validation", () => {
     expect(ticked).toBeInstanceOf(LiquidityInputInvalid);
     expect(/** @type {LiquidityInputInvalid} */ (ticked).reason).toContain("lowerBinId");
 
-    const binned = await failureOf(
-      simulateOpenPosition({ ...raydium, lowerBinId: 0, width: 4 }),
-    );
+    const binned = await failureOf(simulateOpenPosition({ ...raydium, lowerBinId: 0, width: 4 }));
     expect(binned).toBeInstanceOf(LiquidityInputInvalid);
     expect(/** @type {LiquidityInputInvalid} */ (binned).reason).toContain("tick range");
   });
@@ -107,9 +105,7 @@ describe("position lifecycle validation", () => {
   test("orca still fails the protocol gate", async () => {
     const failure = await failureOf(simulateOpenPosition({ ...raydium, protocol: "orca" }));
     expect(failure).toBeInstanceOf(LiquidityUnsupportedProtocol);
-    const closed = await failureOf(
-      simulateClosePosition({ protocol: "orca", position: ADDRESS }),
-    );
+    const closed = await failureOf(simulateClosePosition({ protocol: "orca", position: ADDRESS }));
     expect(closed).toBeInstanceOf(LiquidityUnsupportedProtocol);
   });
 

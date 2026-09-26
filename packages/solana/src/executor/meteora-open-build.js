@@ -43,7 +43,8 @@ const readPair = (ctx, pool) =>
       };
     }
     const decoded = decodeLbPair(row.bytes);
-    if (decoded.status !== "decoded") return { ok: /** @type {const} */ (false), reason: decoded.reason };
+    if (decoded.status !== "decoded")
+      return { ok: /** @type {const} */ (false), reason: decoded.reason };
     return { ok: /** @type {const} */ (true) };
   });
 

@@ -10,7 +10,11 @@
 import { z } from "zod";
 import { openPositionIssue } from "./meteora-open.js";
 import { AddressSchema } from "./primitives.js";
-import { LiquidityProtocolSchema, SlippageBpsSchema, U64AmountSchema } from "./trading-primitives.js";
+import {
+  LiquidityProtocolSchema,
+  SlippageBpsSchema,
+  U64AmountSchema,
+} from "./trading-primitives.js";
 
 /** @param {unknown} value @param {z.RefinementCtx} ctx */
 const attachOpenIssue = (value, ctx) => {

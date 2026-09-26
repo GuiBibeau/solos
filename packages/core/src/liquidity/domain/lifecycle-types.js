@@ -62,7 +62,9 @@ export const OpenPositionInput = z
       .min(0)
       .max(9999)
       .default(50)
-      .describe("Raydium price-movement tolerance in basis points. Ignored by an empty meteora open"),
+      .describe(
+        "Raydium price-movement tolerance in basis points. Ignored by an empty meteora open",
+      ),
     wrapSol: z
       .boolean()
       .default(false)
