@@ -1,10 +1,5 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createSolanaRpc } from "@solana/kit";
-import { Cause, Effect, Option } from "effect";
-import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
-import { rpcOrigin } from "../rpc/rpc-origin.js";
-import { listPositionsLive } from "./liquidity-enumerate.js";
 import { randomAddress, seedTokenAccounts, seedWhirlpoolPosition } from "./liquidity-seeds.js";
 import { LIQUIDITY, startLiquidityVenueFixture } from "./liquidity-venue-fixture.js";
 
@@ -53,28 +48,5 @@ describe("liquidity owner enumeration over seeded Surfnet [integration]", () => 
       _tag: "LiquidityEnumerationIncomplete",
       reason: "owner holds more than 256 candidate position mints",
     });
-  });
-
-  test("meteora enumeration is still refused before any account read", async () => {
-    const read = {
-      rpc: createSolanaRpc(fx.rpcUrl),
-      origin: rpcOrigin(fx.rpcUrl),
-      timeoutMs: TOKEN_RPC_TIMEOUT_MS,
-    };
-    const exit = await Effect.runPromiseExit(
-      listPositionsLive(read, {
-        protocol: "meteora",
-        owner: randomAddress(),
-      }),
-    );
-    expect(exit._tag).toBe("Failure");
-    const failure = Cause.failureOption(exit.cause);
-    expect(Option.isSome(failure)).toBe(true);
-    if (Option.isSome(failure)) {
-      expect(failure.value).toMatchObject({
-        _tag: "LiquidityUnsupportedProtocol",
-        protocol: "meteora",
-      });
-    }
   });
 });

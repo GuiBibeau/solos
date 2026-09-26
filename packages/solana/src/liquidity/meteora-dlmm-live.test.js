@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * The Meteora point read through real RPC against a seeded offline Surfnet.
- * Enumeration stays unsupported (#141); these tests only cover one position.
+ * Owner enumeration is covered beside this file.
  */
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createSolanaRpc } from "@solana/kit";

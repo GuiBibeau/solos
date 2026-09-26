@@ -11,8 +11,11 @@ import {
 } from "@solos/core";
 import { Effect, Layer } from "effect";
 
-/** Liquidity venues with a read adapter. Kept beside the merge it drives (#129). */
-const LIQUIDITY_PROTOCOLS = /** @type {const} */ (["orca", "raydium"]);
+/**
+ * Liquidity venues with an enumeration adapter. Each call keeps that venue's own candidate
+ * bound. Meteora is included so a wallet whose only LP is a PositionV2 is not an empty section.
+ */
+const LIQUIDITY_PROTOCOLS = /** @type {const} */ (["orca", "raydium", "meteora"]);
 
 /**
  * Enumerate every liquidity venue that has an adapter and merge the envelopes. A failure in any

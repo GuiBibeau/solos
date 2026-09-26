@@ -22,9 +22,12 @@ const failureTag = async (effect) => {
 };
 
 describe("liquidity use-case gates run before any service is required", () => {
-  test("meteora enumeration fails the protocol gate before the Signer or venue port", async () => {
-    const input = { protocol: /** @type {"orca"} */ ("meteora"), position: ADDRESS };
-    expect(await failureTag(listLpPositions(input))).toBe("LiquidityUnsupportedProtocol");
+  test("meteora enumeration passes the protocol gate", async () => {
+    const exit = await Effect.runPromiseExit(
+      listLpPositions({ protocol: "meteora", owner: ADDRESS }),
+    );
+    expect(exit._tag).toBe("Failure");
+    expect(Option.isNone(Cause.failureOption(exit.cause))).toBe(true);
   });
 
   test("meteora point reads pass the protocol gate", async () => {

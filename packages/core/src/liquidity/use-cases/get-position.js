@@ -11,7 +11,7 @@ import { LiquidityVenue } from "../ports/liquidity-venue.js";
 /**
  * Read one Orca, Raydium, or Meteora LP position. Input is re-validated so every entry point
  * (tool, CLI, harness) fails before any provider access. The protocol gate runs before the
- * signer or the venue port are touched. Meteora enumeration and deposits stay refused.
+ * signer or the venue port are touched. Meteora deposits stay refused.
  * The owner resolves from the wallet Signer only when omitted.
  * @param {import("../domain/types.js").LiquidityGetPositionInput} input
  * @returns {import("effect").Effect.Effect<import("../domain/types.js").LpPosition, GetPositionError, GetPositionContext>}

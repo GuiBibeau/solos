@@ -13,13 +13,13 @@ import { AddressSchema } from "../../shared/domain/address.js";
 /**
  * The venue selector, mirroring the merged contract enum in `@solos/actions`
  * (trading-primitives LiquidityProtocolSchema, not exported from the published index).
- * Point reads cover orca, raydium, and meteora. Enumeration and deposits are narrower.
+ * Point reads and owner enumeration cover orca, raydium, and meteora. Deposits are narrower.
  */
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 
 /**
- * Protocols with an enumeration or deposit adapter. Meteora is absent on purpose: point
- * reads landed in #140, owner enumeration is #141, and deposits stay refused.
+ * Protocols with a deposit or withdrawal adapter. Owner enumeration is
+ * {@link ENUMERATION_PROTOCOLS}. Meteora is enumerated and still not deposited.
  */
 export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
 
@@ -27,7 +27,16 @@ export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
 export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
 
 /**
- * Protocols with a get-position adapter. Wider than {@link READ_PROTOCOLS} by meteora.
+ * Protocols with an owner-enumeration adapter. Each venue keeps its own candidate bound.
+ * Meteora positions are program accounts, not NFT receipts.
+ */
+export const ENUMERATION_PROTOCOLS = Object.freeze(["orca", "raydium", "meteora"]);
+
+/** @param {string} protocol */
+export const isEnumerable = (protocol) => ENUMERATION_PROTOCOLS.includes(protocol);
+
+/**
+ * Protocols with a get-position adapter. Same set as {@link ENUMERATION_PROTOCOLS}.
  */
 export const POSITION_READ_PROTOCOLS = Object.freeze(["orca", "raydium", "meteora"]);
 
@@ -64,7 +73,7 @@ export const LiquidityGetPositionInputSchema = z.object({
 /** One owner enumeration: whose LP positions to list. Omitted means the configured signer. */
 export const LiquidityListPositionsInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Deposits and withdrawals still reject meteora",
   ),
   owner: AddressSchema.optional().describe(
     "Owner to enumerate. Defaults to the configured signer wallet",
