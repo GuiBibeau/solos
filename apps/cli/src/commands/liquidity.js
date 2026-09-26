@@ -18,6 +18,12 @@ const protocol = Options.text("protocol").pipe(
   ),
 );
 
+const readProtocol = Options.text("protocol").pipe(
+  Options.withDescription(
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals still reject meteora.",
+  ),
+);
+
 const position = Options.text("position").pipe(
   Options.withDescription(
     "Protocol position-account address (the Whirlpool position PDA), never the NFT mint and never the pool.",
@@ -27,22 +33,25 @@ const position = Options.text("position").pipe(
 const owner = Options.text("owner").pipe(
   Options.optional,
   Options.withDescription(
-    "Owner whose position NFT custody proves ownership. Defaults to the configured signer.",
+    "Owner to prove against. Orca and Raydium require custody of the position NFT; Meteora matches the position account's owner field. Defaults to the configured signer.",
   ),
 );
 
-const positionCommand = Command.make("position", { protocol, position, owner }, (options) =>
-  withSolos(
-    getLpPosition({
-      // The use case re-validates: a value outside the venue enum fails LiquidityInputInvalid.
-      protocol: /** @type {"orca" | "meteora" | "raydium"} */ (options.protocol),
-      position: options.position,
-      owner: Option.getOrUndefined(options.owner),
-    }).pipe(Effect.flatMap(emit)),
-  ).pipe(exitOnFailure),
+const positionCommand = Command.make(
+  "position",
+  { protocol: readProtocol, position, owner },
+  (options) =>
+    withSolos(
+      getLpPosition({
+        // The use case re-validates: a value outside the venue enum fails LiquidityInputInvalid.
+        protocol: /** @type {"orca" | "meteora" | "raydium"} */ (options.protocol),
+        position: options.position,
+        owner: Option.getOrUndefined(options.owner),
+      }).pipe(Effect.flatMap(emit)),
+    ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Read one concentrated-liquidity LP position on orca or raydium: raw liquidity and underlying A/B amounts. owner defaults to the configured signer, so a third party's position can be read by naming its owner (read-only)",
+    "Read one concentrated-liquidity LP position on orca, raydium, or meteora: raw liquidity and underlying A/B amounts. owner defaults to the configured signer, so a third party's position can be read by naming its owner (read-only)",
   ),
 );
 
@@ -120,7 +129,7 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
 
 export const liquidity = Command.make("liquidity").pipe(
   Command.withDescription(
-    "Liquidity venues: Orca and Raydium position reads, deposits into and bounded removals from explicitly identified positions, and opening or closing a Raydium position at a range you choose",
+    "Liquidity venues: Orca, Raydium, and Meteora position reads, deposits into and bounded removals from explicitly identified Orca and Raydium positions, and opening or closing a Raydium position at a range you choose",
   ),
   Command.withSubcommands([
     positionCommand,

@@ -6,11 +6,8 @@ import { LIQUIDITY, startLiquidityMcp } from "./liquidity-position-fixture.js";
 /**
  * `solana_liquidity_get_position` through the real MCP server child: discovery (the previous
  * thirteen tools unchanged plus one read-tier liquidity tool), funded and zero reads with
- * env forwarding, typed unavailable errors, and the preflight meteora rejection.
+ * env forwarding, typed unavailable errors, and a Meteora point read.
  */
-
-/** A dead RPC URL: connections are refused instantly, proving no request was needed. */
-const DEAD_RPC_URL = "http://127.0.0.1:1";
 
 /** @type {Awaited<ReturnType<typeof startLiquidityMcp>> | undefined} */
 let session;
@@ -108,17 +105,43 @@ describe("solos MCP liquidity position tool through a real server child [integra
     });
   });
 
-  test("meteora is rejected by the preflight check before the runtime builds", async () => {
-    session = await startLiquidityMcp({ rpcUrl: DEAD_RPC_URL });
+  test("reads a meteora position through the real adapter", async () => {
+    session = await startLiquidityMcp();
+    const { randomAddress } = await import("@solos/solana/liquidity/whirlpool-fixture");
+    const { seedMeteoraBinArray, seedMeteoraPair, seedMeteoraPosition } = await import(
+      "@solos/solana/liquidity/meteora-dlmm-seeds"
+    );
+    const owner = randomAddress();
+    const mintX = randomAddress();
+    const mintY = randomAddress();
+    const pair = await seedMeteoraPair(session.rpcUrl, { mintX, mintY });
+    const position = await seedMeteoraPosition(session.rpcUrl, {
+      lbPair: pair,
+      owner,
+      lowerBinId: 0,
+      upperBinId: 0,
+      shares: [{ index: 0, share: 4n }],
+    });
+    await seedMeteoraBinArray(session.rpcUrl, {
+      lbPair: pair,
+      index: 0,
+      bins: [{ binId: 0, amountX: 8n, amountY: 2n, supply: 4n }],
+    });
     const result = await session.mcp.callTool("solana_liquidity_get_position", {
       protocol: "meteora",
-      position: session.funded.position,
-      owner: session.owner,
+      position,
+      owner,
     });
-    expect(result.isError).toBe(true);
+    expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toMatchObject({
-      code: "LiquidityUnsupportedProtocol",
+      kind: "lp",
       protocol: "meteora",
+      position,
+      instrument: pair,
+      liquidity: "4",
+      tokenA: { mint: mintX, amount: "8", decimals: 9 },
+      tokenB: { mint: mintY, amount: "2", decimals: 6 },
+      valueUsd: null,
     });
   });
 });

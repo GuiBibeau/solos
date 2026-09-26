@@ -13,19 +13,26 @@ import { AddressSchema } from "../../shared/domain/address.js";
 /**
  * The venue selector, mirroring the merged contract enum in `@solos/actions`
  * (trading-primitives LiquidityProtocolSchema, not exported from the published index).
- * Only `orca` has an adapter; the other values fail typed, before the network.
+ * Point reads cover orca, raydium, and meteora. Enumeration and deposits are narrower.
  */
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 
 /**
- * Protocols with a read adapter behind them. Enum membership is not implementation: `meteora`
- * parses and then fails `UnsupportedProtocol` before any network access. One list, checked by
- * the tool's pure guard and again by the use case.
+ * Protocols with an enumeration or deposit adapter. Meteora is absent on purpose: point
+ * reads landed in #140, owner enumeration is #141, and deposits stay refused.
  */
 export const READ_PROTOCOLS = Object.freeze(["orca", "raydium"]);
 
 /** @param {string} protocol */
 export const isReadable = (protocol) => READ_PROTOCOLS.includes(protocol);
+
+/**
+ * Protocols with a get-position adapter. Wider than {@link READ_PROTOCOLS} by meteora.
+ */
+export const POSITION_READ_PROTOCOLS = Object.freeze(["orca", "raydium", "meteora"]);
+
+/** @param {string} protocol */
+export const isPositionReadable = (protocol) => POSITION_READ_PROTOCOLS.includes(protocol);
 
 /**
  * Protocols whose positions solOS can create and retire, which is narrower than the ones it can
@@ -44,13 +51,13 @@ export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol)
  */
 export const LiquidityGetPositionInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools) and raydium (CLMM) are implemented; meteora fails before any network access",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals still reject meteora",
   ),
   position: AddressSchema.describe(
-    "Protocol position-account address — the Whirlpool position PDA on orca, the PersonalPositionState PDA on raydium; never the NFT mint and never the pool",
+    "Protocol position-account address: the Whirlpool position PDA on orca, the PersonalPositionState PDA on raydium, the PositionV2 account on meteora. Never an NFT mint and never the pool",
   ),
   owner: AddressSchema.optional().describe(
-    "Owner whose position NFT custody proves ownership. Defaults to the configured signer wallet",
+    "Owner to prove against. Orca and Raydium require custody of the position NFT; Meteora matches the position account's owner field. Defaults to the configured signer wallet",
   ),
 });
 

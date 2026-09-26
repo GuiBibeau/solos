@@ -4,7 +4,7 @@ import { createSolanaRpc } from "@solana/kit";
 import { Cause, Effect, Option } from "effect";
 import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
-import { getPositionLive } from "./liquidity-read.js";
+import { listPositionsLive } from "./liquidity-enumerate.js";
 import { randomAddress, seedTokenAccounts, seedWhirlpoolPosition } from "./liquidity-seeds.js";
 import { LIQUIDITY, startLiquidityVenueFixture } from "./liquidity-venue-fixture.js";
 
@@ -55,16 +55,15 @@ describe("liquidity owner enumeration over seeded Surfnet [integration]", () => 
     });
   });
 
-  test("the adapter re-gates unsupported protocols before any account read", async () => {
+  test("meteora enumeration is still refused before any account read", async () => {
     const read = {
       rpc: createSolanaRpc(fx.rpcUrl),
       origin: rpcOrigin(fx.rpcUrl),
       timeoutMs: TOKEN_RPC_TIMEOUT_MS,
     };
     const exit = await Effect.runPromiseExit(
-      getPositionLive(read, {
+      listPositionsLive(read, {
         protocol: "meteora",
-        position: randomAddress(),
         owner: randomAddress(),
       }),
     );

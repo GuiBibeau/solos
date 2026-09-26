@@ -86,26 +86,51 @@ describe("`solos liquidity position` through a real CLI child process [integrati
     });
   });
 
-  test("meteora fails typed before any network access on a dead RPC URL", async () => {
+  test("reads a meteora position for an explicit owner", async () => {
     const { env } = await signerEnv(fx);
-    const { stdout, stderr, code } = await runSolos(
-      [
-        "liquidity",
-        "position",
-        "--protocol",
-        "meteora",
-        "--position",
-        fx.funded.position,
-        "--owner",
-        fx.owner,
-      ],
-      { ...env, SOLANA_RPC_URL: DEAD_RPC_URL },
+    const { randomAddress } = await import("@solos/solana/liquidity/whirlpool-fixture");
+    const { seedMeteoraBinArray, seedMeteoraPair, seedMeteoraPosition } = await import(
+      "@solos/solana/liquidity/meteora-dlmm-seeds"
     );
-    expect(code).not.toBe(0);
-    expect(stdout).toBe("");
-    expect(stderrJson(stderr)?.error).toMatchObject({
-      code: "LiquidityUnsupportedProtocol",
+    const owner = randomAddress();
+    const mintX = randomAddress();
+    const mintY = randomAddress();
+    const pair = await seedMeteoraPair(fx.rpcUrl, { mintX, mintY });
+    const position = await seedMeteoraPosition(fx.rpcUrl, {
+      lbPair: pair,
+      owner,
+      lowerBinId: -1,
+      upperBinId: 0,
+      shares: [
+        { index: 0, share: 3n },
+        { index: 1, share: 5n },
+      ],
+    });
+    await seedMeteoraBinArray(fx.rpcUrl, {
+      lbPair: pair,
+      index: -1,
+      bins: [{ binId: -1, amountX: 0n, amountY: 10n, supply: 4n }],
+    });
+    await seedMeteoraBinArray(fx.rpcUrl, {
+      lbPair: pair,
+      index: 0,
+      bins: [{ binId: 0, amountX: 10n, amountY: 1n, supply: 8n }],
+    });
+    const { stdout, stderr, code } = await runSolos(
+      ["liquidity", "position", "--protocol", "meteora", "--position", position, "--owner", owner],
+      env,
+    );
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({
+      kind: "lp",
       protocol: "meteora",
+      position,
+      instrument: pair,
+      liquidity: "8",
+      tokenA: { mint: mintX, amount: "6", decimals: 9 },
+      tokenB: { mint: mintY, amount: "7", decimals: 6 },
+      valueUsd: null,
     });
   });
 

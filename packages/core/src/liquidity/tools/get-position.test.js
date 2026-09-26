@@ -1,18 +1,15 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { LpPositionSchema } from "@solos/actions";
-import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
 import { LiquidityGetPositionInputSchema } from "../domain/types.js";
 import { getLpPositionTool } from "./get-position.js";
 
 describe("liquidity position tool input guard", () => {
-  // Enum membership is not implementation. meteora parses and is refused here, before the
-  // signer-bearing runtime is ever built; raydium has an adapter as of #128 and passes.
-  test("rejects a protocol with no adapter before any runtime", () => {
+  test("accepts meteora, which has a point-read adapter", () => {
     expect(getLpPositionTool.check).toBeTypeOf("function");
-    expect(() =>
+    expect(
       getLpPositionTool.check({ protocol: "meteora", position: "2".repeat(44) }),
-    ).toThrow(LiquidityUnsupportedProtocol);
+    ).toBeUndefined();
   });
 
   test("accepts raydium, which has a read adapter", () => {
