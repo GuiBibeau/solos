@@ -1,14 +1,15 @@
 // @ts-check
 /**
  * The withdraw half of the executor: turn one `remove_liquidity` action into exactly one
- * signed v1 transaction — or a typed failure, before anything is signed. The plan (guards,
- * fetch orchestration, bps fraction, slippage-bounded minimums, derivations) is pure over
- * its reader seam; this module binds the reader to real RPC, proves the receiving token
- * accounts (creating a missing owner ATA idempotently when the position owes that side
- * nothing at the current price — its rent is a protocol-mandated transfer, distinct from
- * removed principal), and assembles the transaction under the local v1 policy. A failed
- * plan is a `BuildRejected`: the intent never becomes bytes, and the position's liquidity
- * stays put. The position account and its NFT are never touched by a close or burn.
+ * signed v1 transaction — or a typed failure, before anything is signed. Orca is planned
+ * here; Raydium and Meteora have their own builders. The plan (guards, fetch orchestration,
+ * bps fraction, slippage-bounded minimums, derivations) is pure over its reader seam; this
+ * module binds the reader to real RPC, proves the receiving token accounts (creating a
+ * missing owner ATA idempotently when the position owes that side nothing at the current
+ * price — its rent is a protocol-mandated transfer, distinct from removed principal), and
+ * assembles the transaction under the local v1 policy. A failed plan is a `BuildRejected`:
+ * the intent never becomes bytes, and the position's liquidity stays put. The position
+ * account is never closed. Orca and Raydium keep the position NFT; Meteora has none.
  */
 import {
   appendTransactionMessageInstructions,
@@ -24,6 +25,7 @@ import {
 import { withdrawPlan } from "../liquidity/whirlpool-withdraw-plan.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { liquidityRead, receivingSide, setupSides } from "./liquidity-token-accounts.js";
+import { buildSignedMeteoraWithdraw } from "./meteora-withdraw-build.js";
 import { buildSignedRaydiumWithdraw } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
@@ -143,7 +145,8 @@ export const withdrawQuoteOf = (plan) => ({
 });
 
 /**
- * Build and sign one removal. Refuses anything but an Orca position before any RPC.
+ * Build and sign one removal. Orca is assembled here. Raydium and Meteora dispatch to
+ * their own builders. Any other protocol is refused before RPC.
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {RemoveLiquidityAction} action
  * @returns {import("effect").Effect.Effect<PlannedWithdraw, import("@solos/core").ExecutorError>}
  */
@@ -151,6 +154,9 @@ export const buildSignedLiquidityWithdraw = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol === "raydium") {
       return yield* buildSignedRaydiumWithdraw({ ctx, kit }, action);
+    }
+    if (action.protocol === "meteora") {
+      return yield* buildSignedMeteoraWithdraw({ ctx, kit }, action);
     }
     if (action.protocol !== "orca") {
       return yield* new UnsupportedAction({

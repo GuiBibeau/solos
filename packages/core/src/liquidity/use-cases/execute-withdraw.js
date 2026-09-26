@@ -8,12 +8,12 @@ import { toWithdrawAction, validateWithdrawInput } from "./validate-input.js";
 /** @typedef {import("../domain/errors.js").LiquidityInputInvalid | import("../domain/errors.js").LiquidityUnsupportedProtocol | import("../../shared/domain/errors.js").TransactionFailed | import("../../shared/ports/action-executor.js").ExecutorError} ExecuteWithdrawError */
 
 /**
- * Execute a removal from one existing Orca or Raydium position through the configured executor
- * (ADR-0013): the intent becomes a `remove_liquidity` Action and only the executor touches
- * RPC, signing and submission. The exact transaction that will be submitted is simulated
- * first unless `skipSimulation` is true; a failed simulation, a rejected build or an expired
- * blockhash sends nothing. The position account and its NFT are preserved — only liquidity
- * leaves. Ambiguous submissions keep their signature in the structured failure.
+ * Execute a removal from one existing Orca, Raydium, or Meteora position through the configured
+ * executor (ADR-0013): the intent becomes a `remove_liquidity` Action and only the executor
+ * touches RPC, signing and submission. The exact transaction that will be submitted is
+ * simulated first unless `skipSimulation` is true; a failed simulation, a rejected build or an
+ * expired blockhash sends nothing. The position account is preserved — only liquidity leaves.
+ * Ambiguous submissions keep their signature in the structured failure.
  * @param {import("../domain/types.js").LiquidityExecuteWithdrawInput} input
  * @returns {import("effect").Effect.Effect<
  *   import("@solos/actions").ExecutionResult,

@@ -14,13 +14,13 @@ import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.j
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Withdrawals, opens, and closes still reject meteora.",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Opens and closes still reject meteora.",
   ),
 );
 
 const readProtocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Withdrawals still reject meteora.",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read.",
   ),
 );
 
@@ -139,7 +139,7 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
 
 export const liquidity = Command.make("liquidity").pipe(
   Command.withDescription(
-    "Liquidity venues: Orca, Raydium, and Meteora position reads, deposits into existing Orca, Raydium, and Meteora positions, bounded removals from Orca and Raydium positions, and opening or closing a Raydium position at a range you choose",
+    "Liquidity venues: Orca, Raydium, and Meteora position reads, deposits, and withdrawals on existing positions, and opening or closing a Raydium position at a range you choose",
   ),
   Command.withSubcommands([
     positionCommand,

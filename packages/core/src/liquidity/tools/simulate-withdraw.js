@@ -10,23 +10,22 @@ export const simulateWithdrawTool = defineTool({
   tier: "simulate",
   title: "Simulate position withdrawal",
   description:
-    "Simulate removing liquidity from one existing Orca or Raydium position without " +
-    "submitting anything. bps is the fraction of the position's CURRENT liquidity to " +
-    "remove, 1..10000 where 10000 means all of it; fractional liquidity units round down, " +
-    "and a removal computing to zero liquidity is rejected. The executor quotes the " +
-    "position's underlying token A/B amounts at the current pool price and encodes minimum " +
-    "receipts at those quotes minus the maxSlippageBps tolerance — the Whirlpool program " +
-    "enforces them on chain, so a price move that would pay a side under its minimum aborts " +
-    "instead of short-changing it. position is the protocol position account (the Whirlpool " +
-    "position PDA) and the signer must hold the position NFT; the position itself is never " +
-    "closed, its range is never changed, and accumulated fees or rewards are not claimed. " +
-    "If a receiving token account for a side the position owes does not exist yet, an " +
-    "idempotent create for it is prepended (its rent is a protocol-mandated transfer, " +
-    "distinct from removed principal). The executor builds and simulates exactly the " +
-    "transaction it would send, reporting compute units and program logs; nothing is ever " +
-    "sent or signed for submission, and a later execute re-plans and may differ. Use " +
-    "solana_liquidity_execute_withdraw to send. orca and raydium are implemented: meteora " +
-    "fails before any network access.",
+    "Simulate removing liquidity from one existing Orca, Raydium, or Meteora position " +
+    "without submitting anything. The wallet would receive token A and token B principal " +
+    "quoted from the position's liquidity at the current price. Fees and rewards are not " +
+    "claimed, so a Meteora withdrawal does not pay fee balances. bps is the fraction of " +
+    "CURRENT liquidity to remove, 1..10000. Meteora applies that bps independently to " +
+    "each occupied bin; 10000 removes every share on those bins. Fractional shares round " +
+    "down, and a removal that computes to zero liquidity is rejected. Minimum receipts " +
+    "are floor(quote * (10000 - maxSlippageBps) / 10000) and are encoded on chain. " +
+    "Meteora also refuses on chain if the active bin moves more than ceil(maxSlippageBps " +
+    "/ binStep) bins, and it does not change the position's bin range. position is the " +
+    "Whirlpool PDA, the Raydium personal position, or the Meteora PositionV2 account, " +
+    "never an NFT mint. The position is never closed. If a receiving token account for " +
+    "a side the position owes does not exist yet, an idempotent create for it is " +
+    "prepended (its rent is distinct from removed principal). The executor builds and " +
+    "simulates exactly the transaction it would send. Nothing is sent. Use " +
+    "solana_liquidity_execute_withdraw to send. Opens and closes still reject meteora.",
   input: LiquidityWithdrawInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

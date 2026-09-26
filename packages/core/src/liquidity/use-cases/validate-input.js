@@ -63,8 +63,8 @@ export const toDepositAction = (request) => {
 /**
  * Validate one removal intent identically for every entry point — tool, CLI, harness —
  * before any executor access: schema first (the bps 1..10000 and slippage 0..9999 bounds
- * are schema rules), then the protocol gate, so meteora and raydium fail before the network
- * and before any Layer that could reach one is built.
+ * are schema rules), then the protocol gate, so a protocol without a withdraw adapter fails
+ * before the network and before any Layer that could reach one is built.
  * @template {{ protocol: "orca" | "meteora" | "raydium"; bps: number }} T
  * @param {{ safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } } }} schema
  * @param {unknown} input
