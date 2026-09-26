@@ -14,9 +14,10 @@ return the shared `LpPosition` contract:
   input validation (`LiquidityInputInvalid`) before anything else.
 - **What each venue supports.** orca: read, deposit, withdraw. raydium: read, deposit, withdraw,
   and opening and closing a position — the only venue whose position lifecycle solOS encodes, so
-  an open or close naming any other protocol is refused before any RPC. meteora: reads only,
-  through `solana_liquidity_get_position` and `solos liquidity position`; deposits, withdrawals
-  and listing still refuse it with `LiquidityUnsupportedProtocol` before any network access.
+  an open or close naming any other protocol is refused before any RPC. meteora: point reads and
+  owner enumeration. There is no `liquidity list` command; `solos portfolio state` is the
+  enumeration path. Deposits and withdrawals still refuse meteora with
+  `LiquidityUnsupportedProtocol` before any network access.
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
@@ -111,3 +112,50 @@ SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_simulate_deposit \
 
 Live deposit QA stays **blocked** until #31 (bounded removals) exists and is checked, per
 ADR-0022: no live deposit/open without a checked exit path.
+
+## Meteora DLMM position reads
+
+`solana_liquidity_get_position` and `solos liquidity position --protocol meteora --position
+<position-account> [--owner <address>]` read one existing PositionV2 and return the same
+`LpPosition` shape. Deposits and withdrawals still refuse meteora with
+`LiquidityUnsupportedProtocol` before any network access.
+
+- **`position` is the PositionV2 account pubkey**, never an NFT mint and never the pair
+  (ADR-0022). `instrument` is that account's `lb_pair`. There is no position NFT.
+- **Custody is the `owner` field** at byte 40. It must equal the requested owner; an omitted
+  owner means the configured signer. A mismatch is `LiquidityPositionUnavailable` ("position
+  owner does not match the requested owner"), never a zero holding.
+- **`liquidity` is the sum of non-zero `liquidity_shares`** in the inclusive
+  `lower_bin_id`..`upper_bin_id` window, as a decimal string. A non-zero share past that
+  window is refused. The sum is an inventory indicator, not a fungible amount, and may pass
+  u128 (ADR-0022). An owned all-zero window is a successful zero read (`"0"` / `"0"`).
+- **Token amounts come from bin math.** For each occupied bin, token A (mint X) is
+  `floor(share * amount_x / liquidity_supply)` and token B (mint Y) is the same with
+  `amount_y`, then summed. That is `Bin::calculate_out_amount` at `lb_clmm` commit
+  `576919e3e4368e542c402f000b4264724f7f23ec`, BigInt end to end. Decimals come from the mint
+  accounts. Unclaimed fees and rewards are omitted. `valueUsd` is null.
+- **Corrupt state is typed.** Program `LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo`.
+  PositionV2 is 8120 bytes, LbPair 904, BinArray 10136, each checked for size and then the
+  Anchor discriminator. A missing account, a foreign program owner, a bin array with the
+  wrong index or pair, or a share above the bin's `liquidity_supply` fails
+  `LiquidityPositionUnavailable`. The read loads the position, the pair, the bin arrays that
+  hold occupied bins (a window is at most 70 bins, so at most two arrays), and the two mints.
+  Nothing is deposited, withdrawn, claimed, signed, or sent.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity position --protocol meteora --position <position-account> --owner <owner>
+SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '{"protocol":"meteora","position":"<position-account>","owner":"<owner>"}'
+```
+
+The zero-spend read is recorded in [liquidity QA](../../liquidity-qa.md).
+
+### Owner enumeration
+
+There is no `liquidity list` command. `solos portfolio state [--owner <address>]` and
+`solana_portfolio_get_state` include meteora beside orca and raydium. The meteora scan is
+`getProgramAccounts` on `LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo`: the PositionV2
+discriminator at offset 0 and the owner pubkey at offset 40. Identity is the position
+account pubkey. `receiptMints` is empty. A match that does not decode fails the whole
+enumeration with `LiquidityPositionUnavailable`, never a skipped account. More than 256
+matches fails `LiquidityEnumerationIncomplete` ("owner holds more than 256 candidate
+positions"). That bound is per venue. One venue failing fails the portfolio read.

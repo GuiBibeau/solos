@@ -79,6 +79,67 @@ not venue state. What remains is the **funded** add/remove round, which needs ei
 wSOL account provisioned for this wallet outside solOS — record that one as `blocked` until one
 of those is true.
 
+## Meteora DLMM position read
+
+Offline tests seed PositionV2, LbPair, and BinArray accounts under
+`LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo` and prove the decode, the owner-field check, and
+the pinned bin math. They do not prove what a live pair holds.
+
+**Status: the zero-spend read is done.** Run on 2026-09-26. Nothing was signed or sent.
+Deposits and withdrawals still refuse meteora with `LiquidityUnsupportedProtocol` before
+any network access. Owner enumeration is a separate zero-spend round below.
+
+The position is a third party's, so the command names `--owner`. Startup still needs
+`SOLANA_RPC_URL` and a configured signer.
+
+```
+$ solos liquidity position --protocol meteora \
+    --position mpJ2Ewzr5ncHHkgvLKa9jiyZS5LBxJvDRuqZsJoKmmM \
+    --owner 8m23JRic714aXZQmDXawzXo6YUN9R4qN5z5BLHUZtLBi
+```
+
+Recorded result:
+
+- position `mpJ2Ewzr5ncHHkgvLKa9jiyZS5LBxJvDRuqZsJoKmmM`
+- owner `8m23JRic714aXZQmDXawzXo6YUN9R4qN5z5BLHUZtLBi` (PositionV2 `owner`)
+- pair `5rCf1DM8LjKTw4YqhnoLcngyZYeNnQqztScTogYHAS6` (SOL/USDC; `instrument`)
+- liquidity `1179069276345261306613608345909`
+- token A `0` (9 decimals)
+- token B `63939249963` (6 decimals). Kernel read the same position as `63939249979`. The
+  gap is bin-reserve drift: each occupied bin contributes `floor(share * reserve / supply)`,
+  so a reserve move between reads changes the amount.
+- `valueUsd` null
+- the bin window sits entirely below the active bin, so the position is all token Y
+
+A different `--owner` returns `LiquidityPositionUnavailable` ("position owner does not match
+the requested owner"). `liquidity deposit`, `simulate-deposit`, `withdraw`, and
+`simulate-withdraw` with `--protocol meteora` still fail `LiquidityUnsupportedProtocol`
+before any account read. Do not report a Meteora deposit or removal round: there is no
+adapter for those.
+
+## Meteora DLMM owner enumeration
+
+**Status: the zero-spend enumeration is done.** Run on 2026-09-26. Kernel was green on
+`cff0c44`, a post-batch re-check of that round. Nothing was signed or sent. There is no list
+command. Portfolio state is the path.
+
+```
+$ solos portfolio state --owner 8m23JRic714aXZQmDXawzXo6YUN9R4qN5z5BLHUZtLBi
+```
+
+Recorded result:
+
+- 8 meteora LP positions
+- includes `mpJ2Ewzr5ncHHkgvLKa9jiyZS5LBxJvDRuqZsJoKmmM` with liquidity
+  `1179069276345261306613608345909`
+- spot-check of that position's token B: `63939249994`
+
+The earlier point read of the same position reported token B `63939249963` (Kernel
+`63939249979`). The amount is `floor(share * reserve / supply)` per occupied bin, so a
+reserve move between reads changes it. Meteora `receiptMints` is empty. A scan match that
+does not decode is `LiquidityPositionUnavailable` for the whole enumeration. More than 256
+matches is `LiquidityEnumerationIncomplete`. Deposits and withdrawals stay refused.
+
 ## Deposits into an existing position (#30)
 
 `solana_liquidity_simulate_deposit` / `solana_liquidity_execute_deposit` and
