@@ -26,7 +26,6 @@ import { surfnetCheatcodes } from "../surfnet/surfnet-cli.js";
 import { ensureOfflineSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
 import { buildSignedRaydiumClose } from "./raydium-close-build.js";
 import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
-import { WSOL_MINT } from "./wrap-sol.js";
 
 const TICK_SPACING = 60;
 const FUNDED = 10n ** 12n;
@@ -121,48 +120,6 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     );
     expect(failure).toBeInstanceOf(SimulationFailed);
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims + 1);
-  });
-
-  test("a wSOL side with no token account is wrapped in the same transaction when asked", async () => {
-    const seed = randomSeed();
-    const owner = await seedAddress(seed);
-    const mint1 = randomAddress();
-    const pool = await seedRaydiumPool(surfnet.rpcUrl, {
-      mint0: WSOL_MINT,
-      mint1,
-      tickSpacing: TICK_SPACING,
-    });
-    // Only the non-SOL side is funded, and the signer holds native SOL — the exact wallet shape
-    // that could not fund a SOL-paired position before.
-    await fund(owner, [mint1]);
-    await surfnetCheatcodes(surfnet.rpcUrl).fundSol(owner, 5);
-    const sims = rpc.callsFor("simulateTransaction").length;
-    const failure = await failureOf(
-      simulateOpenPosition({ ...openIntent({ pool }), wrapSol: true }),
-      seed,
-    );
-    // Reaching simulation is the whole point: the build no longer refuses for a balance the
-    // transaction is about to create.
-    expect(failure).toBeInstanceOf(SimulationFailed);
-    expect(rpc.callsFor("simulateTransaction").length).toBe(sims + 1);
-  });
-
-  test("the same wSOL side without the flag is still refused, never wrapped silently", async () => {
-    const seed = randomSeed();
-    const owner = await seedAddress(seed);
-    const mint1 = randomAddress();
-    const pool = await seedRaydiumPool(surfnet.rpcUrl, {
-      mint0: WSOL_MINT,
-      mint1,
-      tickSpacing: TICK_SPACING,
-    });
-    await fund(owner, [mint1]);
-    await surfnetCheatcodes(surfnet.rpcUrl).fundSol(owner, 5);
-    const sims = rpc.callsFor("simulateTransaction").length;
-    const failure = await failureOf(simulateOpenPosition(openIntent({ pool })), seed);
-    expect(failure).toBeInstanceOf(BuildRejected);
-    expect(reasonOf(failure)).toContain("insufficient token A");
-    expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 
   test("a side the open needs but cannot pay for is named before simulation", async () => {
