@@ -47,10 +47,10 @@ describe("docs gate", () => {
     );
   });
 
-  test("the committed README and AGENTS.md match the registry", () => {
+  test("the committed tool reference and AGENTS.md match the registry", () => {
     const report = checkDocs({ write: false });
     expect(report.regions.map((r) => [r.file, r.status, r.detail])).toEqual([
-      ["README.md", "current", ""],
+      ["docs/reference/tools/index.md", "current", ""],
       ["AGENTS.md", "current", ""],
     ]);
     expect(report.ok).toBe(true);

@@ -18,7 +18,7 @@ const ROOT = new URL("../../../../", import.meta.url);
 
 /** @returns {Target[]} */
 const targets = () => [
-  { file: "README.md", region: "tools", body: renderToolTable(allTools) },
+  { file: "docs/reference/tools/index.md", region: "tools", body: renderToolTable(allTools) },
   { file: "AGENTS.md", region: "slices", body: renderSliceTable(sliceNames(), allTools) },
 ];
 
