@@ -12,7 +12,8 @@ import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit
 import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { simulatePerpAction, executePerpAction } from "./perp-dispatch.js";
 import { buildSignedRaydiumClose } from "./raydium-close-build.js";
-import { buildSignedRaydiumOpen, openQuoteOf } from "./raydium-position-build.js";
+import { openQuoteOf } from "./raydium-open-quote.js";
+import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
 import { simulationErrorText } from "./simulation-error-text.js";
 import { submitSimulated } from "./submit-simulated.js";
 import { recheckSignedSwapLifetime } from "./swap-preflight.js";

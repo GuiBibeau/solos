@@ -53,6 +53,7 @@ export const toDepositAction = (request) => {
     amountA: request.amountA,
     amountB: request.amountB,
     maxSlippageBps: request.maxSlippageBps,
+    wrapSol: request.wrapSol,
   });
   return parsed.success ? parsed.data : null;
 };

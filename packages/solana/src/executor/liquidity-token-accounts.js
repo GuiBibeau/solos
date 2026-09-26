@@ -57,18 +57,22 @@ export const createAta = (kit, mint, { ata, program }) =>
  * One funding side of a spend: nothing to do when it already covers the quote, an idempotent
  * create when the quote needs nothing from it, and a typed refusal when it is short or absent
  * but needed — a spend from an account that cannot cover it is not simulable honestly.
+ * `covered` is what a wrap in this same transaction will add before the spend, so a side funded
+ * by wrapping native SOL is not refused for a balance it is about to have.
  * @param {{ kit: Kit; row: FetchedAccount | null | undefined; required: bigint; mint: string;
- *   ata: string; program?: string; label: "A" | "B"; verb: string }} side
+ *   ata: string; program?: string; label: "A" | "B"; verb: string; covered?: bigint }} side
  * @returns {import("effect").Effect.Effect<SetupInstruction | null, BuildRejected>}
  */
-export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb }) => {
-  const held = row === null || row === undefined ? null : tokenDecoder.decode(row.bytes).amount;
-  if (held !== null && held >= required) return Effect.succeed(null);
+export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb, covered }) => {
+  const balance = row === null || row === undefined ? null : tokenDecoder.decode(row.bytes).amount;
+  // A wrap in this same transaction creates the account too, so an absent side it covers is
+  // already funded by the time the spend runs.
+  if ((balance ?? 0n) + (covered ?? 0n) >= required) return Effect.succeed(null);
   if (required > 0n) {
     const detail =
-      held === null
+      balance === null
         ? "the funding account does not exist"
-        : `${held} available, the ${verb} needs ${required}`;
+        : `${balance} available, the ${verb} needs ${required}`;
     return fail(`insufficient token ${label} balance: ${detail}`);
   }
   return Effect.succeed(createAta(kit, mint, { ata, program }));

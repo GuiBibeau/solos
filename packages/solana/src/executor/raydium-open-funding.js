@@ -9,6 +9,7 @@
  * typed refusal, not a simulation error.
  */
 import { fundingSide, setupSides } from "./liquidity-token-accounts.js";
+import { WSOL_MINT } from "./wrap-sol.js";
 
 /**
  * @param {{ quote: { requiredA: bigint; requiredB: bigint }; accounts: any }} plan
@@ -32,13 +33,21 @@ const sideOf = ({ quote, accounts }, label) =>
 /**
  * @param {{ read: ReturnType<typeof import("./liquidity-token-accounts.js").liquidityRead>;
  *   kit: import("../signer/kit-signer.js").KitSignerShape;
- *   quote: { requiredA: bigint; requiredB: bigint }; accounts: any }} plan
+ *   quote: { requiredA: bigint; requiredB: bigint }; accounts: any; covered?: bigint }} plan
  */
-export const openFunding = ({ read, kit, quote, accounts }) =>
+export const openFunding = ({ read, kit, quote, accounts, covered }) =>
   setupSides(
     read,
     { tokenOwnerAccountA: accounts.tokenAccount0, tokenOwnerAccountB: accounts.tokenAccount1 },
     ({ row, label }) => {
-      return fundingSide({ kit, row, label, verb: "open", ...sideOf({ quote, accounts }, label) });
+      const side = sideOf({ quote, accounts }, label);
+      return fundingSide({
+        kit,
+        row,
+        label,
+        verb: "open",
+        ...side,
+        covered: side.mint === WSOL_MINT ? covered : 0n,
+      });
     },
   );

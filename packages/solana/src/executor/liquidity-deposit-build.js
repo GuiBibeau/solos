@@ -24,6 +24,7 @@ import { rpcCall } from "../rpc/rpc-call.js";
 import { fundingSide, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
 import { buildSignedRaydiumDeposit } from "./raydium-liquidity-build.js";
 import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
+import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
 
 const EXECUTOR = "direct-signer";
 
@@ -47,14 +48,22 @@ const EXECUTOR = "direct-signer";
  * allowed only when the quote needs nothing from it — the driver then prepends an idempotent ATA
  * create so the instruction's account exists. A short or absent side that IS needed is a typed
  * rejection: a spend from an account that cannot cover it is not simulable honestly.
- * @param {ReturnType<typeof liquidityRead>} read
- * @param {Kit} kit
- * @param {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} plan
+ * @param {{ read: ReturnType<typeof liquidityRead>; kit: Kit;
+ *   plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk;
+ *   covered: bigint }} parts `covered` is what a wrap in this transaction adds to the wSOL side
  */
-const fundingSetup = (read, kit, plan) =>
-  setupSides(read, plan.accounts, ({ row, label }) =>
-    fundingSide({ kit, row, label, verb: "deposit", ...sideOf(plan, label) }),
-  );
+const fundingSetup = ({ read, kit, plan, covered }) =>
+  setupSides(read, plan.accounts, ({ row, label }) => {
+    const side = sideOf(plan, label);
+    return fundingSide({
+      kit,
+      row,
+      label,
+      verb: "deposit",
+      ...side,
+      covered: side.mint === WSOL_MINT ? covered : 0n,
+    });
+  });
 
 /** What the plan says about one side. @param {DepositPlanOk} plan @param {"A"|"B"} label */
 const sideOf = (plan, label) =>
@@ -97,10 +106,11 @@ const planFromChain = (ctx, owner, action) => {
  *   kit: Kit;
  *   plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk;
  *   creates: SetupInstruction[];
+ *   closes: SetupInstruction[];
  * }} parts
  * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").BuildRejected | import("@solos/core").RpcError>}
  */
-const signDeposit = ({ ctx, kit, plan, creates }) =>
+const signDeposit = ({ ctx, kit, plan, creates, closes }) =>
   Effect.gen(function* () {
     const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
       ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
@@ -120,6 +130,7 @@ const signDeposit = ({ ctx, kit, plan, creates }) =>
                 tokenMaxA: plan.tokenMaxA,
                 tokenMaxB: plan.tokenMaxB,
               }),
+              ...closes,
             ],
             message,
           ),
@@ -163,7 +174,24 @@ export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
     if (plan.status === "reject") {
       return yield* new BuildRejected({ reason: plan.reason });
     }
-    const creates = yield* fundingSetup(liquidityRead(ctx), kit, plan);
-    const signed = yield* signDeposit({ ctx, kit, plan, creates });
+    const wrap = yield* wrapForSides({
+      ctx,
+      kit,
+      wrapSol: action.wrapSol === true,
+      sides: [sideOf(plan, "A"), sideOf(plan, "B")],
+    });
+    const creates = yield* fundingSetup({
+      read: liquidityRead(ctx),
+      kit,
+      plan,
+      covered: wrap.covered,
+    });
+    const signed = yield* signDeposit({
+      ctx,
+      kit,
+      plan,
+      creates: [...wrap.prefix, ...creates],
+      closes: wrap.suffix,
+    });
     return { signed, plan };
   }).pipe(Effect.withSpan("executor.buildLiquidityDeposit"));

@@ -55,6 +55,13 @@ const positionCommand = Command.make(
   ),
 );
 
+const wrapSol = Options.boolean("wrap-sol").pipe(
+  Options.withDefault(false),
+  Options.withDescription(
+    "Wrap exactly the native SOL the quote is short on a wSOL side, in this same transaction, and unwrap the remainder when this transaction created the account. Defaults to false.",
+  ),
+);
+
 const depositOptions = {
   protocol,
   pool: Options.text("pool").pipe(
@@ -83,6 +90,7 @@ const depositOptions = {
       "Price-movement tolerance in basis points, 0..9999. The budgets are the on-chain spend bounds. Default 50.",
     ),
   ),
+  wrapSol,
 };
 
 const skipSimulation = Options.boolean("skip-simulation").pipe(
@@ -101,6 +109,7 @@ const simulateDepositCommand = Command.make("simulate-deposit", depositOptions, 
       amountA: options.amountA,
       amountB: options.amountB,
       maxSlippageBps: options.maxSlippageBps,
+      wrapSol: options.wrapSol,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
 ).pipe(
@@ -118,6 +127,7 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
       amountA: options.amountA,
       amountB: options.amountB,
       maxSlippageBps: options.maxSlippageBps,
+      wrapSol: options.wrapSol,
       skipSimulation: options.skipSimulation,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
