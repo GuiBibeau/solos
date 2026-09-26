@@ -270,6 +270,10 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 
+  // This says a build reaches simulation and an execute still sends nothing; it says nothing
+  // about what is in the transaction, because the seeded pool makes every simulation fail for
+  // the same reason whatever was built. `raydium-close-nft-program-surfnet.test.js` asserts the
+  // accounts on the wire instead, which is the only way that property can be checked here.
   test("closing an emptied position builds and simulates, and the execute twin sends nothing", async () => {
     const seed = randomSeed();
     const owner = await seedAddress(seed);

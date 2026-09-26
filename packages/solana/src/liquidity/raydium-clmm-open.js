@@ -114,7 +114,14 @@ export const openPositionAccounts = (a) => [
  * The 6 accounts `close_position` lists. The program refuses unless liquidity, both
  * `token_fees_owed` and every `reward_amount_owed` are exactly zero, so a real close is always a
  * full removal followed by this.
- * @param {{ nftOwner: string; nftMint: string; nftAccount: string; personalPosition: string }} a
+ *
+ * `nftProgram` is the token program that actually owns the NFT mint and its custody account, and
+ * it is the caller's job to read it rather than assume it. Raydium's older `open_position_v2`
+ * mints a classic SPL NFT and most positions in existence are those; only positions solOS opened
+ * itself carry a Token-2022 NFT. Pinning the Token-2022 program here made every legacy position
+ * impossible to close, however empty it was.
+ * @param {{ nftOwner: string; nftMint: string; nftAccount: string; personalPosition: string;
+ *   nftProgram: string }} a
  */
 export const closePositionAccounts = (a) => [
   { address: address(a.nftOwner), role: roleOf({ writable: true, signer: true }) },
@@ -122,7 +129,7 @@ export const closePositionAccounts = (a) => [
   rw(a.nftAccount),
   rw(a.personalPosition),
   ro(SYSTEM_PROGRAM),
-  ro(TOKEN_2022_PROGRAM),
+  ro(a.nftProgram),
 ];
 
 /** @param {ReturnType<typeof openPositionAccounts>} accounts @param {Uint8Array} data */

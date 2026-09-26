@@ -42,13 +42,18 @@ const corruptOverrides = (o) => ({
 
 const POOL_DEFAULTS = { decimalsA: 6, decimalsB: 9, bytes: 0, mints: true };
 
-/** @param {string} owner @param {string} mint @returns {Promise<string>} the owner's classic ATA of mint */
-export const ataAddress = async (owner, mint) =>
+/**
+ * The owner's ATA of one mint, under the classic token program unless another is named — an ATA
+ * derives against its mint's own program, so a Token-2022 NFT does not live where a classic one would.
+ * @param {string} owner @param {string} mint @param {string} [tokenProgram]
+ * @returns {Promise<string>}
+ */
+export const ataAddress = async (owner, mint, tokenProgram = TOKEN_PROGRAM) =>
   (
     await findAssociatedTokenPda({
       owner: address(owner),
       mint: address(mint),
-      tokenProgram: address(TOKEN_PROGRAM),
+      tokenProgram: address(tokenProgram),
     })
   )[0];
 
