@@ -16,12 +16,13 @@
 import { getTransferSolInstruction } from "@solana-program/system";
 import {
   getCloseAccountInstruction,
+  getCreateAssociatedTokenInstruction,
   getSyncNativeInstruction,
   getTokenDecoder,
 } from "@solana-program/token";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
-import { createAta, liquidityRead } from "./liquidity-token-accounts.js";
+import { liquidityRead } from "./liquidity-token-accounts.js";
 
 export const WSOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -35,12 +36,31 @@ const asAddress = (value) =>
   /** @type {import("@solana/kit").Address} */ (/** @type {unknown} */ (value));
 
 /**
+ * A create that refuses an account that already exists, so the close below can only ever apply
+ * to one this transaction made.
+ * @param {import("../signer/kit-signer.js").KitSignerShape} kit @param {string} ata
+ */
+const createWsolAccount = (kit, ata) =>
+  getCreateAssociatedTokenInstruction({
+    payer: kit.signer,
+    ata: asAddress(ata),
+    owner: asAddress(kit.signer.address),
+    mint: asAddress(WSOL_MINT),
+  });
+
+/**
  * @param {{ kit: import("../signer/kit-signer.js").KitSignerShape; ata: string;
  *   lamports: bigint; isAbsent: boolean }} wrap
  */
-const wrapInstructions = ({ kit, ata, lamports, isAbsent }) => ({
+export const wrapInstructions = ({ kit, ata, lamports, isAbsent }) => ({
   prefix: [
-    ...(isAbsent ? [createAta(kit, WSOL_MINT, { ata })] : []),
+    // Deliberately NOT the idempotent create. Whether this transaction closes the account is
+    // decided from a preflight read, and an account that appears between that read and
+    // inclusion would make an idempotent create a silent no-op while the close below still
+    // ran — unwrapping a balance and reclaiming rent that were never this transaction's. A
+    // plain create fails on an account that already exists, so a lost race aborts everything
+    // atomically instead: nothing wrapped, nothing closed, nothing spent.
+    ...(isAbsent ? [createWsolAccount(kit, ata)] : []),
     getTransferSolInstruction({
       source: kit.signer,
       destination: asAddress(ata),
@@ -48,8 +68,8 @@ const wrapInstructions = ({ kit, ata, lamports, isAbsent }) => ({
     }),
     getSyncNativeInstruction({ account: asAddress(ata) }),
   ],
-  // Only an account this transaction created is closed again: unused lamports and the rent come
-  // back as native SOL, and the wallet ends where it started.
+  // Only an account this transaction created is closed again — guaranteed by the create above
+  // rather than by the read: unused lamports and the rent come back as native SOL.
   suffix: isAbsent
     ? [
         getCloseAccountInstruction({

@@ -14,13 +14,18 @@
 import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { fundingSide } from "./liquidity-token-accounts.js";
-import { WSOL_MINT, wrapShortfall } from "./wrap-sol.js";
+import { WSOL_MINT, wrapInstructions, wrapShortfall } from "./wrap-sol.js";
 
 const OWNER = "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f";
 const ATA = "BqMR3NTtNd5qvsFUuBvSrn9zmjGnqhFxniQhjFAF4MFX";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 const kit = /** @type {any} */ ({ signer: { address: OWNER } });
+
+const ATA_PROGRAM = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+
+/** The ATA program's create opcodes: 0 is plain create, 1 is createIdempotent. */
+const opcodeOf = (/** @type {any} */ ix) => ix.data?.[0];
 
 /** A fetched row holding `amount`, as the token decoder reads it. */
 const rowHolding = (/** @type {bigint} */ amount) => {
@@ -69,6 +74,28 @@ describe("how much native SOL a side needs wrapped", () => {
     expect(wrapShortfall({ mint: WSOL_MINT, required: 1_000_000n, held: 0n, wrapSol: true })).toBe(
       1_000_000n,
     );
+  });
+});
+
+describe("the instructions a wrap emits", () => {
+  test("an account this transaction creates is created plainly, never idempotently", () => {
+    const wrap = wrapInstructions({ kit, ata: ATA, lamports: 1_000_000n, isAbsent: true });
+    const create = /** @type {any} */ (wrap.prefix[0]);
+    expect(create.programAddress).toBe(ATA_PROGRAM);
+    // Idempotent (opcode 1) would no-op against an account that appeared after the preflight
+    // read, while the close below still ran — unwrapping a balance this transaction never put
+    // there. A plain create (opcode 0) makes a lost race abort the whole transaction instead.
+    expect(opcodeOf(create)).toBe(0);
+    expect(wrap.suffix).toHaveLength(1);
+  });
+
+  test("an account that already exists is topped up and never closed", () => {
+    const wrap = wrapInstructions({ kit, ata: ATA, lamports: 1_000_000n, isAbsent: false });
+    expect(wrap.prefix).toHaveLength(2);
+    expect(wrap.prefix.some((/** @type {any} */ ix) => ix.programAddress === ATA_PROGRAM)).toBe(
+      false,
+    );
+    expect(wrap.suffix).toHaveLength(0);
   });
 });
 
