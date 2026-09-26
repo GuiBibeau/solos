@@ -86,10 +86,10 @@ Offline tests seed PositionV2, LbPair, and BinArray accounts under
 the pinned bin math. They do not prove what a live pair holds.
 
 **Status: the zero-spend read is done.** Run on 2026-09-26. Nothing was signed or sent.
-Open and close still refuse meteora with `LiquidityUnsupportedProtocol` before any network
-access (#144). The funded deposit round is
+The funded deposit round is
 [below](#meteora-dlmm-deposit-154). The funded withdrawal round is
-[below](#meteora-dlmm-withdraw-156). Owner enumeration is a separate zero-spend round.
+[below](#meteora-dlmm-withdraw-156). The funded open-to-close round is
+[below](#meteora-dlmm-open-to-close-144). Owner enumeration is a separate zero-spend round.
 
 The position is a third party's, so the command names `--owner`. Startup still needs
 `SOLANA_RPC_URL` and a configured signer.
@@ -114,9 +114,9 @@ Recorded result:
 - the bin window sits entirely below the active bin, so the position is all token Y
 
 A different `--owner` returns `LiquidityPositionUnavailable` ("position owner does not match
-the requested owner"). Open and close still fail `LiquidityUnsupportedProtocol` before any
-account read (#144). The deposit round is [below](#meteora-dlmm-deposit-154). The withdrawal
-round is [below](#meteora-dlmm-withdraw-156).
+the requested owner"). The deposit round is [below](#meteora-dlmm-deposit-154). The withdrawal
+round is [below](#meteora-dlmm-withdraw-156). The open-to-close round is
+[below](#meteora-dlmm-open-to-close-144).
 
 ## Meteora DLMM owner enumeration
 
