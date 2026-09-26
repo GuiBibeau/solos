@@ -2,17 +2,17 @@
 import { Effect } from "effect";
 import { Signer } from "../../wallet/index.js";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityGetPositionInputSchema, isReadable } from "../domain/types.js";
+import { LiquidityGetPositionInputSchema, isPositionReadable } from "../domain/types.js";
 import { LiquidityVenue } from "../ports/liquidity-venue.js";
 
 /** @typedef {import("../domain/errors.js").LiquidityError | import("../../shared/index.js").SignerUnavailable | import("../../shared/index.js").RpcError} GetPositionError */
 /** @typedef {import("../ports/liquidity-venue.js").LiquidityVenueShape | import("../../wallet/index.js").SignerShape} GetPositionContext */
 
 /**
- * Read one Orca or Raydium LP position. Input is re-validated so every entry point — tool,
- * CLI, harness — fails before any provider access, the protocol gate runs before the signer
- * or the venue port are touched (meteora/raydium never reach the network), and the owner
- * resolves from the wallet Signer only when omitted.
+ * Read one Orca, Raydium, or Meteora LP position. Input is re-validated so every entry point
+ * (tool, CLI, harness) fails before any provider access. The protocol gate runs before the
+ * signer or the venue port are touched. Meteora enumeration and deposits stay refused.
+ * The owner resolves from the wallet Signer only when omitted.
  * @param {import("../domain/types.js").LiquidityGetPositionInput} input
  * @returns {import("effect").Effect.Effect<import("../domain/types.js").LpPosition, GetPositionError, GetPositionContext>}
  */
@@ -25,7 +25,7 @@ export const getLpPosition = (input) =>
           "protocol must be orca, meteora or raydium, position a base58 address and owner a base58 address when given",
       });
     }
-    if (!isReadable(parsed.data.protocol)) {
+    if (!isPositionReadable(parsed.data.protocol)) {
       return yield* new LiquidityUnsupportedProtocol({ protocol: parsed.data.protocol });
     }
     const owner = parsed.data.owner ?? (yield* (yield* Signer).address());

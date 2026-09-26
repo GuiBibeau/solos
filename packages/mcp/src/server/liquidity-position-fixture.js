@@ -9,8 +9,8 @@ import { ensureOfflineSurfnet, randomSeed, seedToPrivateKeyString } from "@solos
 import { connectMcp, solosServerCommand } from "../client/index.js";
 
 /**
- * One seeded offline Surfnet Whirlpool family plus one real stdio MCP child per test. Reads
- * need no credential; `SOLANA_RPC_URL` is forwarded, matching the CLI harness.
+ * One seeded offline Surfnet plus one real stdio MCP child per test. Reads need no
+ * credential; `SOLANA_RPC_URL` is forwarded, matching the CLI harness.
  */
 
 /** Funding liquidity for the funded MCP fixture. */
@@ -25,6 +25,7 @@ export const LIQUIDITY = 10n ** 12n;
  *   pool: { pool: string; mintA: string; mintB: string };
  *   funded: { position: string; positionMint: string };
  *   empty: { position: string; positionMint: string };
+ *   rpcUrl: string;
  *   close: () => Promise<void>;
  * }>}
  */
@@ -54,6 +55,7 @@ export const startLiquidityMcp = async (options = {}) => {
     pool,
     funded,
     empty,
+    rpcUrl: surfnet.rpcUrl,
     close: () => mcp.close(),
   };
 };
