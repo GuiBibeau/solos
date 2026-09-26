@@ -216,7 +216,7 @@ not this round. A later round opened and closed a different position. That round
 
 ## Meteora DLMM open to close (#144)
 
-**Status: one funded mainnet open, deposit, withdraw, and close is recorded.** Kernel ran it
+**Status: one funded mainnet open, two deposits, withdraw, and close is recorded.** Kernel ran it
 on the #171 head `4e11eb8d640b41147c5f96c67a536dfe5444ff5c`. #171 has not merged. This note
 does not claim Surfpool coverage.
 
@@ -231,17 +231,25 @@ Open. Signature
 `4kB6n1r5r6FaFADb3gwFzrRG4yiXTZTb1KXY3YwxsmLSeA93oJH3LGzu7v5RkyWhPrViNi1phvUTceSwGX5w2utd`.
 Simulation compute units 10030. SOL −0.04200984, recorded as rent.
 
-Deposit. Signature
+Two deposits landed about 36 seconds apart. Each call set `amountX` 703250 and `amountY`
+999993, both within the named 1000000 caps. Each wallet transfer was −703249 USDC and
+−999991 USDT.
+
+The first deposit signature is
+`5UUmAgf52LQ35miTBF6NcUP2EwM5SvAJgsrD2Uud9TYD7rGAZRzUTdfpBEP6vRyeh3oAg8YGKBSU481d8ppPZMw3`.
+Simulation compute units and the venue quote were not recorded for this send.
+
+The second deposit signature is
 `2fSMieCgZCzmMtmfqsfUMfVZQAq8M8UjiRWphKLY2PZ4d9BVbzau1YHwqpkHKdh6pV9YNb3K7hKp5p8X1iX9DybT`.
-Simulation compute units 48577. The simulation quote was `requiredA` about 703249 and
-`requiredB` about 999991. The on-chain spend was −1406498 USDC and −1999982 USDT. That spend
-is over the named 1000000 and 1000000 caps. Forge is investigating caps and allocate against
-`maxSlippage`. This note records the gap and does not record a fix.
+It used the same `amountX`, `amountY`, and wallet transfer. Simulation compute units were
+48577. Venue `requiredA` was 703249 and `requiredB` was 999991, equal to that wallet transfer.
+
+The two wallet transfers sum to −1406498 USDC and −1999982 USDT.
 
 Withdraw. Signature
 `659VgBqNiZ9ic27Rm9kkc3zYsQRWUEAxNgo7HquBrJvsK54iqjM3vxaYzNr7bSXh9fLUQMMiQc7h76vALunbZH11`.
-Simulation compute units 45689. The withdraw returned essentially that on-chain deposit
-spend. Exact withdraw token amounts were not recorded. `bps`, `estA`, `estB`,
+Simulation compute units 45689. The withdraw returned essentially that combined deposit
+transfer. Exact withdraw token amounts were not recorded. `bps`, `estA`, `estB`,
 `min_withdraw_x`, and `min_withdraw_y` were not recorded.
 
 Close. Signature

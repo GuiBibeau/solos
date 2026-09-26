@@ -164,21 +164,34 @@
     "qa": "docs/liquidity-qa.md#meteora-dlmm-open-to-close-144",
     "sends": [
       {
-        "signature": "2fSMieCgZCzmMtmfqsfUMfVZQAq8M8UjiRWphKLY2PZ4d9BVbzau1YHwqpkHKdh6pV9YNb3K7hKp5p8X1iX9DybT",
-        "simulation": { "computeUnits": 48577 },
-        "venue": { "requiredA": "~703249", "requiredB": "~999991" },
+        "signature": "5UUmAgf52LQ35miTBF6NcUP2EwM5SvAJgsrD2Uud9TYD7rGAZRzUTdfpBEP6vRyeh3oAg8YGKBSU481d8ppPZMw3",
+        "instructionAmounts": { "amountX": "703250", "amountY": "999993" },
         "budgets": {
           "a": { "symbol": "USDC", "unit": "raw", "amount": "1000000" },
           "b": { "symbol": "USDT", "unit": "raw", "amount": "1000000" }
         },
         "wallet": {
-          "a": { "symbol": "USDC", "unit": "raw", "delta": "-1406498" },
-          "b": { "symbol": "USDT", "unit": "raw", "delta": "-1999982" }
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "-703249" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "-999991" }
+        }
+      },
+      {
+        "signature": "2fSMieCgZCzmMtmfqsfUMfVZQAq8M8UjiRWphKLY2PZ4d9BVbzau1YHwqpkHKdh6pV9YNb3K7hKp5p8X1iX9DybT",
+        "simulation": { "computeUnits": 48577 },
+        "venue": { "requiredA": "703249", "requiredB": "999991" },
+        "instructionAmounts": { "amountX": "703250", "amountY": "999993" },
+        "budgets": {
+          "a": { "symbol": "USDC", "unit": "raw", "amount": "1000000" },
+          "b": { "symbol": "USDT", "unit": "raw", "amount": "1000000" }
+        },
+        "wallet": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "-703249" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "-999991" }
         }
       }
     ],
     "gaps": [
-      "The simulation quote was about 703249 and 999991, but the on-chain spend was -1406498 USDC and -1999982 USDT, over the named 1000000 and 1000000 caps. Forge is investigating caps and allocate against maxSlippage. No fix is recorded here.",
+      "Simulation compute units and venue required amounts were recorded for the second send only.",
       "Residual fee and reward were not measured.",
       "Surfpool coverage is not claimed."
     ]
@@ -202,7 +215,7 @@
       }
     ],
     "gaps": [
-      "Exact withdraw token amounts were not recorded. The notes say the withdraw returned essentially the on-chain deposit spend.",
+      "Exact withdraw token amounts were not recorded. The notes say the withdraw returned essentially the sum of the two deposit transfers.",
       "bps, estA, estB, min_withdraw_x, and min_withdraw_y were not recorded.",
       "Residual fee and reward were not measured.",
       "Surfpool coverage is not claimed."

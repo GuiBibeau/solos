@@ -43,6 +43,8 @@ liquidity shares are strings, so a share above a JSON number's exact range stays
   recorded. `delta` keeps the sign as recorded.
 - `budgets` holds `a` and `b` when the round named spend caps. Each side has `symbol`, `unit`,
   and `amount`.
+- `instructionAmounts` holds `amountX` and `amountY` when the round recorded those instruction
+  amounts. They are not the wallet transfer and not the named cap.
 - `wallet.sol` holds `delta` in SOL and `feeLamportsApprox` when recorded.
 - A leading `~` on a string amount means the notes gave an approximation.
 
