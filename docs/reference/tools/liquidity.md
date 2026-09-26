@@ -10,10 +10,11 @@ return the shared `LpPosition` contract:
 
 - **`position` is the protocol position account** (the Whirlpool position PDA), never the
   position NFT mint and never the pool (ADR-0022). There is no mint-based inference and no
-  fallback: meteora and raydium are enum-valid venues but have no adapter yet, and they fail
-  `LiquidityUnsupportedProtocol` before any network access, from the tool's pure check hook,
-  the use-case gate, and a defensive gate in the adapter. Unknown protocol values fail input
-  validation (`LiquidityInputInvalid`) even earlier.
+  fallback. Meteora reads work through `solana_liquidity_get_position` and
+  `solos liquidity position`; deposits, withdrawals, and listing still refuse meteora with
+  `LiquidityUnsupportedProtocol` before any network access. Raydium CLMM reads, deposits,
+  removals, and listing are implemented. Unknown protocol values fail input validation
+  (`LiquidityInputInvalid`) even earlier.
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
