@@ -61,12 +61,19 @@ store. Imports core directly; goes through MCP only for third-party servers.
 **Lever** — the `solos` CLI used by humans and agents to verify behaviour instead of writing
 throwaway scripts.
 
-**Live verification** — running `solos` commands against mainnet with real funds, allowed for
-Claude Code on request. Distinct from reusable tests, which stay on Surfnet.
+**Live verification** — a mainnet round with real funds. The operator approves the wallet,
+cluster, token/amount cap, and SOL fee/rent cap first. Reusable tests stay on Surfnet.
+
+**Live validation** — an execute path proven by a live-verification spend: simulated first, small
+caps, then balances, signatures, fees, and residual exposure reconciled. The bar every Action
+strives for. Surfpool coverage and Evidence are the pull-request check; they are not this proof.
 
 **Evidence** — the JSON printed by `solos dev verify --json`: `ok`, `sha`, `dirty`, `scope`, tool
-versions, and per-step results. The only accepted proof of work. Counts only when `sha` is the
-commit under review and `dirty` is false.
+versions, and per-step results. The only accepted proof that a pull request's checks passed.
+Counts only when `sha` is the commit under review and `dirty` is false.
+
+**Feature map** — `features/feature-map.json`. Which Actions are live-validated, Surfpool-only, or
+unimplemented. Rows appear after a round is run. The file starts empty.
 
 **Scope** — how much `verify` runs: `check` (format, lint, dependency rules, types), `unit`
 (plus unit tests), `full` (plus Surfpool integration tests).

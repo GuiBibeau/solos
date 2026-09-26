@@ -18,7 +18,7 @@ const check = Command.make("check", { write }, (o) =>
     .pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Assert the generated regions in README.md and AGENTS.md match the tool registry",
+    "Assert the generated regions in docs/reference/tools/index.md and AGENTS.md match the tool registry",
   ),
 );
 
