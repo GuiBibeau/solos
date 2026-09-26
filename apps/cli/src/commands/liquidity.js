@@ -14,13 +14,13 @@ import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.j
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools) is implemented throughout; raydium (CLMM) is implemented for reads, deposits and removals; meteora fails before any network access.",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Withdrawals, opens, and closes still reject meteora.",
   ),
 );
 
 const readProtocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals still reject meteora.",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Withdrawals still reject meteora.",
   ),
 );
 
@@ -71,7 +71,7 @@ const depositOptions = {
   ),
   position: Options.text("position").pipe(
     Options.withDescription(
-      "Existing protocol position account (the Whirlpool position PDA); new positions are never created.",
+      "Existing position account: Whirlpool PDA, Raydium personal position, or Meteora PositionV2. Never an NFT mint. New positions and bin-range changes are refused.",
     ),
   ),
   amountA: Options.text("amount-a").pipe(
@@ -87,7 +87,7 @@ const depositOptions = {
   maxSlippageBps: Options.integer("max-slippage-bps").pipe(
     Options.withDefault(50),
     Options.withDescription(
-      "Price-movement tolerance in basis points, 0..9999. The budgets are the on-chain spend bounds. Default 50.",
+      "Price-movement tolerance in basis points, 0..9999. Orca and Raydium use on-chain spend bounds. Meteora caps the signed amounts and refuses before send if the active bin moved more than ceil(slippage / bin step) bins. Default 50.",
     ),
   ),
   wrapSol,
@@ -114,7 +114,7 @@ const simulateDepositCommand = Command.make("simulate-deposit", depositOptions, 
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Simulate adding liquidity to one existing Orca or Raydium position without submitting anything; bounds are the quoted spends plus slippage, capped by the budgets",
+    "Simulate adding liquidity to one existing Orca, Raydium, or Meteora position without submitting anything. Orca and Raydium encode on-chain spend bounds. Meteora caps the signed amounts and checks active-bin drift before send",
   ),
 );
 
@@ -133,13 +133,13 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
   ).pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Add liquidity to one existing Orca or Raydium position and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
+    "Add liquidity to one existing Orca, Raydium, or Meteora position and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
   ),
 );
 
 export const liquidity = Command.make("liquidity").pipe(
   Command.withDescription(
-    "Liquidity venues: Orca, Raydium, and Meteora position reads, deposits into and bounded removals from explicitly identified Orca and Raydium positions, and opening or closing a Raydium position at a range you choose",
+    "Liquidity venues: Orca, Raydium, and Meteora position reads, deposits into existing Orca, Raydium, and Meteora positions, bounded removals from Orca and Raydium positions, and opening or closing a Raydium position at a range you choose",
   ),
   Command.withSubcommands([
     positionCommand,

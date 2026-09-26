@@ -99,12 +99,20 @@ const okValue = async (effect, layer) => {
 /** @typedef {import("../../shared/ports/action-executor.js").ActionExecutorShape} ActionExecutorShape */
 
 describe("deposit use-case gates run before any service is required", () => {
-  test("meteora fails the protocol gate before the executor", async () => {
-    const bad = { ...input, protocol: /** @type {"orca"} */ ("meteora") };
-    expect(await failureTag(simulateDeposit(bad))).toBe("LiquidityUnsupportedProtocol");
-    expect(await failureTag(executeDeposit({ ...bad, skipSimulation: false }))).toBe(
-      "LiquidityUnsupportedProtocol",
+  test("meteora is handed to the executor as add_liquidity", async () => {
+    const meteora = { ...input, protocol: /** @type {"meteora"} */ ("meteora") };
+    const simulated = await okValue(simulateDeposit(meteora), executorLayer());
+    expect(simulated.action).toMatchObject({
+      type: "add_liquidity",
+      protocol: "meteora",
+      maxSlippageBps: 50,
+      wrapSol: false,
+    });
+    const executed = await okValue(
+      executeDeposit({ ...meteora, skipSimulation: false }),
+      Layer.merge(executorLayer(), busLayer),
     );
+    expect(executed.action.protocol).toBe("meteora");
   });
 
   test("bad budgets or addresses fail input validation with no service required", async () => {

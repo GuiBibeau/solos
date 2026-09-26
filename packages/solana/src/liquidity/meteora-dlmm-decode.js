@@ -25,7 +25,7 @@ const base58 = getBase58Decoder();
 
 /** @typedef {import("./meteora-dlmm-bins.js").OccupiedBin} OccupiedBin */
 /** @typedef {{ readonly lbPair: string; readonly owner: string; readonly lowerBinId: number; readonly upperBinId: number; readonly liquidity: bigint; readonly bins: readonly OccupiedBin[] }} MeteoraPositionLayout */
-/** @typedef {{ readonly tokenMintX: string; readonly tokenMintY: string; readonly activeId: number; readonly binStep: number }} MeteoraPairLayout */
+/** @typedef {{ readonly tokenMintX: string; readonly tokenMintY: string; readonly reserveX: string; readonly reserveY: string; readonly activeId: number; readonly binStep: number }} MeteoraPairLayout */
 /** @typedef {{ readonly index: number; readonly lbPair: string; readonly bytes: Uint8Array }} MeteoraBinArrayLayout */
 /** @typedef {{ readonly amountX: bigint; readonly amountY: bigint; readonly liquiditySupply: bigint }} MeteoraBinSlot */
 /** @typedef {{ readonly status: "decoded"; readonly layout: MeteoraPositionLayout } | { readonly status: "corrupt"; readonly reason: string }} MeteoraPositionRead */
@@ -118,6 +118,8 @@ export const decodeLbPair = (bytes) => {
     layout: {
       tokenMintX: readAddress(bytes, LB_PAIR_OFFSETS.tokenMintX),
       tokenMintY: readAddress(bytes, LB_PAIR_OFFSETS.tokenMintY),
+      reserveX: readAddress(bytes, LB_PAIR_OFFSETS.reserveX),
+      reserveY: readAddress(bytes, LB_PAIR_OFFSETS.reserveY),
       activeId: view.getInt32(LB_PAIR_OFFSETS.activeId, true),
       binStep: view.getUint16(LB_PAIR_OFFSETS.binStep, true),
     },

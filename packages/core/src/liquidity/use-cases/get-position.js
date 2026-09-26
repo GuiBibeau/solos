@@ -2,7 +2,7 @@
 import { Effect } from "effect";
 import { Signer } from "../../wallet/index.js";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
-import { LiquidityGetPositionInputSchema, isPositionReadable } from "../domain/types.js";
+import { isPositionReadable, LiquidityGetPositionInputSchema } from "../domain/types.js";
 import { LiquidityVenue } from "../ports/liquidity-venue.js";
 
 /** @typedef {import("../domain/errors.js").LiquidityError | import("../../shared/index.js").SignerUnavailable | import("../../shared/index.js").RpcError} GetPositionError */
@@ -11,7 +11,7 @@ import { LiquidityVenue } from "../ports/liquidity-venue.js";
 /**
  * Read one Orca, Raydium, or Meteora LP position. Input is re-validated so every entry point
  * (tool, CLI, harness) fails before any provider access. The protocol gate runs before the
- * signer or the venue port are touched. Meteora deposits stay refused.
+ * signer or the venue port are touched. Meteora withdrawals stay refused.
  * The owner resolves from the wallet Signer only when omitted.
  * @param {import("../domain/types.js").LiquidityGetPositionInput} input
  * @returns {import("effect").Effect.Effect<import("../domain/types.js").LpPosition, GetPositionError, GetPositionContext>}

@@ -211,7 +211,7 @@ describe("`solos liquidity simulate-deposit` and `deposit` through a real CLI ch
     expect(stderrJson(stderr)?.error).toMatchObject({ code: "SimulationFailed" });
   });
 
-  test("deposit and simulate-deposit fail typed before any network for meteora", async () => {
+  test("deposit and simulate-deposit for meteora are not refused before the network", async () => {
     const { env } = await signerEnv(fx);
     for (const verb of ["simulate-deposit", "deposit"]) {
       const { stderr, code } = await runSolos(
@@ -232,10 +232,7 @@ describe("`solos liquidity simulate-deposit` and `deposit` through a real CLI ch
         { ...env, SOLANA_RPC_URL: DEAD_RPC_URL },
       );
       expect(code, verb).not.toBe(0);
-      expect(stderrJson(stderr)?.error).toMatchObject({
-        code: "LiquidityUnsupportedProtocol",
-        protocol: "meteora",
-      });
+      expect(stderrJson(stderr)?.error?.code, verb).not.toBe("LiquidityUnsupportedProtocol");
     }
   });
 

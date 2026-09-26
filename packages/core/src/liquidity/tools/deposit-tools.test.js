@@ -1,6 +1,5 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
 import {
   LiquidityDepositInputSchema,
   LiquidityExecuteDepositInputSchema,
@@ -17,22 +16,12 @@ const base = {
 };
 
 describe("liquidity deposit tools input guard", () => {
-  // Enum membership is not implementation: meteora parses and is refused before the
-  // signer-bearing runtime is built. raydium has an adapter as of #130/#131.
-  test("both twins reject a protocol with no adapter before any runtime", () => {
+  test("orca, raydium, and meteora pass the pure guard", () => {
     for (const tool of [simulateDepositTool, executeDepositTool]) {
       expect(tool.check).toBeTypeOf("function");
-      for (const protocol of ["meteora"]) {
-        expect(() => tool.check({ ...base, protocol }), `${tool.name} ${protocol}`).toThrow(
-          LiquidityUnsupportedProtocol,
-        );
+      for (const protocol of ["orca", "raydium", "meteora"]) {
+        expect(tool.check({ ...base, protocol }), `${tool.name} ${protocol}`).toBeUndefined();
       }
-    }
-  });
-
-  test("orca passes the pure guard", () => {
-    for (const tool of [simulateDepositTool, executeDepositTool]) {
-      expect(tool.check(base)).toBeUndefined();
     }
   });
 
