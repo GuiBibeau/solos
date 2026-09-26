@@ -1,1 +1,129 @@
-[]
+[
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "meteora",
+    "issue": 154,
+    "codeSha": "87b514be86046b23d1412e26481138804ad33ae2",
+    "cluster": "mainnet",
+    "position": "8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-deposit-154",
+    "sends": [
+      {
+        "signature": "5fnTWddQTckyCWbJkPHBn8CoaAuAkhwg8u9vmnjxKG3tnHtWPL5K7YU4TuKWDa7tzD8kDcm561J796gVY5uRi5Go",
+        "simulation": {
+          "computeUnits": 67599,
+          "violations": []
+        },
+        "venue": {
+          "requiredA": "816578",
+          "requiredB": "999994"
+        },
+        "wallet": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "-816578" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "-999994" }
+        },
+        "positionTokens": {
+          "a": { "symbol": "USDC", "unit": "raw", "delta": "816583" },
+          "b": { "symbol": "USDT", "unit": "raw", "delta": "999989" }
+        }
+      }
+    ],
+    "gaps": [
+      "Open and close still refuse meteora.",
+      "Recuperation of the deposited funds was not part of this round. Removal is #156."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "meteora",
+    "issue": 156,
+    "codeSha": "19473131186768189a2ca684e86b90d545f18ce1",
+    "cluster": "mainnet",
+    "position": "8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/liquidity-qa.md#meteora-dlmm-withdraw-156",
+    "sends": [
+      {
+        "bps": 2500,
+        "signature": "5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm",
+        "simulation": {
+          "estA": "965122",
+          "estB": "989012"
+        },
+        "liquidity": {
+          "before": "144030935790571124226517579",
+          "after": "108023201842928343169888189"
+        },
+        "positionTokens": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "3.860492",
+            "after": "2.895370"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "display",
+            "before": "3.956059",
+            "after": "2.967047"
+          }
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "9.844564",
+            "after": "10.809686",
+            "delta": "+0.965122"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "display",
+            "before": "7.383163",
+            "after": "8.372175",
+            "delta": "+0.989012"
+          },
+          "sol": { "delta": "-0.000105", "feeLamportsApprox": "~105000" }
+        }
+      },
+      {
+        "bps": 10000,
+        "signature": "3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz",
+        "liquidity": { "after": "0" },
+        "positionTokens": {
+          "a": { "symbol": "USDC", "unit": "display", "after": "0" },
+          "b": { "symbol": "USDT", "unit": "display", "after": "0" }
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "10.809686",
+            "after": "13.705056",
+            "delta": "+2.895370"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "display",
+            "before": "8.372175",
+            "after": "11.339222",
+            "delta": "+2.967047"
+          },
+          "sol": { "delta": "-0.000105", "feeLamportsApprox": "~105000" }
+        }
+      }
+    ],
+    "gaps": [
+      "The full exit has no recorded simulation estA or estB, and no min_withdraw_x or min_withdraw_y floors.",
+      "Residual fee and reward were not measured. The path is NoShrinkBoth and does not claim fees.",
+      "The PositionV2 account may still exist empty. Close is #144, not this round."
+    ]
+  }
+]

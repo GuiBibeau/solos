@@ -64,8 +64,12 @@ add a `solos` command instead.
 
 Every Action strives for live validation: a real mainnet spend the operator has authorized.
 Surfpool tests and unit Evidence prove the pull request. A live round proves the execute path.
-Offline tests do not stand in for that round. What has been proven is tracked in
-[features/feature-map.json](features/feature-map.json).
+Offline tests do not stand in for that round.
+
+Record that round in the change set that documents it. Add the row to
+[features/feature-map.json](features/feature-map.json) and write the QA notes for that path
+in that change set. The row shape is [features/README.md](features/README.md). The round stays
+unrecorded until both are in it.
 
 - **Reusable tests never touch mainnet.** They run against Surfpool, offline by default, started
   automatically by `ensureSurfnet()` and torn down by the test preload.
@@ -76,6 +80,7 @@ Offline tests do not stand in for that round. What has been proven is tracked in
   simulate it first, never use `--skip-simulation` for QA, and stop on any failed simulation or
   missing/unchecked exit path. Keep amounts small; reconcile before/after balances, positions,
   signatures, fees, locked rent, and residual exposure. Report zero spend when nothing was sent.
+  Put that reconciliation in the feature-map row and the QA notes in the same change set.
 - **Use the operator's real RPC for live checks.** `SOLANA_RPC_URL` may be provided in local
   environment files (for example `.env.local` or `~/.config/solos/qa/quicknode.env`), not in
   the agent's inherited shell or the saved profile. Locate and load the operator-provisioned
@@ -100,7 +105,7 @@ Offline tests do not stand in for that round. What has been proven is tracked in
 | `packages/mcp/src/` | stdio server, tool → MCP mapping, the one MCP client | HTTP transport later. |
 | `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
 | `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. |
-| `features/feature-map.json` | which Actions are live-validated, Surfpool-only, or unimplemented | Starts empty. Add a row only after a live-spend round. |
+| `features/feature-map.json` | live-validated execute paths | Row shape in features/README.md. Write the row in the same change set as the QA notes. |
 
 Slices today, generated from the registry by `solos dev docs check --write` and gated by `solos
 dev check` — do not edit the table by hand:

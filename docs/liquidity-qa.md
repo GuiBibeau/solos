@@ -165,7 +165,12 @@ Recorded result:
 - liquidity increased
 - simulation succeeded, 67599 compute units, `violations` `[]`
 - signature `5fnTWddQTckyCWbJkPHBn8CoaAuAkhwg8u9vmnjxKG3tnHtWPL5K7YU4TuKWDa7tzD8kDcm561J796gVY5uRi5Go`
+- venue quote `requiredA` 816578 and `requiredB` 999994, raw
+- wallet raw delta −816578 USDC and −999994 USDT
+- position raw delta +816583 USDC and +999989 USDT
 
+The wallet display line is those raw wallet deltas, rounded to three decimal places. The
+position display lines change by those raw position deltas, rounded to three decimal places.
 Asymmetric fill is expected for this bin distribution.
 
 ## Meteora DLMM withdraw (#156)
@@ -174,22 +179,33 @@ Asymmetric fill is expected for this bin distribution.
 `19473131186768189a2ca684e86b90d545f18ce1`, before that branch was updated. Open and close
 still refuse meteora (#144).
 
-The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. The
-position already existed. `maxSlippageBps` was 50.
+The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. Position
+`8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM` already existed. The owner is
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`. `maxSlippageBps` was 50. Both sends use
+those accounts and that cap.
 
-Recorded result:
+The partial removal used `bps` 2500. Signature
+`5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm`.
 
-- position `8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM`
-- owner `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`
-- pair `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` (USDC/USDT)
-- maxSlippageBps 50
-- partial `bps` 2500, signature
-  `5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm`:
-  liquidity −25%; wallet +0.965 USDC / +0.989 USDT
-- full `bps` 10000, signature
-  `3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz`:
-  liquidity shares 0; position tokens 0/0
-- overall wallet from the start of the remove: +3.860 USDC / +3.956 USDT
+- simulation quote `estA` 965122 and `estB` 989012, raw
+- liquidity `144030935790571124226517579` → `108023201842928343169888189`
+- position USDC 3.860492 → 2.895370, USDT 3.956059 → 2.967047
+- wallet USDC 9.844564 → 10.809686 (+0.965122), USDT 7.383163 → 8.372175 (+0.989012)
+- SOL −0.000105, about 105000 lamports of fee
+
+The full removal used `bps` 10000. Signature
+`3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz`.
+
+- liquidity share 0
+- position USDC 0, USDT 0
+- wallet USDC 10.809686 → 13.705056 (+2.895370), USDT 8.372175 → 11.339222 (+2.967047)
+- SOL −0.000105, about 105000 lamports of fee
+
+The two recorded wallet deltas sum to +3.860492 USDC and +3.956059 USDT.
+
+The full exit has no recorded simulation `estA` or `estB`, and no `min_withdraw_x` or
+`min_withdraw_y` floors. Residual fee and reward were not measured. The removal is
+`NoShrinkBoth` and does not claim fees.
 
 The PositionV2 account may still exist empty. Full unwind and close are #144 and later
 cleanup, not this round.
