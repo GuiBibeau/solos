@@ -46,21 +46,28 @@ bun run solos dev surfpool down
 
 ### Evidence
 
-The JSON printed by `solos dev verify` is the only accepted proof of work. It records the HEAD sha,
-whether the tree was dirty, the scope, tool versions, and one entry per step (`ok` true/false/null
-for skipped, duration, last output line). Run it with `--json` and paste the object in the PR body
-under a `## Evidence` heading inside a ```json fence. CI runs `solos dev evidence check` against
-the PR body: the sha must match the PR head, `dirty` must be false, `ok` must be true. Then CI
-re-runs `solos dev verify` on the same sha. A description of what you ran is not evidence; the JSON is.
+The JSON printed by `solos dev verify` is the only accepted proof that a pull request's checks
+passed. It records the HEAD sha, whether the tree was dirty, the scope, tool versions, and one
+entry per step (`ok` true/false/null for skipped, duration, last output line). Run it with `--json`
+and paste the object in the PR body under a `## Evidence` heading inside a ```json fence. CI runs
+`solos dev evidence check` against the PR body: the sha must match the PR head, `dirty` must be
+false, `ok` must be true. Then CI re-runs `solos dev verify` on the same sha. A description of what
+you ran is not evidence; the JSON is. That object proves the commit's checks. Live validation of an
+execute path is a separate bar; see Funds and [features/feature-map.json](features/feature-map.json).
 
 Do not write throwaway scripts to poke the chain or the server. If a verification step is missing,
 add a `solos` command instead.
 
 ## Funds
 
+Every Action strives for live validation: a real mainnet spend the operator has authorized.
+Surfpool tests and unit Evidence prove the pull request. A live round proves the execute path.
+Offline tests do not stand in for that round. What has been proven is tracked in
+[features/feature-map.json](features/feature-map.json).
+
 - **Reusable tests never touch mainnet.** They run against Surfpool, offline by default, started
   automatically by `ensureSurfnet()` and torn down by the test preload.
-- **Real-fund mainnet QA is allowed, and expected for execute paths when the operator authorizes
+- **Live validation of an execute path is a real mainnet spend, done when the operator authorizes
   a round.** Use the operator's funded local wallet and real RPC, not Surfpool, for that round.
   Before signing or sending, ask the operator to approve the wallet, cluster, token/amount cap,
   and SOL fee/rent cap. This guide is not standing permission to spend. Show the proposed transaction,
@@ -91,6 +98,7 @@ add a `solos` command instead.
 | `packages/mcp/src/` | stdio server, tool → MCP mapping, the one MCP client | HTTP transport later. |
 | `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
 | `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. |
+| `features/feature-map.json` | which Actions are live-validated, Surfpool-only, or unimplemented | Starts empty. Add a row only after a live-spend round. |
 
 Slices today, generated from the registry by `solos dev docs check --write` and gated by `solos
 dev check` — do not edit the table by hand:

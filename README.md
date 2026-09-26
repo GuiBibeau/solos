@@ -15,7 +15,7 @@ Plain JavaScript on Bun, Effect for architecture, Zod for schemas, Solana Kit 8 
 ```sh
 bun install
 bun run solos login --provider privy --rpc-url https://your-provider-url   # browser login; or local | pay
-bun run solos dev verify --scope unit --json   # Evidence: the only accepted proof of work (ADR-0016)
+bun run solos dev verify --scope unit --json   # Evidence: proof the PR checks passed (ADR-0016)
 bun run solos dev verify                        # full: adds Surfpool integration tests
 
 bun run solos dev surfpool up   # local network for manual verification
@@ -38,6 +38,7 @@ apps/cli          `solos`: operator CLI and verification lever
 docs/adr          why things are the way they are
 docs/clients      wiring snippets for Claude Code, Codex, Cursor
 docs/reference    tool list and per-slice behavior
+features          live-spend status of Actions
 ```
 
 Read [AGENTS.md](AGENTS.md) before contributing (humans too) and [CONTEXT.md](CONTEXT.md) for
@@ -50,6 +51,15 @@ Design work ends in ADRs and issues with acceptance criteria. Every authored pul
 the JSON printed by `solos dev verify` under `## Evidence`; CI checks it against the head commit and
 re-runs the same command.
 See [ADR-0016](docs/adr/0016-verification-evidence.md) for the verification contract.
+
+## How we validate
+
+Every Action strives for a real mainnet spend. Surfpool tests and the Evidence JSON on a pull
+request are the required check on a commit. An execute path is proven when the operator authorizes
+a round: simulate first, keep the amount small, and reconcile balances.
+
+The [feature map](features/README.md) records what is live-spend validated, what is Surfpool-only,
+and what is unimplemented. The round's rules are in [AGENTS.md](AGENTS.md#funds).
 
 ## License
 
