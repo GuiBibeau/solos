@@ -86,9 +86,10 @@ Offline tests seed PositionV2, LbPair, and BinArray accounts under
 the pinned bin math. They do not prove what a live pair holds.
 
 **Status: the zero-spend read is done.** Run on 2026-09-26. Nothing was signed or sent.
-Withdraw, open, and close still refuse meteora with `LiquidityUnsupportedProtocol` before
-any network access. The funded deposit round is
-[below](#meteora-dlmm-deposit-154). Owner enumeration is a separate zero-spend round.
+Open and close still refuse meteora with `LiquidityUnsupportedProtocol` before any network
+access (#144). The funded deposit round is
+[below](#meteora-dlmm-deposit-154). The funded withdrawal round is
+[below](#meteora-dlmm-withdraw-156). Owner enumeration is a separate zero-spend round.
 
 The position is a third party's, so the command names `--owner`. Startup still needs
 `SOLANA_RPC_URL` and a configured signer.
@@ -113,9 +114,9 @@ Recorded result:
 - the bin window sits entirely below the active bin, so the position is all token Y
 
 A different `--owner` returns `LiquidityPositionUnavailable` ("position owner does not match
-the requested owner"). `withdraw` and `simulate-withdraw` with `--protocol meteora` still
-fail `LiquidityUnsupportedProtocol` before any account read. Open and close do the same.
-The deposit round is [below](#meteora-dlmm-deposit-154).
+the requested owner"). Open and close still fail `LiquidityUnsupportedProtocol` before any
+account read (#144). The deposit round is [below](#meteora-dlmm-deposit-154). The withdrawal
+round is [below](#meteora-dlmm-withdraw-156).
 
 ## Meteora DLMM owner enumeration
 
@@ -138,14 +139,15 @@ The earlier point read of the same position reported token B `63939249963` (Kern
 `63939249979`). The amount is `floor(share * reserve / supply)` per occupied bin, so a
 reserve move between reads changes it. Meteora `receiptMints` is empty. A scan match that
 does not decode is `LiquidityPositionUnavailable` for the whole enumeration. More than 256
-matches is `LiquidityEnumerationIncomplete`. Withdrawals stay refused.
+matches is `LiquidityEnumerationIncomplete`. The withdrawal round is
+[below](#meteora-dlmm-withdraw-156).
 
 ## Meteora DLMM deposit (#154)
 
 **Status: one funded mainnet deposit is recorded.** Kernel ran it on the #154 head
-`87b514be86046b23d1412e26481138804ad33ae2`. Withdraw, open, and close still refuse meteora.
-Gui asked to recuperate these funds after the track. That cleanup is planned and was not
-part of this round.
+`87b514be86046b23d1412e26481138804ad33ae2`. Open and close still refuse meteora. Gui asked
+to recuperate these funds after the track. That cleanup was not part of this round. The
+later removal is [Meteora DLMM withdraw (#156)](#meteora-dlmm-withdraw-156).
 
 The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq`. The position already
 existed. Kernel ran `simulate-deposit`, then `deposit`, with `maxSlippageBps` 50 and caps of
@@ -165,6 +167,32 @@ Recorded result:
 - signature `5fnTWddQTckyCWbJkPHBn8CoaAuAkhwg8u9vmnjxKG3tnHtWPL5K7YU4TuKWDa7tzD8kDcm561J796gVY5uRi5Go`
 
 Asymmetric fill is expected for this bin distribution.
+
+## Meteora DLMM withdraw (#156)
+
+**Status: one funded mainnet removal is recorded.** Kernel ran it on the #156 head
+`19473131186768189a2ca684e86b90d545f18ce1`, before that branch was updated. Open and close
+still refuse meteora (#144).
+
+The pair is USDC/USDT `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` on mainnet. The
+position already existed. `maxSlippageBps` was 50.
+
+Recorded result:
+
+- position `8KasnSHnqFGbBsj9rJUrVBue8x9s2BbqbT1URSFAvfyM`
+- owner `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`
+- pair `ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq` (USDC/USDT)
+- maxSlippageBps 50
+- partial `bps` 2500, signature
+  `5jGAC579o7M8zMmusJvnC7WJNhx6ywDodrVqdW43XpV2bP1UT3qpY8ZhohNyDz2gpigZJiame78SQvpG1qFvJZfm`:
+  liquidity −25%; wallet +0.965 USDC / +0.989 USDT
+- full `bps` 10000, signature
+  `3fjnnFcqtB9u3qCdVTWLMxW2xFJ8eJ6foDXK3nCAwX761BYwHDhFhSTxZinecWR55aHbY88MbaXTeXz7Z4oMyEaz`:
+  liquidity shares 0; position tokens 0/0
+- overall wallet from the start of the remove: +3.860 USDC / +3.956 USDT
+
+The PositionV2 account may still exist empty. Full unwind and close are #144 and later
+cleanup, not this round.
 
 ## Deposits into an existing position (#30)
 
@@ -205,6 +233,9 @@ Never report a deposit QA as passed from fixture runs, and never spend beyond th
 budget.
 
 ## Bounded removals from an existing position (#31)
+
+Orca and Raydium. The Meteora funded round is
+[Meteora DLMM withdraw (#156)](#meteora-dlmm-withdraw-156).
 
 `solana_liquidity_simulate_withdraw` / `solana_liquidity_execute_withdraw` and
 `solos liquidity simulate-withdraw` / `withdraw` remove a bounded percentage of one
