@@ -8,7 +8,8 @@
  *
  * `open_position_with_token22_nft` is the Token-2022 NFT form, which carries no Metaplex metadata
  * accounts and so is the smaller of the two. Its `position_nft_mint` is a **writable signer** —
- * the only solOS path that needs a second, ephemeral keypair beside the fee payer.
+ * one solOS path that needs a second, ephemeral keypair beside the fee payer. Meteora's
+ * initialize_position is the other: its position account signs, and that key is not an NFT.
  */
 import { address, getU64Encoder } from "@solana/kit";
 import { ATA_PROGRAM, TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "./raydium-clmm-instruction.js";

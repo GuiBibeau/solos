@@ -30,20 +30,20 @@ const gate = (input) => {
 };
 
 const OPEN_TEXT =
-  "Open a new concentrated-liquidity position at a tick range you choose, on raydium (CLMM). " +
-  "tickLower and tickUpper are explicit and must each be a multiple of the pool's tick " +
-  "spacing; an unaligned range is refused rather than rounded, because rounding it would be " +
-  "choosing a different range than the one asked for. amountA and amountB are maximum spends " +
-  "in base units, never targets. The position is created with a fresh NFT generated for this " +
-  "transaction, so its mint is not known before the open confirms: read the new position back " +
-  "with a portfolio or position read afterwards. Rent for the position and its NFT is the " +
-  "signer's and is only reclaimed by closing.";
+  "Open a new concentrated-liquidity position at a range you choose. " +
+  "raydium (CLMM): tickLower and tickUpper must each be a multiple of the pool's tick spacing; " +
+  "an unaligned range is refused rather than rounded. amountA and amountB are maximum spends " +
+  "in base units, never targets. The position NFT is generated for this transaction. " +
+  "meteora (DLMM): pass lowerBinId and width. Width must be an integer from 1 to 70; an illegal " +
+  "width is refused, never clamped. The open is empty (initialize_position); add liquidity " +
+  "afterwards with the deposit tools. The position account is a fresh keypair and its pubkey is " +
+  "returned on the execute result. Rent is the signer's and is reclaimed by closing.";
 
 const CLOSE_TEXT =
-  "Close an emptied concentrated-liquidity position and reclaim its rent, on raydium (CLMM). " +
-  "The venue refuses while any liquidity, unclaimed fee or unclaimed reward remains, so remove " +
-  "all liquidity first — a full removal also sweeps fees and rewards. The position NFT is " +
-  "burned and the position account is gone afterwards.";
+  "Close an emptied concentrated-liquidity position and reclaim its rent. " +
+  "raydium (CLMM) refuses while any liquidity, unclaimed fee, or unclaimed reward remains, and " +
+  "burns the position NFT. meteora (DLMM) refuses while any liquidity share remains, so remove " +
+  "them with the withdraw tool first. A meteora position is the PositionV2 account, not an NFT.";
 
 export const simulateOpenPositionTool = defineTool({
   name: "solana_liquidity_simulate_open_position",

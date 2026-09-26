@@ -14,7 +14,7 @@ import { AddressSchema } from "../../shared/domain/address.js";
  * The venue selector, mirroring the merged contract enum in `@solos/actions`
  * (trading-primitives LiquidityProtocolSchema, not exported from the published index).
  * Point reads, deposits, withdrawals, and owner enumeration cover orca, raydium, and meteora.
- * Opens and closes stay on raydium.
+ * Opens and closes cover raydium and an empty meteora position.
  */
 export const LiquidityProtocolSchema = z.enum(["orca", "meteora", "raydium"]);
 
@@ -55,7 +55,7 @@ export const isPositionReadable = (protocol) => POSITION_READ_PROTOCOLS.includes
  * read: Orca positions are opened by a different instruction family that nothing here encodes,
  * so asking for one is refused rather than silently built against Raydium.
  */
-export const LIFECYCLE_PROTOCOLS = Object.freeze(["raydium"]);
+export const LIFECYCLE_PROTOCOLS = Object.freeze(["raydium", "meteora"]);
 
 /** @param {string} protocol */
 export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol);
@@ -67,7 +67,7 @@ export const hasLifecycle = (protocol) => LIFECYCLE_PROTOCOLS.includes(protocol)
  */
 export const LiquidityGetPositionInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals stay inside the position's existing bins. Opens and closes still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for this read. Deposits and withdrawals stay inside the position's existing bins. Opens and closes cover raydium and an empty meteora position",
   ),
   position: AddressSchema.describe(
     "Protocol position-account address: the Whirlpool position PDA on orca, the PersonalPositionState PDA on raydium, the PositionV2 account on meteora. Never an NFT mint and never the pool",
@@ -80,7 +80,7 @@ export const LiquidityGetPositionInputSchema = z.object({
 /** One owner enumeration: whose LP positions to list. Omitted means the configured signer. */
 export const LiquidityListPositionsInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Deposits and withdrawals stay inside the position's existing bins. Opens and closes still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) are implemented for owner enumeration. Deposits and withdrawals stay inside the position's existing bins. Opens and closes cover raydium and an empty meteora position",
   ),
   owner: AddressSchema.optional().describe(
     "Owner to enumerate. Defaults to the configured signer wallet",
@@ -110,7 +110,7 @@ export const DepositBudgetSchema = z
 /** The deposit request fields before the cross-field budget rule. */
 const DepositInputBaseSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Opens and closes still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Opens and closes cover raydium and an empty meteora position",
   ),
   pool: AddressSchema.describe(
     "Pool address the position belongs to; the deposit fails typed when the position references a different pool",
@@ -149,7 +149,7 @@ export const LiquidityDepositInputSchema = DepositInputBaseSchema;
  * slippage-bounded minimum receipts. The bounds live here and in the Action contract. */
 export const LiquidityWithdrawInputSchema = z.object({
   protocol: LiquidityProtocolSchema.describe(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) withdrawals are implemented. Opens and closes still reject meteora",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) withdrawals are implemented. Opens and closes cover raydium and an empty meteora position",
   ),
   position: AddressSchema.describe(
     "Protocol position account: the Whirlpool PDA, the Raydium personal position, or the Meteora PositionV2 account (its owner field). Never an NFT mint and never the pool. The position is not closed and its range is not changed",

@@ -14,7 +14,7 @@ import { simulateWithdrawCommand, withdrawCommand } from "./liquidity-withdraw.j
 
 const protocol = Options.text("protocol").pipe(
   Options.withDescription(
-    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Opens and closes still reject meteora.",
+    "Liquidity protocol. orca (Whirlpools), raydium (CLMM), and meteora (DLMM) deposits are implemented. Opens and closes cover raydium and an empty meteora position.",
   ),
 );
 

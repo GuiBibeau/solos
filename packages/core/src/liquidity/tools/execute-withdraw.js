@@ -29,7 +29,7 @@ export const executeWithdrawTool = defineTool({
     "first and sends nothing when simulation, validation, or the blockhash lifetime " +
     "fails; skipSimulation bypasses only the simulation, never validation. Never " +
     "re-sends after an ambiguous submission. Use solana_liquidity_simulate_withdraw " +
-    "to preview without sending. Opens and closes still reject meteora.",
+    "to preview without sending. Opens and closes cover raydium and an empty meteora position.",
   input: LiquidityExecuteWithdrawInputSchema,
   check: (input) => {
     if (!isReadable(input.protocol)) {

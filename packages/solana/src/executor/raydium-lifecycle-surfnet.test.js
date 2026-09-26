@@ -11,7 +11,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   BuildRejected,
-  LiquidityUnsupportedProtocol,
+  LiquidityInputInvalid,
   SimulationFailed,
   executeClosePosition,
   simulateClosePosition,
@@ -197,9 +197,11 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     }
   });
 
-  test("meteora fails the protocol gate before the executor reads anything", async () => {
+  test("a tick-shaped meteora open is refused before any read or send", async () => {
     const seed = randomSeed();
     const reads = rpc.callsFor("getMultipleAccounts").length;
+    const sims = rpc.callsFor("simulateTransaction").length;
+    const sends = rpc.callsFor("sendTransaction").length;
     const failure = await failureOf(
       simulateOpenPosition({
         ...openIntent({}),
@@ -207,8 +209,11 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
       }),
       seed,
     );
-    expect(failure).toBeInstanceOf(LiquidityUnsupportedProtocol);
+    expect(failure).toBeInstanceOf(LiquidityInputInvalid);
+    expect(reasonOf(failure)).toContain("lowerBinId");
     expect(rpc.callsFor("getMultipleAccounts").length).toBe(reads);
+    expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
+    expect(rpc.callsFor("sendTransaction").length).toBe(sends);
   });
 
   test("closing a position that still holds liquidity is refused before simulation", async () => {

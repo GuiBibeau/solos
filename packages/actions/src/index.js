@@ -25,6 +25,7 @@
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
 /** @typedef {import("./results.js").LiquidityRemovalQuote} LiquidityRemovalQuote */
 /** @typedef {import("./results.js").PositionOpenQuote} PositionOpenQuote */
+/** @typedef {import("./results.js").MeteoraPositionOpenQuote} MeteoraPositionOpenQuote */
 /** @typedef {import("./results.js").SimulationResult} SimulationResult */
 /** @typedef {import("./results.js").VenueQuote} VenueQuote */
 /** @typedef {import("./results.js").Violation} Violation */
@@ -69,6 +70,7 @@ export {
   LendWithdrawQuoteSchema,
   LiquidityDepositQuoteSchema,
   LiquidityRemovalQuoteSchema,
+  MeteoraPositionOpenQuoteSchema,
   PerpOnboardQuoteSchema,
   PerpCollateralQuoteSchema,
   PerpCollateralReconciliationSchema,
@@ -78,3 +80,4 @@ export {
   ViolationSchema,
 } from "./results.js";
 export { VaultStateSchema } from "./vault.js";
+export { meteoraWidthIssue, openPositionIssue } from "./meteora-open.js";

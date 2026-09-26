@@ -23,7 +23,7 @@ export const executeDepositTool = defineTool({
     "quote needs nothing from is created idempotently. Simulates the exact transaction first " +
     "and sends nothing when simulation, validation, or the blockhash lifetime fails; " +
     "skipSimulation bypasses only the simulation, never validation. Use " +
-    "solana_liquidity_simulate_deposit to preview. Opens and closes still reject meteora.",
+    "solana_liquidity_simulate_deposit to preview. Opens and closes cover raydium and an empty meteora position.",
   input: LiquidityExecuteDepositInputSchema,
   check: (input) => {
     if (!isDepositable(input.protocol)) {
