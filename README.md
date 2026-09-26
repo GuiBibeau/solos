@@ -49,6 +49,10 @@ bun run solos liquidity position --protocol meteora --position <position-account
 bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
   --position <position-account> --amount-a <base-units> --amount-b <base-units>
 
+# Simulate a withdrawal from that existing position. Nothing is submitted.
+bun run solos liquidity simulate-withdraw --protocol meteora \
+  --position <position-account> --bps <1..10000>
+
 # Portfolio, including that owner's Meteora DLMM positions. Read-only.
 bun run solos portfolio state --owner <owner>
 ```
