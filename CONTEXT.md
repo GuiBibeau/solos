@@ -8,6 +8,14 @@ Terms used in code, docs, and conversation. When a word here and a word in code 
 `packages/core/src/<slice>/`, internally hexagonal: `domain`, `ports`, `use-cases`, `tools`. Other
 slices see only its `index.js`.
 
+**Caller** — whatever invokes a tool: an agent loop, a swarm, the CLI, the harness. solOS is built
+for Callers first; a human reaches it by prompting one, not by driving a wallet UI. A Caller acts
+only within what the Operator allowed, and learns the boundary from the tool list it is given.
+
+**Operator** — the human who owns the signer and decides what solOS is allowed to do. Sets the
+boundary out of band — which wallet, which RPC, whether the execute tier exists at all — and is
+not in the loop of any individual call. Policy above that boundary lives upstream (ADR-0006).
+
 **Port** — an interface the core needs from the outside world, declared as an Effect
 `Context.GenericTag` in `ports/`. Examples: `Signer`, `BalanceReader`, `SolTransfer`, `EventBus`.
 
