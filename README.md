@@ -19,8 +19,9 @@ Requires Bun ≥ 1.3.
 ## Examples
 
 Commands print JSON. Reads do not sign. `swap simulate` builds the swap for the configured
-signer and does not send it. `swap execute` takes the same flags and submits only after that
-simulation succeeds. Swap calls need `JUPITER_API_KEY`.
+signer and does not send it. `swap execute` takes the same flags and, by default, simulates
+before it submits. `--skip-simulation` skips that pre-submit simulation. Swap calls need
+`JUPITER_API_KEY`.
 
 ```sh
 # Indicative quote: 0.01 wSOL to USDC. Nothing is signed.
