@@ -48,7 +48,7 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_swap_execute_swap` | execute | `swap` |
 | `solana_swap_get_quote` | read | `swap` |
 | `solana_swap_simulate_swap` | simulate | `swap` |
-| `solana_transfer_send_sol` | execute | `transfer` |
+| `solana_transfer_execute_sol` | execute | `transfer` |
 | `solana_transfer_simulate_sol` | simulate | `transfer` |
 | `solana_wallet_get_address` | read | `wallet` |
 | `solana_wallet_get_balance` | read | `wallet` |

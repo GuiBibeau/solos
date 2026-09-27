@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ValidationError } from "../../shared/domain/errors.js";
 import { TransferSolInputSchema } from "../domain/types.js";
-import { sendSolTool } from "./send-sol.js";
+import { executeSolTool } from "./execute-sol.js";
 import { simulateSolTool } from "./simulate-sol.js";
 
 /** Syntactically valid mainnet address, so only the amount side can fail the schema. */
@@ -9,7 +9,7 @@ const VALID_ADDRESS = "So11111111111111111111111111111111111111112";
 
 describe("transfer tool input guard", () => {
   test("both transfer tools reject zero-equivalent amounts before any runtime", () => {
-    for (const tool of [simulateSolTool, sendSolTool]) {
+    for (const tool of [simulateSolTool, executeSolTool]) {
       expect(tool.check, tool.name).toBeTypeOf("function");
       expect(() => tool.check({ to: "x", amountSol: "0" }), tool.name).toThrow(ValidationError);
       expect(() => tool.check({ to: "x", amountSol: "0.000000000" }), tool.name).toThrow(

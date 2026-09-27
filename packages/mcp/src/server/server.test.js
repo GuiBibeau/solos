@@ -46,13 +46,13 @@ describe("solos MCP server over stdio [integration]", () => {
     const names = tools.map((t) => t.name);
     expect(names).toEqual([...names].toSorted((a, b) => a.localeCompare(b)));
     expect(names).toContain("solana_wallet_get_balance");
-    expect(names).toContain("solana_transfer_send_sol");
+    expect(names).toContain("solana_transfer_execute_sol");
   });
 
   test("maps tiers to annotations and interaction hints", async () => {
     const tools = await mcp.listTools();
     const read = tools.find((t) => t.name === "solana_wallet_get_balance");
-    const exec = tools.find((t) => t.name === "solana_transfer_send_sol");
+    const exec = tools.find((t) => t.name === "solana_transfer_execute_sol");
     expect(read?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(read?._meta?.["anthropic/requiresUserInteraction"]).toBe(false);
     expect(exec?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
@@ -67,7 +67,7 @@ describe("solos MCP server over stdio [integration]", () => {
   });
 
   test("sends SOL and returns a receipt", async () => {
-    const result = await mcp.callTool("solana_transfer_send_sol", {
+    const result = await mcp.callTool("solana_transfer_execute_sol", {
       to: RECIPIENT,
       amountSol: "0.1",
     });
@@ -83,13 +83,16 @@ describe("solos MCP server over stdio [integration]", () => {
   });
 
   test("surfaces domain errors as structured tool errors", async () => {
-    const result = await mcp.callTool("solana_transfer_send_sol", { to: RECIPIENT, amountSol: 50 });
+    const result = await mcp.callTool("solana_transfer_execute_sol", {
+      to: RECIPIENT,
+      amountSol: 50,
+    });
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toMatchObject({ code: "InsufficientFunds", owner });
   });
 
   test("rejects invalid input before touching the chain", async () => {
-    const result = await mcp.callTool("solana_transfer_send_sol", {
+    const result = await mcp.callTool("solana_transfer_execute_sol", {
       to: "not-an-address",
       amountSol: 1,
     });

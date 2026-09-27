@@ -72,7 +72,7 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
   /** The execute twin with simulation skipped: validation must still precede the executor. */
   /** @param {Awaited<ReturnType<typeof connectMcp>> | undefined} mcp @param {string | number} amountSol */
   const send = (mcp, amountSol) =>
-    mcp?.callTool("solana_transfer_send_sol", {
+    mcp?.callTool("solana_transfer_execute_sol", {
       to: RECIPIENT,
       amountSol,
       skipSimulation: true,

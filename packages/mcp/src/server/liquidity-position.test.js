@@ -37,7 +37,7 @@ describe("solos MCP liquidity position tool through a real server child [integra
       "solana_perp_get_position",
       "solana_perp_simulate_onboard_trader",
       "solana_swap_get_quote",
-      "solana_transfer_send_sol",
+      "solana_transfer_execute_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
       "solana_wallet_get_balance",
