@@ -10,9 +10,17 @@ import { Effect } from "effect";
  * @param {Effect.Effect<A, E, R>} effect
  */
 export const withSolos = (effect) =>
-  Effect.suspend(() => {
-    const env = loadSolanaEnv(process.env);
-    return effect.pipe(
-      Effect.provide(makeToolLayer(env, { logLevel: process.env.SOLOS_LOG_LEVEL ?? "warn" })),
-    );
-  });
+  Effect.suspend(() =>
+    // `loadSolanaEnv` throws typed config errors; `Effect.try` turns them into a failed exit so the
+    // CLI reports a code and a reason instead of a defect with a stack trace.
+    Effect.try({
+      try: () => loadSolanaEnv(process.env),
+      catch: (error) => error,
+    }).pipe(
+      Effect.flatMap((env) =>
+        effect.pipe(
+          Effect.provide(makeToolLayer(env, { logLevel: process.env.SOLOS_LOG_LEVEL ?? "warn" })),
+        ),
+      ),
+    ),
+  );

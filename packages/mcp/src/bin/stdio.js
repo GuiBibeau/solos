@@ -5,7 +5,7 @@
  * stdout carries JSON-RPC only; every log line goes to stderr as JSON.
  */
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { allTools } from "@solos/core";
+import { allTools, errorEnvelope } from "@solos/core";
 import { loadSolanaEnv, rpcOrigin } from "@solos/solana";
 import { z } from "zod";
 import { makePreflightTelemetry, makeToolRuntime } from "../runtime.js";
@@ -46,7 +46,10 @@ const main = async () => {
 };
 
 main().catch((error) => {
-  const message = error instanceof z.ZodError ? z.prettifyError(error) : String(error);
+  const message =
+    error instanceof z.ZodError
+      ? z.prettifyError(error)
+      : (errorEnvelope(error)?.reason ?? String(error));
   console.error(
     JSON.stringify({ level: "ERROR", message: "solos mcp failed to start", cause: message }),
   );

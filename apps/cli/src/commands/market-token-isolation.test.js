@@ -83,7 +83,7 @@ describe("token read configuration isolation from developer .env files [integrat
       { cwd: /** @type {string} */ (poisonedDir) },
     );
     expect(blocked.code).not.toBe(0);
-    expect(stderrJson(blocked.stderr)?.error).toMatchObject({ code: "InternalError" });
+    expect(stderrJson(blocked.stderr)?.error).toMatchObject({ code: "RpcConfigMissing" });
     expect(blocked.stderr).toContain("SOLANA_RPC_URL is not set");
     expect(blocked.stderr).not.toContain(CREDENTIAL);
   });

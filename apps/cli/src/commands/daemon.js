@@ -8,7 +8,10 @@ import { exitOnFailure } from "../output.js";
 
 export const daemon = Command.make("daemon", {}, () =>
   Effect.gen(function* () {
-    const { layer, config } = yield* Effect.promise(() => loadHarness());
+    const { layer, config } = yield* Effect.tryPromise({
+      try: () => loadHarness(),
+      catch: (error) => error,
+    });
     mkdirSync(path.dirname(config.daemon.storePath), { recursive: true });
     yield* runDaemon().pipe(Effect.provide(layer));
   }).pipe(exitOnFailure),

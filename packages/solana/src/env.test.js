@@ -7,6 +7,16 @@ import { KAMINO_MAIN_MARKET } from "./lend/kamino-addresses.js";
 
 const MAIN_RPC = "http://127.0.0.1:8899";
 
+/** Run a thunk that must throw and hand back the thrown value. @param {() => unknown} fn */
+const thrownBy = (fn) => {
+  try {
+    fn();
+  } catch (error) {
+    return /** @type {{ _tag?: string; reason?: string; remedy?: string }} */ (error);
+  }
+  throw new Error("expected the call to throw");
+};
+
 /** @type {string} */
 let emptyDir;
 
@@ -53,15 +63,34 @@ describe("solana env resolution [integration]", () => {
   });
 
   test("has no default rpc url", () => {
-    expect(() =>
+    expect(
+      thrownBy(() => loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLOS_SIGNER_PRIVATE_KEY: "x" }))
+        ._tag,
+    ).toBe("RpcConfigMissing");
+  });
+
+  test("a missing signer and a missing rpc url are typed config errors, not defects", () => {
+    const signer = thrownBy(() =>
+      loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLANA_RPC_URL: MAIN_RPC }),
+    );
+    expect(signer._tag).toBe("SignerConfigMissing");
+    expect(signer.reason).toContain("no signer");
+    expect(signer.remedy).toContain("solos login");
+
+    const rpc = thrownBy(() =>
       loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLOS_SIGNER_PRIVATE_KEY: "x" }),
-    ).toThrow(/SOLANA_RPC_URL/);
+    );
+    expect(rpc._tag).toBe("RpcConfigMissing");
+    expect(rpc.reason).toContain("SOLANA_RPC_URL");
+    expect(rpc.remedy).toContain("SOLANA_RPC_URL");
   });
 
   test("an empty store fails with the absent-profile error whatever the machine has", () => {
-    expect(() => loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLANA_RPC_URL: MAIN_RPC })).toThrow(
-      /solos login/,
+    const error = thrownBy(() =>
+      loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLANA_RPC_URL: MAIN_RPC }),
     );
+    expect(error._tag).toBe("SignerConfigMissing");
+    expect(error.reason).toContain("solos login");
   });
 
   test("elfa key is optional and the base url defaults to the production endpoint", () => {
