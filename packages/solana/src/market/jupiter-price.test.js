@@ -80,9 +80,12 @@ describe("JupiterPriceLive success and validation [integration]", () => {
     expect(price.priceUsd).toBe("100.46852810203305");
   });
 
-  test("fails pre-HTTP without a key, blank keys included", async () => {
+  test("fails pre-HTTP without a key, and says where the key comes from", async () => {
     fixture = startFixture([{ body: okBody() }]);
-    expect((await priceFailure(fixture, { apiKey: "" }))?._tag).toBe("PriceConfigMissing");
+    const blank = await priceFailure(fixture, { apiKey: "" });
+    expect(blank?._tag).toBe("PriceConfigMissing");
+    expect(blank?.reason).toContain("JUPITER_API_KEY is not set");
+    expect(blank?.remedy).toContain("portal.jup.ag");
     expect((await priceFailure(fixture, { apiKey: " ".repeat(3) }))?._tag).toBe(
       "PriceConfigMissing",
     );

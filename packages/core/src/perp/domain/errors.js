@@ -9,18 +9,31 @@ export class PerpInputInvalid extends /** @type {PerpInputInvalidClass} */ (
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"NoPositionToClose", NoPositionToCloseProps>} NoPositionToCloseClass */
-/** @typedef {{ readonly market: string }} NoPositionToCloseProps */
+/** @typedef {{ readonly market: string; readonly reason?: string }} NoPositionToCloseProps */
 /** A requested reduce-only close has no position to reduce; never fabricate a signature. */
 export class NoPositionToClose extends /** @type {NoPositionToCloseClass} */ (
   taggedError("NoPositionToClose")
-) {}
+) {
+  /** @param {NoPositionToCloseProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `there is no open position in ${props.market} to close`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpMarketUnknown", PerpMarketUnknownProps>} PerpMarketUnknownClass */
-/** @typedef {{ readonly market: string }} PerpMarketUnknownProps */
+/** @typedef {{ readonly market: string; readonly reason?: string }} PerpMarketUnknownProps */
 /** The normalized symbol is absent from the exchange metadata. */
 export class PerpMarketUnknown extends /** @type {PerpMarketUnknownClass} */ (
   taggedError("PerpMarketUnknown")
-) {}
+) {
+  /** @param {PerpMarketUnknownProps} props */
+  constructor(props) {
+    super({ ...props, reason: props.reason ?? `${props.market} is not a known Phoenix market` });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpAccountCorrupt", PerpAccountCorruptProps>} PerpAccountCorruptClass */
 /** @typedef {{ readonly account: string; readonly reason: string }} PerpAccountCorruptProps */
@@ -44,21 +57,45 @@ export class PerpEnumerationIncomplete extends /** @type {PerpEnumerationIncompl
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpAuthFailed", PerpAuthFailedProps>} PerpAuthFailedClass */
-/** @typedef {{ readonly status: number }} PerpAuthFailedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} PerpAuthFailedProps */
 export class PerpAuthFailed extends /** @type {PerpAuthFailedClass} */ (
   taggedError("PerpAuthFailed")
-) {}
+) {
+  /** @param {PerpAuthFailedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Phoenix rejected the request with HTTP ${props.status}`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpRateLimited", PerpRateLimitedProps>} PerpRateLimitedClass */
-/** @typedef {{ readonly status: number }} PerpRateLimitedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} PerpRateLimitedProps */
 /** HTTP 429 maps here once; there is no Retry-After retry loop. */
 export class PerpRateLimited extends /** @type {PerpRateLimitedClass} */ (
   taggedError("PerpRateLimited")
-) {}
+) {
+  /** @param {PerpRateLimitedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Phoenix rate limited the request with HTTP ${props.status}`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpTimeout", PerpTimeoutProps>} PerpTimeoutClass */
-/** @typedef {{ readonly timeoutMs: number }} PerpTimeoutProps */
-export class PerpTimeout extends /** @type {PerpTimeoutClass} */ (taggedError("PerpTimeout")) {}
+/** @typedef {{ readonly timeoutMs: number; readonly reason?: string }} PerpTimeoutProps */
+export class PerpTimeout extends /** @type {PerpTimeoutClass} */ (taggedError("PerpTimeout")) {
+  /** @param {PerpTimeoutProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Phoenix did not answer within ${props.timeoutMs}ms`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpHttpError", PerpHttpErrorProps>} PerpHttpErrorClass */
 /** @typedef {{ readonly status: number; readonly reason: string }} PerpHttpErrorProps */

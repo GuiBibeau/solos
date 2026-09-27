@@ -37,11 +37,19 @@ export class LendingResponseInvalid extends /** @type {LendingResponseInvalidCla
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LendingTimeout", LendingTimeoutProps>} LendingTimeoutClass */
-/** @typedef {{ readonly timeoutMs: number }} LendingTimeoutProps */
+/** @typedef {{ readonly timeoutMs: number; readonly reason?: string }} LendingTimeoutProps */
 /** The whole reserve read exceeded its deadline; one attempt, no retries. */
 export class LendingTimeout extends /** @type {LendingTimeoutClass} */ (
   taggedError("LendingTimeout")
-) {}
+) {
+  /** @param {LendingTimeoutProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `the Kamino reserve read did not answer within ${props.timeoutMs}ms`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LendingObligationInvalid", LendingObligationInvalidProps>} LendingObligationInvalidClass */
 /** @typedef {{ readonly obligation: string; readonly reason: string }} LendingObligationInvalidProps */

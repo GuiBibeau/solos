@@ -9,11 +9,16 @@ export class CurveInputInvalid extends /** @type {CurveInputInvalidClass} */ (
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"CurveUnavailable", CurveUnavailableProps>} CurveUnavailableClass */
-/** @typedef {{ readonly mint: string; readonly curveAddress: string }} CurveUnavailableProps */
+/** @typedef {{ readonly mint: string; readonly curveAddress: string; readonly reason?: string }} CurveUnavailableProps */
 /** No account exists at the bonding-curve PDA: the mint has no curve yet. */
 export class CurveUnavailable extends /** @type {CurveUnavailableClass} */ (
   taggedError("CurveUnavailable")
-) {}
+) {
+  /** @param {CurveUnavailableProps} props */
+  constructor(props) {
+    super({ ...props, reason: props.reason ?? `no bonding curve exists for ${props.mint}` });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"CurveCorrupt", CurveCorruptProps>} CurveCorruptClass */
 /** @typedef {{ readonly mint: string; readonly curveAddress: string; readonly reason: string }} CurveCorruptProps */
@@ -21,11 +26,21 @@ export class CurveUnavailable extends /** @type {CurveUnavailableClass} */ (
 export class CurveCorrupt extends /** @type {CurveCorruptClass} */ (taggedError("CurveCorrupt")) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"UnsupportedQuoteAsset", UnsupportedQuoteAssetProps>} UnsupportedQuoteAssetClass */
-/** @typedef {{ readonly mint: string; readonly quoteMint: string }} UnsupportedQuoteAssetProps */
+/** @typedef {{ readonly mint: string; readonly quoteMint: string; readonly reason?: string }} UnsupportedQuoteAssetProps */
 /** The curve trades against a quote asset other than native SOL; only SOL-paired curves are supported. */
 export class UnsupportedQuoteAsset extends /** @type {UnsupportedQuoteAssetClass} */ (
   taggedError("UnsupportedQuoteAsset")
-) {}
+) {
+  /** @param {UnsupportedQuoteAssetProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason:
+        props.reason ??
+        `the curve for ${props.mint} trades against ${props.quoteMint}; only SOL-paired curves are supported`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"CurveConfigUnavailable", CurveConfigUnavailableProps>} CurveConfigUnavailableClass */
 /** @typedef {{ readonly reason: string }} CurveConfigUnavailableProps */
@@ -42,11 +57,20 @@ export class CurveConfigUnavailable extends /** @type {CurveConfigUnavailableCla
  */
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"CurveComplete", CurveCompleteProps>} CurveCompleteClass */
-/** @typedef {{ readonly mint: string; readonly curveAddress: string }} CurveCompleteProps */
+/** @typedef {{ readonly mint: string; readonly curveAddress: string; readonly reason?: string }} CurveCompleteProps */
 /** The curve has completed and no longer trades. Buying is refused here and never rerouted to PumpSwap or Jupiter. */
 export class CurveComplete extends /** @type {CurveCompleteClass} */ (
   taggedError("CurveComplete")
-) {}
+) {
+  /** @param {CurveCompleteProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason:
+        props.reason ?? `the bonding curve for ${props.mint} has completed and no longer trades`,
+    });
+  }
+}
 
 /**
  * Everything a launch buy can fail with before the executor is involved; the execute tier adds

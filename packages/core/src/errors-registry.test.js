@@ -7,71 +7,62 @@ import { domainErrors, errorEnvelope } from "./shared/index.js";
 const REASON = "what is wrong";
 const REMEDY = "what to do about it";
 
-/**
- * Registered tags with no `reason` sentence yet. #162 and #163 drain this set; the classification
- * test below fails the moment one of them starts carrying a reason, so it can only shrink, and a
- * new error type cannot be added without a deliberate classification.
- * @type {ReadonlySet<string>}
- */
-const REASONLESS = new Set([
-  "CurveComplete",
-  "CurveUnavailable",
-  "InsufficientFunds",
-  "IrisAuthFailed",
-  "IrisRateLimited",
-  "IrisTimeout",
-  "LendingTimeout",
-  "NoPositionToClose",
-  "PerpAuthFailed",
-  "PerpMarketUnknown",
-  "PerpRateLimited",
-  "PerpTimeout",
-  "PriceAuthFailed",
-  "PriceRateLimited",
-  "PriceTimeout",
-  "UnknownToken",
-  "UnsupportedAction",
-  "UnsupportedQuoteAsset",
-]);
+/** No error type is reasonless any more: #161 added the field, #162 and #163 drained every slice. */
+const REASONLESS = new Set();
 
 /** The reason-bearing types, so the registry is exhaustively classified. */
 const REASONFUL = new Set([
   "BuildRejected",
   "BuildUnavailable",
+  "CurveComplete",
   "CurveConfigUnavailable",
   "CurveCorrupt",
   "CurveInputInvalid",
+  "CurveUnavailable",
+  "InsufficientFunds",
   "InternalError",
+  "IrisAuthFailed",
   "IrisConfigMissing",
   "IrisHttpError",
   "IrisInputInvalid",
   "IrisNetworkError",
   "IrisQuestionInvalid",
+  "IrisRateLimited",
   "IrisResponseInvalid",
+  "IrisTimeout",
   "LendingEnumerationIncomplete",
   "LendingInputInvalid",
   "LendingLayoutUnsupported",
   "LendingMarketUnavailable",
   "LendingObligationInvalid",
   "LendingResponseInvalid",
+  "LendingTimeout",
   "LiquidityEnumerationIncomplete",
   "LiquidityInputInvalid",
   "LiquidityPositionUnavailable",
   "LiquidityUnsupportedProtocol",
+  "NoPositionToClose",
   "NoRouteFound",
   "PerpAccountCorrupt",
+  "PerpAuthFailed",
   "PerpEnumerationIncomplete",
   "PerpHttpError",
   "PerpInputInvalid",
+  "PerpMarketUnknown",
   "PerpNetworkError",
+  "PerpRateLimited",
   "PerpResponseInvalid",
   "PerpStateIncomplete",
+  "PerpTimeout",
   "PortfolioInputInvalid",
+  "PriceAuthFailed",
   "PriceConfigMissing",
   "PriceHttpError",
   "PriceInputInvalid",
   "PriceNetworkError",
+  "PriceRateLimited",
   "PriceResponseInvalid",
+  "PriceTimeout",
   "PriceUnavailable",
   "QuoteAuthFailed",
   "QuoteConfigMissing",
@@ -90,6 +81,9 @@ const REASONFUL = new Set([
   "TokenMetadataUnavailable",
   "TransactionExpired",
   "TransactionFailed",
+  "UnknownToken",
+  "UnsupportedAction",
+  "UnsupportedQuoteAsset",
   "ValidationError",
 ]);
 

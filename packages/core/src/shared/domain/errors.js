@@ -49,11 +49,21 @@ export class TransactionExpired extends /** @type {TransactionExpiredClass} */ (
 ) {}
 
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"UnsupportedAction", UnsupportedActionProps>} UnsupportedActionClass */
-/** @typedef {{ readonly actionType: string; readonly executor: string }} UnsupportedActionProps */
+/** @typedef {{ readonly actionType: string; readonly executor: string; readonly reason?: string; readonly remedy?: string }} UnsupportedActionProps */
 /** The configured executor has no implementation for this action type. */
 export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
   taggedError("UnsupportedAction")
-) {}
+) {
+  /** @param {UnsupportedActionProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason:
+        props.reason ??
+        `action ${props.actionType} has no implementation in the ${props.executor} executor`,
+    });
+  }
+}
 
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
 /** @typedef {{ readonly reason: string }} BuildRejectedProps */
