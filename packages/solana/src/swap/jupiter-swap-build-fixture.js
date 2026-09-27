@@ -5,6 +5,7 @@ import { Cause, Effect, Exit, Layer, Option } from "effect";
 import { DirectSignerExecutor } from "../executor/direct-signer-executor.js";
 import { SolanaRpcLive } from "../rpc/solana-rpc.js";
 import { KitSignerFromBytes } from "../signer/kit-signer.js";
+import { RpcSubmitterLive } from "../submission/submitter.js";
 import {
   ALT_ADDRESS,
   AMOUNT,
@@ -112,16 +113,19 @@ const DEAD_WS_URL = "ws://127.0.0.1:2";
  * @param {Uint8Array} seed
  * @param {Layer.Layer<import("./jupiter-swap-build-live.js").JupiterSwapBuildShape>} buildLayer
  */
-export const executorLayer = (seed, buildLayer) =>
-  DirectSignerExecutor().pipe(
+export const executorLayer = (seed, buildLayer) => {
+  const rpc = SolanaRpcLive(DEAD_RPC_URL, DEAD_WS_URL);
+  return DirectSignerExecutor().pipe(
     Layer.provide(
       Layer.mergeAll(
         KitSignerFromBytes(seed),
-        SolanaRpcLive(DEAD_RPC_URL, DEAD_WS_URL),
+        rpc,
+        RpcSubmitterLive.pipe(Layer.provide(rpc)),
         buildLayer,
       ),
     ),
   );
+};
 
 /**
  * Run an effect and return its tagged failure, or undefined when it unexpectedly succeeded.

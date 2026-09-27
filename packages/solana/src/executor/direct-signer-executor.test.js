@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ActionExecutor } from "@solos/core";
 import { Effect, Exit } from "effect";
-import { SolanaTestLive } from "../index.js";
+import { DirectSignerExecutor, SLOW, SolanaTestLive } from "../index.js";
 import { randomSeed } from "../surfnet/test-surfnet.js";
 
 // No RPC is contacted: the executor refuses before building anything.
@@ -30,5 +30,11 @@ describe("DirectSignerExecutor", () => {
     expect(Exit.isFailure(exit)).toBe(true);
     expect(JSON.stringify(exit)).toContain("UnsupportedAction");
     expect(JSON.stringify(exit)).toContain("future_action");
+  });
+
+  test("refuses a Submission mode outside the schema at composition, not on the first send", () => {
+    const lifetime = { ...SLOW.lifetime, minBlocksRemaining: 1.5 };
+    expect(() => DirectSignerExecutor({ submission: { ...SLOW, lifetime } })).toThrow();
+    expect(() => DirectSignerExecutor({ submission: SLOW })).not.toThrow();
   });
 });

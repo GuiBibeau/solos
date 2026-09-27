@@ -13,11 +13,12 @@ export const describeError = (error) => {
 
 /**
  * Run one RPC call, translating any thrown error (Kit `SolanaError`, network) into the
- * shared `RpcError` so nothing library-specific escapes the adapter.
+ * shared `RpcError` so nothing library-specific escapes the adapter. The call receives an
+ * AbortSignal that fires when the Effect is interrupted, so a deadline cancels the request.
  * @template A
  * @param {string} method
  * @param {string} url
- * @param {() => Promise<A>} call
+ * @param {(abortSignal: AbortSignal) => Promise<A>} call
  * @returns {Effect.Effect<A, RpcError>}
  */
 export const rpcCall = (method, url, call) =>

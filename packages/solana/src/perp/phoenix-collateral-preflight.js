@@ -5,14 +5,10 @@ import {
   PHOENIX_PROGRAM_ADDRESS,
   SPL_TOKEN_PROGRAM_ADDRESS,
 } from "@ellipsis-labs/rise";
-import { getBase64EncodedWireTransaction } from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import { assertV1WireForSubmission } from "../executor/transaction-v1.js";
 import { base64AccountData } from "../market/mint-account.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 
-/** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof import("./phoenix-collateral-build.js").buildCollateral>>} Plan */
 /** @typedef {import("@solos/actions").PerpCollateralQuote} Quote */
 
@@ -73,40 +69,19 @@ const estimate = (plan, accounts) => {
   });
 };
 
-/** Simulate the exact signed wire and fail closed if RPC omits any account needed for quote.
- * @param {Rpc} ctx @param {Plan} plan */
-export const preflightCollateral = (ctx, plan) =>
-  Effect.gen(function* () {
-    const wire = yield* Effect.try({
-      try: () => {
-        const encoded = getBase64EncodedWireTransaction(plan.signed);
-        assertV1WireForSubmission(encoded);
-        return encoded;
-      },
-      catch: () => new BuildRejected({ reason: "Phoenix collateral signed wire is invalid" }),
-    });
-    const { value } = yield* rpcCall("simulateTransaction", ctx.url, () =>
-      ctx.rpc
-        .simulateTransaction(wire, {
-          encoding: "base64",
-          sigVerify: false,
-          accounts: {
-            addresses: [plan.facts.owner, plan.facts.atas.usdc, plan.facts.trader],
-            encoding: "base64",
-          },
-        })
-        .send(),
-    );
-    const raw = {
-      err: value.err,
-      logs: [...(value.logs ?? [])],
-      unitsConsumed: (value.unitsConsumed ?? 0n).toString(),
-    };
-    if (raw.err !== null) return { ...raw, quote: null };
-    const quote = yield* Effect.try({
-      try: () => estimate(plan, value.accounts),
+/**
+ * The Submission probe for a collateral transfer: the payer, wallet USDC and trader accounts
+ * after the exact signed wire, turned into a quote. It fails closed when simulation omits any of
+ * them or when the balance changes contradict the fixed input.
+ * @param {Plan} plan
+ * @returns {import("../submission/simulate.js").Probe}
+ */
+export const collateralProbe = (plan) => ({
+  accounts: [plan.facts.owner, plan.facts.atas.usdc, plan.facts.trader],
+  verdict: (outcome) =>
+    Effect.try({
+      try: () => estimate(plan, outcome.accounts),
       catch: () =>
         new BuildRejected({ reason: "Phoenix collateral output could not be safely estimated" }),
-    });
-    return { ...raw, quote };
-  });
+    }),
+});

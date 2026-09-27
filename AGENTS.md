@@ -101,7 +101,7 @@ unrecorded until both are in it.
 | `packages/core/src/<slice>/` | `domain/`, `ports/`, `use-cases/`, `tools/`, `index.js` | Zero I/O. No Kit, MCP SDK, AI SDK, or `bun:*`. Other slices import only `index.js`. |
 | `packages/core/src/shared/` | cross-slice primitives: errors, EventBus, Store, `ActionExecutor`, tool definition helpers | Never imports a slice. |
 | `packages/actions/src/` | `Action`, `PortfolioState`, `Mandate`, `SimulationResult`, `ExecutionResult` schemas | The only published package. Imports nothing from the repo. Every change is an API change. |
-| `packages/solana/src/` | Kit + keychain Layers implementing core ports, `DirectSignerExecutor`, credential profiles and discovery, Surfpool helpers | The only place Kit appears. |
+| `packages/solana/src/` | Kit + keychain Layers implementing core ports, `DirectSignerExecutor`, Submission and its `Submitter` adapters, credential profiles and discovery, Surfpool helpers | The only place Kit appears. |
 | `packages/mcp/src/` | stdio server, tool → MCP mapping, the one MCP client | HTTP transport later. |
 | `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
 | `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. |
@@ -163,7 +163,11 @@ summaries, Jupiter prices and on-chain token metadata.
 2. Register the tools array in `packages/core/src/index.js`.
 3. For read tools: an adapter Layer in `packages/solana/src/<name>/`, wired into `SolanaLive` and
    `SolanaTestLive`. For execute tools: a new `Action` variant in `packages/actions` and a branch in
-   `DirectSignerExecutor`.
+   `DirectSignerExecutor`. The branch builds and signs, then hands the signed transaction to
+   Submission (`packages/solana/src/submission/`) with an optional probe (what simulation must
+   show) and guard (what must hold right before sending). A branch never simulates, rechecks the
+   lifetime or sends on its own (ADR-0031); Phoenix onboarding's co-signed v0 wire is the one
+   exception (ADR-0025), and it still confirms through Submission's loop.
 4. Integration test against Surfpool next to the adapter.
 5. `bun run solos dev check && bun run solos dev test`.
 

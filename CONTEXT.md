@@ -56,6 +56,21 @@ vault mode plugs the same tools into pooled custody through `vault-engine`.
 **Signer** — the identity that pays and signs. Core sees only its address (`Signer` port). The
 adapter holds the `KitSigner` produced by `@solana/keychain`. Backend is a config value.
 
+**Submission** — how a signed transaction reaches the chain, always in one order: check the wire,
+check the lifetime, simulate, the venue's last guard, check the lifetime again, deliver, confirm.
+Simulating is its first half. Venues build transactions; they never send them.
+
+**Submitter** — where Submission delivers signed bytes and asks for their status: an RPC node by
+default, or a landing service, bundle engine or colocated sender. It never signs or re-signs.
+
+**Submission mode** — a named set of Submission parameters: whether to simulate, lifetime
+rechecks, commitments, confirmation deadline. `slow` is the default. The Operator or code chooses
+it, never the LLM through a tool. _Avoid_: "mode" alone, which already means wallet or vault mode.
+
+**Lifetime** — how long a signed transaction can still land: until its blockhash's last valid
+block height. An expired transaction can never land, so resending the same bytes is always
+safe; re-signing makes a new transaction.
+
 **Network** — not a concept. `SOLANA_RPC_URL` is the only switch. Mainnet unless the URL says
 otherwise.
 

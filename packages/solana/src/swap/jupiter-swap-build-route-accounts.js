@@ -90,7 +90,7 @@ const signerRepeat = (taker, authoritySlot) => (meta, index) =>
  * from the wallet, so every Jupiter route through it lists the taker writable, and refusing the
  * shape refused most of the SOL -> USDC book (ADR-0024, superseding ADR-0023). Compilation
  * coalesces duplicate keys by unioning privileges and the taker is the fee payer, so that
- * writability is real authority — it is bounded by measurement instead: `simulateSwapBounded`
+ * writability is real authority — it is bounded by measurement instead: `spendBoundProbe`
  * refuses to send when the simulated transaction would take more from the wallet than the
  * swap's input plus a fixed overhead allowance.
  * @param {Meta[]} accounts @param {string} taker @param {number} authoritySlot

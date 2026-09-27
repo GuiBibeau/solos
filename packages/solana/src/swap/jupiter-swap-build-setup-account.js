@@ -67,7 +67,7 @@ const ataRoleRejection = (ix) => {
  * What an unrequested mint can actually cost is rent, and three checks already bound that: the
  * taker both pays and owns, the account must be the canonical ATA derived for that mint and
  * token program so it can never be an attacker's account, and the build may touch at most 64
- * unique addresses. The cost itself is measured rather than proxied — `simulateSwapBounded`
+ * unique addresses. The cost itself is measured rather than proxied — `spendBoundProbe`
  * refuses a build whose lamport debit exceeds the swap's input plus the overhead allowance
  * (ADR-0024), which is roughly nine ATAs' worth of rent.
  * @param {RawInstruction} ix

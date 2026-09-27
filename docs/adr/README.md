@@ -36,3 +36,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0028](0028-pump-fees-and-recipients-are-read-per-coin.md) | Pump fees and fee recipients are read per coin, never reconstructed |
 | [0029](0029-jit-tool-discovery.md) | Tool discovery is just in time: withhold tools, enable on demand; `--tools all` escape hatch |
 | [0030](0030-swap-signer-repeat-guard-stays.md) | The swap signer-repeat guard stays; relax it only against a captured route |
+| [0031](0031-submission-order-submitter-port-and-modes.md) | Submission owns one order of steps; delivery is a `Submitter` port; parameters are named modes |

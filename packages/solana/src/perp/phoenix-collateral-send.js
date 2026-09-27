@@ -1,18 +1,16 @@
 // @ts-check
-import { signature as checkedSignature } from "@solana/kit";
-import { BuildRejected, SimulationFailed } from "@solos/core";
-import { Clock, Effect } from "effect";
-import { simulationErrorText } from "../executor/simulation-error-text.js";
-import { recheckSignedSwapLifetime } from "../executor/swap-preflight.js";
-import { sendSigned } from "../executor/transfer-sol.js";
+import { BuildRejected } from "@solos/core";
+import { Effect } from "effect";
+import { executionResult, simulationResult } from "../executor/action-results.js";
+import { simulateSigned, submitSigned } from "../submission/submission.js";
 import { readOnboardingStatus } from "./perp-onboarder-live.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 import { buildCollateral } from "./phoenix-collateral-build.js";
-import { preflightCollateral } from "./phoenix-collateral-preflight.js";
+import { collateralProbe } from "./phoenix-collateral-preflight.js";
 import { reconcileCollateral } from "./phoenix-collateral-reconcile.js";
 import { assertWithdrawalReady } from "./phoenix-collateral-withdraw.js";
 
-/** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape}} Deps */
+/** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape,submission: import("../submission/submission.js").SubmissionDeps}} Deps */
 /** @typedef {Extract<import("@solos/actions").Action, {type:"deposit_perp_collateral" | "withdraw_perp_collateral"}>} Action */
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof buildCollateral>>} Plan */
 
@@ -45,10 +43,13 @@ const planCollateral = (deps, action) =>
     return yield* buildCollateral(deps, action);
   });
 
-/** @param {Deps} deps @param {Plan} plan */
-const recheck = (deps, plan) =>
+/**
+ * What must still hold right before a collateral transfer is sent: the trader has not moved,
+ * and a withdrawal is still ready. Submission rechecks the lifetime after it.
+ * @param {Deps} deps @param {Plan} plan
+ */
+const collateralGuard = (deps, plan) =>
   Effect.gen(function* () {
-    yield* recheckSignedSwapLifetime(deps.ctx, plan.signed);
     const current = yield* readCollateralTrader(deps.ctx, plan.facts.owner);
     if (
       current.state.sequenceNumber.sequenceNumber !==
@@ -71,36 +72,34 @@ const recheck = (deps, plan) =>
 export const simulateCollateral = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* planCollateral(deps, action);
-    const raw = yield* preflightCollateral(deps.ctx, plan);
-    const isOk = raw.err === null;
-    return {
-      action,
-      ok: isOk,
-      unitsConsumed: raw.unitsConsumed,
-      logs: raw.logs,
-      projectedPortfolio: null,
-      venueQuote: raw.quote,
-      violations: isOk ? [] : [{ rule: "simulation", message: simulationErrorText(raw.err) }],
-    };
+    const simulated = yield* simulateSigned(deps.submission, {
+      signed: plan.signed,
+      probe: collateralProbe(plan),
+    });
+    const quote = /** @type {import("@solos/actions").PerpCollateralQuote | null} */ (
+      simulated.verdict
+    );
+    return simulationResult(action, simulated, quote);
   });
 
-/** @param {Deps} deps @param {Action} action */
+/**
+ * A collateral transfer always simulates: its quote and its fixed-input check come from the
+ * simulated balances (ADR-0026), so a Caller cannot skip it.
+ * @param {Deps} deps @param {Action} action
+ */
 export const executeCollateral = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* planCollateral(deps, action);
-    const raw = yield* preflightCollateral(deps.ctx, plan);
-    if (raw.err !== null)
-      return yield* new SimulationFailed({ reason: simulationErrorText(raw.err), logs: raw.logs });
-    yield* recheck(deps, plan);
-    const signature = checkedSignature(yield* sendSigned(deps.ctx, plan.signed));
-    const reconciliation = yield* reconcileCollateral(deps.ctx, plan, signature);
-    return {
-      action,
-      status: /** @type {const} */ ("confirmed"),
-      signature,
-      executedAt: yield* Clock.currentTimeMillis,
-      simulated: true,
-      error: null,
-      reconciliation,
-    };
+    const delivered = yield* submitSigned(
+      deps.submission,
+      {
+        signed: plan.signed,
+        probe: collateralProbe(plan),
+        guard: collateralGuard(deps, plan),
+        requireSimulation: true,
+      },
+      { skipSimulation: false },
+    );
+    const reconciliation = yield* reconcileCollateral(deps.ctx, plan, delivered.signature);
+    return { ...(yield* executionResult(action, delivered)), reconciliation };
   });

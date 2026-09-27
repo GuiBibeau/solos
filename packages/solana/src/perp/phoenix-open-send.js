@@ -1,22 +1,24 @@
 // @ts-check
-import { signature as checkedSignature } from "@solana/kit";
-import { BuildRejected, SimulationFailed } from "@solos/core";
-import { Clock, Effect } from "effect";
-import { simulationErrorText } from "../executor/simulation-error-text.js";
-import { recheckSignedSwapLifetime } from "../executor/swap-preflight.js";
-import { sendSigned, simulateSigned } from "../executor/transfer-sol.js";
+import { BuildRejected } from "@solos/core";
+import { Effect } from "effect";
+import { executionResult, simulationResult } from "../executor/action-results.js";
+import { simulateSigned, submitSigned } from "../submission/submission.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 import { buildOpen } from "./phoenix-open-build.js";
 import { readOpenRisk } from "./phoenix-open-risk.js";
 
-/** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape}} Deps */
+/** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape;submission:import("../submission/submission.js").SubmissionDeps}} Deps */
 /** @typedef {Extract<import("@solos/actions").Action,{type:"open_perp"}>} OpenAction */
 /** @typedef {Effect.Effect.Success<ReturnType<typeof buildOpen>>} Plan */
 
-/** @param {Deps} deps @param {Plan} plan */
-const recheckOpen = (deps, plan) =>
+/**
+ * What must still hold right before an IOC open is sent: the build is fresh, the trader has not
+ * moved, and the risk read is still inside the order's slot window. Submission runs this after
+ * simulation and rechecks the lifetime after it.
+ * @param {Deps} deps @param {Plan} plan
+ */
+const openGuard = (deps, plan) =>
   Effect.gen(function* () {
-    yield* recheckSignedSwapLifetime(deps.ctx, plan.signed);
     const { owner, state, order, observedSlot, startedAt } = plan.facts;
     if (Date.now() - startedAt > 5000)
       return yield* new BuildRejected({
@@ -51,39 +53,18 @@ const recheckOpen = (deps, plan) =>
 export const simulateOpen = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* buildOpen(deps, action);
-    const raw = yield* simulateSigned(deps.ctx, plan.signed);
-    const isOk = raw.err === null;
-    return {
-      action,
-      ok: isOk,
-      unitsConsumed: raw.unitsConsumed,
-      logs: raw.logs,
-      projectedPortfolio: null,
-      venueQuote: null,
-      violations: isOk ? [] : [{ rule: "simulation", message: simulationErrorText(raw.err) }],
-    };
+    const simulated = yield* simulateSigned(deps.submission, { signed: plan.signed });
+    return simulationResult(action, simulated, null);
   });
 
 /** @param {Deps} deps @param {OpenAction} action @param {{skipSimulation:boolean}} options */
 export const executeOpen = (deps, action, options) =>
   Effect.gen(function* () {
     const plan = yield* buildOpen(deps, action);
-    if (!options.skipSimulation) {
-      const raw = yield* simulateSigned(deps.ctx, plan.signed);
-      if (raw.err !== null)
-        return yield* new SimulationFailed({
-          reason: simulationErrorText(raw.err),
-          logs: raw.logs,
-        });
-    }
-    yield* recheckOpen(deps, plan);
-    const signature = checkedSignature(yield* sendSigned(deps.ctx, plan.signed));
-    return {
-      action,
-      status: /** @type {const} */ ("confirmed"),
-      signature,
-      executedAt: yield* Clock.currentTimeMillis,
-      simulated: !options.skipSimulation,
-      error: null,
-    };
+    const delivered = yield* submitSigned(
+      deps.submission,
+      { signed: plan.signed, guard: openGuard(deps, plan) },
+      options,
+    );
+    return yield* executionResult(action, delivered);
   });

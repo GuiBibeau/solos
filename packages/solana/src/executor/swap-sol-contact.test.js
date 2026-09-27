@@ -7,9 +7,9 @@ import {
   signTransactionMessageWithSigners,
 } from "@solana/kit";
 import { BuildRejected, RpcError } from "@solos/core";
+import { seal } from "../submission/sealed.js";
 import { failureOf } from "../swap/jupiter-swap-build-fixture.js";
 import { runBranch } from "./swap-sol-driver.js";
-import { assertSwapWireBeforeContact } from "./swap-sol.js";
 
 describe("the executor swap branch makes its first contact honestly [integration]", () => {
   test("a valid build reaches the account preflight through the real RPC adapter", async () => {
@@ -33,7 +33,7 @@ describe("the executor swap branch makes its first contact honestly [integration
       /** @type {Parameters<typeof signTransactionMessageWithSigners>[0]} */
       /** @type {unknown} */ (message),
     );
-    const error = await failureOf(assertSwapWireBeforeContact(signed));
+    const error = await failureOf(seal(/** @type {any} */ (signed)));
     expect(error).toBeInstanceOf(BuildRejected);
   });
 });

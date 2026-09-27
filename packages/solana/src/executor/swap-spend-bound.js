@@ -19,7 +19,6 @@ import { SimulationFailed } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { WSOL_MINT } from "../swap/jupiter-swap-build-validate.js";
-import { simulateSigned, wireForRpc } from "./transfer-sol.js";
 
 /**
  * Everything a swap may cost the wallet beyond its own input: the transaction fee, the priority
@@ -97,46 +96,30 @@ export const spendRejection = ({ pre, post, action, credit }) => {
 };
 
 /**
- * Simulate the exact signed swap and bound what it costs the wallet. The balance is read strictly
- * before the simulation so "before" is unambiguous; the allowance absorbs a one-slot skew from
- * unrelated activity between the two.
+ * The Submission probe that bounds what the exact signed swap costs the wallet. The balance is
+ * read strictly before the simulation so "before" is unambiguous; the allowance absorbs a
+ * one-slot skew from unrelated activity between the two.
  * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
- * @param {{ signed: import("./swap-sol-build.js").Signed; taker: string;
- *   action: import("@solos/actions").SwapAction; credit: bigint }} bound
+ * @param {{ taker: string; action: import("@solos/actions").SwapAction; credit: bigint }} bound
+ * @returns {import("../submission/simulate.js").Probe}
  */
-export const simulateSwapBounded = (ctx, { signed, taker, action, credit }) =>
-  Effect.gen(function* () {
-    const wire = yield* wireForRpc(signed);
-    const pre = yield* rpcCall("getBalance", ctx.url, () =>
-      ctx.rpc.getBalance(address(taker)).send(),
-    );
-    const simulated = yield* rpcCall("simulateTransaction", ctx.url, () =>
-      ctx.rpc
-        .simulateTransaction(wire, {
-          encoding: "base64",
-          accounts: { addresses: [address(taker)], encoding: "base64" },
-        })
-        .send(),
-    );
-    const raw = {
-      err: simulated.value.err,
-      logs: [...(simulated.value.logs ?? [])],
-      unitsConsumed: (simulated.value.unitsConsumed ?? 0n).toString(),
-    };
-    if (raw.err !== null) return raw;
-    const post = simulated.value.accounts?.[0]?.lamports;
-    const rejection = spendRejection({ pre: pre?.value, post, action, credit });
-    if (rejection) return yield* new SimulationFailed({ reason: rejection, logs: raw.logs });
-    return raw;
-  });
-
-/**
- * Dispatch one action's simulation: swaps carry the spend bound, everything else does not.
- * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape; taker: string; credit?: bigint }} deps
- * @param {import("@solos/actions").Action} action
- * @param {import("./swap-sol-build.js").Signed} signed
- */
-export const simulateForAction = ({ ctx, taker, credit = 0n }, action, signed) =>
-  action.type === "swap"
-    ? simulateSwapBounded(ctx, { signed, taker, action, credit })
-    : simulateSigned(ctx, signed);
+export const spendBoundProbe = (ctx, { taker, action, credit }) => ({
+  accounts: [taker],
+  before: Effect.map(
+    rpcCall("getBalance", ctx.url, () => ctx.rpc.getBalance(address(taker)).send()),
+    (balance) => balance?.value,
+  ),
+  verdict: (outcome, pre) => {
+    const post = /** @type {{ lamports?: bigint } | null | undefined} */ (outcome.accounts[0])
+      ?.lamports;
+    const rejection = spendRejection({
+      pre: /** @type {bigint | undefined} */ (pre),
+      post,
+      action,
+      credit,
+    });
+    return rejection
+      ? Effect.fail(new SimulationFailed({ reason: rejection, logs: outcome.logs }))
+      : Effect.void;
+  },
+});

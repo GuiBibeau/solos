@@ -24,6 +24,7 @@ import { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
+import { RpcSubmitterLive } from "./submission/submitter.js";
 import { JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
@@ -56,6 +57,8 @@ export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
+export { SLOW, SubmissionModeSchema } from "./submission/mode.js";
+export { RpcSubmitterLive, Submitter } from "./submission/submitter.js";
 export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 export { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 
@@ -136,6 +139,7 @@ export const SolanaLive = (env) =>
     adapters({ market: env.kamino.market, phoenix: env.phoenix }).pipe(
       Layer.merge(lending(env.kamino)),
       Layer.provideMerge(KitSignerLive(env.signer)),
+      Layer.provideMerge(RpcSubmitterLive),
       Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),
       Layer.provideMerge(builds(env.jupiter)),
       Layer.merge(intelligence(env.elfa)),
@@ -170,6 +174,7 @@ export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, ka
     adapters({ market: kamino?.market, phoenix: testPhoenix }).pipe(
       Layer.merge(lending(kamino)),
       Layer.provideMerge(KitSignerFromBytes(seed)),
+      Layer.provideMerge(RpcSubmitterLive),
       Layer.provideMerge(SolanaRpcLive(rpcUrl, wsUrl)),
       Layer.provideMerge(builds(jupiter)),
       Layer.merge(intelligence(elfa)),
