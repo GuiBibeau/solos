@@ -1,6 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { SUPPORTED_VENUES } from "../domain/supported-venues.js";
 import { isDepositable, LiquidityExecuteDepositInputSchema } from "../domain/types.js";
 import { executeDeposit } from "../use-cases/execute-deposit.js";
 
@@ -23,7 +24,8 @@ export const executeDepositTool = defineTool({
     "quote needs nothing from is created idempotently. Simulates the exact transaction first " +
     "and sends nothing when simulation, validation, or the blockhash lifetime fails; " +
     "skipSimulation bypasses only the simulation, never validation. Use " +
-    "solana_liquidity_simulate_deposit to preview. Opens and closes cover raydium and an empty meteora position.",
+    "solana_liquidity_simulate_deposit to preview. " +
+    SUPPORTED_VENUES,
   input: LiquidityExecuteDepositInputSchema,
   check: (input) => {
     if (!isDepositable(input.protocol)) {

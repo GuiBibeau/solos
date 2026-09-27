@@ -8,6 +8,10 @@ Reads: `solana_liquidity_get_position` (MCP) and `solos liquidity position --pro
 --position <position-account> [--owner <address>]` (CLI) read one existing LP position and
 return the shared `LpPosition` contract:
 
+<!-- generated: liquidity-venues -->
+Supported venues: point reads orca, raydium and meteora, deposits orca, raydium and meteora, withdrawals orca, raydium and meteora, owner enumeration orca, raydium and meteora; opens and closes raydium and an empty meteora position.
+<!-- /generated: liquidity-venues -->
+
 - **`position` is the protocol position account** — the Whirlpool position PDA on orca, the
   `PersonalPositionState` PDA on raydium — never the position NFT mint and never the pool
   (ADR-0022). There is no mint-based inference and no fallback. Unknown protocol values fail

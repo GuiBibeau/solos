@@ -5,7 +5,7 @@
  * `solos` command rather than a throwaway script when a verification step is missing; this is it.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { allTools } from "@solos/core";
+import { allTools, SUPPORTED_VENUES } from "@solos/core";
 import { compareRegion } from "./compare.js";
 import { replaceRegion } from "./regions.js";
 import { renderSliceTable, renderToolTable, sliceNames } from "./render.js";
@@ -20,6 +20,7 @@ const ROOT = new URL("../../../../", import.meta.url);
 const targets = () => [
   { file: "docs/reference/tools/index.md", region: "tools", body: renderToolTable(allTools) },
   { file: "AGENTS.md", region: "slices", body: renderSliceTable(sliceNames(), allTools) },
+  { file: "docs/reference/tools/liquidity.md", region: "liquidity-venues", body: SUPPORTED_VENUES },
 ];
 
 /** @param {Target} target @param {boolean} write */

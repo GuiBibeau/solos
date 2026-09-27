@@ -1,6 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { SUPPORTED_VENUES } from "../domain/supported-venues.js";
 import { LiquidityWithdrawInputSchema, isReadable } from "../domain/types.js";
 import { simulateWithdraw } from "../use-cases/simulate-withdraw.js";
 
@@ -25,7 +26,8 @@ export const simulateWithdrawTool = defineTool({
     "a side the position owes does not exist yet, an idempotent create for it is " +
     "prepended (its rent is distinct from removed principal). The executor builds and " +
     "simulates exactly the transaction it would send. Nothing is sent. Use " +
-    "solana_liquidity_execute_withdraw to send. Opens and closes cover raydium and an empty meteora position.",
+    "solana_liquidity_execute_withdraw to send. " +
+    SUPPORTED_VENUES,
   input: LiquidityWithdrawInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

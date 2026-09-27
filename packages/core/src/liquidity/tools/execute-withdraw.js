@@ -1,6 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { SUPPORTED_VENUES } from "../domain/supported-venues.js";
 import { LiquidityExecuteWithdrawInputSchema, isReadable } from "../domain/types.js";
 import { executeWithdraw } from "../use-cases/execute-withdraw.js";
 
@@ -29,7 +30,8 @@ export const executeWithdrawTool = defineTool({
     "first and sends nothing when simulation, validation, or the blockhash lifetime " +
     "fails; skipSimulation bypasses only the simulation, never validation. Never " +
     "re-sends after an ambiguous submission. Use solana_liquidity_simulate_withdraw " +
-    "to preview without sending. Opens and closes cover raydium and an empty meteora position.",
+    "to preview without sending. " +
+    SUPPORTED_VENUES,
   input: LiquidityExecuteWithdrawInputSchema,
   check: (input) => {
     if (!isReadable(input.protocol)) {
