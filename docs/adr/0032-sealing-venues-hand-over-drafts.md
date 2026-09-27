@@ -93,5 +93,6 @@ A survey of every signing site found:
 - A priority-fee override has to reach core's transfer balance reserve, which assumes the
   default fee today.
 - It ships as one PR. Submission's input changes from a signed transaction to a draft in one
-  step, with no input that accepts both, so every venue moves in the same commit. A small live
-  smoke of the converted paths is recorded in the same change set.
+  step, with no input that accepts both, so every venue moves in the same commit. The live
+  round on every converted path is recorded in [the sealing QA notes](../sealing-qa.md) and
+  the feature map, in the same change set.

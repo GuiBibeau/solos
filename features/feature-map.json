@@ -1267,5 +1267,786 @@
       "The first send unwrapped the wSOL account BNP6pHgDRwiCNAJa3qfob88HbT9TWqwMFmHinZHTevAG (9999999 unwrapped, 1488440 rent); the second closed the empty Token-2022 account FXQNgoWqdLTzduEbqodADwj3kWstzG7r1nnmVBgKAKn3. The row shape has no key for the closed account.",
       "Surfpool coverage is not claimed."
     ]
+  },
+  {
+    "status": "live-validated",
+    "action": "transfer_sol",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#transfer-sol",
+    "sends": [
+      {
+        "signature": "4taWX2MyZhQNGqXNhB6FdPaw5jJNCnFzmPXzSpfY2vN1UDwTmjkP1ozPDEYnka8W1wXGzH7JXDAcTufyYfpJUr3B",
+        "simulation": {
+          "computeUnits": 150
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "A self-transfer: the recipient delta is the sender delta.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "protocol": "jupiter",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#jupiter-swap-round-trip",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000226743",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "5cJdHCHfeGg365rsserZVr4khpaWbSckYCPngH2siL2QjdaHsDJ6vFEgSRygj1kbiG16jzbzWctxTzA4a8zG15xt",
+        "simulation": {
+          "computeUnits": 106326
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.020105",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+2461841"
+          }
+        }
+      },
+      {
+        "signature": "2m4Yp96Ukd1a8Q4JhNZ9q5f7gf77J9zpSxkTQCUhQeBcmPVjQJL3fnqy4cA9FpxFUaFVVemLqF44VyK3sXVyBL2F",
+        "simulation": {
+          "computeUnits": 167154
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.019878257",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-2461841"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The first leg's quote was not captured; the realized rate is compared with Jupiter's price instead.",
+      "Each compute-unit figure is from the simulate command's own fresh build, not from the build that was sent.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "protocol": "pump",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 100,
+    "qa": "docs/sealing-qa.md#pump-buy-and-sell",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.001847299",
+      "tokens": {
+        "a": {
+          "symbol": "6UjqmVAaBtq5htSXvjK3Ve6zHNygksYpRK3zDKLKpump",
+          "unit": "raw",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "4rTYorz8Pz8x511nmKCZitc5ioFVe1KghXJRR8XHT8fLANNGetXSMkYsoh4SCnk9he1VQEmgqKT2ztQLunBqP444",
+        "simulation": {
+          "computeUnits": 103971
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.00661884",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "6UjqmVAaBtq5htSXvjK3Ve6zHNygksYpRK3zDKLKpump",
+            "unit": "raw",
+            "delta": "+1476755747618"
+          }
+        }
+      },
+      {
+        "signature": "2z3xtrt49bNcsB2qyRZCXghvT2X68XtyHioTys1An289iH8jVo4d69B1QGhVQGzsaZhNBfw7x9U76JZruXwL8fEy",
+        "simulation": {
+          "computeUnits": 75275
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.004771541",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "6UjqmVAaBtq5htSXvjK3Ve6zHNygksYpRK3zDKLKpump",
+            "unit": "raw",
+            "delta": "-1476755747618"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The lifecycle SOL net includes the 1513840 lamports of rent the buy put into the coin's Token-2022 account, reclaimed by the close-token-account round.",
+      "Each trade paid 61729 lamports to two fee recipients; the curve rounded 1 lamport against the wallet.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "deposit_perp_collateral",
+    "protocol": "phoenix",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#phoenix-collateral-open-and-close",
+    "sends": [
+      {
+        "signature": "54gtu7oF3SGS1tMqhkGJPB7hiuAKZfpQJN6LbjFNnqxZ7pBqp6Ntu9fHMdJV8gQHbCD1MfEja2NzQ62KjCVvg597",
+        "simulation": {
+          "computeUnits": 30307
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-2500000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The estimated output was not guaranteed; the reconciliation measured +2500000 trader collateral.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "open_perp",
+    "protocol": "phoenix",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#phoenix-collateral-open-and-close",
+    "sends": [
+      {
+        "signature": "o99Cj8oqjkwpGG1n8QNNmoGGf2cPPftru8DtGXuofTsKM9piJ45wKkCmCQUzRumFJu2ZcGchKUUoPBfYqnxVgYG",
+        "simulation": {
+          "computeUnits": 180420
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The fill (2 lots, 0.02 SOL long) comes from the follow-up position read, not from the send. The fill price was not recorded.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "close_perp",
+    "protocol": "phoenix",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#phoenix-collateral-open-and-close",
+    "sends": [
+      {
+        "signature": "arvsLPs3NRiThavTXcChHVVnjxFaeVEasWK8nnuUhxdFhY4QooqmWssSPLgD4DuTLzKpXBPdibF2TUbbCK3DCx7",
+        "simulation": {
+          "computeUnits": 164265
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Flat afterwards at equity 2.498276; the fill price was not recorded.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "withdraw_perp_collateral",
+    "protocol": "phoenix",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#phoenix-collateral-open-and-close",
+    "sends": [
+      {
+        "signature": "5pP67tWHCKZwoC3jb8nTeyVQKxP8h2FeXzunYVoMNGcS8V6EkEW41CnAFGbiCu38p5YebmGxiyaSMUE9imZ22HPT",
+        "simulation": {
+          "computeUnits": 47511
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+2498276"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "lend",
+    "protocol": "kamino",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#kamino-deposit-and-withdraw",
+    "sends": [
+      {
+        "signature": "z1DuUjc8GkkGEx47KUqLe373jwaid4Qynm33SB56PXkpveGH7bUZR8ZN2yeW4Fuq6jvCjHZTWfqsovz5A1UZmJK",
+        "simulation": {
+          "computeUnits": 135245
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.01764376",
+            "feeLamportsApprox": "6000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-1000000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "17637760 lamports of rent re-initialised the obligation, as quoted; the user metadata from #184 was reused.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "withdraw_lend",
+    "protocol": "kamino",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#kamino-deposit-and-withdraw",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000012",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "-1"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "4iDtiXrTEHdfZpvTSN76nWRrCPiAnQA8Pcne1jJDQZdvkM2E1weEnVyNKEaaVEKwt8YL8j3nRhGQCzbaqXZK1Avg",
+        "simulation": {
+          "computeUnits": 124206
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.01763176",
+            "feeLamportsApprox": "6000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+999999"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The program closed the empty obligation and returned its 17637760 lamports.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "open_position",
+    "protocol": "meteora",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "EYPnVg9rPDMfZNZwVpvQeqyEYp2oUhQ835gTK5psqoMp",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "open": {
+      "lowerBinId": -1,
+      "width": 5
+    },
+    "qa": "docs/sealing-qa.md#meteora-dlmm-open-to-close",
+    "sends": [
+      {
+        "signature": "5pziyRc41sXPK5ZjcFW2Ci6C5jNjbZaKcgTyXRtVWZmzfDoQmZ45yQdcBgdVuaNkhSpaytX51B8MjRy6ZNSX1BDe",
+        "simulation": {
+          "computeUnits": 10030
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.04200984",
+            "feeLamportsApprox": "110000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "An earlier open, vAhnyBRCYN9vqVqCA775yL8QGZG4NWXhmub8gx6jGz9gZBxML52eTZuGi3XWQYPLUeLdk79N84ezGCYr2mk42GM, ended may-have-landed during an RPC slowdown and never landed; it is not a send of this row.",
+      "activeId was not recorded.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "meteora",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "EYPnVg9rPDMfZNZwVpvQeqyEYp2oUhQ835gTK5psqoMp",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#meteora-dlmm-open-to-close",
+    "sends": [
+      {
+        "signature": "mJteZuXhRVXpseyHzgveZSAd2qtUBupauR2NCYpDPrXfqtjTpoohK8NorugN3akdGSeAQzEMf6kDmgs5FxDkgdK",
+        "simulation": {
+          "computeUnits": 40060
+        },
+        "venue": {
+          "requiredA": "1000000",
+          "requiredB": "750000"
+        },
+        "budgets": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "amount": "1000000"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "amount": "1000000"
+          }
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-1000000"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "delta": "-750000"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "meteora",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "EYPnVg9rPDMfZNZwVpvQeqyEYp2oUhQ835gTK5psqoMp",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#meteora-dlmm-open-to-close",
+    "sends": [
+      {
+        "signature": "5eAsSAJcb51SBoKtpiCZXVSeKi93SPT5fN9DBmveeNdJJj7F6rECzynnt5tNaDDBprbdukncTxx9mREEKhu16Cd6",
+        "bps": 10000,
+        "simulation": {
+          "computeUnits": 45032,
+          "estA": "999998",
+          "estB": "749997"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+999998"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "delta": "+749997"
+          }
+        }
+      }
+    ],
+    "gaps": ["Residual fee and reward were not measured.", "Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "close_position",
+    "protocol": "meteora",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "EYPnVg9rPDMfZNZwVpvQeqyEYp2oUhQ835gTK5psqoMp",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#meteora-dlmm-open-to-close",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000425",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "-2"
+        },
+        "b": {
+          "symbol": "USDT",
+          "unit": "raw",
+          "delta": "-3"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "3Y6ZRREnEWgHHRJYXWjKTzNuAb3KPTKbRsKeP2qfhE6raFoZ7NRwFMYeuKp45PLanhLkMairtptsANkdVoVfXiKV",
+        "simulation": {
+          "computeUnits": 6364
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.04179484",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The first account read after the close returned the pre-close account; a second read found it gone.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "open_position",
+    "protocol": "raydium",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "6WUWJ1myJCWbUiWnACRTNSQeFZUxUwSdgcwzymL8VxfS",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#raydium-clmm-open-to-close",
+    "sends": [
+      {
+        "signature": "5VjEMemBJv41hwgTUQSEHUGyC1YCLkGLKKStPuRfyiigFyWE6QnhdUcVttZB6wDQBuYL1BM3rVBfMa2BaFdySGTd",
+        "simulation": {
+          "computeUnits": 98648
+        },
+        "venue": {
+          "requiredA": "0",
+          "requiredB": "1000000"
+        },
+        "liquidity": {
+          "after": "599329452"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.0068664",
+            "feeLamportsApprox": "110000"
+          },
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-1000000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "1488440 lamports went into the untouched-side wSOL account, reclaimed by the close-token-account round.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "raydium",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "6WUWJ1myJCWbUiWnACRTNSQeFZUxUwSdgcwzymL8VxfS",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#raydium-clmm-open-to-close",
+    "sends": [
+      {
+        "signature": "CoesNdA8c7okKvgFnRVJRRvjMuhMn8mtdnq8sc7R1jPgvh8kpCy1FX9GmVY7NbqVunAKob2Qa55Bpvo7bi42VCc",
+        "simulation": {
+          "computeUnits": 32239
+        },
+        "venue": {
+          "requiredA": "0",
+          "requiredB": "500000"
+        },
+        "liquidity": {
+          "before": "599329452",
+          "after": "898994178"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          },
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-500000"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "raydium",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "6WUWJ1myJCWbUiWnACRTNSQeFZUxUwSdgcwzymL8VxfS",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#raydium-clmm-open-to-close",
+    "sends": [
+      {
+        "signature": "5tjc3sQpfPZZKh2XULM2VBzRiFFVTh8sammHzS2rVrbMhXfgsNuXEKXR8TSyqPTvaQkB1EiScxZW73y4SafBhkaZ",
+        "bps": 10000,
+        "simulation": {
+          "computeUnits": 45234,
+          "estA": "0",
+          "estB": "1499999"
+        },
+        "liquidity": {
+          "before": "898994178",
+          "after": "0"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          },
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+1499999"
+          }
+        }
+      }
+    ],
+    "gaps": ["Residual fee and reward were not measured.", "Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "close_position",
+    "protocol": "raydium",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "6WUWJ1myJCWbUiWnACRTNSQeFZUxUwSdgcwzymL8VxfS",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#raydium-clmm-open-to-close",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.00191344",
+      "tokens": {
+        "b": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "-1"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "4acCUDUv4ACJZRHJhTtRyqHWtHTAup3EFVryiGBqKpUhHUE73fLNxUtRrEuGdj59yp2anYDuEWv24TjL9NfeC29B",
+        "simulation": {
+          "computeUnits": 18131
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.00516296",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The lifecycle SOL net includes the 1488440 lamports held in the wSOL account the open created, reclaimed later by closing that account.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "orca",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "2LyZJBNUWMH7YXJvhT61NUNXjTbk7kHKZuwyPVA7QgWZ",
+    "pool": "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#orca-whirlpool-deposit-and-withdraw",
+    "sends": [
+      {
+        "signature": "3oLzAMBmRFfCPmyTPHLm4nDwEusVawReJT1JRmgPgjBGBKDvf4pxgvwpjHCNaLoAZS6MXQbiaqC925YAvQGB5qFw",
+        "simulation": {
+          "computeUnits": 10823
+        },
+        "venue": {
+          "requiredA": "10000000",
+          "requiredB": "0"
+        },
+        "liquidity": {
+          "before": "0",
+          "after": "27422001"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The canonical wSOL account already existed empty (left by the Raydium open), so the wrap funded it rather than creating and closing a temporary one.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "orca",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "position": "2LyZJBNUWMH7YXJvhT61NUNXjTbk7kHKZuwyPVA7QgWZ",
+    "pool": "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/sealing-qa.md#orca-whirlpool-deposit-and-withdraw",
+    "sends": [
+      {
+        "signature": "5NzqmHQ3XVw5LJ7CwPH6uQ8PCLb7awqeai9e2t1bR6bRgVPnSx2ev2Gq9htu8RHV8YnKzCwk4vzkDjAx7DcEXhqc",
+        "bps": 10000,
+        "simulation": {
+          "computeUnits": 10435,
+          "estA": "9999999",
+          "estB": "0"
+        },
+        "liquidity": {
+          "before": "27422001",
+          "after": "0"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "9999999 lamports were credited as wSOL, unwrapped by the close-token-account round.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "close_token_account",
+    "codeSha": "50a50016d266b1050903b9465959d97503cf81cc",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/sealing-qa.md#close-token-account",
+    "sends": [
+      {
+        "signature": "3ZjphNYg3FT29NSd6zfGHPXQDmaiReS7Yz4VF9xGgqNoofJccYUDa18ogZdqS4ZnAPH9oBZYuVq1SkBKUgatRPcp",
+        "simulation": {
+          "computeUnits": 118
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.011482439",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "JgJwQKJKCtPMS1xcCGdnwxusXTyXb5fG8SZBXm5VcAzHL9R8kyCAXFaTCkfYdrE4nJ5Z7NP4GknJxkNbECmyQAU",
+        "simulation": {
+          "computeUnits": 1464
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.00150784",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The first send unwrapped the wSOL account BNP6pHgDRwiCNAJa3qfob88HbT9TWqwMFmHinZHTevAG (9999999 unwrapped, 1488440 rent); the second closed the empty Token-2022 pump-coin account FXQNgoWqdLTzduEbqodADwj3kWstzG7r1nnmVBgKAKn3. The row shape has no key for the closed account.",
+      "Surfpool coverage is not claimed."
+    ]
   }
 ]
