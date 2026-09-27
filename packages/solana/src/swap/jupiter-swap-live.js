@@ -20,6 +20,9 @@ export const JupiterSwapLive = (config) =>
           return Effect.fail(
             new QuoteConfigMissing({
               reason: "JUPITER_API_KEY is not set; export it to use Jupiter swap quotes",
+              remedy:
+                "create a key at https://portal.jup.ag and export JUPITER_API_KEY; a key with " +
+                "only Price access passes here and fails inside the build",
             }),
           );
         }

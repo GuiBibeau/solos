@@ -7,7 +7,7 @@
  * choosing is the caller's job (ADR-0006).
  */
 import { defineTool } from "../../shared/tools/define-tool.js";
-import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { LIFECYCLE_PROTOCOL_REMEDY, LiquidityUnsupportedProtocol } from "../domain/errors.js";
 import {
   ClosePositionInput,
   ExecuteClosePositionInput,
@@ -25,7 +25,10 @@ import {
 /** @param {{ protocol: string }} input */
 const gate = (input) => {
   if (!hasLifecycle(input.protocol)) {
-    throw new LiquidityUnsupportedProtocol({ protocol: input.protocol });
+    throw new LiquidityUnsupportedProtocol({
+      protocol: input.protocol,
+      remedy: LIFECYCLE_PROTOCOL_REMEDY,
+    });
   }
 };
 

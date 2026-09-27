@@ -70,9 +70,12 @@ describe("JupiterSwapLive quote request [integration]", () => {
     expect(fixture.requests).toHaveLength(0);
   });
 
-  test("fails pre-HTTP without a key, blank keys included", async () => {
+  test("fails pre-HTTP without a key, and says where the key comes from", async () => {
     fixture = startFixture([{ body: okBody() }]);
-    expect((await quoteFailure(fixture, { apiKey: "" }))?._tag).toBe("QuoteConfigMissing");
+    const blank = await quoteFailure(fixture, { apiKey: "" });
+    expect(blank?._tag).toBe("QuoteConfigMissing");
+    expect(blank?.reason).toContain("JUPITER_API_KEY is not set");
+    expect(blank?.remedy).toContain("portal.jup.ag");
     expect((await quoteFailure(fixture, { apiKey: " ".repeat(3) }))?._tag).toBe(
       "QuoteConfigMissing",
     );

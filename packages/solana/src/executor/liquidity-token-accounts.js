@@ -11,6 +11,7 @@ import {
   getCreateAssociatedTokenIdempotentInstruction,
   getTokenDecoder,
 } from "@solana-program/token";
+import { WSOL_MINT } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
@@ -31,8 +32,9 @@ export const liquidityRead = (ctx) => ({
   timeoutMs: TOKEN_RPC_TIMEOUT_MS,
 });
 
-/** @param {string} reason @returns {import("effect").Effect.Effect<never, BuildRejected>} */
-export const fail = (reason) => Effect.fail(new BuildRejected({ reason }));
+/** @param {string} reason @param {string} [remedy] @returns {import("effect").Effect.Effect<never, BuildRejected>} */
+export const fail = (reason, remedy) =>
+  Effect.fail(new BuildRejected(remedy === undefined ? { reason } : { reason, remedy }));
 
 /** @param {string} value */
 const asAddress = (value) =>
@@ -82,7 +84,11 @@ export const fundingSide = ({ kit, row, required, mint, ata, program, label, ver
     const detail = isAbsent
       ? "the funding account does not exist"
       : `${balance} available, the ${verb} needs ${required}`;
-    return fail(`insufficient token ${label} balance: ${detail}`);
+    const remedy =
+      mint === WSOL_MINT
+        ? "pass wrapSol: true to wrap native SOL for this side, or fund the wSOL account first"
+        : `fund the token ${label} account with ${required - balance} more base units`;
+    return fail(`insufficient token ${label} balance: ${detail}`, remedy);
   }
   // Absent and owed nothing: the instruction still lists the account, so it has to exist.
   return Effect.succeed(createAta(kit, mint, { ata, program }));
@@ -101,6 +107,7 @@ export const receivingSide = ({ kit, row, owed, mint, ata, program, label }) => 
     return fail(
       `the token ${label} receiving account does not exist and the position owes it ` +
         `${owed} base units at the current price`,
+      `create the token ${label} account first (spl-token create-account)`,
     );
   }
   return Effect.succeed(createAta(kit, mint, { ata, program }));

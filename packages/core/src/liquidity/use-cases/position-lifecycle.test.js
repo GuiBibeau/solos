@@ -117,6 +117,7 @@ describe("position lifecycle validation", () => {
   test("orca still fails the protocol gate", async () => {
     const failure = await failureOf(simulateOpenPosition({ ...raydium, protocol: "orca" }));
     expect(failure).toBeInstanceOf(LiquidityUnsupportedProtocol);
+    expect(failure.remedy).toContain("raydium or meteora");
     const closed = await failureOf(simulateClosePosition({ protocol: "orca", position: ADDRESS }));
     expect(closed).toBeInstanceOf(LiquidityUnsupportedProtocol);
   });

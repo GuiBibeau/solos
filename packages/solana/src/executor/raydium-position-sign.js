@@ -52,5 +52,9 @@ export const signRaydiumPosition = ({ ctx, kit, instructions }) =>
  */
 export const notRaydium = (actionType, protocol) =>
   Effect.fail(
-    new UnsupportedAction({ actionType: `${actionType}:${protocol}`, executor: "direct-signer" }),
+    new UnsupportedAction({
+      actionType: `${actionType}:${protocol}`,
+      executor: "direct-signer",
+      remedy: `pass protocol raydium to ${actionType}`,
+    }),
   );

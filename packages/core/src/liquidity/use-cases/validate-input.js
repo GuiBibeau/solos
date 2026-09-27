@@ -29,6 +29,7 @@ export const validateDepositInput = (schema, input) =>
     if (!/[1-9]/.test(parsed.data.amountA + parsed.data.amountB)) {
       return yield* new LiquidityInputInvalid({
         reason: "at least one token spend budget must be positive",
+        remedy: "pass amountA or amountB as a positive u64 decimal string",
       });
     }
     if (!isDepositable(parsed.data.protocol)) {

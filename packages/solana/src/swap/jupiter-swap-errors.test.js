@@ -68,4 +68,29 @@ describe("JupiterSwapLive error mapping [integration]", () => {
     expect(rendered.includes(BODY_MARKER)).toBe(false);
     expect(rendered.includes(fixture.url)).toBe(false);
   });
+
+  test("a provider refusal names what is wrong and, where it can, the next action", async () => {
+    fixture = startFixture([
+      { status: 401, body: { error: BODY_MARKER } },
+      { status: 429, body: { code: 429 } },
+      { status: 400, body: { requestId: "01a0", error: "Failed to get quotes" } },
+    ]);
+    expect(await quoteFailure(fixture)).toMatchObject({
+      _tag: "QuoteAuthFailed",
+      status: 401,
+      reason: "Jupiter rejected the API key with HTTP 401",
+      remedy: "set JUPITER_API_KEY to a key with Swap access from https://portal.jup.ag",
+    });
+    const rate = await quoteFailure(fixture);
+    expect(rate).toMatchObject({
+      _tag: "QuoteRateLimited",
+      reason: "Jupiter rate limited the request with HTTP 429",
+    });
+    // Waiting is not an argument, a tool, or a command, so the field stays absent.
+    expect(rate?.remedy).toBeUndefined();
+    expect(await quoteFailure(fixture)).toMatchObject({
+      _tag: "NoRouteFound",
+      reason: `jupiter found no route from ${INPUT_MINT} to ${OUTPUT_MINT}`,
+    });
+  });
 });

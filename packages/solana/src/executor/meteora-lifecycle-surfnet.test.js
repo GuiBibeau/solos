@@ -188,6 +188,9 @@ describe("meteora position lifecycle against Surfnet [integration]", () => {
     expect(refused).toBeInstanceOf(BuildRejected);
     expect(reasonOf(refused)).toContain("1000000");
     expect(reasonOf(refused)).toContain("liquidity shares");
+    expect(/** @type {{ remedy: string }} */ (refused).remedy).toContain(
+      "solana_liquidity_execute_withdraw",
+    );
     const executed = await failureOf(
       executeClosePosition({
         protocol: "meteora",

@@ -9,18 +9,37 @@ export class LiquidityInputInvalid extends /** @type {LiquidityInputInvalidClass
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LiquidityUnsupportedProtocol", LiquidityUnsupportedProtocolProps>} LiquidityUnsupportedProtocolClass */
-/** @typedef {{ readonly protocol: string }} LiquidityUnsupportedProtocolProps */
-/** The protocol is enum-valid but has no adapter yet; raised before the network, always. */
+/** @typedef {{ readonly protocol: string; readonly reason?: string; readonly remedy?: string }} LiquidityUnsupportedProtocolProps */
+/**
+ * The protocol is enum-valid but has no adapter yet; raised before the network, always. The
+ * default reason and remedy name the read/deposit set; a lifecycle raise site passes the narrower
+ * one, so following the remedy never repeats the same failure.
+ */
 export class LiquidityUnsupportedProtocol extends /** @type {LiquidityUnsupportedProtocolClass} */ (
   taggedError("LiquidityUnsupportedProtocol")
-) {}
+) {
+  /** @param {LiquidityUnsupportedProtocolProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `${props.protocol} has no liquidity adapter for this operation`,
+      remedy: props.remedy ?? "pass protocol orca, raydium or meteora",
+    });
+  }
+}
+
+/** Opening and closing have no orca adapter, so the read/deposit remedy would misdirect. */
+export const LIFECYCLE_PROTOCOL_REMEDY =
+  "pass protocol raydium or meteora; opening and closing cover raydium and meteora only";
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LiquidityPositionUnavailable", LiquidityPositionUnavailableProps>} LiquidityPositionUnavailableClass */
 /** @typedef {{ readonly position: string; readonly reason: string }} LiquidityPositionUnavailableProps */
 /**
  * The position account is absent, not owned by the pinned Whirlpool program, laid out
  * wrongly (corrupt state), foreign-owned (no position NFT custody), or references a pool
- * that is missing or corrupt. Never a fabricated zero holding.
+ * that is missing or corrupt. Never a fabricated zero holding. There is no single next action —
+ * it may be the very read that raised this — so it carries none rather than sending the caller
+ * back in a loop.
  */
 export class LiquidityPositionUnavailable extends /** @type {LiquidityPositionUnavailableClass} */ (
   taggedError("LiquidityPositionUnavailable")

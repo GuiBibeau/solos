@@ -136,6 +136,7 @@ describe("liquidity deposit executor against Surfnet [integration]", () => {
     expect(/** @type {BuildRejected} */ (failure)?.reason).toContain(
       "insufficient token B balance",
     );
+    expect(/** @type {BuildRejected} */ (failure)?.remedy).toContain("fund the token B account");
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 
