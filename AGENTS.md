@@ -163,11 +163,13 @@ summaries, Jupiter prices and on-chain token metadata.
 2. Register the tools array in `packages/core/src/index.js`.
 3. For read tools: an adapter Layer in `packages/solana/src/<name>/`, wired into `SolanaLive` and
    `SolanaTestLive`. For execute tools: a new `Action` variant in `packages/actions` and a branch in
-   `DirectSignerExecutor`. The branch builds and signs, then hands the signed transaction to
-   Submission (`packages/solana/src/submission/`) with an optional probe (what simulation must
-   show) and guard (what must hold right before sending). A branch never simulates, rechecks the
-   lifetime or sends on its own (ADR-0031); Phoenix onboarding's co-signed v0 wire is the one
-   exception (ADR-0025), and it still confirms through Submission's loop.
+   `DirectSignerExecutor`. The branch builds a draft (its ordered instructions, any extra
+   signers on their account metas, a named compute config) and hands it to Submission
+   (`packages/solana/src/submission/`) with an optional probe (what simulation must show) and
+   guard (what must hold right before sending). Submission fetches the lifetime and signs. A
+   branch never signs, simulates, rechecks the lifetime or sends on its own (ADR-0031,
+   ADR-0032); Phoenix onboarding's co-signed v0 wire is the one exception (ADR-0025), and it
+   still confirms through Submission's loop.
 4. Integration test against Surfpool next to the adapter.
 5. `bun run solos dev check && bun run solos dev test`.
 
