@@ -9,5 +9,8 @@ dist/
 docs/dependency-graph.svg
 coverage/
 
+# local agent tooling (settings, scratch worktrees)
+.claude/
+
 # local environment overrides
 .env.local

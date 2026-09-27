@@ -135,7 +135,14 @@ const boundaryRules = {
 
 export default [
   {
-    ignores: ["**/node_modules/**", "**/dist/**", "**/.output/**", ".solos/**", "docs/**"],
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.output/**",
+      ".solos/**",
+      ".claude/**",
+      "docs/**",
+    ],
   },
   js.configs.recommended,
   importX.flatConfigs.recommended,

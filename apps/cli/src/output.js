@@ -1,5 +1,5 @@
 // @ts-check
-import { toJsonSafe } from "@solos/core";
+import { errorEnvelope, toJsonSafe } from "@solos/core";
 import { Effect } from "effect";
 
 /**
@@ -51,9 +51,5 @@ const firstFailure = (cause) => {
 /** @param {import("effect").Cause.Cause<unknown>} cause */
 const describeCause = (cause) => {
   const failure = /** @type {{ _tag?: string } | undefined} */ (firstFailure(cause));
-  if (failure && typeof failure === "object" && "_tag" in failure) {
-    const { _tag, ...props } = /** @type {Record<string, unknown>} */ (failure);
-    return { code: _tag, .../** @type {Record<string, unknown>} */ (toJsonSafe(props)) };
-  }
-  return { code: "InternalError", reason: String(cause) };
+  return errorEnvelope(failure) ?? { code: "InternalError", reason: String(cause) };
 };
