@@ -12,7 +12,21 @@ import { makePreflightTelemetry, makeToolRuntime } from "../runtime.js";
 import { createSolosServer } from "../server/create-server.js";
 
 const VERSION = "0.0.0";
-const TierSchema = z.enum(["read", "simulate", "execute"]).default("execute");
+const TierSchema = z.enum(["read", "simulate", "execute"]).default("simulate");
+
+/**
+ * `--tier <read|simulate|execute>` on the server command line. An explicit flag beats the
+ * inherited `SOLOS_TOOL_TIER` env var, which stays supported for callers that already set it.
+ * A `--tier` with no value (or another flag after it) is malformed and must fail startup rather
+ * than fall back to a possibly more permissive environment value.
+ * @param {ReadonlyArray<string>} argv
+ */
+const tierFlag = (argv) => {
+  const index = argv.indexOf("--tier");
+  if (index === -1) return undefined;
+  const value = argv[index + 1];
+  return value === undefined || value.startsWith("--") ? "" : value;
+};
 
 const main = async () => {
   const env = loadSolanaEnv(process.env);
@@ -23,7 +37,7 @@ const main = async () => {
     runtime,
     telemetry,
     version: VERSION,
-    tierCeiling: TierSchema.parse(process.env.SOLOS_TOOL_TIER),
+    tierCeiling: TierSchema.parse(tierFlag(process.argv) ?? process.env.SOLOS_TOOL_TIER),
   });
   const shutdown = async () => {
     await server.close().catch(() => undefined);

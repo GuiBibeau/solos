@@ -60,4 +60,7 @@ export const solanaEnv = async (surfnet) => ({
   SOLANA_WS_URL: surfnet.wsUrl,
   SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
   SOLOS_LOG_LEVEL: "warn",
+  // These suites drive execute tools, so they opt into the ceiling an Operator would. The
+  // simulate-by-default behaviour has its own coverage in packages/mcp/src/server/tier-ceiling.test.js.
+  SOLOS_TOOL_TIER: "execute",
 });

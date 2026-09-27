@@ -21,7 +21,9 @@ export const createSolosServer = ({
   runtime,
   telemetry,
   version,
-  tierCeiling = "execute",
+  // Simulate by default: a fresh install advertises read and simulate tools, and execute tools
+  // appear only when the Operator raises the ceiling deliberately. See ADR-0029.
+  tierCeiling = "simulate",
 }) => {
   const offered = filterByTier(tools, tierCeiling);
   const server = new McpServer(

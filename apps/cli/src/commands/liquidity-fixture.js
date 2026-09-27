@@ -56,6 +56,7 @@ export const signerEnv = async (surfnet) => {
       SOLANA_RPC_URL: surfnet.rpcUrl,
       SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(seed),
       SOLOS_LOG_LEVEL: "warn",
+      SOLOS_TOOL_TIER: "execute",
     },
   };
 };

@@ -42,6 +42,7 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
         SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
         SOLOS_CONFIG_DIR: await newConfigDir(),
         SOLOS_LOG_LEVEL: "warn",
+        SOLOS_TOOL_TIER: "execute",
       },
       stderr: "ignore",
     });
@@ -52,6 +53,7 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
         SOLOS_SIGNER_KEYPAIR_PATH: MISSING_KEYPAIR_PATH,
         SOLOS_CONFIG_DIR: await newConfigDir(),
         SOLOS_LOG_LEVEL: "warn",
+        SOLOS_TOOL_TIER: "execute",
       },
       stderr: "ignore",
     });

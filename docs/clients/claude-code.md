@@ -28,4 +28,25 @@ surfaces the whole group. Set `"alwaysLoad": true` on the entry to load everythi
 Signing tools carry `_meta["anthropic/requiresUserInteraction"] = true`, so Claude Code prompts
 before running them regardless of permission mode.
 
-Read-only deployment: add `"SOLOS_TOOL_TIER": "read"` to `env`.
+## Tool tier
+
+The server advertises **read and simulate** tools by default; execute tools (the ones that sign
+and send) appear only when the Operator raises the ceiling deliberately. Two ways to raise it, and
+an explicit flag beats the env var:
+
+```json
+{
+  "mcpServers": {
+    "solos": {
+      "command": "bun",
+      "args": ["run", "/absolute/path/to/solos/packages/mcp/src/bin/stdio.js", "--tier", "execute"],
+      "env": { "SOLOS_PROFILE": "main" }
+    }
+  }
+}
+```
+
+`SOLOS_TOOL_TIER` in `env` does the same and still works; `--tier` wins when both are set. The
+accepted values are `read`, `simulate` and `execute`. A read-only deployment is `"--tier", "read"`
+or `"SOLOS_TOOL_TIER": "read"`. Withheld tools are absent from `tools/list`, not present and
+failing, so a Caller plans around what it can see.
