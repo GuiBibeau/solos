@@ -11,6 +11,7 @@
 import { BuildRejected, RpcError } from "@solos/core";
 import { Effect } from "effect";
 import {
+  KaminoAmbiguousReserveError,
   KaminoMarketOwnerError,
   sdkFloatRateReserveForMint,
   sdkLedgerInstant,
@@ -50,6 +51,12 @@ const asExecutorFailure = (error) => {
   });
 };
 
+/** @param {KaminoMarketOwnerError | KaminoAmbiguousReserveError} error */
+const reserveRefusal = (error) =>
+  error instanceof KaminoAmbiguousReserveError
+    ? "the configured market has more than one float-rate reserve for this mint; nothing was signed"
+    : "the configured market account is not owned by the pinned lending program";
+
 /**
  * The float-rate reserve for the action's mint, with the market's presence already
  * enforced. `null` (market missing) and `undefined` (mint not carried) become rejections.
@@ -61,10 +68,8 @@ const reserveFor = (read, target) =>
     Effect.tryPromise({
       try: () => sdkFloatRateReserveForMint(read.rpc, target.market, target.mint),
       catch: (error) =>
-        error instanceof KaminoMarketOwnerError
-          ? new BuildRejected({
-              reason: "the configured market account is not owned by the pinned lending program",
-            })
+        error instanceof KaminoMarketOwnerError || error instanceof KaminoAmbiguousReserveError
+          ? new BuildRejected({ reason: reserveRefusal(error) })
           : new RpcError({
               method: "reserve-read",
               url: read.url,
