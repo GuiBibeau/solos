@@ -34,3 +34,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0026](0026-phoenix-collateral-input.md) | Phoenix collateral transfers fix input, estimate output |
 | [0027](0027-pump-sells-close-the-curve-side-exit.md) | Pump sells use `sell_v2`; wSOL on exactly one side is the direction |
 | [0028](0028-pump-fees-and-recipients-are-read-per-coin.md) | Pump fees and fee recipients are read per coin, never reconstructed |
+| [0029](0029-jit-tool-discovery.md) | Tool discovery is just in time: withhold tools, enable on demand; `--tools all` escape hatch |

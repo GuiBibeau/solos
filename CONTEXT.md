@@ -8,6 +8,14 @@ Terms used in code, docs, and conversation. When a word here and a word in code 
 `packages/core/src/<slice>/`, internally hexagonal: `domain`, `ports`, `use-cases`, `tools`. Other
 slices see only its `index.js`.
 
+**Caller** — whatever invokes a tool: an agent loop, a swarm, the CLI, the harness. solOS is built
+for Callers first; a human reaches it by prompting one, not by driving a wallet UI. A Caller acts
+only within what the Operator allowed, and learns the boundary from the tool list it is given.
+
+**Operator** — the human who owns the signer and decides what solOS is allowed to do. Sets the
+boundary out of band — which wallet, which RPC, whether the execute tier exists at all — and is
+not in the loop of any individual call. Policy above that boundary lives upstream (ADR-0006).
+
 **Port** — an interface the core needs from the outside world, declared as an Effect
 `Context.GenericTag` in `ports/`. Examples: `Signer`, `BalanceReader`, `SolTransfer`, `EventBus`.
 
@@ -19,6 +27,16 @@ Called by tools, the CLI, and the harness alike.
 
 **Tool** — a slice's public verb, defined with `defineTool` in `tools/`. One definition serves the
 MCP server and the harness agent loop. Named `solana_<group>_<verb>_<object>`.
+
+**Discovery** — how a Caller learns which tools exist. Tools are registered but withheld, and a
+search enables the matching ones just in time, so the Caller pays context only for what it asked
+for. Takes free text, a group, or explicit names; only free text consults a `ToolSelector`, whose
+default adapter is local and deterministic. A search that matches nothing explains what solOS does
+not cover rather than returning silence, and a tool the tier ceiling withholds is named as
+existing — the tool's existence is not the secret, the signer is.
+
+**Tier ceiling** — the highest tier an Operator lets a server offer. Withheld tools are never
+registered, so a Caller plans around what it can see instead of discovering refusals.
 
 **Group** — the tool namespace, equal to the slice name. Used for search, server instructions, and
 per-step activation in the agent loop.
