@@ -5,7 +5,7 @@ Status: accepted, 2026-09-16
 ## Context
 
 The product plan (`docs/plan.md`) separates deciding from acting: an agent proposes a typed action
-and an executor turns it into a transaction. Until now `solana_transfer_send_sol` signed with the
+and an executor turns it into a transaction. Until now `solana_transfer_execute_sol` signed with the
 local keypair directly, with no seam between the use case and the signer. That is the right
 behaviour for wallet mode, but it left no place to plug a vault engine in later without touching
 core.

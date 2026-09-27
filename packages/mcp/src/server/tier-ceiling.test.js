@@ -6,7 +6,7 @@ import path from "node:path";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
 import { connectMcp, solosServerCommand } from "../client/index.js";
 
-const EXECUTE = "solana_transfer_send_sol";
+const EXECUTE = "solana_transfer_execute_sol";
 const SIMULATE = "solana_transfer_simulate_sol";
 const READ = "solana_wallet_get_balance";
 

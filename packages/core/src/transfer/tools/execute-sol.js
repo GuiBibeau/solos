@@ -4,8 +4,8 @@ import { transferLamports } from "../domain/amount.js";
 import { TransferSolInputSchema } from "../domain/types.js";
 import { sendSol } from "../use-cases/send-sol.js";
 
-export const sendSolTool = defineTool({
-  name: "solana_transfer_send_sol",
+export const executeSolTool = defineTool({
+  name: "solana_transfer_execute_sol",
   group: "transfer",
   tier: "execute",
   title: "Send SOL",

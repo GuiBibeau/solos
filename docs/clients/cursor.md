@@ -40,5 +40,5 @@ the `--tier` flag, which beats the `SOLOS_TOOL_TIER` env var:
 
 Accepted values are `read`, `simulate` and `execute`. `SOLOS_TOOL_TIER` in `env` still works; the
 `--tier` flag wins when both are set. Without it, an execute tool such as
-`solana_transfer_send_sol` is never advertised. Withheld tools are absent from `tools/list`, not
+`solana_transfer_execute_sol` is never advertised. Withheld tools are absent from `tools/list`, not
 present and failing.

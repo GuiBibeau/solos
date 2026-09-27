@@ -50,7 +50,7 @@ describe("solos MCP Iris tool through a real server child [integration]", () => 
     const names = tools.map((t) => t.name);
     expect(names).toContain("solana_market_ask_iris");
     expect(names).toContain("solana_wallet_get_balance");
-    expect(names).toContain("solana_transfer_send_sol");
+    expect(names).toContain("solana_transfer_execute_sol");
     const iris = tools.find((t) => t.name === "solana_market_ask_iris");
     expect(iris?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(iris?._meta?.["solos/tier"]).toBe("read");

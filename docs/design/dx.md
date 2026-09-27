@@ -82,7 +82,7 @@ on the child's stderr), the `rpcUrl: null` trap after a login without `--rpc-url
 
 ## One concrete break, worth doing before npm
 
-Rename `solana_transfer_send_sol` → `solana_transfer_execute_sol`. It is the only execute tool not
+Rename the transfer execute tool to `solana_transfer_execute_sol`. It is the only execute tool not
 matching the pattern the server's own instructions promise, so a Caller guesses a name that does
 not exist — and with JIT that is a search which finds nothing. Breaking for saved configs and
 prompts, which is exactly why it happens before publishing.

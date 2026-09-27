@@ -47,7 +47,7 @@ describe("tool registry", () => {
       "solana_swap_execute_swap",
       "solana_swap_get_quote",
       "solana_swap_simulate_swap",
-      "solana_transfer_send_sol",
+      "solana_transfer_execute_sol",
       "solana_transfer_simulate_sol",
       "solana_wallet_get_address",
       "solana_wallet_get_balance",
@@ -82,6 +82,12 @@ describe("tool registry", () => {
     for (const tool of allTools.filter((t) => t.tier === "execute")) {
       const twin = tool.name.replace(/_send_|_execute_/, "_simulate_");
       expect(names.has(twin), `${tool.name} needs ${twin}`).toBe(true);
+    }
+  });
+
+  test("every execute tool is named solana_<group>_execute_<object>", () => {
+    for (const tool of allTools.filter((t) => t.tier === "execute")) {
+      expect(tool.name.startsWith(`solana_${tool.group}_execute_`), tool.name).toBe(true);
     }
   });
 
