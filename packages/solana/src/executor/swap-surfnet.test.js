@@ -179,10 +179,11 @@ describe("the swap executor against Surfnet [integration]", () => {
     expect(expired.requests).toHaveLength(1);
   });
 
-  test("cleanup rejects a pre-existing taker wSOL ATA with zero simulation and sends", async () => {
+  test("cleanup rejects a funded pre-existing taker wSOL ATA with zero simulation and sends", async () => {
     const seed = randomSeed();
     taker = await seedAddress(seed);
-    await surfnet.cheats.setTokenAccount(taker, INPUT_MINT, 0);
+    // A funded wSOL account: closing it in cleanup would sweep the taker's own balance and rent.
+    await surfnet.cheats.setTokenAccount(taker, INPUT_MINT, 1_000_000);
     const simulations = rpc.callsFor("simulateTransaction").length;
     const sends = rpc.callsFor("sendTransaction").length;
     const error = await failureOf(
@@ -192,8 +193,25 @@ describe("the swap executor against Surfnet [integration]", () => {
     );
     expect(error).toBeInstanceOf(BuildRejected);
     expect(/** @type {BuildRejected} */ (error)?.reason).toContain("pre-existing");
+    expect(/** @type {BuildRejected} */ (error)?.remedy).toContain("wSOL balance");
     expect(rpc.callsFor("simulateTransaction").length).toBe(simulations);
     expect(rpc.callsFor("sendTransaction").length).toBe(sends);
+  });
+
+  test("an empty pre-existing taker wSOL ATA is tolerated and reaches simulation [issue 138]", async () => {
+    const seed = randomSeed();
+    taker = await seedAddress(seed);
+    // The state #138 reported: an empty wSOL ATA left behind by an earlier venue. Cleanup closing
+    // it loses nothing, so the swap must not be refused.
+    await surfnet.cheats.setTokenAccount(taker, INPUT_MINT, 0);
+    const simulations = rpc.callsFor("simulateTransaction").length;
+    const error = await failureOf(
+      executeSwap(intent).pipe(Effect.provide(swapLayer(fixture.url, seed, KEY))),
+    );
+    expect(rpc.callsFor("simulateTransaction").length).toBe(simulations + 1);
+    expect(/** @type {{ reason?: string }} */ (error)?.reason ?? "").not.toContain(
+      "wSOL account holds a balance",
+    );
   });
 
   test("a missing Jupiter key fails pre-HTTP with zero build requests", async () => {
