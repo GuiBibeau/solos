@@ -46,6 +46,7 @@ export const startLiquidityMcp = async (options = {}) => {
       SOLANA_WS_URL: surfnet.wsUrl,
       SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
       SOLOS_LOG_LEVEL: "warn",
+      SOLOS_TOOL_TIER: "execute",
     },
     stderr: "ignore",
   });

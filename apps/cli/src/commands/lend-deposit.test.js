@@ -41,6 +41,7 @@ beforeAll(async () => {
     SOLANA_WS_URL: surfnet.wsUrl,
     SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(signerSeed),
     KAMINO_LENDING_MARKET: market,
+    SOLOS_TOOL_TIER: "execute",
   };
   const reserveBytes = positionReserveBytes({
     market,

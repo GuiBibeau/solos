@@ -108,6 +108,7 @@ const childEnv = async () => ({
   SOLANA_WS_URL: "ws://127.0.0.1:1",
   SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
   SOLOS_LOG_LEVEL: "warn",
+  SOLOS_TOOL_TIER: "execute",
   JUPITER_API_KEY: KEY,
   JUPITER_BASE_URL: fixture.url,
 });

@@ -36,6 +36,7 @@ export const signerEnv = async (surfnet, fixtureUrl) => {
       SOLANA_WS_URL: surfnet.wsUrl,
       SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(seed),
       SOLOS_LOG_LEVEL: "warn",
+      SOLOS_TOOL_TIER: "execute",
       PHOENIX_BASE_URL: fixtureUrl,
     },
   };
