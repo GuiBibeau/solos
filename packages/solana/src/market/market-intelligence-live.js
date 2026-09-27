@@ -65,7 +65,12 @@ export const MarketIntelligenceLive = (config) =>
         const { apiKey } = config;
         if (!apiKey) {
           return Effect.fail(
-            new IrisConfigMissing({ reason: "ELFA_API_KEY is not set; export it to use Iris" }),
+            new IrisConfigMissing({
+              reason: "ELFA_API_KEY is not set; export it to use Iris",
+              remedy:
+                "set ELFA_API_KEY to a key from your Elfa account (https://www.elfa.ai); chat " +
+                "access needs a Grow plan or above",
+            }),
           );
         }
         return Effect.tryPromise({

@@ -44,7 +44,10 @@ describe("MarketIntelligenceLive success and validation [integration]", () => {
     expect((await askFailure(fixture, {}, ""))._tag).toBe("IrisQuestionInvalid");
     expect((await askFailure(fixture, {}, " ".repeat(3)))._tag).toBe("IrisQuestionInvalid");
     expect((await askFailure(fixture, {}, "x".repeat(4001)))._tag).toBe("IrisQuestionInvalid");
-    expect((await askFailure(fixture, { apiKey: "" }))._tag).toBe("IrisConfigMissing");
+    const blank = await askFailure(fixture, { apiKey: "" });
+    expect(blank._tag).toBe("IrisConfigMissing");
+    expect(blank.remedy).toContain("ELFA_API_KEY");
+    expect(blank.remedy).toContain("elfa.ai");
     expect(fixture.requests).toHaveLength(0);
   });
 });

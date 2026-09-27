@@ -123,6 +123,7 @@ export const JupiterPriceLive = (config) =>
           return Effect.fail(
             new PriceConfigMissing({
               reason: "JUPITER_API_KEY is not set; export it to use Jupiter prices",
+              remedy: "create a key at https://portal.jup.ag and export JUPITER_API_KEY",
             }),
           );
         }

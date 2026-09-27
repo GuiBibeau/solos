@@ -8,8 +8,13 @@ export class PriceUnavailable extends /** @type {PriceUnavailableClass} */ (
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"UnknownToken", UnknownTokenProps>} UnknownTokenClass */
-/** @typedef {{ readonly mint: string }} UnknownTokenProps */
-export class UnknownToken extends /** @type {UnknownTokenClass} */ (taggedError("UnknownToken")) {}
+/** @typedef {{ readonly mint: string; readonly reason?: string }} UnknownTokenProps */
+export class UnknownToken extends /** @type {UnknownTokenClass} */ (taggedError("UnknownToken")) {
+  /** @param {UnknownTokenProps} props */
+  constructor(props) {
+    super({ ...props, reason: props.reason ?? `no token metadata is known for ${props.mint}` });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PriceInputInvalid", PriceInputInvalidProps>} PriceInputInvalidClass */
 /** @typedef {{ readonly reason: string }} PriceInputInvalidProps */
@@ -25,21 +30,47 @@ export class PriceConfigMissing extends /** @type {PriceConfigMissingClass} */ (
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PriceAuthFailed", PriceAuthFailedProps>} PriceAuthFailedClass */
-/** @typedef {{ readonly status: number }} PriceAuthFailedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} PriceAuthFailedProps */
 /** HTTP 401/403 from Jupiter: the key is absent from the account or lacks endpoint access. */
 export class PriceAuthFailed extends /** @type {PriceAuthFailedClass} */ (
   taggedError("PriceAuthFailed")
-) {}
+) {
+  /** @param {PriceAuthFailedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Jupiter rejected the price API key with HTTP ${props.status}`,
+      remedy: "set JUPITER_API_KEY to a key with Price access from https://portal.jup.ag",
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PriceRateLimited", PriceRateLimitedProps>} PriceRateLimitedClass */
-/** @typedef {{ readonly status: number }} PriceRateLimitedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} PriceRateLimitedProps */
 export class PriceRateLimited extends /** @type {PriceRateLimitedClass} */ (
   taggedError("PriceRateLimited")
-) {}
+) {
+  /** @param {PriceRateLimitedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Jupiter rate limited the price request with HTTP ${props.status}`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PriceTimeout", PriceTimeoutProps>} PriceTimeoutClass */
-/** @typedef {{ readonly timeoutMs: number }} PriceTimeoutProps */
-export class PriceTimeout extends /** @type {PriceTimeoutClass} */ (taggedError("PriceTimeout")) {}
+/** @typedef {{ readonly timeoutMs: number; readonly reason?: string }} PriceTimeoutProps */
+export class PriceTimeout extends /** @type {PriceTimeoutClass} */ (taggedError("PriceTimeout")) {
+  /** @param {PriceTimeoutProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason:
+        props.reason ?? `Jupiter did not answer the price request within ${props.timeoutMs}ms`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PriceHttpError", PriceHttpErrorProps>} PriceHttpErrorClass */
 /** @typedef {{ readonly status: number; readonly reason: string }} PriceHttpErrorProps */
@@ -92,21 +123,48 @@ export class IrisConfigMissing extends /** @type {IrisConfigMissingClass} */ (
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisAuthFailed", IrisAuthFailedProps>} IrisAuthFailedClass */
-/** @typedef {{ readonly status: number }} IrisAuthFailedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} IrisAuthFailedProps */
 /** HTTP 401/403 from Elfa: the key or account lacks endpoint access. */
 export class IrisAuthFailed extends /** @type {IrisAuthFailedClass} */ (
   taggedError("IrisAuthFailed")
-) {}
+) {
+  /** @param {IrisAuthFailedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Elfa rejected the API key with HTTP ${props.status}`,
+      remedy:
+        "set ELFA_API_KEY to a key from your Elfa account (https://www.elfa.ai); chat access " +
+        "needs a Grow plan or above",
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisRateLimited", IrisRateLimitedProps>} IrisRateLimitedClass */
-/** @typedef {{ readonly status: number }} IrisRateLimitedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} IrisRateLimitedProps */
 export class IrisRateLimited extends /** @type {IrisRateLimitedClass} */ (
   taggedError("IrisRateLimited")
-) {}
+) {
+  /** @param {IrisRateLimitedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Elfa rate limited the request with HTTP ${props.status}`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisTimeout", IrisTimeoutProps>} IrisTimeoutClass */
-/** @typedef {{ readonly timeoutMs: number }} IrisTimeoutProps */
-export class IrisTimeout extends /** @type {IrisTimeoutClass} */ (taggedError("IrisTimeout")) {}
+/** @typedef {{ readonly timeoutMs: number; readonly reason?: string }} IrisTimeoutProps */
+export class IrisTimeout extends /** @type {IrisTimeoutClass} */ (taggedError("IrisTimeout")) {
+  /** @param {IrisTimeoutProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Elfa did not answer within ${props.timeoutMs}ms`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"IrisHttpError", IrisHttpErrorProps>} IrisHttpErrorClass */
 /** @typedef {{ readonly status: number; readonly reason: string }} IrisHttpErrorProps */

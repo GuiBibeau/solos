@@ -58,7 +58,12 @@ export const readElfa = (config, request, schema) => {
   const { apiKey } = config;
   if (!apiKey?.trim())
     return Effect.fail(
-      new IrisConfigMissing({ reason: "ELFA_API_KEY is not set; export it to use Elfa" }),
+      new IrisConfigMissing({
+        reason: "ELFA_API_KEY is not set; export it to use Elfa",
+        remedy:
+          "set ELFA_API_KEY to a key from your Elfa account (https://www.elfa.ai); chat access " +
+          "needs a Grow plan or above",
+      }),
     );
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   return Effect.tryPromise({
