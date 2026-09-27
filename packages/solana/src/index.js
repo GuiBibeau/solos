@@ -39,6 +39,7 @@ export {
   loadSolanaEnv,
   phoenixBaseUrl,
 } from "./env.js";
+export { diagnoseSolanaEnv } from "./doctor.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { LaunchVenueLive } from "./launch/launch-venue-live.js";
 export { KAMINO_MAIN_MARKET, KLEND_PROGRAM_ID } from "./lend/kamino-addresses.js";

@@ -16,7 +16,7 @@ export {
   phoenixBaseUrl,
 } from "./env-url.js";
 
-const EnvSchema = z.object({
+export const EnvSchema = z.object({
   SOLANA_RPC_URL: z.string().url("SOLANA_RPC_URL must be a URL").optional(),
   SOLANA_WS_URL: z.string().url().optional(),
   SOLOS_SIGNER_PRIVATE_KEY: z.string().min(1).optional(),
