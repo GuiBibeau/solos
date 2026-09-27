@@ -17,7 +17,7 @@ export const BLOCKHASH_LIFETIME_ONLY =
   "only a transaction with a blockhash lifetime can be submitted; nothing was sent";
 
 /**
- * @typedef {import("../executor/transfer-sol.js").Signed} Signed
+ * @typedef {Awaited<ReturnType<typeof import("../executor/transaction-v1.js").signV1Message>>} Signed
  * @typedef {{
  *   readonly wire: import("@solana/kit").Base64EncodedWireTransaction;
  *   readonly signature: import("@solana/kit").Signature;

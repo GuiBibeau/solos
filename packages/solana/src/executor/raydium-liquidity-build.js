@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * Assemble and sign one Raydium CLMM add or remove under the local v1 policy. Nothing here can
- * send. A refused plan never becomes bytes.
+ * Draft one Raydium CLMM add or remove for Submission to seal (ADR-0032). Nothing here signs or
+ * sends. A refused plan never becomes bytes.
  */
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
@@ -20,7 +20,7 @@ import {
   receivingSide,
   setupSides,
 } from "./liquidity-token-accounts.js";
-import { signRaydiumPosition } from "./raydium-position-sign.js";
+import { raydiumDraft } from "./raydium-position-draft.js";
 import { rewardSetup } from "./raydium-reward-setup.js";
 import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
 
@@ -77,9 +77,9 @@ const tokenSetup = ({ ctx, kit, plan, verb, covered }) =>
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action
- * @returns {Effect.Effect<{ signed: any; plan: any }, import("@solos/core").ExecutorError>}
+ * @returns {Effect.Effect<{ draft: import("../submission/seal-draft.js").Draft; plan: any }, import("@solos/core").ExecutorError>}
  */
-export const buildSignedRaydiumDeposit = ({ ctx, kit }, action) =>
+export const draftRaydiumDeposit = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     const owner = kit.signer.address;
     const plan = yield* raydiumDepositPlan({
@@ -109,19 +109,15 @@ export const buildSignedRaydiumDeposit = ({ ctx, kit }, action) =>
         amount1Max: plan.tokenMaxB,
       }),
     );
-    const signed = yield* signRaydiumPosition({
-      ctx,
-      kit,
-      instructions: [...wrap.prefix, ...creates, instruction, ...wrap.suffix],
-    });
-    return { signed, plan };
+    const instructions = [...wrap.prefix, ...creates, instruction, ...wrap.suffix];
+    return { draft: raydiumDraft("Raydium deposit", instructions), plan };
   }).pipe(Effect.withSpan("executor.buildRaydiumDeposit"));
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action
- * @returns {Effect.Effect<{ signed: any; plan: any }, import("@solos/core").ExecutorError>}
+ * @returns {Effect.Effect<{ draft: import("../submission/seal-draft.js").Draft; plan: any }, import("@solos/core").ExecutorError>}
  */
-export const buildSignedRaydiumWithdraw = ({ ctx, kit }, action) =>
+export const draftRaydiumWithdraw = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     const owner = kit.signer.address;
     const plan = yield* raydiumWithdrawPlan({
@@ -144,10 +140,6 @@ export const buildSignedRaydiumWithdraw = ({ ctx, kit }, action) =>
         amount1Min: plan.minB,
       }),
     );
-    const signed = yield* signRaydiumPosition({
-      ctx,
-      kit,
-      instructions: [...creates, ...rewardCreates, instruction],
-    });
-    return { signed, plan };
+    const instructions = [...creates, ...rewardCreates, instruction];
+    return { draft: raydiumDraft("Raydium withdraw", instructions), plan };
   }).pipe(Effect.withSpan("executor.buildRaydiumWithdraw"));

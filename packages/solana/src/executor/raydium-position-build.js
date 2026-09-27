@@ -24,7 +24,7 @@ import { liquidityRead } from "./liquidity-token-accounts.js";
 import { openFunding } from "./raydium-open-funding.js";
 import { openParts } from "./raydium-open-parts.js";
 import { openQuote, openSides } from "./raydium-open-quote.js";
-import { notRaydium, signRaydiumPosition } from "./raydium-position-sign.js";
+import { notRaydium, raydiumDraft } from "./raydium-position-draft.js";
 import { wrapForSides } from "./wrap-sol.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
@@ -119,7 +119,7 @@ const fundedOpen = ({ ctx, kit, action, quote, built }) =>
   });
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
-export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
+export const draftRaydiumOpen = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol !== "raydium") return yield* notRaydium("open_position", action.protocol);
     const read = yield* readPool(ctx, action.pool);
@@ -135,9 +135,8 @@ export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
       }),
     );
     const funded = yield* fundedOpen({ ctx, kit, action, quote, built });
-    const signed = yield* signRaydiumPosition({ ctx, kit, instructions: funded });
     return {
-      signed,
+      draft: raydiumDraft("Raydium open", funded),
       plan: {
         position: built.accounts.personalPosition,
         nftMint: built.nftSigner.address,

@@ -2,7 +2,7 @@
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { executionResult, simulationResult } from "../executor/action-results.js";
-import { simulateSigned, submitSigned } from "../submission/submission.js";
+import { simulateDraft, submitDraft } from "../submission/submission.js";
 import { buildClose } from "./phoenix-close-build.js";
 import { readCloseRisk } from "./phoenix-close-risk.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
@@ -53,7 +53,7 @@ const closeGuard = (deps, plan) =>
 export const simulateClose = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* buildClose(deps, action);
-    const simulated = yield* simulateSigned(deps.submission, { signed: plan.signed });
+    const simulated = yield* simulateDraft(deps.submission, { draft: plan.draft });
     return simulationResult(action, simulated, null);
   });
 
@@ -61,9 +61,9 @@ export const simulateClose = (deps, action) =>
 export const executeClose = (deps, action, options) =>
   Effect.gen(function* () {
     const plan = yield* buildClose(deps, action);
-    const delivered = yield* submitSigned(
+    const delivered = yield* submitDraft(
       deps.submission,
-      { signed: plan.signed, guard: closeGuard(deps, plan) },
+      { draft: plan.draft, guard: closeGuard(deps, plan) },
       options,
     );
     return yield* executionResult(action, delivered);

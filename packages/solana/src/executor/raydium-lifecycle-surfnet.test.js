@@ -24,8 +24,8 @@ import { seedRaydiumPool, seedRaydiumPosition } from "../liquidity/raydium-clmm-
 import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
 import { surfnetCheatcodes } from "../surfnet/surfnet-cli.js";
 import { ensureOfflineSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
-import { buildSignedRaydiumClose } from "./raydium-close-build.js";
-import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
+import { draftRaydiumClose } from "./raydium-close-build.js";
+import { draftRaydiumOpen } from "./raydium-position-build.js";
 
 const TICK_SPACING = 60;
 const FUNDED = 10n ** 12n;
@@ -175,7 +175,7 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     const kit = { signer: { address: await seedAddress(seed) } };
     const ctx = /** @type {any} */ ({});
     const open = await Effect.runPromiseExit(
-      buildSignedRaydiumOpen(
+      draftRaydiumOpen(
         { ctx, kit: /** @type {any} */ (kit) },
         {
           ...openIntent({}),
@@ -184,7 +184,7 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
       ),
     );
     const close = await Effect.runPromiseExit(
-      buildSignedRaydiumClose(
+      draftRaydiumClose(
         { ctx, kit: /** @type {any} */ (kit) },
         {
           protocol: "orca",

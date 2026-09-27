@@ -1,17 +1,7 @@
 // @ts-check
-import {
-  appendTransactionMessageInstruction,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { ActionSchema } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import {
-  beginV1Message,
-  rejectionAfterV1Policy,
-  signV1Message,
-} from "../executor/transaction-v1.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { readOnboardingStatus } from "./perp-onboarder-live.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 import { readCollateralExchange } from "./phoenix-collateral-exchange-live.js";
@@ -107,8 +97,12 @@ const readPlan = (deps, action) =>
     })),
   );
 
-/** @param {Deps} deps @param {Effect.Effect.Success<ReturnType<typeof readPlan>>} facts */
-const signPlan = (deps, facts) =>
+/**
+ * The open's draft. The 5 s build window is checked last, right before Submission seals the
+ * draft (ADR-0032); the guard checks it again before sending.
+ * @param {Effect.Effect.Success<ReturnType<typeof readPlan>>} facts
+ */
+const draftPlan = (facts) =>
   Effect.gen(function* () {
     const instruction = yield* Effect.try({
       try: () => buildOpenInstruction(facts),
@@ -117,25 +111,13 @@ const signPlan = (deps, facts) =>
           ? error
           : new BuildRejected({ reason: "Phoenix IOC instruction could not be built" }),
     });
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", deps.ctx.url, () =>
-      deps.ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
     if (Date.now() - facts.startedAt > 5000)
-      return yield* new BuildRejected({ reason: "Phoenix open state expired while signing" });
-    const message = appendTransactionMessageInstruction(
-      instruction,
-      setTransactionMessageLifetimeUsingBlockhash(
-        lifetime,
-        beginV1Message({ feePayerSigner: deps.kit.signer, config: TX_CONFIG }),
-      ),
-    );
-    const signed = yield* Effect.tryPromise({
-      try: () => signV1Message(message),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error, "Phoenix IOC open"),
-    });
-    return { signed, facts };
+      return yield* new BuildRejected({ reason: "Phoenix open state expired before signing" });
+    /** @type {import("../submission/seal-draft.js").Draft} */
+    const draft = { label: "Phoenix IOC open", instructions: [instruction], config: TX_CONFIG };
+    return { draft, facts };
   });
 
 /** @param {Deps} deps @param {OpenAction} action */
 export const buildOpen = (deps, action) =>
-  Effect.flatMap(readPlan(deps, action), (facts) => signPlan(deps, facts));
+  Effect.flatMap(readPlan(deps, action), (facts) => draftPlan(facts));

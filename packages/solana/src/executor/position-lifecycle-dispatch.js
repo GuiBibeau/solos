@@ -8,15 +8,15 @@
  * ephemeral key never leaves the signer, only the pubkey does) and Raydium's personal position.
  */
 import { Effect } from "effect";
-import { buildSignedMeteoraClose } from "./meteora-close-build.js";
-import { buildSignedMeteoraOpen, meteoraOpenQuoteOf } from "./meteora-open-build.js";
-import { buildSignedRaydiumClose } from "./raydium-close-build.js";
+import { draftMeteoraClose } from "./meteora-close-build.js";
+import { draftMeteoraOpen, meteoraOpenQuoteOf } from "./meteora-open-build.js";
+import { draftRaydiumClose } from "./raydium-close-build.js";
 import { openQuoteOf } from "./raydium-open-quote.js";
-import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
+import { draftRaydiumOpen } from "./raydium-position-build.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
-/** @typedef {import("./transfer-sol.js").Signed} Signed */
+/** @typedef {import("../submission/seal-draft.js").Draft} Draft */
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
@@ -24,14 +24,14 @@ import { buildSignedRaydiumOpen } from "./raydium-position-build.js";
  */
 export const plannedOpen = ({ ctx, kit }, action) => {
   if (action.protocol === "meteora") {
-    return Effect.map(buildSignedMeteoraOpen({ ctx, kit }, action), ({ signed, plan }) => ({
-      signed,
+    return Effect.map(draftMeteoraOpen({ ctx, kit }, action), ({ draft, plan }) => ({
+      draft,
       venueQuote: meteoraOpenQuoteOf(action, plan),
       position: plan.position,
     }));
   }
-  return Effect.map(buildSignedRaydiumOpen({ ctx, kit }, action), ({ signed, plan }) => ({
-    signed,
+  return Effect.map(draftRaydiumOpen({ ctx, kit }, action), ({ draft, plan }) => ({
+    draft,
     venueQuote: openQuoteOf(action, plan),
     position: plan.position,
   }));
@@ -40,12 +40,12 @@ export const plannedOpen = ({ ctx, kit }, action) => {
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
  * @param {import("@solos/actions").ClosePositionAction} action
- * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<Draft, import("@solos/core").ExecutorError>}
  */
 export const plannedClose = ({ ctx, kit }, action) => {
   const built =
     action.protocol === "meteora"
-      ? buildSignedMeteoraClose({ ctx, kit }, action)
-      : buildSignedRaydiumClose({ ctx, kit }, action);
-  return Effect.map(built, ({ signed }) => signed);
+      ? draftMeteoraClose({ ctx, kit }, action)
+      : draftRaydiumClose({ ctx, kit }, action);
+  return Effect.map(built, ({ draft }) => draft);
 };

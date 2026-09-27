@@ -36,9 +36,7 @@ export {
   MAX_PRIORITY_FEE_LAMPORTS,
   MAX_TRANSACTION_ACCOUNTS,
   MAX_TRANSACTION_BYTES,
-  V1_SIGNING_FAILED,
   V1_UNKNOWN_CLAUSE,
-  rejectionAfterV1Policy,
 } from "./transaction-v1-clauses.js";
 
 /**

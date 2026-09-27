@@ -1,26 +1,17 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
-import { assertV1MessageForSigning } from "../executor/transaction-v1.js";
-import { assembleSwapMessage } from "./jupiter-swap-build-assemble.js";
+import { SWAP_V1_CONFIG, swapDraft } from "./jupiter-swap-build-assemble.js";
 import { buildEnvelope } from "./jupiter-swap-build-fixture.js";
 
 const signer = await createMemorySignerFromBytes(new Uint8Array(32).fill(7));
-const LIFETIME = {
-  blockhash: "11111111111111111111111111111111",
-  lastValidBlockHeight: 4_294_967_296n,
-};
 
-/** First data bytes of the assembled message: the two leading ATA creates' opcodes. */
+/** First data bytes of the draft: the two leading ATA creates' opcodes. */
 /** @param {Awaited<ReturnType<typeof buildEnvelope>>} envelope
  * @param {{ tempWsolExisted?: boolean }} [options] */
 const createOpcodes = async (envelope, options) => {
-  const { compiled } = assertV1MessageForSigning(
-    await assembleSwapMessage(envelope, signer, { lifetime: LIFETIME, ...options }),
-  );
-  return compiled.instructionPayloads
-    .slice(0, 2)
-    .map((payload) => /** @type {Record<string, number>} */ (payload.instructionData)?.["0"]);
+  const draft = await swapDraft(envelope, signer, options);
+  return draft.instructions.slice(0, 2).map((ix) => ix.data?.[0]);
 };
 
 describe("temp wSOL create pinning at assembly", () => {
@@ -39,5 +30,33 @@ describe("temp wSOL create pinning at assembly", () => {
     const envelope = await buildEnvelope({ taker: signer.address });
     const durable = { ...envelope, cleanupInstruction: null };
     expect(await createOpcodes(durable)).toEqual([1, 1]);
+  });
+});
+
+describe("the swap draft Submission seals", () => {
+  test("setup, swap, cleanup in order, under the local resource config", async () => {
+    const envelope = await buildEnvelope({ taker: signer.address });
+    const draft = await swapDraft(envelope, signer);
+    const programs = draft.instructions.map((ix) => ix.programAddress);
+    expect(programs).toEqual(
+      [
+        ...envelope.setupInstructions,
+        envelope.swapInstruction,
+        /** @type {NonNullable<typeof envelope.cleanupInstruction>} */ (
+          envelope.cleanupInstruction
+        ),
+      ].map((ix) => ix.programId),
+    );
+    expect(draft.config).toBe(SWAP_V1_CONFIG);
+  });
+
+  test("the taker's signer metas carry the keychain signer, so sealing signs them", async () => {
+    const envelope = await buildEnvelope({ taker: signer.address });
+    const draft = await swapDraft(envelope, signer);
+    const takerMetas = draft.instructions
+      .flatMap((ix) => ix.accounts ?? [])
+      .filter((meta) => meta.address === signer.address && "signer" in meta && meta.signer);
+    expect(takerMetas.length).toBeGreaterThan(0);
+    for (const meta of takerMetas) expect(/** @type {any} */ (meta).signer).toBe(signer);
   });
 });

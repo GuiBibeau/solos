@@ -1,21 +1,15 @@
 // @ts-check
 /**
- * Assemble and sign one Meteora DLMM `add_liquidity2` under the local v1 policy. Nothing here
- * can send. A refused plan never becomes bytes. The instruction caps spend at the signed
+ * Draft one Meteora DLMM `add_liquidity2` for Submission to seal (ADR-0032). Nothing here
+ * signs or sends. A refused plan never becomes bytes. The instruction caps spend at the encoded
  * amounts; active-bin drift was already refused in the plan.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { meteoraDepositPlan } from "../liquidity/meteora-dlmm-deposit-plan.js";
 import { addLiquidity2Instruction } from "../liquidity/meteora-dlmm-instruction.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { fundingSide, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
-import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
 
 /** Pinned CLI `add_liquidity` compute budget, so a live deposit is not compute-starved. */
@@ -74,36 +68,15 @@ const fundingSetup = ({ read, kit, plan, covered }) =>
     },
   );
 
-/**
- * @param {{ ctx: Rpc; kit: Kit; instructions: readonly unknown[] }} parts
- */
-const signDeposit = ({ ctx, kit, instructions }) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: METEORA_DEPOSIT_V1_CONFIG }),
-    );
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions(/** @type {any} */ (instructions), message),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
-
 /** @param {Extract<MeteoraDepositPlan, { status: "ok" }>} plan */
 const spendSides = (plan) => [sideSpec(plan, "A"), sideSpec(plan, "B")];
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
  * @param {import("@solos/actions").AddLiquidityAction} action
- * @returns {import("effect").Effect.Effect<{ signed: Awaited<ReturnType<typeof signV1Message>>; plan: Extract<MeteoraDepositPlan, { status: "ok" }> }, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<{ draft: import("../submission/seal-draft.js").Draft; plan: Extract<MeteoraDepositPlan, { status: "ok" }> }, import("@solos/core").ExecutorError>}
  */
-export const buildSignedMeteoraDeposit = ({ ctx, kit }, action) =>
+export const draftMeteoraDeposit = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     const owner = kit.signer.address;
     const plan = yield* meteoraDepositPlan({
@@ -135,10 +108,11 @@ export const buildSignedMeteoraDeposit = ({ ctx, kit }, action) =>
       amountY: plan.tokenMaxB,
       bins: plan.bins,
     });
-    const signed = yield* signDeposit({
-      ctx,
-      kit,
+    /** @type {import("../submission/seal-draft.js").Draft} */
+    const draft = {
+      label: "Meteora deposit",
       instructions: [...wrap.prefix, ...creates, instruction, ...wrap.suffix],
-    });
-    return { signed, plan };
+      config: METEORA_DEPOSIT_V1_CONFIG,
+    };
+    return { draft, plan };
   }).pipe(Effect.withSpan("executor.buildMeteoraDeposit"));

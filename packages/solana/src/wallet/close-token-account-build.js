@@ -4,22 +4,12 @@
  * wrapped-SOL account returns its whole wrapped balance as native SOL: that is the one account
  * that may close while it holds a balance. Everything is read from the account itself, the
  * token program included, and a close the program would refuse is refused here first with the
- * reason. The signed transaction goes through Submission like every other (ADR-0031).
+ * reason. The draft goes through Submission like every other (ADR-0031, ADR-0032).
  */
-import {
-  address,
-  appendTransactionMessageInstructions,
-  getBase64Encoder,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
+import { address, getBase64Encoder } from "@solana/kit";
 import { getCloseAccountInstruction, getTokenDecoder } from "@solana-program/token";
 import { BuildRejected, TRANSFER_PRIORITY_FEE_LAMPORTS } from "@solos/core";
 import { Effect } from "effect";
-import {
-  beginV1Message,
-  rejectionAfterV1Policy,
-  signV1Message,
-} from "../executor/transaction-v1.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "./parse-token-accounts.js";
 
@@ -111,33 +101,10 @@ const quoteOf = (facts) => ({
 });
 
 /**
- * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
- * @param {import("../signer/kit-signer.js").KitSignerShape} kit
- * @param {unknown} instruction
- */
-const signClose = (ctx, kit, instruction) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: CLOSE_ACCOUNT_V1_CONFIG }),
-    );
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions([/** @type {any} */ (instruction)], message),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
-
-/**
  * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape; kit: import("../signer/kit-signer.js").KitSignerShape }} deps
  * @param {import("@solos/actions").CloseTokenAccountAction} action
  */
-export const buildSignedTokenAccountClose = ({ ctx, kit }, action) =>
+export const draftTokenAccountClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     const { value } = yield* rpcCall("getAccountInfo", ctx.url, () =>
       ctx.rpc.getAccountInfo(address(action.account), { encoding: "base64" }).send(),
@@ -154,10 +121,16 @@ export const buildSignedTokenAccountClose = ({ ctx, kit }, action) =>
         ...refusal,
         reason: `${refusal.reason}; nothing was signed`,
       });
-    const instruction = getCloseAccountInstruction(
-      { account: address(action.account), destination: kit.signer.address, owner: kit.signer },
-      { programAddress: address(read.facts.program) },
-    );
-    const signed = yield* signClose(ctx, kit, instruction);
-    return { signed, plan: { quote: quoteOf(read.facts) } };
+    /** @type {import("../submission/seal-draft.js").Draft} */
+    const draft = {
+      label: "token account close",
+      instructions: [
+        getCloseAccountInstruction(
+          { account: address(action.account), destination: kit.signer.address, owner: kit.signer },
+          { programAddress: address(read.facts.program) },
+        ),
+      ],
+      config: CLOSE_ACCOUNT_V1_CONFIG,
+    };
+    return { draft, plan: { quote: quoteOf(read.facts) } };
   }).pipe(Effect.withSpan("executor.buildTokenAccountClose"));

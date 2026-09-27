@@ -1,23 +1,12 @@
 // @ts-check
 /**
- * Assemble and sign one pump.fun buy under the local v1 policy. Nothing here can send.
+ * Draft one pump.fun trade for Submission to seal (ADR-0032). Nothing here signs or sends.
  *
  * The buy opens the buyer's token account and, on a first buy, their volume accumulator, so the
  * compute budget allows for those initialisations. The policy values are solOS's own, never the
  * provider's.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
-import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import {
-  beginV1Message,
-  signV1Message,
-  rejectionAfterV1Policy,
-} from "../executor/transaction-v1.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { planPumpBuy } from "./pump-buy-plan.js";
 import { planPumpSell } from "./pump-sell-plan.js";
 
@@ -31,11 +20,9 @@ export const PUMP_BUY_V1_CONFIG = Object.freeze({
   priorityFeeLamports: 100_000n,
 });
 
-const LIFETIME_EXPIRED = "the pump buy lifetime expired before signing; nothing was signed";
-
 /**
- * Assemble and sign one pump trade. Both directions share the lifetime check, the v1 policy and
- * the signing; only the planner differs, and each planner decides its own refusals.
+ * Draft one pump trade. Both directions share the v1 budget; only the planner differs, and each
+ * planner decides its own refusals. Sealing proves the lifetime before any signer is involved.
  * @param {{ ctx: Rpc; kit: Kit }} deps
  * @param {import("@solos/actions").SwapAction} action
  * @param {(ctx: Rpc, action: import("@solos/actions").SwapAction, signer: Kit["signer"]) =>
@@ -44,37 +31,19 @@ const LIFETIME_EXPIRED = "the pump buy lifetime expired before signing; nothing 
  *     import("@solos/core").BuildRejected | import("@solos/core").RpcError
  *   >} planner
  */
-const buildSignedPumpTrade = ({ ctx, kit }, action, planner) =>
-  Effect.gen(function* () {
-    const plan = yield* planner(ctx, action, kit.signer);
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const height = yield* rpcCall("getBlockHeight", ctx.url, () =>
-      ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
-    );
-    if (height > lifetime.lastValidBlockHeight) {
-      return yield* new BuildRejected({ reason: LIFETIME_EXPIRED });
-    }
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: PUMP_BUY_V1_CONFIG }),
-    );
-    const signed = yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          /** @type {any} */ (
-            appendTransactionMessageInstructions(/** @type {any} */ (plan.instructions), message)
-          ),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-    return { signed, quote: plan.quote };
-  }).pipe(Effect.withSpan("executor.buildPumpBuy"));
+const draftPumpTrade = ({ ctx, kit }, action, planner) =>
+  Effect.map(planner(ctx, action, kit.signer), (plan) => ({
+    /** @type {import("../submission/seal-draft.js").Draft} */
+    draft: {
+      label: "pump trade",
+      instructions: /** @type {any} */ (plan.instructions),
+      config: PUMP_BUY_V1_CONFIG,
+    },
+    quote: plan.quote,
+  })).pipe(Effect.withSpan("executor.buildPumpBuy"));
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").SwapAction} action */
-export const buildSignedPumpBuy = (deps, action) => buildSignedPumpTrade(deps, action, planPumpBuy);
+export const draftPumpBuy = (deps, action) => draftPumpTrade(deps, action, planPumpBuy);
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").SwapAction} action */
-export const buildSignedPumpSell = (deps, action) =>
-  buildSignedPumpTrade(deps, action, planPumpSell);
+export const draftPumpSell = (deps, action) => draftPumpTrade(deps, action, planPumpSell);

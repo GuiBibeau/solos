@@ -1,30 +1,30 @@
 // @ts-check
 /**
- * Submission (ADR-0031): the one order every signed v1 transaction takes to the chain.
+ * Submission (ADR-0031): the one order every v1 transaction takes, from a venue's draft to the
+ * chain.
  *
  *   seal → lifetime → simulate → venue guard → lifetime → deliver → confirm
  *
- * The mode's parameters switch steps on or off; nothing reorders them. Simulating is the first
- * half of this order, run by the same code, so what the simulate tier checks is what the
- * execute tier checks. Venues contribute a probe (what a simulation must show) and a guard
- * (what must still hold right before sending); they never send.
+ * Sealing (ADR-0032) fetches the lifetime and signs the venue's draft. The mode's parameters
+ * switch steps on or off; nothing reorders them. Simulating is the first half of this order,
+ * run by the same code, so what the simulate tier checks is what the execute tier checks.
+ * Venues hand over a draft and may contribute a probe (what a simulation must show) and a guard
+ * (what must still hold right before sending); they never sign or send.
  */
 import { SimulationFailed } from "@solos/core";
 import { Effect } from "effect";
 import { simulationErrorText } from "../executor/simulation-error-text.js";
 import { confirmDelivery } from "./confirm.js";
 import { assertLive } from "./lifetime.js";
-import { seal } from "./sealed.js";
+import { sealDraft } from "./seal-draft.js";
 import { simulateSealed } from "./simulate.js";
 
 /**
- * @typedef {{
- *   readonly ctx: import("../rpc/solana-rpc.js").SolanaRpcShape;
+ * @typedef {import("./seal-draft.js").SealDeps & {
  *   readonly submitter: import("./submitter.js").SubmitterShape;
- *   readonly mode: import("./mode.js").SubmissionMode;
  * }} SubmissionDeps
  * @typedef {{
- *   readonly signed: import("./sealed.js").Signed;
+ *   readonly draft: import("./seal-draft.js").Draft;
  *   readonly probe?: import("./simulate.js").Probe;
  *   readonly guard?: Effect.Effect<void, import("@solos/core").ExecutorError>;
  *   readonly requireSimulation?: boolean;
@@ -42,14 +42,14 @@ const checkLifetime = (deps, sealed) =>
 
 /**
  * The simulate tier: seal, check the lifetime, simulate with the venue's probe. A failed
- * simulation is returned for the caller to report, not raised.
+ * simulation is returned for the caller to report, not raised. Nothing signed here is sent.
  * @param {SubmissionDeps} deps
  * @param {SubmissionRequest} request
  * @returns {Effect.Effect<import("./simulate.js").Simulated, import("@solos/core").ExecutorError>}
  */
-export const simulateSigned = (deps, request) =>
+export const simulateDraft = (deps, request) =>
   Effect.gen(function* () {
-    const sealed = yield* seal(request.signed);
+    const sealed = yield* sealDraft(deps, request.draft);
     yield* checkLifetime(deps, sealed);
     return yield* simulateSealed(deps.ctx, sealed, request.probe);
   }).pipe(Effect.withSpan("submission.simulate"));
@@ -74,16 +74,17 @@ const simulateOrRefuse = (deps, sealed, probe) =>
 
 /**
  * The whole order. Everything before delivery refuses with "nothing was sent"; only delivery
- * and confirmation can end in a TransactionFailed that carries a signature. The second lifetime
- * check runs only when a simulation or a guard took time since the first.
+ * and confirmation can end in a TransactionFailed that carries a signature. The check right
+ * after sealing stays because signing can take seconds with a remote signer; the one before
+ * delivery runs only when a simulation or a guard took time since then.
  * @param {SubmissionDeps} deps
  * @param {SubmissionRequest} request
  * @param {{ readonly skipSimulation: boolean }} options
  * @returns {Effect.Effect<Delivered, import("@solos/core").ExecutorError>}
  */
-export const submitSigned = (deps, request, options) =>
+export const submitDraft = (deps, request, options) =>
   Effect.gen(function* () {
-    const sealed = yield* seal(request.signed);
+    const sealed = yield* sealDraft(deps, request.draft);
     const simulated = simulates(deps, request, options);
     yield* checkLifetime(deps, sealed);
     const verdict = simulated ? yield* simulateOrRefuse(deps, sealed, request.probe) : null;

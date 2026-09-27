@@ -1,20 +1,16 @@
 // @ts-check
 /**
  * The withdraw half of the executor: turn one `remove_liquidity` action into exactly one
- * signed v1 transaction — or a typed failure, before anything is signed. Orca is planned
- * here; Raydium and Meteora have their own builders. The plan (guards, fetch orchestration,
- * bps fraction, slippage-bounded minimums, derivations) is pure over its reader seam; this
- * module binds the reader to real RPC, proves the receiving token accounts (creating a
- * missing owner ATA idempotently when the position owes that side nothing at the current
- * price — its rent is a protocol-mandated transfer, distinct from removed principal), and
- * assembles the transaction under the local v1 policy. A failed plan is a `BuildRejected`:
- * the intent never becomes bytes, and the position's liquidity stays put. The position
- * account is never closed. Orca and Raydium keep the position NFT; Meteora has none.
+ * draft for Submission to seal (ADR-0032), or a typed failure before anything is signed.
+ * Orca is planned here; Raydium and Meteora have their own builders. The plan (guards, fetch
+ * orchestration, bps fraction, slippage-bounded minimums, derivations) is pure over its reader
+ * seam; this module binds the reader to real RPC, proves the receiving token accounts
+ * (creating a missing owner ATA idempotently when the position owes that side nothing at the
+ * current price — its rent is a protocol-mandated transfer, distinct from removed principal),
+ * and orders the draft's instructions. A failed plan is a `BuildRejected`: the intent never
+ * becomes bytes, and the position's liquidity stays put. The position account is never
+ * closed. Orca and Raydium keep the position NFT; Meteora has none.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
@@ -23,26 +19,24 @@ import {
   decreaseLiquidityInstruction,
 } from "../liquidity/whirlpool-withdraw-instruction.js";
 import { withdrawPlan } from "../liquidity/whirlpool-withdraw-plan.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { liquidityRead, receivingSide, setupSides } from "./liquidity-token-accounts.js";
-import { buildSignedMeteoraWithdraw } from "./meteora-withdraw-build.js";
-import { buildSignedRaydiumWithdraw } from "./raydium-liquidity-build.js";
-import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
+import { draftMeteoraWithdraw } from "./meteora-withdraw-build.js";
+import { draftRaydiumWithdraw } from "./raydium-liquidity-build.js";
 
 const EXECUTOR = "direct-signer";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("@solos/actions").RemoveLiquidityAction} RemoveLiquidityAction */
-/** @typedef {Awaited<ReturnType<typeof signV1Message>>} Signed */
-/** @typedef {Parameters<typeof appendTransactionMessageInstructions>[0][number]} SetupInstruction */
+/** @typedef {import("../submission/seal-draft.js").Draft} Draft */
+/** @typedef {Draft["instructions"][number]} SetupInstruction */
 /**
  * What a planned withdrawal carries, narrowed to the fields `withdrawQuoteOf` consumes so both
  * venues satisfy it.
  * @typedef {{ readonly liquidity: bigint; readonly estA: bigint; readonly estB: bigint;
  *   readonly minA: bigint; readonly minB: bigint }} WithdrawQuoteSource
  */
-/** @typedef {{ readonly signed: Signed; readonly plan: WithdrawQuoteSource }} PlannedWithdraw */
+/** @typedef {{ readonly draft: Draft; readonly plan: WithdrawQuoteSource }} PlannedWithdraw */
 
 /**
  * Prove each receiving side. A present account needs nothing. An absent side is allowed only
@@ -90,44 +84,26 @@ const planFromChain = (ctx, owner, action) => {
 };
 
 /**
- * Assemble and sign the removal under the local v1 policy: a fresh blockhash lifetime, any
- * idempotent ATA creates the receipt proof demanded, then exactly one
- * `decrease_liquidity`. Nothing here can send anything.
+ * The removal's draft: any idempotent ATA creates the receipt proof demanded, then exactly one
+ * `decrease_liquidity`. Submission seals it; nothing here signs.
  * @param {{
- *   ctx: Rpc;
- *   kit: Kit;
  *   plan: import("../liquidity/whirlpool-withdraw-plan.js").WithdrawPlanOk;
  *   creates: SetupInstruction[];
  * }} parts
- * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").BuildRejected | import("@solos/core").RpcError>}
+ * @returns {Draft}
  */
-const signWithdraw = ({ ctx, kit, plan, creates }) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: WHIRLPOOL_V1_CONFIG }),
-    );
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions(
-            [
-              ...creates,
-              decreaseLiquidityInstruction(plan.accounts, {
-                liquidity: plan.liquidity,
-                tokenMinA: plan.minA,
-                tokenMinB: plan.minB,
-              }),
-            ],
-            message,
-          ),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
+const withdrawDraft = ({ plan, creates }) => ({
+  label: "Orca withdraw",
+  instructions: [
+    ...creates,
+    decreaseLiquidityInstruction(plan.accounts, {
+      liquidity: plan.liquidity,
+      tokenMinA: plan.minA,
+      tokenMinB: plan.minB,
+    }),
+  ],
+  config: WHIRLPOOL_V1_CONFIG,
+});
 
 /**
  * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
@@ -145,18 +121,18 @@ export const withdrawQuoteOf = (plan) => ({
 });
 
 /**
- * Build and sign one removal. Orca is assembled here. Raydium and Meteora dispatch to
+ * Draft one removal. Orca is assembled here. Raydium and Meteora dispatch to
  * their own builders. Any other protocol is refused before RPC.
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {RemoveLiquidityAction} action
  * @returns {import("effect").Effect.Effect<PlannedWithdraw, import("@solos/core").ExecutorError>}
  */
-export const buildSignedLiquidityWithdraw = ({ ctx, kit }, action) =>
+export const draftLiquidityWithdraw = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol === "raydium") {
-      return yield* buildSignedRaydiumWithdraw({ ctx, kit }, action);
+      return yield* draftRaydiumWithdraw({ ctx, kit }, action);
     }
     if (action.protocol === "meteora") {
-      return yield* buildSignedMeteoraWithdraw({ ctx, kit }, action);
+      return yield* draftMeteoraWithdraw({ ctx, kit }, action);
     }
     if (action.protocol !== "orca") {
       return yield* new UnsupportedAction({
@@ -170,6 +146,5 @@ export const buildSignedLiquidityWithdraw = ({ ctx, kit }, action) =>
     }
     const read = liquidityRead(ctx);
     const creates = yield* receiptSetup(read, kit, plan);
-    const signed = yield* signWithdraw({ ctx, kit, plan, creates });
-    return { signed, plan };
+    return { draft: withdrawDraft({ plan, creates }), plan };
   }).pipe(Effect.withSpan("executor.buildLiquidityWithdraw"));

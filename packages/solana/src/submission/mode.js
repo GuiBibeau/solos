@@ -17,15 +17,17 @@ export const SubmissionModeSchema = z.strictObject({
     recheck: z
       .boolean()
       .describe(
-        "Read the block height after signing and again before sending; an expired transaction is refused as never sent",
+        "Read the block height before signing, after signing and again before sending; an expired transaction is refused as never sent",
       ),
-    commitment: Commitment.describe("Commitment the block height is read at"),
+    commitment: Commitment.describe(
+      "Commitment the blockhash is fetched and the block height read at",
+    ),
     minBlocksRemaining: z
       .number()
       .int()
       .min(0)
       .max(150)
-      .describe("Refuse to send with fewer blocks than this left before the lifetime ends"),
+      .describe("Refuse to sign or send with fewer blocks than this left before the lifetime ends"),
   }),
   confirmation: z.strictObject({
     commitment: z

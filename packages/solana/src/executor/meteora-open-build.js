@@ -17,7 +17,7 @@ import { decodeLbPair } from "../liquidity/meteora-dlmm-decode.js";
 import { initializePositionInstruction } from "../liquidity/meteora-dlmm-position-ix.js";
 import { METEORA_DLMM_PROGRAM } from "../liquidity/meteora-dlmm-program.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
-import { notMeteora, signMeteoraPosition } from "./meteora-position-sign.js";
+import { meteoraPositionDraft, notMeteora } from "./meteora-position-draft.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -87,7 +87,7 @@ export const meteoraOpenQuoteOf = (action, plan) => ({
 });
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
-export const buildSignedMeteoraOpen = ({ ctx, kit }, action) =>
+export const draftMeteoraOpen = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol !== "meteora") return yield* notMeteora("open_position", action.protocol);
     const issue = meteoraWidthIssue(action.lowerBinId, action.width);
@@ -104,6 +104,6 @@ export const buildSignedMeteoraOpen = ({ ctx, kit }, action) =>
       positionSigner,
       eventAuthority,
     });
-    const signed = yield* signMeteoraPosition({ ctx, kit, instructions: [instruction] });
-    return { signed, plan: { position: positionSigner.address } };
+    const draft = meteoraPositionDraft("Meteora open", [instruction]);
+    return { draft, plan: { position: positionSigner.address } };
   }).pipe(Effect.withSpan("executor.buildMeteoraOpen"));

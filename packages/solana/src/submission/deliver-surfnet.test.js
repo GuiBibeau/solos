@@ -1,9 +1,8 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
-import { getSignatureFromTransaction } from "@solana/kit";
 import { EventBusInMemory, sendSol, TransactionFailed } from "@solos/core";
 import { Cause, Effect, Exit, Layer, Option } from "effect";
-import { buildSignedTransfer } from "../executor/transfer-sol.js";
+import { transferDraft } from "../executor/transfer-sol.js";
 import { SolanaTestLive } from "../index.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
@@ -16,20 +15,18 @@ import {
   MAY_HAVE_LANDED,
 } from "./confirm.js";
 import { SLOW } from "./mode.js";
-import { seal } from "./sealed.js";
+import { sealDraft } from "./seal-draft.js";
 import { rpcSubmitter } from "./submitter.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
-/** @typedef {import("../executor/transfer-sol.js").Signed} Signed */
+/** @typedef {import("./sealed.js").Sealed} Sealed */
 
 /**
  * Deliver through the RPC Submitter over a possibly overlaid RPC, with the default confirmation.
- * @param {Rpc} ctx @param {Signed} signed @param {number} [deadlineMs]
+ * @param {Rpc} ctx @param {Sealed} sealed @param {number} [deadlineMs]
  */
-const deliver = (ctx, signed, deadlineMs = SLOW.confirmation.deadlineMs) =>
-  Effect.flatMap(seal(signed), (sealed) =>
-    confirmDelivery(rpcSubmitter(ctx), sealed, { ...SLOW.confirmation, deadlineMs }),
-  );
+const deliver = (ctx, sealed, deadlineMs = SLOW.confirmation.deadlineMs) =>
+  confirmDelivery(rpcSubmitter(ctx), sealed, { ...SLOW.confirmation, deadlineMs });
 
 /**
  * @template E
@@ -97,17 +94,15 @@ const dropAfterSend = (ctx, signature) => ({
   }),
 });
 
-/** @param {string} to */
-const signedPair = (to) =>
+/** Seal one real transfer draft on Surfnet, so each case delivers bytes it did not build.
+ * @param {string} to */
+const sealedPair = (to) =>
   Effect.gen(function* () {
     const ctx = yield* SolanaRpc;
     const kit = yield* KitSigner;
-    const signed = yield* buildSignedTransfer(ctx, kit, {
-      type: "transfer_sol",
-      to,
-      lamports: "1000000",
-    });
-    return { ctx, signed };
+    const draft = transferDraft(kit, { type: "transfer_sol", to, lamports: "1000000" });
+    const sealed = yield* sealDraft({ ctx, kit, mode: SLOW }, draft);
+    return { ctx, sealed };
   });
 
 describe("Submission delivery through the RPC Submitter against Surfnet [integration]", () => {
@@ -144,24 +139,22 @@ describe("Submission delivery through the RPC Submitter against Surfnet [integra
   });
 
   test("a dropped send still reports the signature when Surfnet already has it", async () => {
-    const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
-    const exit = await Effect.runPromiseExit(
-      deliver(dropAfterSend(ctx, getSignatureFromTransaction(signed)), signed),
-    );
+    const { ctx, sealed } = await Effect.runPromise(sealedPair(recipient).pipe(provide));
+    const exit = await Effect.runPromiseExit(deliver(dropAfterSend(ctx, sealed.signature), sealed));
     expect(Exit.isSuccess(exit)).toBe(true);
     if (!Exit.isSuccess(exit)) throw new Error("expected success");
     expect(exit.value.length).toBeGreaterThan(60);
   });
 
   test("a hung getSignatureStatuses lookup aborts at the confirmation deadline", async () => {
-    const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
+    const { ctx, sealed } = await Effect.runPromise(sealedPair(recipient).pipe(provide));
     let didReceiveAbort = false;
     const hung = overlayStatuses(ctx, (opts) => {
       didReceiveAbort ||= Boolean(opts?.abortSignal);
       return hangUntilAbort(opts);
     });
     const started = Date.now();
-    const error = await failureOf(deliver(hung, signed, 80));
+    const error = await failureOf(deliver(hung, sealed, 80));
     expect(Date.now() - started).toBeLessThan(5000);
     expect(didReceiveAbort).toBe(true);
     expect(error).toBeInstanceOf(TransactionFailed);
@@ -170,7 +163,7 @@ describe("Submission delivery through the RPC Submitter against Surfnet [integra
   });
 
   test("a confirmed execution error is TransactionFailed immediately, not may-have-landed", async () => {
-    const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
+    const { ctx, sealed } = await Effect.runPromise(sealedPair(recipient).pipe(provide));
     const failed = overlayStatuses(ctx, async () => ({
       context: { slot: 1n },
       value: [
@@ -183,7 +176,7 @@ describe("Submission delivery through the RPC Submitter against Surfnet [integra
       ],
     }));
     const started = Date.now();
-    const error = await failureOf(deliver(failed, signed, 5000));
+    const error = await failureOf(deliver(failed, sealed, 5000));
     expect(Date.now() - started).toBeLessThan(2000);
     expect(error).toBeInstanceOf(TransactionFailed);
     expect(/** @type {TransactionFailed} */ (error)?.reason).toBe(EXECUTION_FAILED);

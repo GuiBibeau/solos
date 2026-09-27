@@ -68,7 +68,12 @@ A survey of every signing site found:
   | v1 policy | `BuildRejected`, naming the clause |
   | Signer | `SignerUnavailable`, with a fixed reason that never carries a provider's response body |
 
-  This changes transfer, whose signer failure used to be an `RpcError`.
+  Before this, only swap reported a signer failure as `SignerUnavailable`. Transfer reported it
+  as an `RpcError`. Every other venue reported it as a `BuildRejected` with a generic
+  "assembling or signing failed" sentence. All of them now see `SignerUnavailable`. Assembly
+  failures stay `BuildRejected`, because the pre-signing boundary turns every exception it
+  catches into one that names its clause. A Kit refusal inside the signing call itself, such as
+  a signer-role account with no signer, is reported as `SignerUnavailable` too.
 - **Submission never reorders or drops a draft's instructions.** Kamino's refreshes must stay
   contiguous before the deposit, because the program introspects them. The wrap-SOL prefix and
   suffix and Jupiter's setup, swap, cleanup order also carry weight.
@@ -87,6 +92,6 @@ A survey of every signing site found:
   builder-level height read.
 - A priority-fee override has to reach core's transfer balance reserve, which assumes the
   default fee today.
-- It ships as one PR with one commit per venue group, and no input that accepts both signed
-  transactions and drafts. A small live smoke of the converted paths is recorded in the same
-  change set.
+- It ships as one PR. Submission's input changes from a signed transaction to a draft in one
+  step, with no input that accepts both, so every venue moves in the same commit. A small live
+  smoke of the converted paths is recorded in the same change set.
