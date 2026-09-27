@@ -14,6 +14,7 @@ import {
   ExecuteOpenPositionInput,
   OpenPositionInput,
 } from "../domain/lifecycle-types.js";
+import { SUPPORTED_VENUES } from "../domain/supported-venues.js";
 import { hasLifecycle } from "../domain/types.js";
 import {
   executeClosePosition,
@@ -40,13 +41,15 @@ const OPEN_TEXT =
   "meteora (DLMM): pass lowerBinId and width. Width must be an integer from 1 to 70; an illegal " +
   "width is refused, never clamped. The open is empty (initialize_position); add liquidity " +
   "afterwards with the deposit tools. The position account is a fresh keypair and its pubkey is " +
-  "returned on the execute result. Rent is the signer's and is reclaimed by closing.";
+  "returned on the execute result. Rent is the signer's and is reclaimed by closing. " +
+  SUPPORTED_VENUES;
 
 const CLOSE_TEXT =
   "Close an emptied concentrated-liquidity position and reclaim its rent. " +
   "raydium (CLMM) refuses while any liquidity, unclaimed fee, or unclaimed reward remains, and " +
   "burns the position NFT. meteora (DLMM) refuses while any liquidity share remains, so remove " +
-  "them with the withdraw tool first. A meteora position is the PositionV2 account, not an NFT.";
+  "them with the withdraw tool first. A meteora position is the PositionV2 account, not an NFT. " +
+  SUPPORTED_VENUES;
 
 export const simulateOpenPositionTool = defineTool({
   name: "solana_liquidity_simulate_open_position",

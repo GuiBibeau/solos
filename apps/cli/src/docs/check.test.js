@@ -52,6 +52,7 @@ describe("docs gate", () => {
     expect(report.regions.map((r) => [r.file, r.status, r.detail])).toEqual([
       ["docs/reference/tools/index.md", "current", ""],
       ["AGENTS.md", "current", ""],
+      ["docs/reference/tools/liquidity.md", "current", ""],
     ]);
     expect(report.ok).toBe(true);
   });

@@ -1,6 +1,7 @@
 // @ts-check
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import { SUPPORTED_VENUES } from "../domain/supported-venues.js";
 import { isPositionReadable, LiquidityGetPositionInputSchema } from "../domain/types.js";
 import { getLpPosition } from "../use-cases/get-position.js";
 
@@ -20,8 +21,9 @@ export const getLpPositionTool = defineTool({
     "position is a typed error, never a fabricated zero; an owned zero-liquidity position " +
     "is a successful zero read. owner defaults to the configured signer, so any third " +
     "party's position can be read by naming its owner. valueUsd is always null. Deposits " +
-    "and withdrawals stay inside the existing bins. Opens and closes cover raydium and an empty meteora position. " +
-    "Read-only: nothing is deposited, withdrawn, claimed, or signed.",
+    "and withdrawals stay inside the existing bins. " +
+    "Read-only: nothing is deposited, withdrawn, claimed, or signed. " +
+    SUPPORTED_VENUES,
   input: LiquidityGetPositionInputSchema,
   // Pure guard: dispatchers run it before the signer-bearing runtime is acquired, so a
   // supported-but-unimplemented protocol never builds the Layers at all.

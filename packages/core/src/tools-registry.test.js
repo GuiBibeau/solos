@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { SUPPORTED_VENUES } from "./liquidity/index.js";
 import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
@@ -88,6 +89,12 @@ describe("tool registry", () => {
   test("every execute tool is named solana_<group>_execute_<object>", () => {
     for (const tool of allTools.filter((t) => t.tier === "execute")) {
       expect(tool.name.startsWith(`solana_${tool.group}_execute_`), tool.name).toBe(true);
+    }
+  });
+
+  test("every liquidity tool states the supported venues from the protocol lists", () => {
+    for (const tool of allTools.filter((t) => t.group === "liquidity")) {
+      expect(tool.description, tool.name).toContain(SUPPORTED_VENUES);
     }
   });
 
