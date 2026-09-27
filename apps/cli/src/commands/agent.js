@@ -40,7 +40,10 @@ const summarizeToolCalls = (steps) =>
  */
 const run = Command.make("run", { task, groups, taskClass }, (o) =>
   Effect.gen(function* () {
-    const { layer, config } = yield* Effect.promise(() => loadHarness());
+    const { layer, config } = yield* Effect.tryPromise({
+      try: () => loadHarness(),
+      catch: (error) => error,
+    });
     const runtime = makeHarnessRuntime(layer);
     const external = yield* Effect.promise(() => discoverMcpTools(config.mcpServers));
     const route = yield* resolveRouteFor(runtime, o.taskClass);

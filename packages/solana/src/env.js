@@ -1,4 +1,5 @@
 // @ts-check
+import { RpcConfigMissing, SignerConfigMissing } from "@solos/core";
 import { base58ByteLength } from "@solos/core/shared";
 import { z } from "zod";
 import { selectProfile, sourceFromProfile } from "./credentials/resolve.js";
@@ -97,9 +98,11 @@ const resolveSigner = (parsed, env) => {
   if (fromEnv) return { signer: fromEnv, selected: undefined };
   const selected = selectProfile(env);
   if (selected === undefined) {
-    throw new Error(
-      "no signer: set SOLOS_SIGNER_KEYPAIR_PATH / SOLOS_SIGNER_PRIVATE_KEY, or run `solos login`",
-    );
+    throw new SignerConfigMissing({
+      reason:
+        "no signer: set SOLOS_SIGNER_KEYPAIR_PATH / SOLOS_SIGNER_PRIVATE_KEY, or run `solos login`",
+      remedy: "run `solos login` to save a profile, or export SOLOS_SIGNER_KEYPAIR_PATH",
+    });
   }
   return { signer: sourceFromProfile(selected.profile, env, selected.name), selected };
 };
@@ -116,9 +119,10 @@ export const loadSolanaEnv = (env) => {
   const { signer, selected } = resolveSigner(parsed, env);
   const rpcUrl = parsed.SOLANA_RPC_URL ?? selected?.profile.rpcUrl;
   if (rpcUrl === undefined) {
-    throw new Error(
-      "SOLANA_RPC_URL is not set and the profile has no rpcUrl; there is no default RPC",
-    );
+    throw new RpcConfigMissing({
+      reason: "SOLANA_RPC_URL is not set and the profile has no rpcUrl; there is no default RPC",
+      remedy: "export SOLANA_RPC_URL, or run `solos login --rpc-url <url>`",
+    });
   }
   return {
     rpcUrl,

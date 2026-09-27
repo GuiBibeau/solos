@@ -68,3 +68,17 @@ export class BuildRejected extends /** @type {BuildRejectedClass} */ (
 export class BuildUnavailable extends /** @type {BuildUnavailableClass} */ (
   taggedError("BuildUnavailable")
 ) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"SignerConfigMissing", SignerConfigMissingProps>} SignerConfigMissingClass */
+/** @typedef {{ readonly reason: string }} SignerConfigMissingProps */
+/** No signer is configured. Ordinary missing configuration, reported as a domain error, not a defect. */
+export class SignerConfigMissing extends /** @type {SignerConfigMissingClass} */ (
+  taggedError("SignerConfigMissing")
+) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"RpcConfigMissing", RpcConfigMissingProps>} RpcConfigMissingClass */
+/** @typedef {{ readonly reason: string }} RpcConfigMissingProps */
+/** No RPC URL is configured, and there is no default. Ordinary missing configuration, not a defect. */
+export class RpcConfigMissing extends /** @type {RpcConfigMissingClass} */ (
+  taggedError("RpcConfigMissing")
+) {}

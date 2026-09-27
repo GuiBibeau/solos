@@ -76,8 +76,14 @@ describe("signer from a profile [integration]", () => {
   });
 
   test("no signer anywhere is a clear error", () => {
-    expect(() =>
-      loadSolanaEnv({ SOLOS_CONFIG_DIR: `${dir}-empty`, SOLANA_RPC_URL: "http://127.0.0.1:1" }),
-    ).toThrow(/solos login/);
+    /** @type {{ _tag?: string; reason?: string }} */
+    let error;
+    try {
+      loadSolanaEnv({ SOLOS_CONFIG_DIR: `${dir}-empty`, SOLANA_RPC_URL: "http://127.0.0.1:1" });
+    } catch (error_) {
+      error = /** @type {{ _tag?: string; reason?: string }} */ (error_);
+    }
+    expect(error?._tag).toBe("SignerConfigMissing");
+    expect(error?.reason).toContain("solos login");
   });
 });

@@ -1,6 +1,6 @@
 // @ts-check
 import { errorEnvelope, toJsonSafe } from "@solos/core";
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 
 /**
  * Always JSON, so agents can parse it. Pretty when a human is watching a TTY.
@@ -50,6 +50,21 @@ const firstFailure = (cause) => {
 
 /** @param {import("effect").Cause.Cause<unknown>} cause */
 const describeCause = (cause) => {
-  const failure = /** @type {{ _tag?: string } | undefined} */ (firstFailure(cause));
-  return errorEnvelope(failure) ?? { code: "InternalError", reason: String(cause) };
+  const envelope = errorEnvelope(firstFailure(cause));
+  return envelope ?? { code: "InternalError", reason: defectReason(cause) };
 };
+
+/**
+ * The first rendered line of a defect: a message, never a stack frame, and never an absolute
+ * path even when the defect's own message embeds one (Node filesystem errors do). A defect is
+ * still `InternalError`, and still carries no trace outward.
+ * @param {import("effect").Cause.Cause<unknown>} cause
+ */
+const defectReason = (cause) => {
+  if (Cause.isInterruptedOnly(cause)) return "interrupted";
+  const line = Cause.pretty(cause).split("\n", 1)[0] ?? "defect";
+  return line.replaceAll(ABSOLUTE_PATH, "<path>");
+};
+
+/** A path-looking run: a slash not preceded by a word character, a colon, or another slash. */
+const ABSOLUTE_PATH = /(?<![-\w:/])\/(?:[^\s'"]+)/g;

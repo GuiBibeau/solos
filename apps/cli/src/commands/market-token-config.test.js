@@ -95,7 +95,7 @@ describe("`solos market token` RPC configuration precedence [integration]", () =
       SOLOS_LOG_LEVEL: "warn",
     });
     expect(code).not.toBe(0);
-    expect(stderrJson(stderr)?.error).toMatchObject({ code: "InternalError" });
+    expect(stderrJson(stderr)?.error).toMatchObject({ code: "RpcConfigMissing" });
     expect(stderr).toContain("SOLANA_RPC_URL is not set");
   });
 
