@@ -51,12 +51,12 @@ export const buildSignedSwap = ({ ctx, kit, build }, action) =>
       });
     }
     const envelope = yield* fetchValidatedBuild({ kit, build }, action);
-    const lifetime = yield* preflightSwapBuild(ctx, {
+    const { lifetime, tempWsolExisted } = yield* preflightSwapBuild(ctx, {
       envelope,
       action,
       taker: kit.signer.address,
     });
-    const signed = yield* assembleAndSign({ kit, lifetime }, envelope);
+    const signed = yield* assembleAndSign({ kit, lifetime, tempWsolExisted }, envelope);
     return { signed, envelope };
   });
 

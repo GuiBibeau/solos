@@ -68,14 +68,15 @@ export const fetchValidatedBuild = ({ kit, build }, action) =>
 /**
  * Assemble the validated envelope and sign it once. The pre-sign boundary proves v1 and the
  * fixed size bounds before involving a signer.
- * @param {{ kit: Kit; lifetime: import("@solana/kit").BlockhashLifetimeConstraint }} deps
+ * @param {{ kit: Kit; lifetime: import("@solana/kit").BlockhashLifetimeConstraint;
+ *   tempWsolExisted?: boolean }} deps
  * @param {JupiterBuildEnvelope} envelope
  * @returns {import("effect").Effect.Effect<Signed, BuildRejected | SignerUnavailable>}
  */
-export const assembleAndSign = ({ kit, lifetime }, envelope) =>
+export const assembleAndSign = ({ kit, lifetime, tempWsolExisted = false }, envelope) =>
   Effect.gen(function* () {
     const message = yield* Effect.tryPromise({
-      try: () => assembleSwapMessage(envelope, kit.signer, lifetime),
+      try: () => assembleSwapMessage(envelope, kit.signer, { lifetime, tempWsolExisted }),
       catch: () => new BuildRejected({ reason: ASSEMBLY_GUARD_REASON }),
     });
     yield* Effect.try({

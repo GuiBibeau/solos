@@ -12,10 +12,11 @@ const LIFETIME = {
 };
 
 /** First data bytes of the assembled message: the two leading ATA creates' opcodes. */
-/** @param {Awaited<ReturnType<typeof buildEnvelope>>} envelope */
-const createOpcodes = async (envelope) => {
+/** @param {Awaited<ReturnType<typeof buildEnvelope>>} envelope
+ * @param {{ tempWsolExisted?: boolean }} [options] */
+const createOpcodes = async (envelope, options) => {
   const { compiled } = assertV1MessageForSigning(
-    await assembleSwapMessage(envelope, signer, LIFETIME),
+    await assembleSwapMessage(envelope, signer, { lifetime: LIFETIME, ...options }),
   );
   return compiled.instructionPayloads
     .slice(0, 2)
@@ -26,6 +27,12 @@ describe("temp wSOL create pinning at assembly", () => {
   test("a cleanup-owned build pins the temp create to exclusive creation", async () => {
     const envelope = await buildEnvelope({ taker: signer.address });
     expect(await createOpcodes(envelope)).toEqual([1, 0]);
+  });
+
+  test("an existing empty temp account keeps the idempotent create", async () => {
+    // #138: the account pre-exists empty, so an exclusive create would fail on it.
+    const envelope = await buildEnvelope({ taker: signer.address });
+    expect(await createOpcodes(envelope, { tempWsolExisted: true })).toEqual([1, 1]);
   });
 
   test("a build without cleanup keeps idempotent creates for durable wSOL accounts", async () => {

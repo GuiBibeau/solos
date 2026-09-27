@@ -81,13 +81,16 @@ const roleFor = (account, taker) => {
 
 /**
  * The temp wSOL create rides from the provider as createIdempotent (Jupiter's live shape);
- * assembly pins it to exclusive creation (opcode 0). If the account raced into existence after
- * the preflight absence proof, the create fails and the whole transaction aborts instead of
- * adopting and closing that account (SPL Token unwraps a native account on close). The
- * destination ATA create keeps idempotent semantics: it legitimately pre-exists after a swap.
- * @param {RawInstruction} ix @param {string} tempWsol
+ * assembly pins it to exclusive creation (opcode 0) only when the preflight proved the account
+ * absent. If it raced into existence since, the create fails and the transaction aborts instead
+ * of adopting and closing that account (SPL Token unwraps a native account on close). When the
+ * account was already there — empty — the idempotent create is kept, since an exclusive one would
+ * fail on it. The destination ATA create always keeps idempotent semantics: it legitimately
+ * pre-exists after a swap.
+ * @param {RawInstruction} ix @param {string} tempWsol @param {boolean} tempWsolExisted
  */
-const pinExclusiveTempCreate = (ix, tempWsol) => {
+const pinExclusiveTempCreate = (ix, tempWsol, tempWsolExisted) => {
+  if (tempWsolExisted) return ix;
   if (ix.programId !== ATA_PROGRAM || ix.accounts[1]?.pubkey !== tempWsol) return ix;
   const bytes = dataBytes(ix.data);
   if (bytes.length !== 1 || bytes[0] === 0) return ix;
@@ -99,9 +102,13 @@ const pinExclusiveTempCreate = (ix, tempWsol) => {
  * and the configured RPC's fresh blockhash lifetime.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  * @param {import("../signer/kit-signer.js").KitCompatibleSigner} takerSigner
- * @param {import("@solana/kit").BlockhashLifetimeConstraint} lifetime
+ * @param {{ lifetime: import("@solana/kit").BlockhashLifetimeConstraint; tempWsolExisted?: boolean }} parts
  */
-export const assembleSwapMessage = async (envelope, takerSigner, lifetime) => {
+export const assembleSwapMessage = async (
+  envelope,
+  takerSigner,
+  { lifetime, tempWsolExisted = false },
+) => {
   const tempWsol = await derivedAta(takerSigner.address, WSOL_MINT);
   // Only a cleanup-owned lifecycle grants the right to create-and-close the temp account; a
   // build without cleanup may legitimately use the canonical wSOL ATA durably, and its
@@ -109,7 +116,7 @@ export const assembleSwapMessage = async (envelope, takerSigner, lifetime) => {
   const isCleanupOwned = envelope.cleanupInstruction !== null;
   const ordered = [
     ...envelope.setupInstructions.map((ix) =>
-      isCleanupOwned ? pinExclusiveTempCreate(ix, tempWsol) : ix,
+      isCleanupOwned ? pinExclusiveTempCreate(ix, tempWsol, tempWsolExisted) : ix,
     ),
     envelope.swapInstruction,
     ...(envelope.cleanupInstruction ? [envelope.cleanupInstruction] : []),
