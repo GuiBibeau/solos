@@ -1,22 +1,24 @@
 // @ts-check
-import { signature as checkedSignature } from "@solana/kit";
-import { BuildRejected, SimulationFailed } from "@solos/core";
-import { Clock, Effect } from "effect";
-import { simulationErrorText } from "../executor/simulation-error-text.js";
-import { recheckSignedSwapLifetime } from "../executor/swap-preflight.js";
-import { sendSigned, simulateSigned } from "../executor/transfer-sol.js";
+import { BuildRejected } from "@solos/core";
+import { Effect } from "effect";
+import { executionResult, simulationResult } from "../executor/action-results.js";
+import { simulateSigned, submitSigned } from "../submission/submission.js";
 import { buildClose } from "./phoenix-close-build.js";
 import { readCloseRisk } from "./phoenix-close-risk.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 
-/** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape}} Deps */
+/** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape;submission:import("../submission/submission.js").SubmissionDeps}} Deps */
 /** @typedef {Extract<import("@solos/actions").Action,{type:"close_perp"}>} CloseAction */
 /** @typedef {Effect.Effect.Success<ReturnType<typeof buildClose>>} Plan */
 
-/** @param {Deps} deps @param {Plan} plan */
-const recheckClose = (deps, plan) =>
+/**
+ * What must still hold right before a reduce-only close is sent: the build is fresh, the trader
+ * has not moved, and the position and slot window match what was simulated. Submission runs
+ * this after simulation and rechecks the lifetime after it.
+ * @param {Deps} deps @param {Plan} plan
+ */
+const closeGuard = (deps, plan) =>
   Effect.gen(function* () {
-    yield* recheckSignedSwapLifetime(deps.ctx, plan.signed);
     const { owner, state, market, risk, order, symbol, startedAt } = plan.facts;
     if (Date.now() - startedAt > 5000)
       return yield* new BuildRejected({ reason: "Phoenix close build expired before submission" });
@@ -51,39 +53,18 @@ const recheckClose = (deps, plan) =>
 export const simulateClose = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* buildClose(deps, action);
-    const raw = yield* simulateSigned(deps.ctx, plan.signed);
-    const isOk = raw.err === null;
-    return {
-      action,
-      ok: isOk,
-      unitsConsumed: raw.unitsConsumed,
-      logs: raw.logs,
-      projectedPortfolio: null,
-      venueQuote: null,
-      violations: isOk ? [] : [{ rule: "simulation", message: simulationErrorText(raw.err) }],
-    };
+    const simulated = yield* simulateSigned(deps.submission, { signed: plan.signed });
+    return simulationResult(action, simulated, null);
   });
 
 /** @param {Deps} deps @param {CloseAction} action @param {{skipSimulation:boolean}} options */
 export const executeClose = (deps, action, options) =>
   Effect.gen(function* () {
     const plan = yield* buildClose(deps, action);
-    if (!options.skipSimulation) {
-      const raw = yield* simulateSigned(deps.ctx, plan.signed);
-      if (raw.err !== null)
-        return yield* new SimulationFailed({
-          reason: simulationErrorText(raw.err),
-          logs: raw.logs,
-        });
-    }
-    yield* recheckClose(deps, plan);
-    const signature = checkedSignature(yield* sendSigned(deps.ctx, plan.signed));
-    return {
-      action,
-      status: /** @type {const} */ ("confirmed"),
-      signature,
-      executedAt: yield* Clock.currentTimeMillis,
-      simulated: !options.skipSimulation,
-      error: null,
-    };
+    const delivered = yield* submitSigned(
+      deps.submission,
+      { signed: plan.signed, guard: closeGuard(deps, plan) },
+      options,
+    );
+    return yield* executionResult(action, delivered);
   });

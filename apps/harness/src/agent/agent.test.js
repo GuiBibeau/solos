@@ -72,7 +72,12 @@ describe("harness agent loop [integration]", () => {
 
     const firstCall = model.doGenerateCalls[0];
     const offered = (firstCall?.tools ?? []).map((t) => t.name);
-    expect(offered).toEqual(["solana_wallet_get_address", "solana_wallet_get_balance"]);
+    expect(offered).toEqual([
+      "solana_wallet_execute_close_token_account",
+      "solana_wallet_get_address",
+      "solana_wallet_get_balance",
+      "solana_wallet_simulate_close_token_account",
+    ]);
     expect(firstCall?.prompt?.[0]?.content).toContain("solOS");
   });
 });

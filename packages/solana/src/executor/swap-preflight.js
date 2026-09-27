@@ -1,11 +1,7 @@
 // @ts-check
-import {
-  address,
-  assertIsTransactionWithBlockhashLifetime,
-  getSignatureFromTransaction,
-} from "@solana/kit";
+import { address } from "@solana/kit";
 import { getTokenDecoder } from "@solana-program/token";
-import { BuildRejected, TransactionExpired } from "@solos/core";
+import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { ownerBindingRejection } from "../swap/jupiter-swap-build-owner-binding.js";
@@ -14,11 +10,9 @@ import { ATA_PROGRAM, WSOL_MINT, dataBytes } from "../swap/jupiter-swap-build-va
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} Envelope */
-/** @typedef {import("./swap-sol-build.js").Signed} Signed */
 
 const EXPIRED_BEFORE_SIGNING =
   "the configured RPC lifetime expired before signing; nothing was signed or sent";
-const EXPIRED_AFTER_SIGNING = "the signed transaction expired before submission; nothing was sent";
 const PREEXISTING_WSOL =
   "the taker's pre-existing wSOL account holds a balance; cleanup would take it and its rent";
 const PREEXISTING_WSOL_REMEDY =
@@ -131,20 +125,4 @@ export const preflightSwapBuild = (ctx, { envelope, action, taker }) =>
     if (rejection) return yield* new BuildRejected({ reason: rejection });
     const lifetime = yield* freshLifetime(ctx);
     return { lifetime, tempWsolExisted };
-  });
-
-/** Reject a transaction that expired after signing with a truthful, signed-stage taxonomy.
- * @param {Rpc} ctx @param {Signed} signed */
-export const recheckSignedSwapLifetime = (ctx, signed) =>
-  Effect.gen(function* () {
-    assertIsTransactionWithBlockhashLifetime(signed);
-    const height = yield* rpcCall("getBlockHeight", ctx.url, () =>
-      ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
-    );
-    if (height > signed.lifetimeConstraint.lastValidBlockHeight) {
-      return yield* new TransactionExpired({
-        signature: getSignatureFromTransaction(signed),
-        reason: EXPIRED_AFTER_SIGNING,
-      });
-    }
   });

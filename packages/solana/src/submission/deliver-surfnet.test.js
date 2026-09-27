@@ -3,15 +3,33 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { getSignatureFromTransaction } from "@solana/kit";
 import { EventBusInMemory, sendSol, TransactionFailed } from "@solos/core";
 import { Cause, Effect, Exit, Layer, Option } from "effect";
+import { buildSignedTransfer } from "../executor/transfer-sol.js";
 import { SolanaTestLive } from "../index.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { jsonRpc } from "../surfnet/surfnet-cli.js";
 import { ensureSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
-import { confirmationState, EXECUTION_FAILED, MAY_HAVE_LANDED } from "./transfer-confirm.js";
-import { buildSignedTransfer, sendSigned } from "./transfer-sol.js";
+import {
+  confirmationState,
+  confirmDelivery,
+  EXECUTION_FAILED,
+  MAY_HAVE_LANDED,
+} from "./confirm.js";
+import { SLOW } from "./mode.js";
+import { seal } from "./sealed.js";
+import { rpcSubmitter } from "./submitter.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
+/** @typedef {import("../executor/transfer-sol.js").Signed} Signed */
+
+/**
+ * Deliver through the RPC Submitter over a possibly overlaid RPC, with the default confirmation.
+ * @param {Rpc} ctx @param {Signed} signed @param {number} [deadlineMs]
+ */
+const deliver = (ctx, signed, deadlineMs = SLOW.confirmation.deadlineMs) =>
+  Effect.flatMap(seal(signed), (sealed) =>
+    confirmDelivery(rpcSubmitter(ctx), sealed, { ...SLOW.confirmation, deadlineMs }),
+  );
 
 /**
  * @template E
@@ -92,7 +110,7 @@ const signedPair = (to) =>
     return { ctx, signed };
   });
 
-describe("sendSigned confirmation against Surfnet [integration]", () => {
+describe("Submission delivery through the RPC Submitter against Surfnet [integration]", () => {
   /** @type {Layer.Layer<any>} */
   let layer;
   /** @type {Awaited<ReturnType<typeof ensureSurfnet>>} */
@@ -128,7 +146,7 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
   test("a dropped send still reports the signature when Surfnet already has it", async () => {
     const { ctx, signed } = await Effect.runPromise(signedPair(recipient).pipe(provide));
     const exit = await Effect.runPromiseExit(
-      sendSigned(dropAfterSend(ctx, getSignatureFromTransaction(signed)), signed),
+      deliver(dropAfterSend(ctx, getSignatureFromTransaction(signed)), signed),
     );
     expect(Exit.isSuccess(exit)).toBe(true);
     if (!Exit.isSuccess(exit)) throw new Error("expected success");
@@ -143,7 +161,7 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
       return hangUntilAbort(opts);
     });
     const started = Date.now();
-    const error = await failureOf(sendSigned(hung, signed, { deadlineMs: 80 }));
+    const error = await failureOf(deliver(hung, signed, 80));
     expect(Date.now() - started).toBeLessThan(5000);
     expect(didReceiveAbort).toBe(true);
     expect(error).toBeInstanceOf(TransactionFailed);
@@ -165,7 +183,7 @@ describe("sendSigned confirmation against Surfnet [integration]", () => {
       ],
     }));
     const started = Date.now();
-    const error = await failureOf(sendSigned(failed, signed, { deadlineMs: 5000 }));
+    const error = await failureOf(deliver(failed, signed, 5000));
     expect(Date.now() - started).toBeLessThan(2000);
     expect(error).toBeInstanceOf(TransactionFailed);
     expect(/** @type {TransactionFailed} */ (error)?.reason).toBe(EXECUTION_FAILED);

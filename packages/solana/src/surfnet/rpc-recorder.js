@@ -5,7 +5,7 @@
  * the executor simulated or submitted — the chain sees what solOS built, byte for byte.
  */
 
-/** @typedef {{ method: string; params: Array<unknown>; result?: unknown }} RecordedCall */
+/** @typedef {{ method: string; params: Array<unknown>; result?: unknown; error?: unknown }} RecordedCall */
 
 /** @param {string} body @param {RecordedCall[]} calls */
 const recordRequests = (body, calls) => {
@@ -28,9 +28,12 @@ const recordRequests = (body, calls) => {
 /** @param {string} body @param {RecordedCall[]} calls */
 const recordResult = (body, calls) => {
   try {
-    const payload = /** @type {{ result?: unknown }} */ (JSON.parse(body));
+    const payload = /** @type {{ result?: unknown; error?: unknown }} */ (JSON.parse(body));
     const call = calls.at(-1);
-    if (call && !Array.isArray(payload)) call.result = payload.result;
+    if (call && !Array.isArray(payload)) {
+      call.result = payload.result;
+      if (payload.error !== undefined) call.error = payload.error;
+    }
   } catch {
     // The original response is returned untouched even when it is not JSON.
   }

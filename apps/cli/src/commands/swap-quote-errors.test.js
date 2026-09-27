@@ -81,8 +81,10 @@ describe("`solos swap quote` error and discovery scenarios [integration]", () =>
       "solana_swap_simulate_swap",
       "solana_transfer_execute_sol",
       "solana_transfer_simulate_sol",
+      "solana_wallet_execute_close_token_account",
       "solana_wallet_get_address",
       "solana_wallet_get_balance",
+      "solana_wallet_simulate_close_token_account",
     ]);
   });
 

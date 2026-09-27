@@ -6,6 +6,9 @@ const LIQUIDITY_MINT_OFFSET = 128n;
 /** Account owner differs from the pinned Kamino lending program. */
 export class KaminoMarketOwnerError extends Error {}
 
+/** More than one float-rate reserve carries the mint in the configured market. */
+export class KaminoAmbiguousReserveError extends Error {}
+
 /** Account bytes differ from the pinned Kamino account layout. */
 export class KaminoAccountLayoutError extends Error {
   /** @param {string} account */

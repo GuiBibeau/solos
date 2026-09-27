@@ -3,8 +3,9 @@
  * Route an open or a close to the protocol that can build it.
  *
  * Raydium keeps its tick-range open and its NFT close. Meteora opens an empty position at the
- * caller's bin window and closes that PositionV2 account. A meteora open is the only lifecycle
- * plan that carries `position`: the ephemeral key never leaves the signer, only its pubkey does.
+ * caller's bin window and closes that PositionV2 account. Both opens report the position account
+ * they created, so a Caller can act on it without enumerating: Meteora's PositionV2 (its
+ * ephemeral key never leaves the signer, only the pubkey does) and Raydium's personal position.
  */
 import { Effect } from "effect";
 import { buildSignedMeteoraClose } from "./meteora-close-build.js";
@@ -32,6 +33,7 @@ export const plannedOpen = ({ ctx, kit }, action) => {
   return Effect.map(buildSignedRaydiumOpen({ ctx, kit }, action), ({ signed, plan }) => ({
     signed,
     venueQuote: openQuoteOf(action, plan),
+    position: plan.position,
   }));
 };
 

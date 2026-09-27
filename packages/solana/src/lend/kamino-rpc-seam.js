@@ -33,12 +33,17 @@ const kaminoSdk = () => {
 const KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
 
 import {
+  KaminoAmbiguousReserveError,
   KaminoMarketOwnerError,
   validateMarketAccount,
   validateReserveCandidates,
 } from "./kamino-account-validation.js";
 
-export { KaminoAccountLayoutError, KaminoMarketOwnerError } from "./kamino-account-validation.js";
+export {
+  KaminoAccountLayoutError,
+  KaminoAmbiguousReserveError,
+  KaminoMarketOwnerError,
+} from "./kamino-account-validation.js";
 
 /**
  * Pass this package's kit-8 RPC to klend-sdk code typed against its own kit major, and load
@@ -91,19 +96,26 @@ export const sdkFloatRateReserveForMint = async (rpc, marketAddress, mint) => {
   const candidates = /** @type {any[]} */ (
     /** @type {any} */ (await validateReserveCandidates(rpc, { market: marketAddress, mint }, sdk))
   );
-  const candidate = candidates[0];
-  if (candidate === undefined) return undefined;
-  const reserve = new sdk.KaminoReserve(
-    sdk.Reserve.decode(Buffer.from(candidate.account.data[0], "base64")),
-    candidate.pubkey,
-    /** @type {any} */ (undefined),
-    /** @type {any} */ (rpc),
-    sdk.DEFAULT_RECENT_SLOT_DURATION_MS,
-    marketState.reserveRewardsMaxAprBps,
-    undefined,
-    /** @type {any} */ (KLEND_PROGRAM),
-  );
-  return reserve.getKind().isFloatRate() ? reserve : undefined;
+  // A market can carry several reserves for one mint (fixed-term debt reserves sit beside the
+  // float-rate one), and the filtered scan returns them in no promised order. Only the
+  // float-rate reserve is the one the reads advertise, so choose it by kind, never by position.
+  const floatRate = candidates
+    .map(
+      (candidate) =>
+        new sdk.KaminoReserve(
+          sdk.Reserve.decode(Buffer.from(candidate.account.data[0], "base64")),
+          candidate.pubkey,
+          /** @type {any} */ (undefined),
+          /** @type {any} */ (rpc),
+          sdk.DEFAULT_RECENT_SLOT_DURATION_MS,
+          marketState.reserveRewardsMaxAprBps,
+          undefined,
+          /** @type {any} */ (KLEND_PROGRAM),
+        ),
+    )
+    .filter((reserve) => reserve.getKind().isFloatRate());
+  if (floatRate.length > 1) throw new KaminoAmbiguousReserveError();
+  return floatRate[0];
 };
 
 /**

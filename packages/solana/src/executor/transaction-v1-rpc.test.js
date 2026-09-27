@@ -9,8 +9,9 @@ import {
   signTransactionMessageWithSigners,
 } from "@solana/kit";
 import { Effect, Exit } from "effect";
+import { SLOW } from "../submission/mode.js";
+import { simulateSigned, submitSigned } from "../submission/submission.js";
 import { randomSeed } from "../surfnet/test-surfnet.js";
-import { sendSigned, simulateSigned } from "./transfer-sol.js";
 
 /** @param {0 | "legacy"} version */
 const signedOld = async (version) => {
@@ -37,13 +38,36 @@ const guardedContext = (contacts) => ({
   },
 });
 
+/** A Submitter that counts any contact: the wire check must refuse before delivery too. */
+/** @param {{ count: number }} contacts @returns {import("../submission/submitter.js").SubmitterShape} */
+const guardedSubmitter = (contacts) => ({
+  name: "guarded",
+  send: () => Effect.sync(() => void (contacts.count += 1)),
+  status: () => Effect.sync(() => (contacts.count += 1)),
+});
+
+/** @param {{ count: number }} contacts */
+const guardedSubmission = (contacts) => ({
+  ctx: /** @type {import("../rpc/solana-rpc.js").SolanaRpcShape} */ (
+    /** @type {unknown} */ (guardedContext(contacts))
+  ),
+  submitter: guardedSubmitter(contacts),
+  mode: SLOW,
+});
+
+/** @type {ReadonlyArray<(deps: ReturnType<typeof guardedSubmission>, signed: any) => Effect.Effect<unknown, unknown>>} */
+const halves = [
+  (deps, signed) => simulateSigned(deps, { signed }),
+  (deps, signed) => submitSigned(deps, { signed }, { skipSimulation: false }),
+];
+
 describe("transaction v1 RPC boundary [integration]", () => {
   test("legacy and v0 wire mutations reach neither simulation nor submission RPC", async () => {
     for (const version of /** @type {const} */ (["legacy", 0])) {
       const signed = await signedOld(version);
-      for (const operation of [simulateSigned, sendSigned]) {
+      for (const operation of halves) {
         const contacts = { count: 0 };
-        const exit = await Effect.runPromiseExit(operation(guardedContext(contacts), signed));
+        const exit = await Effect.runPromiseExit(operation(guardedSubmission(contacts), signed));
         expect(Exit.isFailure(exit)).toBe(true);
         expect(JSON.stringify(exit)).toContain("BuildRejected");
         expect(contacts.count).toBe(0);

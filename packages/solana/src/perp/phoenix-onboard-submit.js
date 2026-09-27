@@ -1,7 +1,7 @@
 // @ts-check
 import { TransactionFailed } from "@solos/core";
 import { ZodError } from "zod";
-import { MAY_HAVE_LANDED } from "../executor/transfer-confirm.js";
+import { MAY_HAVE_LANDED } from "../submission/confirm.js";
 import { PhoenixOnboardHttpError, RegisterSent, phoenixPost } from "./phoenix-onboard-api.js";
 
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof import("./phoenix-onboard-build.js").buildOnboarding>>} Plan */

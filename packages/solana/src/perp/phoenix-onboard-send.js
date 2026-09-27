@@ -5,16 +5,19 @@ import {
   getBase58Decoder,
   signature,
 } from "@solana/kit";
-import { BuildRejected } from "@solos/core";
+import { BuildRejected, RpcError, TransactionFailed } from "@solos/core";
 import { Clock, Effect } from "effect";
 import { simulationErrorText } from "../executor/simulation-error-text.js";
-import { confirmationState, confirmSubmitted } from "../executor/transfer-confirm.js";
-import { rpcCall } from "../rpc/rpc-call.js";
+import { RPC_REQUEST_FAILED, rpcCall } from "../rpc/rpc-call.js";
+import { rpcOrigin } from "../rpc/rpc-origin.js";
+import { confirmDelivery } from "../submission/confirm.js";
+import { SLOW } from "../submission/mode.js";
+import { rpcStatus } from "../submission/submitter.js";
 import { buildOnboarding } from "./phoenix-onboard-build.js";
 import { submitEnrollment } from "./phoenix-onboard-submit.js";
 import { assertPhoenixV0WireForSubmission } from "./phoenix-onboard-v0.js";
 
-/** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape}} Deps */
+/** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape,submission?: import("../submission/submission.js").SubmissionDeps}} Deps */
 /** @typedef {import("@solos/actions").Action} Action */
 
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof import("./phoenix-onboard-build.js").buildOnboarding>>} Plan */
@@ -98,19 +101,54 @@ export const simulateEnrollment = (deps, action) =>
     };
   });
 
+/**
+ * Phoenix co-signs and submits enrollment itself, so its endpoint is this transaction's
+ * Submitter (ADR-0031); status still comes from the operator's own RPC. A refusal Phoenix
+ * reports is final; any other failure is resolved by the confirmation loop's lookup.
+ * @param {Deps} deps @param {Plan} planned @param {import("@solana/kit").Signature} signature
+ * @returns {import("../submission/submitter.js").SubmitterShape}
+ */
+const phoenixCosigner = (deps, planned, signature) => ({
+  name: "phoenix-cosign",
+  send: () =>
+    Effect.tryPromise({
+      try: () => submitEnrollment(deps.config, planned, signature),
+      catch: (error) =>
+        error instanceof TransactionFailed
+          ? error
+          : new RpcError({
+              method: "send-register-ixs",
+              url: rpcOrigin(deps.config.baseUrl),
+              reason: RPC_REQUEST_FAILED,
+            }),
+    }),
+  status: (sig) => rpcStatus(deps.ctx, sig),
+});
+
+/**
+ * The configured Submission mode's confirmation, `slow` without one; Phoenix's own confirm
+ * deadline, when set, still bounds the wait for its co-signed send.
+ * @param {Deps} deps
+ */
+const confirmationFor = (deps) => {
+  const confirmation = deps.submission?.mode.confirmation ?? SLOW.confirmation;
+  const deadlineMs = deps.config.confirmDeadlineMs ?? confirmation.deadlineMs;
+  return { ...confirmation, deadlineMs };
+};
+
 /** @param {Deps} deps @param {Plan} planned @param {import("@solana/kit").Signature} signature */
 const confirmEnrollment = (deps, planned, signature) =>
-  confirmSubmitted({
-    signature,
-    deadlineMs: deps.config.confirmDeadlineMs,
-    submit: () => submitEnrollment(deps.config, planned, signature),
-    lookup: async (abortSignal) => {
-      const { value } = await deps.ctx.rpc
-        .getSignatureStatuses([signature], { searchTransactionHistory: true })
-        .send({ abortSignal });
-      return confirmationState(value[0]);
+  confirmDelivery(
+    phoenixCosigner(deps, planned, signature),
+    {
+      wire: /** @type {import("@solana/kit").Base64EncodedWireTransaction} */ (planned.wire),
+      signature,
+      lastValidBlockHeight: /** @type {{ lastValidBlockHeight: bigint }} */ (
+        planned.signed.lifetimeConstraint
+      ).lastValidBlockHeight,
     },
-  });
+    confirmationFor(deps),
+  );
 
 /** The server co-signs, simulates, and submits the partially signed transaction. Simulate
  * identical locally signed bytes without signature verification (server signature pending).

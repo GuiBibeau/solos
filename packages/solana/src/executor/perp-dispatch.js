@@ -6,7 +6,7 @@ import { simulateCollateral, executeCollateral } from "../perp/phoenix-collatera
 import { simulateEnrollment, executeEnrollment } from "../perp/phoenix-onboard-send.js";
 import { simulateOpen, executeOpen } from "../perp/phoenix-open-send.js";
 
-/** @typedef {{config:import("../perp/phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape}} Deps */
+/** @typedef {{config:import("../perp/phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape;submission:import("../submission/submission.js").SubmissionDeps}} Deps */
 /** @typedef {import("@solos/actions").Action} Action */
 
 /** @param {Deps} deps @param {Action} action */

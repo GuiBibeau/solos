@@ -1,4 +1,5 @@
 // @ts-check
+import { CloseTokenAccountActionSchema } from "@solos/actions";
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 
@@ -21,3 +22,19 @@ export const WalletBalancesSchema = z.object({
 });
 
 /** @typedef {z.infer<typeof WalletBalancesSchema>} WalletBalances */
+
+/**
+ * Closing one token account: the Action minus its discriminant, so the tool input and the
+ * published contract cannot drift apart.
+ */
+export const CloseTokenAccountInputSchema = CloseTokenAccountActionSchema.omit({ type: true });
+
+export const CloseTokenAccountExecuteInputSchema = CloseTokenAccountInputSchema.extend({
+  skipSimulation: z
+    .boolean()
+    .default(false)
+    .describe("Skip the pre-send simulation of the exact transaction; never skip validation"),
+});
+
+/** @typedef {z.infer<typeof CloseTokenAccountInputSchema>} CloseTokenAccountInput */
+/** @typedef {z.input<typeof CloseTokenAccountExecuteInputSchema>} CloseTokenAccountExecuteInput */
