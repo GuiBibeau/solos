@@ -95,4 +95,5 @@ export const ACTION_SAMPLES = [
   REMOVE,
   OPEN_POSITION,
   CLOSE_POSITION,
+  { type: "close_token_account", account: OWNER },
 ];

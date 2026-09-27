@@ -91,6 +91,22 @@ export const PerpOnboardQuoteSchema = z.object({
   ),
 });
 
+/** What closing one token account returns to its owner, read before signing. */
+export const TokenAccountCloseQuoteSchema = z.object({
+  kind: z.literal("token_account_close"),
+  account: AddressSchema,
+  mint: AddressSchema,
+  tokenProgram: AddressSchema.describe(
+    "Token or Token-2022, read from the account's on-chain owner, never assumed",
+  ),
+  returnedLamports: AmountSchema.describe(
+    "Every lamport the account holds, returned to the owner: its rent, plus the wrapped balance of a wrapped-SOL account",
+  ),
+  unwrappedLamports: AmountSchema.describe(
+    "The wrapped-SOL balance that becomes native SOL; 0 for every other mint",
+  ),
+});
+
 /** The venue quote of one planned liquidity action, or null for actions without one. */
 export const VenueQuoteSchema = z
   .discriminatedUnion("kind", [
@@ -102,6 +118,7 @@ export const VenueQuoteSchema = z
     PositionOpenQuoteSchema,
     LendDepositQuoteSchema,
     LendWithdrawQuoteSchema,
+    TokenAccountCloseQuoteSchema,
   ])
   .nullable()
   .default(null);
@@ -114,7 +131,7 @@ export const SimulationResultSchema = z.object({
   logs: z.array(z.string()),
   projectedPortfolio: PortfolioStateSchema.nullable(),
   venueQuote: VenueQuoteSchema.describe(
-    "For liquidity and lend actions: the plan's quoted amounts, the exact bounds encoded in the instruction, and pre-send rent/fee evidence, at the pre-send state; null for every other action",
+    "For liquidity, lend and token-account actions: the plan's quoted amounts, the exact bounds encoded in the instruction, and pre-send rent/fee evidence, at the pre-send state; null for every other action",
   ),
   violations: z.array(ViolationSchema),
 });
@@ -131,7 +148,7 @@ export const ExecutionResultSchema = z.object({
   simulated: z.boolean().describe("Whether a simulation ran before sending"),
   error: z.string().nullable(),
   position: AddressSchema.optional().describe(
-    "PositionV2 account a confirmed meteora open created. The secret key is never returned. Absent for every other action",
+    "The position account a confirmed open created: a Meteora PositionV2 or a Raydium personal position. A generated secret key is never returned. Absent for every other action",
   ),
 });
 
@@ -146,6 +163,7 @@ export const ExecutionResultSchema = z.object({
 /** @typedef {z.infer<typeof LendDepositQuoteSchema>} LendDepositQuote */
 /** @typedef {z.infer<typeof LendWithdrawQuoteSchema>} LendWithdrawQuote */
 /** @typedef {z.infer<typeof PerpOnboardQuoteSchema>} PerpOnboardQuote */
+/** @typedef {z.infer<typeof TokenAccountCloseQuoteSchema>} TokenAccountCloseQuote */
 /** @typedef {z.infer<typeof PerpCollateralQuoteSchema>} PerpCollateralQuote */
 /** @typedef {z.infer<typeof PerpCollateralReconciliationSchema>} PerpCollateralReconciliation */
 /** @typedef {z.infer<typeof VenueQuoteSchema>} VenueQuote */

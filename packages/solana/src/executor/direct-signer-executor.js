@@ -10,6 +10,7 @@ import { SLOW, SubmissionModeSchema } from "../submission/mode.js";
 import { simulateSigned, submitSigned } from "../submission/submission.js";
 import { Submitter } from "../submission/submitter.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
+import { buildSignedTokenAccountClose } from "../wallet/close-token-account-build.js";
 import { executionResult, simulationResult } from "./action-results.js";
 import { buildSignedLiquidityDeposit, depositQuoteOf } from "./liquidity-deposit-build.js";
 import { buildSignedLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
@@ -93,6 +94,9 @@ const plannedSigned = ({ ctx, kit, build: buildSwap, market }, action) => {
     }
     case "swap": {
       return plannedSwap({ ctx, kit, build: buildSwap }, action);
+    }
+    case "close_token_account": {
+      return quoted(buildSignedTokenAccountClose({ ctx, kit }, action), (plan) => plan.quote);
     }
     default: {
       return Effect.map(build({ ctx, kit }, action), (signed) => ({

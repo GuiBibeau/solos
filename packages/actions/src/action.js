@@ -24,6 +24,13 @@ export const TransferSolActionSchema = z.object({
   lamports: AmountSchema.describe("Lamports to send"),
 });
 
+export const CloseTokenAccountActionSchema = z.object({
+  type: z.literal("close_token_account"),
+  account: AddressSchema.describe(
+    "A token account the signer owns. It must be empty, except the wrapped-SOL account: closing that unwraps its whole balance to native SOL",
+  ),
+});
+
 /** Native SOL's wrapped mint, the only quote asset a pump curve trades against. */
 export const WSOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -83,12 +90,14 @@ export const ActionSchema = z.discriminatedUnion("type", [
   RemoveLiquidityActionSchema,
   OpenPositionActionSchema,
   ClosePositionActionSchema,
+  CloseTokenAccountActionSchema,
 ]);
 
 /** @typedef {z.infer<typeof ActionSchema>} Action */
 /** @typedef {Action["type"]} ActionType */
 /** @typedef {z.infer<typeof TransferSolActionSchema>} TransferSolAction */
 /** @typedef {z.infer<typeof SwapActionSchema>} SwapAction */
+/** @typedef {z.infer<typeof CloseTokenAccountActionSchema>} CloseTokenAccountAction */
 
 /** @type {ReadonlyArray<ActionType>} */
 export const ACTION_TYPES = [
@@ -105,6 +114,7 @@ export const ACTION_TYPES = [
   "remove_liquidity",
   "open_position",
   "close_position",
+  "close_token_account",
 ];
 
 export {

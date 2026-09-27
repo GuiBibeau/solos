@@ -3,6 +3,7 @@
 /** @typedef {import("./action.js").ActionType} ActionType */
 /** @typedef {import("./action.js").TransferSolAction} TransferSolAction */
 /** @typedef {import("./action.js").SwapAction} SwapAction */
+/** @typedef {import("./action.js").CloseTokenAccountAction} CloseTokenAccountAction */
 /** @typedef {import("./venue-actions.js").AddLiquidityAction} AddLiquidityAction */
 /** @typedef {import("./venue-actions.js").LendAction} LendAction */
 /** @typedef {import("./venue-actions.js").OpenPositionAction} OpenPositionAction */
@@ -20,6 +21,7 @@
 /** @typedef {import("./results.js").LendDepositQuote} LendDepositQuote */
 /** @typedef {import("./results.js").LendWithdrawQuote} LendWithdrawQuote */
 /** @typedef {import("./results.js").PerpOnboardQuote} PerpOnboardQuote */
+/** @typedef {import("./results.js").TokenAccountCloseQuote} TokenAccountCloseQuote */
 /** @typedef {import("./results.js").PerpCollateralQuote} PerpCollateralQuote */
 /** @typedef {import("./results.js").PerpCollateralReconciliation} PerpCollateralReconciliation */
 /** @typedef {import("./results.js").LiquidityDepositQuote} LiquidityDepositQuote */
@@ -41,6 +43,7 @@ export {
   OnboardPerpActionSchema,
   RemoveLiquidityActionSchema,
   ClosePositionActionSchema,
+  CloseTokenAccountActionSchema,
   OpenPositionActionSchema,
   SwapActionSchema,
   TransferSolActionSchema,
@@ -76,6 +79,7 @@ export {
   PerpCollateralReconciliationSchema,
   PositionOpenQuoteSchema,
   SimulationResultSchema,
+  TokenAccountCloseQuoteSchema,
   VenueQuoteSchema,
   ViolationSchema,
 } from "./results.js";

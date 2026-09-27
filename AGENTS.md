@@ -122,7 +122,7 @@ dev check` — do not edit the table by hand:
 | `signals` | 0 | ports only |
 | `swap` | 3 | read, simulate, execute |
 | `transfer` | 2 | simulate, execute |
-| `wallet` | 2 | read |
+| `wallet` | 4 | read, simulate, execute |
 <!-- /generated: slices -->
 
 A slice with tools has adapters behind them in `packages/solana/src/<slice>/`; a ports-only slice

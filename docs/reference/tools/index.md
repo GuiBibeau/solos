@@ -50,8 +50,10 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_swap_simulate_swap` | simulate | `swap` |
 | `solana_transfer_execute_sol` | execute | `transfer` |
 | `solana_transfer_simulate_sol` | simulate | `transfer` |
+| `solana_wallet_execute_close_token_account` | execute | `wallet` |
 | `solana_wallet_get_address` | read | `wallet` |
 | `solana_wallet_get_balance` | read | `wallet` |
+| `solana_wallet_simulate_close_token_account` | simulate | `wallet` |
 <!-- /generated: tools -->
 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind
@@ -68,8 +70,9 @@ readers plus bounded deposits and withdrawals over the configured Solana RPC thr
 Kamino klend-sdk (no provider key; one explicitly configured market); `portfolio`
 composes the wallet, price feed and venue reads into the supported-portfolio state
 (ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero
-holding is priced — a supported-assets view, never full net worth; `signals` has
-ports only.
+holding is priced — a supported-assets view, never full net worth; `wallet` has the balance and
+address reads plus closing one token account the signer owns (rent back, and wrapped SOL unwrapped
+to native SOL) through the shared executor; `signals` has ports only.
 
 Every `execute` tool has a `simulate` twin, and the pages linked below still describe the read tiers
 in the most depth — the write tiers are specified in their ADRs (0019 lend, 0021 perp, 0022
@@ -83,3 +86,4 @@ liquidity) and their QA docs.
 - [Market](market.md)
 - [Perp](perp.md)
 - [Swap](swap.md)
+- [Wallet](wallet.md)
