@@ -1,5 +1,5 @@
 // @ts-check
-import { toJsonSafe } from "@solos/core";
+import { errorEnvelope, toJsonSafe } from "@solos/core";
 import { Cause, Exit, Option } from "effect";
 
 /**
@@ -49,14 +49,8 @@ const packError = (payload) => ({
 });
 
 /** @param {unknown} error */
-const describeFailure = (error) => {
-  if (typeof error === "object" && error !== null && "_tag" in error) {
-    const { _tag, ...props } = /** @type {Record<string, unknown>} */ (error);
-    const safeProps = /** @type {Record<string, unknown>} */ (toJsonSafe(props));
-    return { code: String(_tag), ...safeProps };
-  }
-  return { code: "UnknownError", cause: String(error) };
-};
+const describeFailure = (error) =>
+  errorEnvelope(error) ?? { code: "UnknownError", cause: String(error) };
 
 /** @param {Cause.Cause<unknown>} cause */
 const describeDefect = (cause) => ({

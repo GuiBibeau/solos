@@ -3,6 +3,7 @@
 /** @typedef {import("./ports/action-executor.js").ExecutorError} ExecutorError */
 export { AddressSchema, SignatureSchema } from "./domain/address.js";
 export { base58ByteLength } from "./domain/base58.js";
+export { errorEnvelope } from "./domain/error-envelope.js";
 export {
   BuildRejected,
   BuildUnavailable,
@@ -24,7 +25,7 @@ export {
   lamportsToSol,
   solToLamports,
 } from "./domain/lamports.js";
-export { taggedError } from "./domain/tagged-error.js";
+export { domainErrors, taggedError } from "./domain/tagged-error.js";
 export { EventBusInMemory } from "./layers/event-bus-in-memory.js";
 export { EventSinkNoop } from "./layers/event-sink-noop.js";
 export { LoggerJsonStderr, parseLogLevel } from "./layers/logger-json-stderr.js";

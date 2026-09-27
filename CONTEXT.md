@@ -72,6 +72,11 @@ strives for. Surfpool coverage and Evidence are the pull-request check; they are
 versions, and per-step results. The only accepted proof that a pull request's checks passed.
 Counts only when `sha` is the commit under review and `dirty` is false.
 
+**Reason / Remedy** — the two sentences a domain error carries. `reason` says what is wrong,
+precisely; `remedy` names the next action (an argument, a tool, a command) and is omitted when no
+action exists. Both travel beside `code` on every surface; see
+[docs/reference/errors.md](docs/reference/errors.md).
+
 **Feature map** — `features/feature-map.json`. Funded mainnet execute paths. One row per recorded
 round. The row shape is `features/README.md`. No row means the path is unrecorded. Surfpool
 results and unimplemented paths are not rows in this file.
