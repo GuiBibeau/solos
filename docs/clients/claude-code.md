@@ -1,7 +1,12 @@
 # Claude Code
 
-The repo ships `.mcp.json` so Claude Code picks the server up when opened here. For another
-project, add to that project's `.mcp.json` or `~/.claude.json`:
+The repo ships `.mcp.json` so Claude Code picks the server up when opened here. It names no
+profile, because profile names differ per Operator: the server takes `SOLOS_PROFILE` from the
+environment Claude Code was started in, else your default profile (`solos profiles default
+<name>`). Bun loads the repo's `.env` and `.env.local` into the server, so `SOLANA_RPC_URL` can
+live there. Check the connection with `claude mcp get solos`.
+
+For another project, add to that project's `.mcp.json` or `~/.claude.json`:
 
 ```json
 {
