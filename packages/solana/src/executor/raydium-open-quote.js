@@ -15,6 +15,9 @@ export const openSides = (accounts, quote) => [
   { mint: accounts.vault1Mint, ata: accounts.tokenAccount1, required: quote.requiredB },
 ];
 
+/** @param {string} reason @param {string} [remedy] */
+const refusal = (reason, remedy) => ({ ok: /** @type {const} */ (false), reason, remedy });
+
 /**
  * The pure half of an open: align the range to the pool, refuse a range the instruction cannot
  * address yet, and fit the budgets. All of it is decided before a key is generated.
@@ -24,18 +27,16 @@ export const openQuote = (action, pool) => {
   const { tickSpacing } = pool;
   // Refused, never rounded: rounding a range is choosing one, which is the caller's job.
   if (action.tickLower % tickSpacing !== 0 || action.tickUpper % tickSpacing !== 0) {
-    return {
-      ok: /** @type {const} */ (false),
-      reason: `tick range ${action.tickLower}..${action.tickUpper} is not aligned to the pool's tick spacing of ${tickSpacing}`,
-    };
+    return refusal(
+      `tick range ${action.tickLower}..${action.tickUpper} is not aligned to the pool's tick spacing of ${tickSpacing}`,
+      `pass tickLower and tickUpper that are multiples of ${tickSpacing}`,
+    );
   }
   const ticks = { tickLower: action.tickLower, tickUpper: action.tickUpper, tickSpacing };
   if (needsBitmapExtension(ticks)) {
-    return {
-      ok: /** @type {const} */ (false),
-      reason:
-        "this range needs the pool's tick-array bitmap extension, which opening does not pass",
-    };
+    return refusal(
+      "this range needs the pool's tick-array bitmap extension, which opening does not pass",
+    );
   }
   const quote = depositLiquidityForBudgets({
     sqrtPrice: pool.sqrtPrice,
@@ -52,13 +53,13 @@ export const openQuote = (action, pool) => {
       requiredB: quote.requiredB,
     };
   }
-  return {
-    ok: /** @type {const} */ (false),
-    reason:
-      quote.status === "zero"
-        ? "the budgets buy no liquidity at this price for this range"
-        : quote.reason,
-  };
+  if (quote.status === "zero") {
+    return refusal(
+      "the budgets buy no liquidity at this price for this range",
+      "increase amountA or amountB",
+    );
+  }
+  return refusal(quote.reason);
 };
 
 /**

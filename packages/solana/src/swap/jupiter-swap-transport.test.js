@@ -36,6 +36,7 @@ describe("JupiterSwapLive transport failures [integration]", () => {
     expect(await quoteFailure(fixture, { timeoutMs: 50 })).toMatchObject({
       _tag: "QuoteTimeout",
       timeoutMs: 50,
+      reason: "Jupiter did not answer within 50ms",
     });
     expect(fixture.requests).toHaveLength(1);
   });
@@ -45,6 +46,7 @@ describe("JupiterSwapLive transport failures [integration]", () => {
     expect(await quoteFailure(fixture, { timeoutMs: 50 })).toMatchObject({
       _tag: "QuoteTimeout",
       timeoutMs: 50,
+      reason: "Jupiter did not answer within 50ms",
     });
     expect(fixture.requests).toHaveLength(1);
   });

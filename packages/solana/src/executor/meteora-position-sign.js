@@ -50,5 +50,9 @@ export const signMeteoraPosition = ({ ctx, kit, instructions }) =>
  */
 export const notMeteora = (actionType, protocol) =>
   Effect.fail(
-    new UnsupportedAction({ actionType: `${actionType}:${protocol}`, executor: "direct-signer" }),
+    new UnsupportedAction({
+      actionType: `${actionType}:${protocol}`,
+      executor: "direct-signer",
+      remedy: `pass protocol meteora to ${actionType}`,
+    }),
   );

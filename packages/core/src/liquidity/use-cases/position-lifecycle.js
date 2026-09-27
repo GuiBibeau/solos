@@ -14,7 +14,11 @@ import {
 import { Effect } from "effect";
 import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { simulateAction } from "../../shared/use-cases/simulate-action.js";
-import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
+import {
+  LIFECYCLE_PROTOCOL_REMEDY,
+  LiquidityInputInvalid,
+  LiquidityUnsupportedProtocol,
+} from "../domain/errors.js";
 import { ClosePositionInput, OpenPositionInput } from "../domain/lifecycle-types.js";
 import { hasLifecycle } from "../domain/types.js";
 
@@ -61,7 +65,12 @@ const validated = ({ schema, toAction, reason, meteoraOpen }, input) =>
     const parsed = schema.safeParse(input);
     if (!parsed.success) return yield* invalid(parseReason(parsed, reason));
     const protocol = /** @type {{ protocol: string }} */ (parsed.data).protocol;
-    if (!hasLifecycle(protocol)) return yield* new LiquidityUnsupportedProtocol({ protocol });
+    if (!hasLifecycle(protocol)) {
+      return yield* new LiquidityUnsupportedProtocol({
+        protocol,
+        remedy: LIFECYCLE_PROTOCOL_REMEDY,
+      });
+    }
     const action = toAction(parsed.data);
     if (action === null) return yield* invalid("the request does not satisfy the Action contract");
     return action;

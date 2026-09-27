@@ -100,6 +100,7 @@ describe("wrapping a wSOL funding side over Surfnet [integration]", () => {
     const failure = await failureOf(simulateOpenPosition(openIntent(pool)), seed);
     expect(failure).toBeInstanceOf(BuildRejected);
     expect(/** @type {BuildRejected} */ (failure)?.reason).toContain("insufficient token A");
+    expect(/** @type {BuildRejected} */ (failure)?.remedy).toContain("wrapSol: true");
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 });

@@ -36,6 +36,7 @@ export const buildSignedRaydiumClose = ({ ctx, kit }, action) =>
     if (prepared.position.liquidity > 0n) {
       return yield* new BuildRejected({
         reason: `the position still holds ${prepared.position.liquidity} liquidity; remove it all first`,
+        remedy: "call solana_liquidity_execute_withdraw to remove all liquidity, then close",
       });
     }
     // Which token program holds the NFT depends on which open instruction created the position,

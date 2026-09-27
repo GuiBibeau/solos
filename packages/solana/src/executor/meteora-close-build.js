@@ -24,8 +24,9 @@ import { notMeteora, signMeteoraPosition } from "./meteora-position-sign.js";
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("../liquidity/meteora-dlmm-decode.js").MeteoraPositionLayout} Layout */
 
-/** @param {string} reason */
-const rejected = (reason) => new BuildRejected({ reason });
+/** @param {string} reason @param {string} [remedy] */
+const rejected = (reason, remedy) =>
+  new BuildRejected(remedy === undefined ? { reason } : { reason, remedy });
 
 /**
  * @param {{ owner: string; bytes: Uint8Array } | null | undefined} row
@@ -56,12 +57,14 @@ const readPosition = (ctx, position) =>
  * @param {string} owner
  */
 const sharesIssue = (layout, owner) => {
-  if (layout.owner !== owner) return "the signer does not own this position";
+  if (layout.owner !== owner) return { reason: "the signer does not own this position" };
   if (layout.liquidity > 0n) {
-    return (
-      `close refused: the position still holds ${layout.liquidity} liquidity shares; ` +
-      "remove them all before close"
-    );
+    return {
+      reason:
+        `close refused: the position still holds ${layout.liquidity} liquidity shares; ` +
+        "remove them all before close",
+      remedy: "call solana_liquidity_execute_withdraw to remove all liquidity, then close",
+    };
   }
   return null;
 };
@@ -83,7 +86,7 @@ export const buildSignedMeteoraClose = ({ ctx, kit }, action) =>
     const read = yield* readPosition(ctx, action.position);
     if (!read.ok) return yield* rejected(read.reason);
     const issue = sharesIssue(read.layout, kit.signer.address);
-    if (issue !== null) return yield* rejected(issue);
+    if (issue !== null) return yield* rejected(issue.reason, issue.remedy);
     const eventAuthority = yield* Effect.promise(() => eventAuthorityAddress());
     const binArrays = yield* coverageOf(read.layout.lbPair, read.layout.lowerBinId);
     const instruction = closePosition2Instruction({

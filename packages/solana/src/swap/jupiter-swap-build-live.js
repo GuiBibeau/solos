@@ -39,6 +39,7 @@ const toBuildUnavailable = (error) => {
   if (error instanceof QuoteAuthFailed) {
     return new BuildUnavailable({
       reason: `Jupiter rejected the build credential with HTTP ${error.status}`,
+      ...(error.remedy && { remedy: error.remedy }),
     });
   }
   if (error instanceof QuoteRateLimited) {
@@ -71,6 +72,9 @@ export const JupiterSwapBuildLive = (config) =>
           return Effect.fail(
             new BuildUnavailable({
               reason: "JUPITER_API_KEY is not set; export it to execute Jupiter swaps",
+              remedy:
+                "create a key with Swap access at https://portal.jup.ag and export " +
+                "JUPITER_API_KEY",
             }),
           );
         }

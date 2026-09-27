@@ -2,8 +2,19 @@
 import { taggedError } from "../../shared/domain/tagged-error.js";
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"NoRouteFound", NoRouteFoundProps>} NoRouteFoundClass */
-/** @typedef {{ readonly inputMint: string; readonly outputMint: string; readonly provider: string }} NoRouteFoundProps */
-export class NoRouteFound extends /** @type {NoRouteFoundClass} */ (taggedError("NoRouteFound")) {}
+/** @typedef {{ readonly inputMint: string; readonly outputMint: string; readonly provider: string; readonly reason?: string }} NoRouteFoundProps */
+/** No route exists for the pair. No remedy: there is nothing for the caller to change. */
+export class NoRouteFound extends /** @type {NoRouteFoundClass} */ (taggedError("NoRouteFound")) {
+  /** @param {NoRouteFoundProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason:
+        props.reason ??
+        `${props.provider} found no route from ${props.inputMint} to ${props.outputMint}`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteInputInvalid", QuoteInputInvalidProps>} QuoteInputInvalidClass */
 /** @typedef {{ readonly reason: string }} QuoteInputInvalidProps */
@@ -19,21 +30,48 @@ export class QuoteConfigMissing extends /** @type {QuoteConfigMissingClass} */ (
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteAuthFailed", QuoteAuthFailedProps>} QuoteAuthFailedClass */
-/** @typedef {{ readonly status: number }} QuoteAuthFailedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} QuoteAuthFailedProps */
 /** HTTP 401/403 from Jupiter: the key is absent from the account or lacks endpoint access. */
 export class QuoteAuthFailed extends /** @type {QuoteAuthFailedClass} */ (
   taggedError("QuoteAuthFailed")
-) {}
+) {
+  /** @param {QuoteAuthFailedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Jupiter rejected the API key with HTTP ${props.status}`,
+      remedy: "set JUPITER_API_KEY to a key with Swap access from https://portal.jup.ag",
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteRateLimited", QuoteRateLimitedProps>} QuoteRateLimitedClass */
-/** @typedef {{ readonly status: number }} QuoteRateLimitedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string }} QuoteRateLimitedProps */
+/** HTTP 429. No remedy: waiting is not an argument, a tool, or a command the caller can pass. */
 export class QuoteRateLimited extends /** @type {QuoteRateLimitedClass} */ (
   taggedError("QuoteRateLimited")
-) {}
+) {
+  /** @param {QuoteRateLimitedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Jupiter rate limited the request with HTTP ${props.status}`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteTimeout", QuoteTimeoutProps>} QuoteTimeoutClass */
-/** @typedef {{ readonly timeoutMs: number }} QuoteTimeoutProps */
-export class QuoteTimeout extends /** @type {QuoteTimeoutClass} */ (taggedError("QuoteTimeout")) {}
+/** @typedef {{ readonly timeoutMs: number; readonly reason?: string }} QuoteTimeoutProps */
+/** No answer inside the deadline. No remedy: retrying is not an argument, a tool, or a command. */
+export class QuoteTimeout extends /** @type {QuoteTimeoutClass} */ (taggedError("QuoteTimeout")) {
+  /** @param {QuoteTimeoutProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `Jupiter did not answer within ${props.timeoutMs}ms`,
+    });
+  }
+}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"QuoteHttpError", QuoteHttpErrorProps>} QuoteHttpErrorClass */
 /** @typedef {{ readonly status: number; readonly reason: string }} QuoteHttpErrorProps */

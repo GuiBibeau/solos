@@ -31,7 +31,9 @@ import { wrapForSides } from "./wrap-sol.js";
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 
 /** @param {string} reason */
-const rejected = (reason) => new BuildRejected({ reason });
+/** @param {string} reason @param {string} [remedy] */
+const rejected = (reason, remedy) =>
+  new BuildRejected(remedy === undefined ? { reason } : { reason, remedy });
 
 /**
  * Read and guard the pool an open targets. Unlike the other plans there is no position yet, so
@@ -123,7 +125,7 @@ export const buildSignedRaydiumOpen = ({ ctx, kit }, action) =>
     const read = yield* readPool(ctx, action.pool);
     if (!read.ok) return yield* rejected(read.reason);
     const quote = openQuote(action, read.pool);
-    if (!quote.ok) return yield* rejected(quote.reason);
+    if (!quote.ok) return yield* rejected(quote.reason, quote.remedy);
     const built = yield* Effect.promise(() =>
       openParts({
         owner: kit.signer.address,

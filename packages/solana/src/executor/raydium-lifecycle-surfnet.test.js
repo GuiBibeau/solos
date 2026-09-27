@@ -92,6 +92,9 @@ const failureOf = async (effect, seed) => {
 /** @param {unknown} failure */
 const reasonOf = (failure) => /** @type {BuildRejected} */ (failure)?.reason;
 
+/** @param {unknown} failure */
+const remedyOf = (failure) => /** @type {BuildRejected} */ (failure)?.remedy;
+
 describe("raydium position lifecycle over Surfnet [integration]", () => {
   test("a funded in-range open builds, simulates the exact transaction, and sends nothing", async () => {
     const seed = randomSeed();
@@ -130,6 +133,7 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     const failure = await failureOf(simulateOpenPosition(openIntent({ pool })), seed);
     expect(failure).toBeInstanceOf(BuildRejected);
     expect(reasonOf(failure)).toContain("insufficient token A");
+    expect(remedyOf(failure)).toContain("fund the token A account");
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 
@@ -144,6 +148,9 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     expect(failure).toBeInstanceOf(BuildRejected);
     expect(reasonOf(failure)).toContain("not aligned");
     expect(reasonOf(failure)).toContain(String(TICK_SPACING));
+    expect(remedyOf(failure)).toBe(
+      `pass tickLower and tickUpper that are multiples of ${TICK_SPACING}`,
+    );
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 
@@ -159,6 +166,7 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     );
     expect(failure).toBeInstanceOf(BuildRejected);
     expect(reasonOf(failure)).toContain("no liquidity");
+    expect(remedyOf(failure)).toBe("increase amountA or amountB");
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 
@@ -229,6 +237,7 @@ describe("raydium position lifecycle over Surfnet [integration]", () => {
     const failure = await failureOf(simulateClosePosition({ protocol: "raydium", position }), seed);
     expect(failure).toBeInstanceOf(BuildRejected);
     expect(reasonOf(failure)).toContain("remove it all first");
+    expect(remedyOf(failure)).toContain("solana_liquidity_execute_withdraw");
     expect(rpc.callsFor("simulateTransaction").length).toBe(sims);
   });
 

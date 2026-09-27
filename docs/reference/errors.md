@@ -36,6 +36,18 @@ migrated; it can only shrink.
 The registry itself comes from `taggedError`: creating a class registers it, so importing a slice's
 `index.js` is enough to make its errors appear in `domainErrors()`. No hand-kept list to drift.
 
+## Migrating a slice
+
+Each migration ticket drains its slice's reasonless types. When an error's reason and remedy are
+fixed by its tag — a `QuoteAuthFailed` always means Jupiter rejected the key, a
+`LiquidityPositionUnavailable` is always read back the same way — the class supplies them from its
+own constructor. The raise site then passes only the data it has, and cannot forget the sentence or
+the next action.
+
+Where a cause is genuinely data-dependent (the funding shortfall names the amount to add; a
+deposit that buys no liquidity names the budgets) the raise site supplies the remedy, and omits it
+when no action exists rather than padding the field.
+
 ## Why the field is `reason`, never `cause`
 
 `Error.cause` is non-enumerable and vanishes from serialised output (ADR-0003). `reason` is a plain
