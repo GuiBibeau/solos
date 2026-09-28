@@ -1,9 +1,10 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import { saveProfile } from "@solos/solana";
+import { randomSeed, seedAddress, seedToPrivateKeyString } from "@solos/solana/surfnet";
 
 const ROOT = new URL("../../../..", import.meta.url).pathname;
 const STDIO_BIN = new URL("stdio.js", import.meta.url).pathname;
@@ -92,6 +93,70 @@ describe("solos mcp stdio startup line [integration]", () => {
       expect(ready).not.toContain("api-key");
     } finally {
       proc.kill();
+    }
+  });
+});
+
+/** Claude Code's expansion for an unset variable: `${NAME:-fallback}` becomes the fallback. */
+const expandUnset = (/** @type {string} */ value) =>
+  value.replaceAll(/\$\{[^}:]+(?::-([^}]*))?\}/g, (_match, fallback) => fallback ?? "");
+
+/**
+ * The repo's own `.mcp.json` entry, the way Claude Code launches it for an Operator who exports
+ * nothing.
+ */
+const shippedEntry = async () => {
+  const config = JSON.parse(await readFile(path.join(ROOT, ".mcp.json"), "utf8"));
+  const { args, env = {} } = config.mcpServers.solos;
+  return {
+    args: /** @type {string[]} */ (args),
+    env: Object.fromEntries(
+      Object.entries(env).map(([key, value]) => [key, expandUnset(String(value))]),
+    ),
+  };
+};
+
+/** A config dir whose only saved profile, and so the default, is named `operator`. */
+const operatorConfigDir = async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "solos-mcp-operator-"));
+  const seed = randomSeed();
+  saveProfile(
+    { SOLOS_CONFIG_DIR: dir },
+    {
+      name: "operator",
+      profile: {
+        provider: "local",
+        privateKey: await seedToPrivateKeyString(seed),
+        wallet: { address: await seedAddress(seed) },
+        createdAt: 0,
+      },
+    },
+  );
+  return dir;
+};
+
+describe("the shipped .mcp.json [integration]", () => {
+  test("starts the server on the Operator's default profile, whatever it is named", async () => {
+    const dir = await operatorConfigDir();
+    const shipped = await shippedEntry();
+    const proc = Bun.spawn([process.execPath, "--no-env-file", ...shipped.args], {
+      cwd: ROOT,
+      env: {
+        PATH: process.env.PATH ?? "",
+        HOME: process.env.HOME ?? "",
+        SOLANA_RPC_URL: /** @type {string} */ (credentialEndpoint?.origin),
+        SOLOS_CONFIG_DIR: dir,
+        ...shipped.env,
+      },
+      stdout: "ignore",
+      stderr: "pipe",
+    });
+    try {
+      const lines = await stderrLines(proc, (line) => /solos mcp (ready|failed)/.test(line));
+      expect(lines.join("\n")).toContain("solos mcp ready");
+    } finally {
+      proc.kill();
+      await rm(dir, { recursive: true, force: true });
     }
   });
 });

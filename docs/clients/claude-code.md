@@ -1,7 +1,18 @@
 # Claude Code
 
-The repo ships `.mcp.json` so Claude Code picks the server up when opened here. For another
-project, add to that project's `.mcp.json` or `~/.claude.json`:
+The repo ships `.mcp.json` so Claude Code picks the server up when opened here. It names no
+profile, because profile names differ per Operator: the server takes `SOLOS_PROFILE` from the
+environment Claude Code was started in, else your default profile (`solos profiles default
+<name>`).
+
+Claude Code starts the server at the root of the checkout it was opened in, and Bun loads that
+root's `.env` and `.env.local` into the server process. `SOLANA_RPC_URL` and `JUPITER_API_KEY`
+can therefore live there. Don't source those files before starting Claude Code: they would
+then sit in Claude Code's own environment and in every tool shell it opens. A fresh worktree
+has only `.env.example`, so copy both files in from the main checkout, keeping `.env.local` at
+0600, before opening Claude Code there. Check the connection with `claude mcp get solos`.
+
+For another project, add to that project's `.mcp.json` or `~/.claude.json`:
 
 ```json
 {
