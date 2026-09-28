@@ -1,4 +1,4 @@
-# Sealing live round (ADR-0032)
+# Sealing live round (#186)
 
 **Status: 23 funded mainnet sends are recorded.** Every one was simulated first and sent
 exactly once, never with `--skip-simulation`. Every one confirmed and was reconciled against
