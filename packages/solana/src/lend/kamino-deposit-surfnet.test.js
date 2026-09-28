@@ -1,12 +1,6 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import {
-  address,
-  decompileTransactionMessage,
-  getAddressEncoder,
-  getBase58Codec,
-  getCompiledTransactionMessageDecoder,
-} from "@solana/kit";
+import { address, getAddressEncoder, getBase58Codec } from "@solana/kit";
 import {
   ActionExecutor,
   BuildRejected,
@@ -28,7 +22,7 @@ import { startRpcRecorder } from "../surfnet/rpc-recorder.js";
 import { TOKEN_PROGRAM } from "../wallet/parse-token-accounts.js";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
 import { vanillaObligationAddress } from "./kamino-deposit-addresses.js";
-import { buildSignedLendDeposit } from "./kamino-deposit-build.js";
+import { draftLendDeposit } from "./kamino-deposit-build.js";
 import {
   positionMarketBytes,
   positionObligationBytes,
@@ -42,8 +36,8 @@ import { sdkLendingMarketAuthority } from "./kamino-rpc-seam.js";
  * synthetic kLend market/reserve accounts are seeded with the `surfnet_setAccount`
  * cheatcode and the lending program is never meaningfully invoked — a simulation therefore
  * fails on chain, which is exactly the honest path under test: failed simulations send
- * nothing, rejected plans never even simulate, and the signed wire decodes to the exact
- * planned transaction.
+ * nothing, rejected plans never even simulate, and the draft carries the exact planned
+ * instructions Submission seals (ADR-0032).
  */
 
 const addressEncoder = getAddressEncoder();
@@ -174,12 +168,12 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     expect(/** @type {BuildRejected} */ (failure)?.reason).toContain("configured for");
   });
 
-  test("the signed wire decodes to the planned exact-amount deposit", async () => {
+  test("the draft carries the planned exact-amount deposit", async () => {
     const exit = await Effect.runPromiseExit(
       Effect.provide(
         Effect.all([SolanaRpc, KitSigner]).pipe(
           Effect.flatMap(([ctx, kit]) =>
-            buildSignedLendDeposit(
+            draftLendDeposit(
               { ctx, kit, market },
               { type: "lend", protocol: "kamino", market, mint: USDC_MINT, amount: "1000000" },
             ),
@@ -191,14 +185,13 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     if (exit._tag !== "Success") {
       const f = Cause.failureOption(exit.cause);
       const reason = Option.isSome(f) ? JSON.stringify(Option.getOrThrow(f)) : "defect";
-      throw new Error(`expected a signed build: ${reason}`);
+      throw new Error(`expected a draft: ${reason}`);
     }
-    const { signed, plan } = exit.value;
+    const { draft, plan } = exit.value;
     expect(plan.quote.liquidityAmount).toBe("1000000");
     expect(plan.quote.initializeObligation).toBe(true);
     expect(plan.quote.rentLamports).not.toBe("0");
-    const compiled = getCompiledTransactionMessageDecoder().decode(signed.messageBytes);
-    const decoded = decompileTransactionMessage(compiled);
+    const decoded = draft;
     // initUserMetadata, initObligation, refreshReserve, refreshObligation, deposit
     expect(decoded.instructions.length).toBe(5);
     // A newly initialized obligation has no deposits yet: refresh must not include the
@@ -216,13 +209,16 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     // custodian, the vanilla obligation PDA moves (writable) for the signer, funded from
     // the signer's own associated token account.
     const authority = await sdkLendingMarketAuthority(market);
-    const metas = /** @type {{ accounts: { address: string; role: number }[] }} */ (deposit);
-    expect(metas.accounts).toContainEqual({ address: authority, role: 0 });
-    expect(metas.accounts).toContainEqual({
+    // A draft's signer meta also carries the signer object; compare what the wire encodes.
+    const metas = /** @type {{ accounts: { address: string; role: number }[] }} */ (
+      deposit
+    ).accounts.map(({ address, role }) => ({ address, role }));
+    expect(metas).toContainEqual({ address: authority, role: 0 });
+    expect(metas).toContainEqual({
       address: await vanillaObligationAddress(await seedAddress(signerSeed), market),
       role: 1,
     });
-    expect(metas.accounts).toContainEqual({ address: await seedAddress(signerSeed), role: 3 });
+    expect(metas).toContainEqual({ address: await seedAddress(signerSeed), role: 3 });
   });
 
   test("an on-chain obligation is decoded at the seam and the plan skips its init", async () => {
@@ -241,7 +237,7 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
       Effect.provide(
         Effect.all([SolanaRpc, KitSigner]).pipe(
           Effect.flatMap(([ctx, kit]) =>
-            buildSignedLendDeposit(
+            draftLendDeposit(
               { ctx, kit, market },
               { type: "lend", protocol: "kamino", market, mint: USDC_MINT, amount: "1000000" },
             ),
@@ -253,15 +249,14 @@ describe("kamino deposit executor against Surfnet [integration]", () => {
     if (exit._tag !== "Success") {
       const f = Cause.failureOption(exit.cause);
       const reason = Option.isSome(f) ? JSON.stringify(Option.getOrThrow(f)) : "defect";
-      throw new Error(`expected a signed build: ${reason}`);
+      throw new Error(`expected a draft: ${reason}`);
     }
-    const { signed, plan } = exit.value;
+    const { draft, plan } = exit.value;
     // The obligation exists on chain with a nonzero deposit, so no obligation init and no
     // obligation rent; the user metadata is still absent and is initialized.
     expect(plan.quote.initializeObligation).toBe(false);
     expect(plan.quote.rentLamports).not.toBe("0");
-    const compiled = getCompiledTransactionMessageDecoder().decode(signed.messageBytes);
-    const decoded = decompileTransactionMessage(compiled);
+    const decoded = draft;
     // initUserMetadata, refreshReserve, refreshObligation, deposit — no initObligation.
     expect(decoded.instructions.length).toBe(4);
     // The refresh carries the obligation's existing deposit reserve as a writable remaining.

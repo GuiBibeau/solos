@@ -1,22 +1,16 @@
 // @ts-check
 /**
- * Assemble and sign one Meteora DLMM remove-only `rebalance_liquidity` under the local
- * v1 policy. Nothing here can send. A refused plan never becomes bytes. The instruction
+ * Draft one Meteora DLMM remove-only `rebalance_liquidity` for Submission to seal
+ * (ADR-0032). Nothing here signs or sends. A refused plan never becomes bytes. The instruction
  * floors receipts at `min_withdraw_x/y` and does not claim fees or rewards.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { rebalanceLiquidityInstruction } from "../liquidity/meteora-dlmm-rebalance.js";
 import { meteoraWithdrawPlan } from "../liquidity/meteora-dlmm-withdraw-plan.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { liquidityRead, receivingSide, setupSides } from "./liquidity-token-accounts.js";
 import { METEORA_DEPOSIT_V1_CONFIG } from "./meteora-liquidity-build.js";
-import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
 
 /** Same pinned budget as a Meteora deposit, so a live removal is not compute-starved. */
 const WITHDRAW_V1_CONFIG = METEORA_DEPOSIT_V1_CONFIG;
@@ -62,42 +56,31 @@ const receiptSetup = ({ read, kit, plan }) =>
   );
 
 /**
- * @param {{ ctx: Rpc; kit: Kit; plan: MeteoraWithdrawOk; creates: readonly unknown[] }} parts
+ * @param {MeteoraWithdrawOk} plan
+ * @param {ReadonlyArray<import("../submission/seal-draft.js").Draft["instructions"][number]>} creates
+ * @returns {import("../submission/seal-draft.js").Draft}
  */
-const signWithdraw = ({ ctx, kit, plan, creates }) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: WITHDRAW_V1_CONFIG }),
-    );
-    const instruction = rebalanceLiquidityInstruction(plan.accounts, {
+const withdrawDraft = (plan, creates) => ({
+  label: "Meteora withdraw",
+  instructions: [
+    ...creates,
+    rebalanceLiquidityInstruction(plan.accounts, {
       activeId: plan.activeId,
       maxActiveBinSlippage: plan.maxActiveBinSlippage,
       minWithdrawX: plan.minA,
       minWithdrawY: plan.minB,
       removes: plan.removes,
-    });
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions(
-            /** @type {any} */ ([...creates, instruction]),
-            message,
-          ),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
+    }),
+  ],
+  config: WITHDRAW_V1_CONFIG,
+});
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
  * @param {import("@solos/actions").RemoveLiquidityAction} action
- * @returns {import("effect").Effect.Effect<{ signed: Awaited<ReturnType<typeof signV1Message>>; plan: MeteoraWithdrawOk }, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<{ draft: import("../submission/seal-draft.js").Draft; plan: MeteoraWithdrawOk }, import("@solos/core").ExecutorError>}
  */
-export const buildSignedMeteoraWithdraw = ({ ctx, kit }, action) =>
+export const draftMeteoraWithdraw = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     const plan = yield* meteoraWithdrawPlan({
       reader: readerFor(ctx),
@@ -110,6 +93,5 @@ export const buildSignedMeteoraWithdraw = ({ ctx, kit }, action) =>
     });
     if (plan.status === "reject") return yield* new BuildRejected({ reason: plan.reason });
     const creates = yield* receiptSetup({ read: liquidityRead(ctx), kit, plan });
-    const signed = yield* signWithdraw({ ctx, kit, plan, creates });
-    return { signed, plan };
+    return { draft: withdrawDraft(plan, /** @type {any} */ (creates)), plan };
   }).pipe(Effect.withSpan("executor.buildMeteoraWithdraw"));

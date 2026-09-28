@@ -1,17 +1,13 @@
 // @ts-check
 /**
- * The deposit half of the executor: turn one `add_liquidity` action into exactly one signed
- * v1 transaction — or a typed failure, before anything is signed. The plan (guards, fetch
- * orchestration, budget-fit liquidity, derivations) is pure over its reader seam; this
- * module binds the reader to real RPC, proves the funding accounts (creating a missing
- * owner ATA idempotently when the quoted spend on that side is zero), and assembles the
- * transaction under the local v1 policy. A failed plan is a `BuildRejected`: the intent
- * never becomes bytes, and the caller's funds stay put.
+ * The deposit half of the executor: turn one `add_liquidity` action into exactly one draft
+ * for Submission to seal (ADR-0032), or a typed failure before anything is signed. The plan
+ * (guards, fetch orchestration, budget-fit liquidity, derivations) is pure over its reader
+ * seam; this module binds the reader to real RPC, proves the funding accounts (creating a
+ * missing owner ATA idempotently when the quoted spend on that side is zero), and orders the
+ * draft's instructions. A failed plan is a `BuildRejected`: the intent never becomes bytes,
+ * and the caller's funds stay put.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { BuildRejected, UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts, positionNftAccount } from "../liquidity/liquidity-accounts.js";
@@ -20,11 +16,9 @@ import {
   increaseLiquidityInstruction,
 } from "../liquidity/whirlpool-deposit-instruction.js";
 import { depositPlan } from "../liquidity/whirlpool-deposit-plan.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { fundingSide, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
-import { buildSignedMeteoraDeposit } from "./meteora-liquidity-build.js";
-import { buildSignedRaydiumDeposit } from "./raydium-liquidity-build.js";
-import { beginV1Message, rejectionAfterV1Policy, signV1Message } from "./transaction-v1.js";
+import { draftMeteoraDeposit } from "./meteora-liquidity-build.js";
+import { draftRaydiumDeposit } from "./raydium-liquidity-build.js";
 import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
 
 const EXECUTOR = "direct-signer";
@@ -33,8 +27,8 @@ const EXECUTOR = "direct-signer";
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("@solos/actions").AddLiquidityAction} AddLiquidityAction */
-/** @typedef {Awaited<ReturnType<typeof signV1Message>>} Signed */
-/** @typedef {Parameters<typeof appendTransactionMessageInstructions>[0][number]} SetupInstruction */
+/** @typedef {import("../submission/seal-draft.js").Draft} Draft */
+/** @typedef {Draft["instructions"][number]} SetupInstruction */
 /**
  * What a planned deposit carries. `plan` is narrowed to the fields `depositQuoteOf` consumes
  * rather than one venue's plan type, because both venues produce them and nothing downstream
@@ -42,7 +36,7 @@ const EXECUTOR = "direct-signer";
  * @typedef {{ readonly liquidity: bigint; readonly requiredA: bigint; readonly requiredB: bigint;
  *   readonly tokenMaxA: bigint; readonly tokenMaxB: bigint }} DepositQuoteSource
  */
-/** @typedef {{ readonly signed: Signed; readonly plan: DepositQuoteSource }} PlannedDeposit */
+/** @typedef {{ readonly draft: Draft; readonly plan: DepositQuoteSource }} PlannedDeposit */
 
 /**
  * Prove the funding side can pay. A present account with enough needs nothing. A missing side is
@@ -99,46 +93,28 @@ const planFromChain = (ctx, owner, action) => {
 };
 
 /**
- * Assemble and sign the deposit under the local v1 policy: a fresh blockhash lifetime, any
- * idempotent ATA creates the funding proof demanded, then exactly one `increase_liquidity`.
- * Nothing here can send anything.
+ * The deposit's draft: any idempotent ATA creates the funding proof demanded, then exactly one
+ * `increase_liquidity`, then the wrap's closes. Submission seals it; nothing here signs.
  * @param {{
- *   ctx: Rpc;
- *   kit: Kit;
  *   plan: import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk;
  *   creates: SetupInstruction[];
  *   closes: SetupInstruction[];
  * }} parts
- * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").BuildRejected | import("@solos/core").RpcError>}
+ * @returns {Draft}
  */
-const signDeposit = ({ ctx, kit, plan, creates, closes }) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: DEPOSIT_V1_CONFIG }),
-    );
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions(
-            [
-              ...creates,
-              increaseLiquidityInstruction(plan.accounts, {
-                liquidity: plan.liquidity,
-                tokenMaxA: plan.tokenMaxA,
-                tokenMaxB: plan.tokenMaxB,
-              }),
-              ...closes,
-            ],
-            message,
-          ),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
+const depositDraft = ({ plan, creates, closes }) => ({
+  label: "Orca deposit",
+  instructions: [
+    ...creates,
+    increaseLiquidityInstruction(plan.accounts, {
+      liquidity: plan.liquidity,
+      tokenMaxA: plan.tokenMaxA,
+      tokenMaxB: plan.tokenMaxB,
+    }),
+    ...closes,
+  ],
+  config: DEPOSIT_V1_CONFIG,
+});
 
 /**
  * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
@@ -156,18 +132,18 @@ export const depositQuoteOf = (plan) => ({
 });
 
 /**
- * Build and sign one deposit. Orca is assembled here. Raydium and Meteora dispatch to their
- * own builders. Any other protocol is refused before RPC.
+ * Draft one deposit. Orca is assembled here. Raydium and Meteora dispatch to their own
+ * builders. Any other protocol is refused before RPC.
  * @param {{ ctx: Rpc; kit: Kit }} deps @param {AddLiquidityAction} action
  * @returns {import("effect").Effect.Effect<PlannedDeposit, import("@solos/core").ExecutorError>}
  */
-export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
+export const draftLiquidityDeposit = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol === "raydium") {
-      return yield* buildSignedRaydiumDeposit({ ctx, kit }, action);
+      return yield* draftRaydiumDeposit({ ctx, kit }, action);
     }
     if (action.protocol === "meteora") {
-      return yield* buildSignedMeteoraDeposit({ ctx, kit }, action);
+      return yield* draftMeteoraDeposit({ ctx, kit }, action);
     }
     if (action.protocol !== "orca") {
       return yield* new UnsupportedAction({
@@ -191,12 +167,10 @@ export const buildSignedLiquidityDeposit = ({ ctx, kit }, action) =>
       plan,
       covered: wrap.covered,
     });
-    const signed = yield* signDeposit({
-      ctx,
-      kit,
+    const draft = depositDraft({
       plan,
       creates: [...wrap.prefix, ...creates],
       closes: wrap.suffix,
     });
-    return { signed, plan };
+    return { draft, plan };
   }).pipe(Effect.withSpan("executor.buildLiquidityDeposit"));

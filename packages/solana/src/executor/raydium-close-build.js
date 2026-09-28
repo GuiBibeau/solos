@@ -16,13 +16,13 @@ import {
 } from "../liquidity/raydium-clmm-open.js";
 import { positionNftProgram, prepareRaydiumPlan } from "../liquidity/raydium-clmm-plan-reads.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
-import { notRaydium, signRaydiumPosition } from "./raydium-position-sign.js";
+import { notRaydium, raydiumDraft } from "./raydium-position-draft.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {any} action */
-export const buildSignedRaydiumClose = ({ ctx, kit }, action) =>
+export const draftRaydiumClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol !== "raydium") return yield* notRaydium("close_position", action.protocol);
     const owner = kit.signer.address;
@@ -54,6 +54,6 @@ export const buildSignedRaydiumClose = ({ ctx, kit }, action) =>
       }),
       closePositionData(),
     );
-    const signed = yield* signRaydiumPosition({ ctx, kit, instructions: [instruction] });
-    return { signed, plan: { position: action.position, nftMint: prepared.position.nftMint } };
+    const draft = raydiumDraft("Raydium close", [instruction]);
+    return { draft, plan: { position: action.position, nftMint: prepared.position.nftMint } };
   }).pipe(Effect.withSpan("executor.buildRaydiumClose"));

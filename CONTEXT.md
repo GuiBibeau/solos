@@ -56,9 +56,15 @@ vault mode plugs the same tools into pooled custody through `vault-engine`.
 **Signer** — the identity that pays and signs. Core sees only its address (`Signer` port). The
 adapter holds the `KitSigner` produced by `@solana/keychain`. Backend is a config value.
 
-**Submission** — how a signed transaction reaches the chain, always in one order: check the wire,
-check the lifetime, simulate, the venue's last guard, check the lifetime again, deliver, confirm.
-Simulating is its first half. Venues build transactions; they never send them.
+**Submission** — how a venue's draft reaches the chain, always in one order: seal it (fetch a
+lifetime, check it, sign), check the lifetime again, simulate, the venue's last guard, check the
+lifetime again, deliver, confirm. Simulating is its first half. Venues build drafts; they never
+sign or send them.
+
+**Draft** — what a venue hands to Submission: its ordered instructions, any extra signers on
+their accounts, a named compute budget and a label. It has no lifetime and no signature.
+Submission never reorders or drops its instructions. _Avoid_: "unsigned transaction", "message",
+and "plan", which already names a venue's computed amounts.
 
 **Submitter** — where Submission delivers signed bytes and asks for their status: an RPC node by
 default, or a landing service, bundle engine or colocated sender. It never signs or re-signs.

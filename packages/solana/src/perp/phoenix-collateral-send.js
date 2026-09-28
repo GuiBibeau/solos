@@ -2,7 +2,7 @@
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { executionResult, simulationResult } from "../executor/action-results.js";
-import { simulateSigned, submitSigned } from "../submission/submission.js";
+import { simulateDraft, submitDraft } from "../submission/submission.js";
 import { readOnboardingStatus } from "./perp-onboarder-live.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 import { buildCollateral } from "./phoenix-collateral-build.js";
@@ -72,8 +72,8 @@ const collateralGuard = (deps, plan) =>
 export const simulateCollateral = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* planCollateral(deps, action);
-    const simulated = yield* simulateSigned(deps.submission, {
-      signed: plan.signed,
+    const simulated = yield* simulateDraft(deps.submission, {
+      draft: plan.draft,
       probe: collateralProbe(plan),
     });
     const quote = /** @type {import("@solos/actions").PerpCollateralQuote | null} */ (
@@ -90,10 +90,10 @@ export const simulateCollateral = (deps, action) =>
 export const executeCollateral = (deps, action) =>
   Effect.gen(function* () {
     const plan = yield* planCollateral(deps, action);
-    const delivered = yield* submitSigned(
+    const delivered = yield* submitDraft(
       deps.submission,
       {
-        signed: plan.signed,
+        draft: plan.draft,
         probe: collateralProbe(plan),
         guard: collateralGuard(deps, plan),
         requireSimulation: true,

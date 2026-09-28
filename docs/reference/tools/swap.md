@@ -116,7 +116,8 @@ until their executor branches land.
   Keys live in the environment or profile store, never in tool arguments or error payloads.
 - **Errors:** executor-channel failures — `BuildRejected` (pre-sign policy), `BuildUnavailable`
   (credential, rate limit, timeout, contract mismatch; with no `JUPITER_API_KEY` the failure is
-  pre-HTTP), `SimulationFailed` (nothing was sent), `TransactionExpired` (expired after signing;
+  pre-HTTP), `SignerUnavailable` (the signer failed; a fixed reason, nothing was sent),
+  `SimulationFailed` (nothing was sent), `TransactionExpired` (expired after signing;
   signature preserved and nothing sent), `TransactionFailed` (the one
   submission did not confirm; signature preserved), `UnsupportedAction`, `RpcError`. Domain errors exit
   non-zero with `{ "error": { "code", ... } }` on stderr; results are JSON on stdout.

@@ -1,16 +1,7 @@
 // @ts-check
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { ActionSchema } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import {
-  beginV1Message,
-  rejectionAfterV1Policy,
-  signV1Message,
-} from "../executor/transaction-v1.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 import { readCollateralExchange } from "./phoenix-collateral-exchange-live.js";
@@ -107,8 +98,8 @@ const prepare = (deps, action) =>
     };
   });
 
-/** @param {Deps} deps @param {Effect.Effect.Success<ReturnType<typeof prepare>>} facts */
-const signPlan = (deps, facts) =>
+/** @param {Effect.Effect.Success<ReturnType<typeof prepare>>} facts */
+const draftPlan = (facts) =>
   Effect.gen(function* () {
     const { owner, trader, exchange, atas, amount, direction } = facts;
     const parts = /** @type {import("@ellipsis-labs/rise").BuildWithdrawIxsResolvedInput} */ (
@@ -129,24 +120,15 @@ const signPlan = (deps, facts) =>
       catch: () =>
         new BuildRejected({ reason: "Phoenix collateral instructions failed validation" }),
     });
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", deps.ctx.url, () =>
-      deps.ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const message = appendTransactionMessageInstructions(
-      instructions,
-      setTransactionMessageLifetimeUsingBlockhash(
-        lifetime,
-        beginV1Message({ feePayerSigner: deps.kit.signer, config: TX_CONFIG }),
-      ),
-    );
-    const signed = yield* Effect.tryPromise({
-      try: () => signV1Message(message),
-      catch: (/** @type {unknown} */ error) =>
-        rejectionAfterV1Policy(error, "Phoenix collateral transfer"),
-    });
-    return { signed, facts };
+    /** @type {import("../submission/seal-draft.js").Draft} */
+    const draft = {
+      label: "Phoenix collateral transfer",
+      instructions: /** @type {any} */ (instructions),
+      config: TX_CONFIG,
+    };
+    return { draft, facts };
   });
 
 /** @param {Deps} deps @param {Action} action */
 export const buildCollateral = (deps, action) =>
-  Effect.flatMap(prepare(deps, action), (facts) => signPlan(deps, facts));
+  Effect.flatMap(prepare(deps, action), (facts) => draftPlan(facts));

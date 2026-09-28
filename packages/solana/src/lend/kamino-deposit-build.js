@@ -1,22 +1,13 @@
 // @ts-check
 /**
- * The executor's lend-deposit half: turn one `lend` action into exactly one signed v1
- * transaction — or a typed failure, before anything is signed. The market is revalidated
- * against the executor's configuration (ADR-0019), the pure plan runs against real RPC
- * through a thin reader, and the plan's instructions are assembled under the local v1
- * policy. A rejected plan is a `BuildRejected`: the intent never becomes bytes.
+ * The executor's lend-deposit half: turn one `lend` action into exactly one draft for
+ * Submission to seal (ADR-0032), or a typed failure before anything is signed. The market is
+ * revalidated against the executor's configuration (ADR-0019), the pure plan runs against real
+ * RPC through a thin reader, and the plan's instructions become the draft under the local v1
+ * budget. A rejected plan is a `BuildRejected`: the intent never becomes bytes.
  */
-import {
-  appendTransactionMessageInstructions,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
-import {
-  beginV1Message,
-  signV1Message,
-  rejectionAfterV1Policy,
-} from "../executor/transaction-v1.js";
 import { base64AccountData } from "../market/mint-account.js";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
@@ -28,7 +19,6 @@ import { depositPlan } from "./kamino-deposit-plan.js";
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
 /** @typedef {import("@solos/actions").LendAction} LendAction */
 /** @typedef {import("./kamino-deposit-plan.js").DepositPlanOk} DepositPlanOk */
-/** @typedef {Awaited<ReturnType<typeof signV1Message>>} Signed */
 
 /** Local v1 policy for the deposit: bounded compute, the chain-max data limit, small tip. */
 export const KAMINO_DEPOSIT_V1_CONFIG = Object.freeze({
@@ -121,16 +111,16 @@ const fetchRows = (read, accounts) =>
   });
 
 /**
- * Build and sign one Kamino deposit. The action's market must be this executor's configured
- * market; reserve/obligation/balance correspondence is the pure plan's job.
+ * Draft one Kamino deposit. The action's market must be this executor's configured market;
+ * reserve/obligation/balance correspondence is the pure plan's job.
  * @param {{ ctx: Rpc; kit: Kit; market: string }} deps
  * @param {LendAction} action
  * @returns {import("effect").Effect.Effect<
- *   { readonly signed: Signed; readonly plan: DepositPlanOk },
+ *   { readonly draft: import("../submission/seal-draft.js").Draft; readonly plan: DepositPlanOk },
  *   import("@solos/core").BuildRejected | import("@solos/core").RpcError
  * >}
  */
-export const buildSignedLendDeposit = ({ ctx, kit, market }, action) =>
+export const draftLendDeposit = ({ ctx, kit, market }, action) =>
   Effect.gen(function* () {
     if (action.protocol !== "kamino") {
       return yield* new BuildRejected({
@@ -160,41 +150,22 @@ export const buildSignedLendDeposit = ({ ctx, kit, market }, action) =>
     if (plan.status === "reject") {
       return yield* new BuildRejected({ reason: plan.reason });
     }
-    const signed = yield* signLendInstructions({ ctx, kit, instructions: plan.instructions });
-    return { signed, plan };
+    return { draft: lendDraft("Kamino deposit", plan.instructions), plan };
   }).pipe(Effect.withSpan("executor.buildLendDeposit"));
 
 /**
- * Assemble and sign either lending plan under the local v1 policy: a fresh blockhash
- * lifetime and the plan's instructions. Nothing here can send anything.
- * @param {{ ctx: Rpc; kit: Kit; instructions: readonly { programAddress: string }[] }} parts
- * @returns {import("effect").Effect.Effect<Signed, import("@solos/core").BuildRejected | import("@solos/core").RpcError>}
+ * Either lending plan as a draft: the plan's instructions, in the order the program introspects
+ * (refreshes contiguous before the deposit), under the local v1 budget. Submission seals it and
+ * never reorders it (ADR-0032).
+ * @param {string} label
+ * @param {readonly { programAddress: string }[]} instructions
+ * @returns {import("../submission/seal-draft.js").Draft}
  */
-export const signLendInstructions = ({ ctx, kit, instructions }) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const height = yield* rpcCall("getBlockHeight", ctx.url, () =>
-      ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
-    );
-    if (height > lifetime.lastValidBlockHeight) {
-      return yield* new BuildRejected({
-        reason: "Kamino transaction lifetime expired before signing",
-      });
-    }
-    const message = setTransactionMessageLifetimeUsingBlockhash(
-      lifetime,
-      beginV1Message({ feePayerSigner: kit.signer, config: KAMINO_DEPOSIT_V1_CONFIG }),
-    );
-    return yield* Effect.tryPromise({
-      try: () =>
-        signV1Message(
-          appendTransactionMessageInstructions(/** @type {any} */ (instructions), message),
-        ),
-      catch: (/** @type {unknown} */ error) => rejectionAfterV1Policy(error),
-    });
-  });
+export const lendDraft = (label, instructions) => ({
+  label,
+  instructions: /** @type {any} */ (instructions),
+  config: KAMINO_DEPOSIT_V1_CONFIG,
+});
 
 /**
  * The plan's quote as the published venueQuote value: exact encoded amount, the pinned-math

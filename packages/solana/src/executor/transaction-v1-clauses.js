@@ -28,42 +28,6 @@ export const PRESUBMIT_REASON = "transaction failed v1 policy before RPC; nothin
 export const V1_UNKNOWN_CLAUSE = "an unexpected failure inside the v1 boundary";
 
 /**
- * What a failure that no v1 clause refused is called.
- *
- * Several build paths reported it as `transaction failed v1 policy before signing`, which sent an
- * operator looking for a bound to relax when every bound was fine.
- *
- * It says what is actually known and no more. The call sites wrap instruction assembly and the
- * signer in one `try`, so a throw could come from either; claiming "the signer failed after the
- * policy passed" would be a second false attribution in place of the first. What *is* certain is
- * that no clause refused it — a clause would have arrived as a `BuildRejected` and passed
- * straight through.
- *
- * The text is fixed because signer exceptions can embed raw provider response bodies, the same
- * reason `SignerUnavailable` keeps a fixed reason on the swap path.
- */
-export const V1_SIGNING_FAILED =
-  "assembling or signing the transaction failed; no v1 policy clause refused it and nothing was signed";
-
-/**
- * Translate whatever a `signV1Message` call threw. A policy breach already carries its clause and
- * passes through untouched; anything else reached the signer, so it is named as such.
- *
- * The passthrough is the point. Several call sites used `catch: () => new BuildRejected(...)`,
- * discarding the argument, so a message over the account or byte ceiling was reported with a
- * fixed venue sentence and its clause was thrown away at the last step.
- * @param {unknown} error
- * @param {string} [label] venue context for the signer case, where there is no clause to keep
- * @returns {BuildRejected}
- */
-export const rejectionAfterV1Policy = (error, label) =>
-  error instanceof BuildRejected
-    ? error
-    : new BuildRejected({
-        reason: label === undefined ? V1_SIGNING_FAILED : `${label}: ${V1_SIGNING_FAILED}`,
-      });
-
-/**
  * Mark a breach as one of ours, so the boundary knows its text may travel.
  * @param {string} text
  */

@@ -12,17 +12,14 @@
 import { describe, expect, test } from "bun:test";
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
 import { createTransactionMessage, setTransactionMessageFeePayerSigner } from "@solana/kit";
-import { BuildRejected } from "@solos/core";
 import { randomSeed } from "../surfnet/test-surfnet.js";
 import { V1_FIXTURE_CONFIG, rejectionReasonOf } from "./transaction-v1-fixture.js";
 import {
   MAX_PRIORITY_FEE_LAMPORTS,
-  V1_SIGNING_FAILED,
   V1_UNKNOWN_CLAUSE,
   assertV1MessageForSigning,
   assertV1WireForSubmission,
   beginV1Message,
-  rejectionAfterV1Policy,
 } from "./transaction-v1.js";
 
 const signerFor = async () => await createMemorySignerFromBytes(randomSeed());
@@ -99,27 +96,5 @@ describe("v1 policy refusals name what was observed and what was allowed [integr
     expect(rejectionReasonOf(() => assertV1WireForSubmission("not base64 at all !!!"))).toBe(
       `transaction failed v1 policy before RPC; nothing was sent (${V1_UNKNOWN_CLAUSE})`,
     );
-  });
-});
-
-describe("a failure after the policy passed is not reported as a policy failure [integration]", () => {
-  test("it is named for what is known, and carries none of the signer's own words", () => {
-    const thrown = new Error("KMS refused: token expired for account 0xdeadbeef");
-    const rejection = rejectionAfterV1Policy(thrown);
-    expect(rejection).toBeInstanceOf(BuildRejected);
-    expect(rejection.reason).toBe(V1_SIGNING_FAILED);
-    // The build paths previously called this "transaction failed v1 policy", which sent an
-    // operator hunting a bound to relax. It must not claim that, and equally must not claim the
-    // signer failed: the same `try` covers instruction assembly, so either could have thrown.
-    expect(rejection.reason).not.toContain("transaction failed v1 policy");
-    expect(rejection.reason).toContain("no v1 policy clause refused it");
-    for (const leaked of ["KMS", "token expired", "0xdeadbeef"]) {
-      expect(rejection.reason).not.toContain(leaked);
-    }
-  });
-
-  test("a real policy rejection passes through with its clause intact", () => {
-    const policy = new BuildRejected({ reason: "size 9001 bytes, over the ceiling" });
-    expect(rejectionAfterV1Policy(policy)).toBe(policy);
   });
 });

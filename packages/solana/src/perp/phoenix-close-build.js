@@ -1,17 +1,7 @@
 // @ts-check
-import {
-  appendTransactionMessageInstruction,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from "@solana/kit";
 import { ActionSchema } from "@solos/actions";
 import { BuildRejected, NoPositionToClose } from "@solos/core";
 import { Effect } from "effect";
-import {
-  beginV1Message,
-  rejectionAfterV1Policy,
-  signV1Message,
-} from "../executor/transaction-v1.js";
-import { rpcCall } from "../rpc/rpc-call.js";
 import { buildCloseInstruction } from "./phoenix-close-instructions.js";
 import { planCloseLots } from "./phoenix-close-math.js";
 import { readCloseRisk } from "./phoenix-close-risk.js";
@@ -75,8 +65,12 @@ const boundOrder = (action, facts) =>
         : new BuildRejected({ reason: "Phoenix reduce-only close lots cannot be bounded" }),
   });
 
-/** @param {Deps} deps @param {Effect.Effect.Success<ReturnType<typeof readFacts>> & {order:ReturnType<typeof planCloseLots>}} facts */
-const signPlan = (deps, facts) =>
+/**
+ * The close's draft. The 5 s build window is checked last, right before Submission seals the
+ * draft (ADR-0032); the guard checks it again before sending.
+ * @param {Effect.Effect.Success<ReturnType<typeof readFacts>> & {order:ReturnType<typeof planCloseLots>}} facts
+ */
+const draftPlan = (facts) =>
   Effect.gen(function* () {
     const instruction = yield* Effect.try({
       try: () => buildCloseInstruction(facts),
@@ -85,28 +79,19 @@ const signPlan = (deps, facts) =>
           ? error
           : new BuildRejected({ reason: "Phoenix reduce-only IOC instruction could not be built" }),
     });
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", deps.ctx.url, () =>
-      deps.ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
     if (Date.now() - facts.startedAt > 5000)
-      return yield* new BuildRejected({ reason: "Phoenix close state expired while signing" });
-    const message = appendTransactionMessageInstruction(
-      instruction,
-      setTransactionMessageLifetimeUsingBlockhash(
-        lifetime,
-        beginV1Message({ feePayerSigner: deps.kit.signer, config: TX_CONFIG }),
-      ),
-    );
-    const signed = yield* Effect.tryPromise({
-      try: () => signV1Message(message),
-      catch: (/** @type {unknown} */ error) =>
-        rejectionAfterV1Policy(error, "Phoenix reduce-only close"),
-    });
-    return { signed, facts };
+      return yield* new BuildRejected({ reason: "Phoenix close state expired before signing" });
+    /** @type {import("../submission/seal-draft.js").Draft} */
+    const draft = {
+      label: "Phoenix reduce-only close",
+      instructions: [instruction],
+      config: TX_CONFIG,
+    };
+    return { draft, facts };
   });
 
 /** @param {Deps} deps @param {CloseAction} action */
 export const buildClose = (deps, action) =>
   Effect.flatMap(readFacts(deps, action), (facts) =>
-    Effect.flatMap(boundOrder(action, facts), (order) => signPlan(deps, { ...facts, order })),
+    Effect.flatMap(boundOrder(action, facts), (order) => draftPlan({ ...facts, order })),
   );

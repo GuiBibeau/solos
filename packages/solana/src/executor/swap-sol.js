@@ -2,9 +2,9 @@
 import { WSOL_MINT } from "@solos/actions";
 import { UnsupportedAction } from "@solos/core";
 import { Effect } from "effect";
-import { buildSignedPumpBuy, buildSignedPumpSell } from "../launch/pump-buy-build.js";
+import { draftPumpBuy, draftPumpSell } from "../launch/pump-buy-build.js";
 import { preflightSwapBuild } from "./swap-preflight.js";
-import { assembleAndSign, fetchValidatedBuild } from "./swap-sol-build.js";
+import { assembleDraft, fetchValidatedBuild } from "./swap-sol-build.js";
 import { minSolCredit, spendBoundProbe } from "./swap-spend-bound.js";
 
 const EXECUTOR = "direct-signer";
@@ -17,13 +17,13 @@ export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
  * @typedef {import("../swap/jupiter-swap-build-live.js").JupiterSwapBuildShape} Build
  * @typedef {import("@solos/actions").SwapAction} SwapAction
  * @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} JupiterBuildEnvelope
- * @typedef {import("./swap-sol-build.js").Signed} Signed
+ * @typedef {import("../submission/seal-draft.js").Draft} Draft
  */
 
-/** @typedef {{ readonly signed: Signed; readonly envelope: JupiterBuildEnvelope }} SignedSwap */
+/** @typedef {{ readonly draft: Draft; readonly envelope: JupiterBuildEnvelope | undefined }} DraftedSwap */
 
 /**
- * Fetch, validate, assemble, and sign one swap.
+ * Fetch, validate and assemble one swap into its draft; Submission seals it (ADR-0032).
  *
  * The venue comes from the Action and nothing else: a `pump` trade is built against the bonding
  * curve, and an ordinary swap of the same coin still goes to Jupiter. Neither is ever inferred
@@ -34,13 +34,14 @@ export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
  * guarantees exactly one side does, so wSOL in means buying the coin and wSOL out means selling
  * it. That is a reading of the validated Action, not an inference about a mint.
  * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
+ * @returns {import("effect").Effect.Effect<DraftedSwap, import("@solos/core").ExecutorError>}
  */
-export const buildSignedSwap = ({ ctx, kit, build }, action) =>
+export const draftSwap = ({ ctx, kit, build }, action) =>
   Effect.gen(function* () {
     if (action.venue === "pump") {
-      const trade = action.inputMint === WSOL_MINT ? buildSignedPumpBuy : buildSignedPumpSell;
-      const { signed } = yield* trade({ ctx, kit }, action);
-      return { signed, envelope: undefined };
+      const trade = action.inputMint === WSOL_MINT ? draftPumpBuy : draftPumpSell;
+      const { draft } = yield* trade({ ctx, kit }, action);
+      return { draft, envelope: undefined };
     }
     if (action.venue !== undefined && action.venue !== "jupiter") {
       return yield* new UnsupportedAction({
@@ -49,13 +50,13 @@ export const buildSignedSwap = ({ ctx, kit, build }, action) =>
       });
     }
     const envelope = yield* fetchValidatedBuild({ kit, build }, action);
-    const { lifetime, tempWsolExisted } = yield* preflightSwapBuild(ctx, {
+    const { tempWsolExisted } = yield* preflightSwapBuild(ctx, {
       envelope,
       action,
       taker: kit.signer.address,
     });
-    const signed = yield* assembleAndSign({ kit, lifetime, tempWsolExisted }, envelope);
-    return { signed, envelope };
+    const draft = yield* assembleDraft({ kit, tempWsolExisted }, envelope);
+    return { draft, envelope };
   });
 
 /**
@@ -66,8 +67,8 @@ export const buildSignedSwap = ({ ctx, kit, build }, action) =>
  * @param {{ ctx: Rpc; kit: Kit; build: Build }} deps @param {SwapAction} action
  */
 export const plannedSwap = (deps, action) =>
-  Effect.map(buildSignedSwap(deps, action), (planned) => ({
-    signed: planned.signed,
+  Effect.map(draftSwap(deps, action), (planned) => ({
+    draft: planned.draft,
     venueQuote: /** @type {null} */ (null),
     probe: spendBoundProbe(deps.ctx, {
       taker: deps.kit.signer.address,

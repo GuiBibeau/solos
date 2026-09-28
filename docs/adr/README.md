@@ -37,3 +37,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0029](0029-jit-tool-discovery.md) | Tool discovery is just in time: withhold tools, enable on demand; `--tools all` escape hatch |
 | [0030](0030-swap-signer-repeat-guard-stays.md) | The swap signer-repeat guard stays; relax it only against a captured route |
 | [0031](0031-submission-order-submitter-port-and-modes.md) | Submission owns one order of steps; delivery is a `Submitter` port; parameters are named modes |
+| [0032](0032-sealing-venues-hand-over-drafts.md) | Sealing: venues hand Submission a draft; Submission fetches the lifetime and signs |

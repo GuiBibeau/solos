@@ -11,8 +11,6 @@ import { ATA_PROGRAM, WSOL_MINT, dataBytes } from "../swap/jupiter-swap-build-va
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} Envelope */
 
-const EXPIRED_BEFORE_SIGNING =
-  "the configured RPC lifetime expired before signing; nothing was signed or sent";
 const PREEXISTING_WSOL =
   "the taker's pre-existing wSOL account holds a balance; cleanup would take it and its rent";
 const PREEXISTING_WSOL_REMEDY =
@@ -45,22 +43,6 @@ const requireSafeTemporaryWsol = (ctx, taker) =>
       reason: PREEXISTING_WSOL,
       remedy: PREEXISTING_WSOL_REMEDY,
     });
-  });
-
-/** Fetch an RPC-owned lifetime and prove it remains usable before any signer is invoked.
- * @param {Rpc} ctx */
-const freshLifetime = (ctx) =>
-  Effect.gen(function* () {
-    const { value: lifetime } = yield* rpcCall("getLatestBlockhash", ctx.url, () =>
-      ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send(),
-    );
-    const height = yield* rpcCall("getBlockHeight", ctx.url, () =>
-      ctx.rpc.getBlockHeight({ commitment: "confirmed" }).send(),
-    );
-    if (height > lifetime.lastValidBlockHeight) {
-      return yield* new BuildRejected({ reason: EXPIRED_BEFORE_SIGNING });
-    }
-    return lifetime;
   });
 
 /** Discover the token program that owns one requested mint account on chain.
@@ -123,6 +105,5 @@ export const preflightSwapBuild = (ctx, { envelope, action, taker }) =>
     const owners = yield* discoverMintOwners(ctx, envelope, action);
     const rejection = ownerBindingRejection(envelope, action, owners);
     if (rejection) return yield* new BuildRejected({ reason: rejection });
-    const lifetime = yield* freshLifetime(ctx);
-    return { lifetime, tempWsolExisted };
+    return { tempWsolExisted };
   });

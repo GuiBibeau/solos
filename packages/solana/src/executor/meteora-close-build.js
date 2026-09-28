@@ -18,7 +18,7 @@ import {
 } from "../liquidity/meteora-dlmm-position-ix.js";
 import { METEORA_DLMM_PROGRAM } from "../liquidity/meteora-dlmm-program.js";
 import { liquidityRead } from "./liquidity-token-accounts.js";
-import { notMeteora, signMeteoraPosition } from "./meteora-position-sign.js";
+import { meteoraPositionDraft, notMeteora } from "./meteora-position-draft.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -80,7 +80,7 @@ const coverageOf = (lbPair, lowerBinId) =>
   );
 
 /** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").ClosePositionAction} action */
-export const buildSignedMeteoraClose = ({ ctx, kit }, action) =>
+export const draftMeteoraClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol !== "meteora") return yield* notMeteora("close_position", action.protocol);
     const read = yield* readPosition(ctx, action.position);
@@ -96,6 +96,6 @@ export const buildSignedMeteoraClose = ({ ctx, kit }, action) =>
       eventAuthority,
       binArrays,
     });
-    const signed = yield* signMeteoraPosition({ ctx, kit, instructions: [instruction] });
-    return { signed, plan: { position: action.position } };
+    const draft = meteoraPositionDraft("Meteora close", [instruction]);
+    return { draft, plan: { position: action.position } };
   }).pipe(Effect.withSpan("executor.buildMeteoraClose"));

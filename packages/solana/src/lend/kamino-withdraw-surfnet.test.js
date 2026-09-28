@@ -1,12 +1,6 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import {
-  address,
-  decompileTransactionMessage,
-  getAddressEncoder,
-  getBase58Codec,
-  getCompiledTransactionMessageDecoder,
-} from "@solana/kit";
+import { address, getAddressEncoder, getBase58Codec } from "@solana/kit";
 import {
   ActionExecutor,
   BuildRejected,
@@ -34,7 +28,7 @@ import {
   positionReserveBytes,
   seedKaminoAccount,
 } from "./kamino-position-fixture.js";
-import { buildSignedLendWithdraw } from "./kamino-withdraw-build.js";
+import { draftLendWithdraw } from "./kamino-withdraw-build.js";
 import { exactCollateralForWithdrawal } from "./kamino-withdraw-math.js";
 
 let surfnet;
@@ -142,7 +136,7 @@ describe("Kamino withdrawal over offline Surfnet [integration]", () => {
       Effect.provide(
         Effect.all([SolanaRpc, KitSigner]).pipe(
           Effect.flatMap(([ctx, kit]) =>
-            buildSignedLendWithdraw(
+            draftLendWithdraw(
               { ctx, kit, market },
               { type: "withdraw_lend", protocol: "kamino", market, mint, amount: "1000000" },
             ),
@@ -152,12 +146,10 @@ describe("Kamino withdrawal over offline Surfnet [integration]", () => {
       ),
     );
     if (exit._tag !== "Success") throw new Error(`expected build success: ${String(exit.cause)}`);
-    const { signed, plan } = exit.value;
+    const { draft, plan } = exit.value;
     expect(plan.quote.requestedLiquidity).toBe("1000000");
     expect(plan.quote.estimatedLiquidity).toBe("1000000");
-    const decoded = decompileTransactionMessage(
-      getCompiledTransactionMessageDecoder().decode(signed.messageBytes),
-    );
+    const decoded = draft;
     expect(decoded.instructions.map((ix) => ix.programAddress)).toEqual([
       KLEND_PROGRAM_ID,
       KLEND_PROGRAM_ID,
