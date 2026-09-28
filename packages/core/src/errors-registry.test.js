@@ -79,6 +79,7 @@ const REASONFUL = new Set([
   "SignerUnavailable",
   "SimulationFailed",
   "TokenMetadataUnavailable",
+  "ToolSelectorUnavailable",
   "TransactionExpired",
   "TransactionFailed",
   "UnknownToken",

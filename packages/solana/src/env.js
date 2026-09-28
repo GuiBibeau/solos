@@ -3,10 +3,17 @@ import { RpcConfigMissing, SignerConfigMissing } from "@solos/core";
 import { base58ByteLength } from "@solos/core/shared";
 import { z } from "zod";
 import { selectProfile, sourceFromProfile } from "./credentials/resolve.js";
-import { deriveWsUrl, elfaBaseUrl, jupiterBaseUrl, phoenixBaseUrl } from "./env-url.js";
+import {
+  aiGatewayBaseUrl,
+  deriveWsUrl,
+  elfaBaseUrl,
+  jupiterBaseUrl,
+  phoenixBaseUrl,
+} from "./env-url.js";
 import { KAMINO_MAIN_MARKET } from "./lend/kamino-addresses.js";
 
 export {
+  DEFAULT_AI_GATEWAY_BASE_URL,
   DEFAULT_ELFA_BASE_URL,
   DEFAULT_JUPITER_BASE_URL,
   DEFAULT_PHOENIX_BASE_URL,
@@ -42,6 +49,15 @@ export const EnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
   ),
+  // Vercel AI Gateway: optional; with the key, JEV ranks free-text tool discovery.
+  AI_GATEWAY_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  AI_GATEWAY_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
   // Phoenix Perps reads are public; only the endpoint is configurable (loopback fixtures).
   PHOENIX_BASE_URL: z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -72,8 +88,27 @@ export const EnvSchema = z.object({
  *   readonly jupiter: { readonly apiKey: string | undefined; readonly baseUrl: string };
  *   readonly phoenix: { readonly baseUrl: string };
  *   readonly kamino: { readonly market: string };
+ *   readonly gateway: GatewayEnv;
  * }} SolanaEnv
+ * @typedef {{ readonly apiKey: string | undefined; readonly baseUrl: string }} GatewayEnv
  */
+
+/**
+ * @param {Pick<z.infer<typeof EnvSchema>, "AI_GATEWAY_API_KEY" | "AI_GATEWAY_BASE_URL">} parsed
+ * @returns {GatewayEnv}
+ */
+const gatewayEnv = (parsed) => ({
+  apiKey: parsed.AI_GATEWAY_API_KEY,
+  baseUrl: aiGatewayBaseUrl(parsed.AI_GATEWAY_BASE_URL),
+});
+
+/**
+ * The AI Gateway settings alone, for callers that select tools without touching the chain: no
+ * RPC URL or signer is required.
+ * @param {Record<string, string | undefined>} env
+ */
+export const loadGatewayEnv = (env) =>
+  gatewayEnv(EnvSchema.pick({ AI_GATEWAY_API_KEY: true, AI_GATEWAY_BASE_URL: true }).parse(env));
 
 /**
  * Signer from explicit env vars, when present. Exactly one of the two may be set.
@@ -134,5 +169,6 @@ export const loadSolanaEnv = (env) => {
     jupiter: { apiKey: parsed.JUPITER_API_KEY, baseUrl: jupiterBaseUrl(parsed.JUPITER_BASE_URL) },
     phoenix: { baseUrl: phoenixBaseUrl(parsed.PHOENIX_BASE_URL) },
     kamino: { market: parsed.KAMINO_LENDING_MARKET ?? KAMINO_MAIN_MARKET },
+    gateway: gatewayEnv(parsed),
   };
 };

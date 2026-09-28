@@ -59,6 +59,7 @@ describe("solana env resolution [integration]", () => {
       jupiter: { apiKey: undefined, baseUrl: "https://api.jup.ag" },
       phoenix: { baseUrl: "https://perp-api.phoenix.trade" },
       kamino: { market: KAMINO_MAIN_MARKET },
+      gateway: { apiKey: undefined, baseUrl: "https://ai-gateway.vercel.sh/v4/ai" },
     });
   });
 

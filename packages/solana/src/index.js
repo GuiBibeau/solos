@@ -5,7 +5,10 @@
 /** @typedef {import("./credentials/profile.js").ProviderName} ProviderName */
 /** @typedef {import("./credentials/discover.js").DiscoveredWallet} DiscoveredWallet */
 import { Layer } from "effect";
+import { JevToolSelectorLive } from "./discovery/jev-tool-selector.js";
+import { LocalToolSelectorLive } from "./discovery/local-tool-selector.js";
 import {
+  DEFAULT_AI_GATEWAY_BASE_URL,
   DEFAULT_ELFA_BASE_URL,
   DEFAULT_JUPITER_BASE_URL,
   DEFAULT_PHOENIX_BASE_URL,
@@ -30,13 +33,17 @@ import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 
 export * from "./credentials/index.js";
+export { JevToolSelectorLive } from "./discovery/jev-tool-selector.js";
+export { LocalToolSelectorLive } from "./discovery/local-tool-selector.js";
 export {
+  DEFAULT_AI_GATEWAY_BASE_URL,
   DEFAULT_ELFA_BASE_URL,
   DEFAULT_JUPITER_BASE_URL,
   DEFAULT_PHOENIX_BASE_URL,
   deriveWsUrl,
   elfaBaseUrl,
   jupiterBaseUrl,
+  loadGatewayEnv,
   loadSolanaEnv,
   phoenixBaseUrl,
 } from "./env.js";
@@ -116,6 +123,14 @@ const perp = (phoenix) => {
 };
 
 /**
+ * Free-text tool selection behaves like Iris and prices: without AI_GATEWAY_API_KEY it still
+ * works, matching locally and saying so, because JEV fails pre-HTTP and selection falls back.
+ * @param {SolanaEnv["gateway"] | undefined} gateway
+ */
+const selector = (gateway) =>
+  JevToolSelectorLive(gateway ?? { baseUrl: DEFAULT_AI_GATEWAY_BASE_URL });
+
+/**
  * Kamino lend reads need no credential either: the tool stays advertised and the one
  * configured market is the default Main Market unless `KAMINO_LENDING_MARKET` selects another.
  * @param {SolanaEnv["kamino"] | undefined} kamino
@@ -146,6 +161,7 @@ export const SolanaLive = (env) =>
       Layer.merge(prices(env.jupiter)),
       Layer.merge(quotes(env.jupiter)),
       Layer.merge(perp(env.phoenix)),
+      Layer.merge(selector(env.gateway)),
     ),
   );
 
@@ -181,6 +197,8 @@ export const SolanaTestLive = ({ rpcUrl, wsUrl, seed, elfa, jupiter, phoenix, ka
       Layer.merge(prices(jupiter)),
       Layer.merge(quotes(jupiter)),
       Layer.merge(perp(testPhoenix)),
+      // Reusable tests never reach JEV: the local matcher ranks free text.
+      Layer.merge(LocalToolSelectorLive),
     ),
   );
 };

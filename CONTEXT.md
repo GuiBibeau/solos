@@ -30,10 +30,12 @@ MCP server and the harness agent loop. Named `solana_<group>_<verb>_<object>`.
 
 **Discovery** — how a Caller learns which tools exist. Tools are registered but withheld, and a
 search enables the matching ones just in time, so the Caller pays context only for what it asked
-for. Takes free text, a group, or explicit names; only free text consults a `ToolSelector`, whose
-default adapter is local and deterministic. A search that matches nothing explains what solOS does
-not cover rather than returning silence, and a tool the tier ceiling withholds is named as
-existing — the tool's existence is not the secret, the signer is.
+for. Takes free text, a group, or explicit names; only free text consults a `ToolSelector`. JEV
+ranks when the Operator has configured it. Otherwise the local deterministic matcher ranks, and it
+also takes over when JEV fails or is slow. A selection always names which one ranked it and, when
+it fell back, why. A search that matches nothing explains what solOS does not cover rather than
+returning silence, and a tool the tier ceiling withholds is named as existing — the tool's
+existence is not the secret, the signer is.
 
 **Tier ceiling** — the highest tier an Operator lets a server offer. Withheld tools are never
 registered, so a Caller plans around what it can see instead of discovering refusals.

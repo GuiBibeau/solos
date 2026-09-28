@@ -13,6 +13,7 @@ import { swapTools } from "./swap/index.js";
 import { transferTools } from "./transfer/index.js";
 import { walletTools } from "./wallet/index.js";
 
+export * from "./discovery/index.js";
 export * from "./lend/index.js";
 export * from "./launch/index.js";
 export * from "./liquidity/index.js";
