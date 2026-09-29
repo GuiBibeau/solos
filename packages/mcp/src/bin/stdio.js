@@ -31,12 +31,21 @@ const flagValue = (argv, flag) => {
   return value === undefined || value.startsWith("--") ? "" : value;
 };
 
+/**
+ * An env var left blank, as a copied `.env.example` leaves it, means unset: the documented
+ * default applies. Only a flag given without a value fails startup.
+ * @param {string | undefined} value
+ */
+const envValue = (value) => (value === "" ? undefined : value);
+
 const main = async () => {
   const env = loadSolanaEnv(process.env);
   const tierCeiling = TierSchema.parse(
-    flagValue(process.argv, "--tier") ?? process.env.SOLOS_TOOL_TIER,
+    flagValue(process.argv, "--tier") ?? envValue(process.env.SOLOS_TOOL_TIER),
   );
-  const tools = ToolsSchema.parse(flagValue(process.argv, "--tools") ?? process.env.SOLOS_TOOLS);
+  const tools = ToolsSchema.parse(
+    flagValue(process.argv, "--tools") ?? envValue(process.env.SOLOS_TOOLS),
+  );
   const logLevel = process.env.SOLOS_LOG_LEVEL;
   const runtime = makeToolRuntime(env, { logLevel, catalogue: catalogueOf(allTools, tierCeiling) });
   const telemetry = makePreflightTelemetry({ logLevel });

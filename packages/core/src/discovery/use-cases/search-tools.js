@@ -69,13 +69,14 @@ const byGroup = (tools, group) => {
 };
 
 /**
- * Free text through the configured selector, capped by `selectTools` itself.
+ * Free text through the configured selector, uncapped here so availability is counted over
+ * every match; `assemble` applies the cap to what is listed.
  * @param {ReadonlyArray<CatalogueTool>} tools
- * @param {{ query: string; limit: number }} request
+ * @param {string} query
  * @returns {Effect.Effect<Found, SelectionInputInvalid, import("../ports/tool-selector.js").ToolSelectorShape>}
  */
-const byQuery = (tools, { query, limit }) =>
-  Effect.map(selectTools({ query, tools, limit }), (selection) => {
+const byQuery = (tools, query) =>
+  Effect.map(selectTools({ query, tools, limit: tools.length }), (selection) => {
     const byName = new Map(tools.map((tool) => [tool.name, tool]));
     return {
       found: selection.matches.flatMap((match) => {
@@ -98,7 +99,7 @@ const byQuery = (tools, { query, limit }) =>
 const rank = (mode, input, tools) => {
   if (mode === "names") return Effect.succeed(byNames(tools, input.names ?? []));
   if (mode === "group") return Effect.succeed(byGroup(tools, input.group ?? ""));
-  return byQuery(tools, { query: input.query ?? "", limit: input.limit });
+  return byQuery(tools, input.query ?? "");
 };
 
 /**
@@ -107,10 +108,11 @@ const rank = (mode, input, tools) => {
  * @param {{ mode: SearchMode; limit: number; catalogue: Catalogue; result: Found }} parts
  */
 const assemble = ({ mode, limit, catalogue, result }) => {
-  const listed = result.found.slice(0, limit);
-  const matches = listed.map((tool) => ({
+  const isAvailable = (/** @type {CatalogueTool} */ tool) =>
+    isWithinCeiling(tool.tier, catalogue.ceiling);
+  const matches = result.found.slice(0, limit).map((tool) => ({
     ...tool,
-    available: isWithinCeiling(tool.tier, catalogue.ceiling),
+    available: isAvailable(tool),
     ...(result.scores?.has(tool.name) && { score: result.scores.get(tool.name) }),
   }));
   const groups = [...new Set(catalogue.tools.map((tool) => tool.group))].toSorted((a, b) =>
@@ -127,12 +129,13 @@ const assemble = ({ mode, limit, catalogue, result }) => {
     ceiling: catalogue.ceiling,
     notes: searchNotes({
       mode,
-      listed: listed.length,
+      listed: matches.length,
       matched: result.matched,
       unknown: result.unknown.length,
       groups,
       ceiling: catalogue.ceiling,
-      unavailable: matches.filter((match) => !match.available).map((match) => match.tier),
+      // Over everything that matched, not only what the cap lists.
+      unavailable: result.found.filter((tool) => !isAvailable(tool)).map((tool) => tool.tier),
     }),
   };
 };

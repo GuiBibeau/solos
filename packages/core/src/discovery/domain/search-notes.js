@@ -46,7 +46,7 @@ export const searchNotes = (facts) => {
   }
   if (facts.unavailable.length > 0) {
     notes.push(
-      `${count(facts.unavailable.length, "matching tool")} exist above this server's tier ceiling (${facts.ceiling}) and cannot be called here. Ask the Operator to start the server with --tier ${highestTier(facts.unavailable)}.`,
+      `${count(facts.unavailable.length, "matching tool")} ${facts.unavailable.length === 1 ? "exists" : "exist"} above this server's tier ceiling (${facts.ceiling}) and cannot be called here. Ask the Operator to start the server with --tier ${highestTier(facts.unavailable)}.`,
     );
   }
   return notes;

@@ -56,7 +56,7 @@ describe("just-in-time tool discovery over stdio [integration]", () => {
       ["solana_transfer_simulate_sol", "simulate", true],
     ]);
     expect(/** @type {any} */ (result.structuredContent).notes).toEqual([
-      "1 matching tool exist above this server's tier ceiling (simulate) and cannot be called here. Ask the Operator to start the server with --tier execute.",
+      "1 matching tool exists above this server's tier ceiling (simulate) and cannot be called here. Ask the Operator to start the server with --tier execute.",
     ]);
     const names = await server.names();
     expect(names).toContain("solana_transfer_simulate_sol");
@@ -97,6 +97,12 @@ describe("just-in-time tool discovery over stdio [integration]", () => {
     expect((await byEnv.names()).length).toBeGreaterThan(BOOTSTRAP.length);
     const byFlag = await start({ args: ["--tools", "discover"], env: { SOLOS_TOOLS: "all" } });
     expect(await byFlag.names()).toEqual(BOOTSTRAP);
+  });
+
+  test("blank SOLOS_TOOLS and SOLOS_TOOL_TIER, as a copied .env.example leaves them, mean the defaults", async () => {
+    const server = await start({ env: { SOLOS_TOOLS: "", SOLOS_TOOL_TIER: "" } });
+    expect(await server.names()).toEqual(BOOTSTRAP);
+    expect(server.mcp.instructions).toContain("Tier ceiling: simulate.");
   });
 
   test("a dangling --tools fails startup rather than falling back to the env", async () => {

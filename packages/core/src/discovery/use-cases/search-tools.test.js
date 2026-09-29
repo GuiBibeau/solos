@@ -67,7 +67,7 @@ describe("searchTools", () => {
     expect(result.matched).toBe(3);
     expect(result.ceiling).toBe("simulate");
     expect(result.notes).toEqual([
-      "1 matching tool exist above this server's tier ceiling (simulate) and cannot be called here. Ask the Operator to start the server with --tier execute.",
+      "1 matching tool exists above this server's tier ceiling (simulate) and cannot be called here. Ask the Operator to start the server with --tier execute.",
     ]);
   });
 
@@ -99,6 +99,16 @@ describe("searchTools", () => {
     expect(result.matched).toBe(3);
     expect(result.notes).toEqual([
       "Listed 2 of 3 matching tools. Raise limit or narrow the request to see the rest.",
+    ]);
+  });
+
+  test("availability is counted over every match, not only the listed ones", async () => {
+    const result = await search({ group: "swap", limit: 0 });
+    expect(result.matches).toEqual([]);
+    expect(result.matched).toBe(3);
+    expect(result.notes).toEqual([
+      "Listed 0 of 3 matching tools. Raise limit or narrow the request to see the rest.",
+      "1 matching tool exists above this server's tier ceiling (simulate) and cannot be called here. Ask the Operator to start the server with --tier execute.",
     ]);
   });
 
