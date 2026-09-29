@@ -27,9 +27,13 @@ A selection names its selector. When JEV could not answer, the local matcher ran
 - **No key.** `AI_GATEWAY_API_KEY` is not set. The request fails before any HTTP.
 - **An error.** The reason gives the HTTP status or the error class, never the provider's text.
 - **No answer in time.** JEV has 2 s by default; after that the request is matched locally.
-- **An answer without a tool choice.**
+- **An answer without a known tool choice.** A probability map that is empty or names no
+  registry tool still ranks JEV's bare `choice` when that is a known tool; otherwise the request
+  is matched locally.
 
-Selection itself never fails.
+Selection never fails once its bounds are valid. `--limit` must be a whole number of matches,
+zero or more, and the timeout a whole number of milliseconds, one or more; anything else is
+refused as `SelectionInputInvalid` before any selector runs.
 
 ```sh
 bun run solos discovery select --query "swap SOL for USDC"

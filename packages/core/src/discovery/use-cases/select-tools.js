@@ -1,6 +1,6 @@
 // @ts-check
 import { Duration, Effect } from "effect";
-import { ToolSelectorUnavailable } from "../domain/errors.js";
+import { SelectionInputInvalid, ToolSelectorUnavailable } from "../domain/errors.js";
 import { localMatches } from "../domain/local-match.js";
 import { ToolSelector } from "../ports/tool-selector.js";
 
@@ -22,8 +22,35 @@ export const DEFAULT_SELECTION_TIMEOUT_MS = 2000;
 const summaryOf = ({ name, group, title, description }) => ({ name, group, title, description });
 
 /**
- * Rank the given tools against one free-text request. Selection never fails: when the
- * configured selector cannot answer, the local matcher does, and `fallback` says why.
+ * The two bounds a caller may set, checked before any selector runs: a count of matches is a
+ * whole number, zero or more; a wait is a whole number of milliseconds, one or more. A negative
+ * count would otherwise reach `slice` and drop matches from the end instead of capping them.
+ * @param {number} limit
+ * @param {number} timeoutMs
+ * @returns {import("effect").Effect.Effect<void, SelectionInputInvalid>}
+ */
+const validateBounds = (limit, timeoutMs) => {
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    return Effect.fail(
+      new SelectionInputInvalid({
+        reason: "limit must be a whole number of matches, zero or more",
+      }),
+    );
+  }
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
+    return Effect.fail(
+      new SelectionInputInvalid({
+        reason: "timeoutMs must be a whole number of milliseconds, one or more",
+      }),
+    );
+  }
+  return Effect.void;
+};
+
+/**
+ * Rank the given tools against one free-text request. Once its bounds are valid, selection never
+ * fails: when the configured selector cannot answer, the local matcher does, and `fallback` says
+ * why. A `limit` or `timeoutMs` outside its range is refused before any selector runs.
  * @param {{
  *   readonly query: string;
  *   readonly tools: ReadonlyArray<{ name: string; group: string; title: string; description: string }>;
@@ -38,6 +65,7 @@ export const selectTools = ({
   timeoutMs = DEFAULT_SELECTION_TIMEOUT_MS,
 }) =>
   Effect.gen(function* () {
+    yield* validateBounds(limit, timeoutMs);
     const selector = yield* ToolSelector;
     const summaries = tools.map(summaryOf);
     const ranked = yield* selector.select({ query, tools: summaries }).pipe(

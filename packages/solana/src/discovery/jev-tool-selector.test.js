@@ -114,7 +114,38 @@ describe("free-text tool selection with JEV through the AI Gateway [integration]
     );
     expect(selection.selector).toBe("local");
     expect(selection.fallback).toBe(
-      "JEV answered without choosing a tool, so the request was matched locally",
+      "JEV answered without choosing a known tool, so the request was matched locally",
     );
+  });
+  test("an empty probability map still ranks the chosen tool", async () => {
+    const answer = jevAnswer({});
+    answer.answers.tool = {
+      type: "choice",
+      choice: "solana_wallet_get_balance",
+      probabilities: {},
+    };
+    const fixture = gateway([{ body: answer }]);
+    const selection = await select(
+      { baseUrl: fixture.baseUrl, apiKey: KEY },
+      { query: "what is my balance" },
+    );
+    expect(selection).toMatchObject({
+      selector: "jev",
+      matches: [{ name: "solana_wallet_get_balance", score: 1 }],
+      matched: 1,
+    });
+  });
+
+  test("an answer naming only unknown tools falls back locally", async () => {
+    const fixture = gateway([{ body: jevAnswer({ not_a_tool: 0.9, nor_this: 0.1 }) }]);
+    const selection = await select(
+      { baseUrl: fixture.baseUrl, apiKey: KEY },
+      { query: "swap SOL for USDC" },
+    );
+    expect(selection.selector).toBe("local");
+    expect(selection.fallback).toBe(
+      "JEV answered without choosing a known tool, so the request was matched locally",
+    );
+    expect(selection.matches[0]?.name).toBe("solana_swap_execute_swap");
   });
 });

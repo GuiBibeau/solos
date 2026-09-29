@@ -75,6 +75,7 @@ const REASONFUL = new Set([
   "ReserveUnavailable",
   "RpcConfigMissing",
   "RpcError",
+  "SelectionInputInvalid",
   "SignerConfigMissing",
   "SignerUnavailable",
   "SimulationFailed",

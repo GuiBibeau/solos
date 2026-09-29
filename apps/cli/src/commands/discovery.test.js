@@ -39,4 +39,17 @@ describe("`solos discovery select` [integration]", () => {
     });
     expect(fixture.requests).toHaveLength(1);
   });
+
+  test("a negative limit is refused as SelectionInputInvalid, with nothing on stdout", async () => {
+    const cli = await runSolos(
+      ["discovery", "select", "--query", "swap SOL for USDC", "--limit=-1"],
+      {},
+    );
+    expect(cli.code).toBe(1);
+    expect(cli.stdout).toBe("");
+    expect(JSON.parse(cli.stderr).error).toMatchObject({
+      code: "SelectionInputInvalid",
+      reason: "limit must be a whole number of matches, zero or more",
+    });
+  });
 });

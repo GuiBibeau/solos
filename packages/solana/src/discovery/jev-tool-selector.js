@@ -30,7 +30,7 @@ const NO_KEY = new ToolSelectorUnavailable({
 });
 
 const NO_CHOICE = new ToolSelectorUnavailable({
-  reason: "JEV answered without choosing a tool, so the request was matched locally",
+  reason: "JEV answered without choosing a known tool, so the request was matched locally",
 });
 
 /** @typedef {ReturnType<ReturnType<typeof createGateway>["evaluationModel"]>} EvaluationModel */
@@ -38,17 +38,20 @@ const NO_CHOICE = new ToolSelectorUnavailable({
 
 /**
  * JEV's probabilities as ranked matches: known tools only, zero-probability options dropped.
+ * When the map is missing, empty, or names no registry tool, the bare `choice` stands alone at
+ * 1 if it is a known tool; an unknown choice ranks nothing, and the caller falls back.
  * @param {ChoiceAnswer} answer
  * @param {ReadonlyArray<import("@solos/core").ToolSummary>} tools
  * @returns {import("@solos/core").ToolMatch[]}
  */
 const rankedMatches = (answer, tools) => {
   const known = new Set(tools.map((tool) => tool.name));
-  const probabilities = answer.probabilities ?? { [answer.choice]: 1 };
-  return Object.entries(probabilities)
+  const ranked = Object.entries(answer.probabilities ?? {})
     .filter(([name, probability]) => known.has(name) && probability > 0)
     .map(([name, probability]) => ({ name, score: Math.min(1, probability) }))
     .toSorted((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  if (ranked.length > 0) return ranked;
+  return known.has(answer.choice) ? [{ name: answer.choice, score: 1 }] : [];
 };
 
 /**
@@ -88,11 +91,10 @@ const evaluate = (model, query, tools) =>
         abortSignal: signal,
       }),
   }).pipe(
-    Effect.flatMap(({ answers }) =>
-      answers.tool?.type === "choice"
-        ? Effect.succeed(rankedMatches(answers.tool, tools))
-        : Effect.fail(NO_CHOICE),
-    ),
+    Effect.flatMap(({ answers }) => {
+      const ranked = answers.tool?.type === "choice" ? rankedMatches(answers.tool, tools) : [];
+      return ranked.length > 0 ? Effect.succeed(ranked) : Effect.fail(NO_CHOICE);
+    }),
   );
 
 /**

@@ -10,3 +10,13 @@ import { taggedError } from "../../shared/domain/tagged-error.js";
 export class ToolSelectorUnavailable extends /** @type {ToolSelectorUnavailableClass} */ (
   taggedError("ToolSelectorUnavailable")
 ) {}
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"SelectionInputInvalid", SelectionInputInvalidProps>} SelectionInputInvalidClass */
+/** @typedef {{ readonly reason: string }} SelectionInputInvalidProps */
+/**
+ * A bound the caller set is not a whole number in range: `limit` below zero, `timeoutMs` below
+ * one, or either not an integer. Raised before any selector runs; the reason names the field.
+ */
+export class SelectionInputInvalid extends /** @type {SelectionInputInvalidClass} */ (
+  taggedError("SelectionInputInvalid")
+) {}
