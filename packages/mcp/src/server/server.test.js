@@ -30,6 +30,7 @@ describe("solos MCP server over stdio [integration]", () => {
         SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(seed),
         SOLOS_LOG_LEVEL: "warn",
         SOLOS_TOOL_TIER: "execute",
+        SOLOS_TOOLS: "all",
       },
       stderr: "ignore",
     });

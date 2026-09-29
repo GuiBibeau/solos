@@ -43,6 +43,7 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
         SOLOS_CONFIG_DIR: await newConfigDir(),
         SOLOS_LOG_LEVEL: "warn",
         SOLOS_TOOL_TIER: "execute",
+        SOLOS_TOOLS: "all",
       },
       stderr: "ignore",
     });
@@ -54,6 +55,7 @@ describe("transfer amount boundary over stdio MCP, offline [integration]", () =>
         SOLOS_CONFIG_DIR: await newConfigDir(),
         SOLOS_LOG_LEVEL: "warn",
         SOLOS_TOOL_TIER: "execute",
+        SOLOS_TOOLS: "all",
       },
       stderr: "ignore",
     });

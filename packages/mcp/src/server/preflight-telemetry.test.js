@@ -36,6 +36,7 @@ describe("preflight rejection telemetry over stdio MCP [integration]", () => {
         SOLOS_SIGNER_KEYPAIR_PATH: MISSING_KEYPAIR_PATH,
         SOLOS_CONFIG_DIR: configDir,
         SOLOS_LOG_LEVEL: "warn",
+        SOLOS_TOOLS: "all",
       },
       stderr: "pipe",
     });

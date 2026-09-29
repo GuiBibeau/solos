@@ -36,6 +36,7 @@ describe("transfer amount boundary over stdio MCP, positive against Surfnet [int
         SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(seed),
         SOLOS_CONFIG_DIR: configDir,
         SOLOS_LOG_LEVEL: "warn",
+        SOLOS_TOOLS: "all",
       },
       stderr: "ignore",
     });

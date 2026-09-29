@@ -1,8 +1,20 @@
-# Free-text tool selection
+# Tool discovery
 
 Discovery takes a request in the Caller's own words and ranks the tool registry against it
 ([ADR-0029](../adr/0029-jit-tool-discovery.md)). Group and explicit-name lookups are exact and
 never reach a selector; only free text does.
+
+## Just in time, on the MCP server
+
+A fresh server advertises three tools: `solana_discovery_search_tools`, `solana_wallet_get_balance`
+and `solana_portfolio_get_state`. Every other tool the tier ceiling permits is registered but
+withheld. A search by `query`, `group` or `names` enables its matches and the server fires
+`tools/list_changed`, so each discovered tool arrives with its real schema and annotations. The
+server instructions carry the whole catalogue, one line per tool, so a Caller can see the surface
+cheaply and ask precisely. Tools above the ceiling are named in the catalogue and in search
+results as unavailable, never hidden. `--tools all` (or `SOLOS_TOOLS=all`) turns discovery off
+and advertises everything up front, for clients that ignore list changes. The search tool's
+inputs and result are in [the tool reference](tools/discovery.md).
 
 ## Recommendation: set `AI_GATEWAY_API_KEY`
 

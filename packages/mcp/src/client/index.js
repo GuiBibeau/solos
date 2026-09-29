@@ -14,8 +14,28 @@ import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotoc
  *   cwd?: string;
  *   name?: string;
  *   stderr?: "inherit" | "pipe" | "ignore";
- * }} McpSpawnOptions
+ *   onToolListChanged?: (tools: ReadonlyArray<import("@modelcontextprotocol/client").Tool>) => void;
+ * }} McpSpawnOptions `onToolListChanged` runs after the SDK has re-fetched the list on a
+ *   `tools/list_changed` notification, with the tools now advertised.
  */
+
+/**
+ * The SDK re-fetches the tool list on `tools/list_changed` and hands it over here.
+ * @param {McpSpawnOptions["onToolListChanged"]} onToolListChanged
+ * @returns {ConstructorParameters<typeof Client>[1]}
+ */
+const clientOptions = (onToolListChanged) =>
+  onToolListChanged === undefined
+    ? undefined
+    : {
+        listChanged: {
+          tools: {
+            onChanged: (error, tools) => {
+              if (error === null && tools !== null) onToolListChanged(tools);
+            },
+          },
+        },
+      };
 
 /**
  * Spawn a stdio MCP server and connect. Only the given env keys are forwarded, on top of the
@@ -29,6 +49,7 @@ export const connectMcp = async ({
   cwd,
   name = "solos-client",
   stderr = "inherit",
+  onToolListChanged,
 }) => {
   const transport = new StdioClientTransport({
     command,
@@ -37,7 +58,7 @@ export const connectMcp = async ({
     cwd,
     stderr,
   });
-  const client = new Client({ name, version: "0.0.0" });
+  const client = new Client({ name, version: "0.0.0" }, clientOptions(onToolListChanged));
   await client.connect(transport);
   return {
     client,

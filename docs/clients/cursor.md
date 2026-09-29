@@ -42,3 +42,10 @@ Accepted values are `read`, `simulate` and `execute`. `SOLOS_TOOL_TIER` in `env`
 `--tier` flag wins when both are set. Without it, an execute tool such as
 `solana_transfer_execute_sol` is never advertised. Withheld tools are absent from `tools/list`, not
 present and failing.
+
+## Tool discovery
+
+By default the server advertises three tools and enables the rest on demand through
+`solana_discovery_search_tools` and `tools/list_changed`. If Cursor does not pick up the changed
+list, add `"--tools", "all"` to `args` (or `"SOLOS_TOOLS": "all"` to `env`) to advertise every
+permitted tool up front.

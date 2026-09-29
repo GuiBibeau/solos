@@ -26,6 +26,9 @@ const toolNames = async (overrides = {}) => {
       SOLOS_CONFIG_DIR: /** @type {string} */ (emptyConfigDir),
       SOLOS_SIGNER_PRIVATE_KEY: signerKey ?? "",
       SOLOS_LOG_LEVEL: "warn",
+      // The ceiling is what this suite measures, so it advertises everything the ceiling permits;
+      // discover-by-default has its own coverage in discovery.test.js.
+      SOLOS_TOOLS: "all",
       ...overrides.env,
     },
     stderr: "ignore",

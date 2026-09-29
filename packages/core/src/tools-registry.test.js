@@ -4,8 +4,9 @@ import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
 describe("tool registry", () => {
-  test("has at least the wallet, transfer, market, launch, liquidity, perp, portfolio, and swap tools", () => {
+  test("has the discovery, wallet, transfer, market, launch, lend, liquidity, perp, portfolio, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
+      "solana_discovery_search_tools",
       "solana_launch_execute_buy",
       "solana_launch_execute_sell",
       "solana_launch_get_curve",
@@ -56,6 +57,7 @@ describe("tool registry", () => {
       "solana_wallet_simulate_close_token_account",
     ]);
     expect(toolGroups).toEqual([
+      "discovery",
       "launch",
       "lend",
       "liquidity",

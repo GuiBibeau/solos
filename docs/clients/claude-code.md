@@ -61,3 +61,10 @@ an explicit flag beats the env var:
 accepted values are `read`, `simulate` and `execute`. A read-only deployment is `"--tier", "read"`
 or `"SOLOS_TOOL_TIER": "read"`. Withheld tools are absent from `tools/list`, not present and
 failing, so a Caller plans around what it can see.
+
+## Tool discovery
+
+By default the server advertises three tools and withholds the rest until
+`solana_discovery_search_tools` is called; matches then join the list through `tools/list_changed`,
+which Claude Code follows. The instructions carry the full catalogue. To advertise every permitted
+tool up front instead, add `"--tools", "all"` to `args` (or `"SOLOS_TOOLS": "all"` to `env`).

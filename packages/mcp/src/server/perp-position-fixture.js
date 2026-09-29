@@ -26,6 +26,7 @@ export const startPerpMcp = async (surfnet, script = {}, options = {}) => {
   /** @type {Record<string, string>} */
   const env = await baseEnv(surfnet);
   env.SOLOS_TOOL_TIER = "execute";
+  env.SOLOS_TOOLS = "all";
   if (options.phoenix !== false) env.PHOENIX_BASE_URL = fixture.url;
   const mcp = await connectMcp({
     ...solosServerCommand(),

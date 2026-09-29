@@ -3,6 +3,7 @@
 /** @typedef {import("./shared/tools/define-tool.js").ToolTier} ToolTier */
 /** @typedef {import("./shared/domain/event.js").SolosEvent} SolosEvent */
 /** @typedef {import("./shared/domain/address.js").Address} Address */
+import { discoveryTools } from "./discovery/index.js";
 import { launchTools } from "./launch/index.js";
 import { lendTools } from "./lend/index.js";
 import { liquidityTools } from "./liquidity/index.js";
@@ -31,6 +32,7 @@ export * from "./wallet/index.js";
  * @type {ReadonlyArray<import("./shared/tools/define-tool.js").AnyToolDefinition>}
  */
 export const allTools = [
+  ...discoveryTools,
   ...walletTools,
   ...transferTools,
   ...swapTools,
