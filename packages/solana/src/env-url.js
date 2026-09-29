@@ -11,6 +11,9 @@ export const DEFAULT_JUPITER_BASE_URL = "https://api.jup.ag";
 /** Phoenix Perps production endpoint; reads are public and need no credential. */
 export const DEFAULT_PHOENIX_BASE_URL = "https://perp-api.phoenix.trade";
 
+/** Vercel AI Gateway, where JEV is served as `typesafe-ai/jev`; the client's own default. */
+export const DEFAULT_AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v4/ai";
+
 /**
  * Local validators (Surfpool, test-validator) put WebSocket on RPC port + 1; providers share the host.
  * @param {string} rpcUrl
@@ -58,3 +61,10 @@ export const jupiterBaseUrl = (raw) =>
  */
 export const phoenixBaseUrl = (raw) =>
   providerBaseUrl(raw, DEFAULT_PHOENIX_BASE_URL, "PHOENIX_BASE_URL");
+
+/**
+ * Vercel AI Gateway base URL.
+ * @param {string | undefined} raw
+ */
+export const aiGatewayBaseUrl = (raw) =>
+  providerBaseUrl(raw, DEFAULT_AI_GATEWAY_BASE_URL, "AI_GATEWAY_BASE_URL");

@@ -15,9 +15,11 @@
     "./liquidity/meteora-dlmm-seeds": "./src/liquidity/meteora-dlmm-seeds.js",
     "./lend/position-fixture": "./src/lend/kamino-position-fixture.js",
     "./swap/build-http-fixture": "./src/swap/jupiter-swap-build-http-fixture.js",
-    "./swap/build-bodies": "./src/swap/jupiter-swap-build-bodies.js"
+    "./swap/build-bodies": "./src/swap/jupiter-swap-build-bodies.js",
+    "./discovery/ai-gateway-fixture": "./src/discovery/ai-gateway-fixture.js"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "4.0.96",
     "@ellipsis-labs/rise": "0.5.26",
     "@hpke/chacha20poly1305": "1.8.0",
     "@hpke/core": "1.9.0",
