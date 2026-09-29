@@ -25,6 +25,9 @@ const FORWARDED_ENV = [
   "PHOENIX_BASE_URL",
   // Kamino reserve reads: optional configured market (RPC is shared above).
   "KAMINO_LENDING_MARKET",
+  // Free-text tool discovery through JEV: key + optional base URL override for fixtures.
+  "AI_GATEWAY_API_KEY",
+  "AI_GATEWAY_BASE_URL",
 ];
 
 /** Spawn our own server exactly as an external client would, forwarding only known env keys. */

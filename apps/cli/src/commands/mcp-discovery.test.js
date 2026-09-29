@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { KEY, jevAnswer, startGateway } from "@solos/solana/discovery/ai-gateway-fixture";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
 import { runSolos } from "./cli-fixture.js";
 
@@ -58,6 +59,25 @@ describe("`solos mcp` as a Caller under just-in-time discovery [integration]", (
       expect.objectContaining({ name: "solana_transfer_execute_sol", available: false }),
     ]);
     expect(result.structuredContent.notes.join(" ")).toContain("--tier execute");
+  });
+
+  test("the AI Gateway settings are forwarded, so a free-text search reaches the configured selector", async () => {
+    const gateway = startGateway([{ body: jevAnswer({ solana_wallet_get_address: 1 }) }]);
+    try {
+      const { stdout, code } = await runSolos(
+        ["mcp", "call", "solana_discovery_search_tools", "--args", '{"query":"which wallet am I"}'],
+        { ...env, AI_GATEWAY_API_KEY: KEY, AI_GATEWAY_BASE_URL: gateway.baseUrl },
+      );
+      expect(code).toBe(0);
+      const result = JSON.parse(stdout);
+      expect(result.structuredContent).toMatchObject({
+        selector: "jev",
+        enabled: ["solana_wallet_get_address"],
+      });
+      expect(gateway.requests).toHaveLength(1);
+    } finally {
+      gateway.stop();
+    }
   });
 
   test("SOLOS_TOOLS=all is forwarded, so every permitted tool is listed without a search", async () => {

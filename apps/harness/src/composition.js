@@ -1,5 +1,12 @@
 // @ts-check
-import { EventBusInMemory, EventSinkNoop, LoggerJsonStderr } from "@solos/core";
+import {
+  EventBusInMemory,
+  EventSinkNoop,
+  LoggerJsonStderr,
+  ToolCatalogue,
+  allTools,
+  catalogueOf,
+} from "@solos/core";
 import { SolanaLive, loadSolanaEnv } from "@solos/solana";
 import { Layer, ManagedRuntime } from "effect";
 import { loadHarnessConfig, loadHarnessEnv } from "./config.js";
@@ -27,6 +34,8 @@ export const loadHarness = async (options = {}) => {
     EventSinkNoop,
     StoreSqlite(config.daemon.storePath),
     RouterLive(harnessEnv.ROUTER_PRESET, config.router),
+    // The agent loop sees every tool, so the search tool ranks under no ceiling (ADR-0029).
+    Layer.succeed(ToolCatalogue, catalogueOf(allTools, "execute")),
   ).pipe(
     Layer.provideMerge(TracingLive(harnessEnv.OTEL_EXPORTER_OTLP_ENDPOINT, "solos-harness")),
     Layer.provideMerge(LoggerJsonStderr(harnessEnv.SOLOS_LOG_LEVEL)),
