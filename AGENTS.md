@@ -113,7 +113,7 @@ dev check` — do not edit the table by hand:
 <!-- generated: slices -->
 | Slice | Tools | Tiers |
 |---|---|---|
-| `discovery` | 0 | ports only |
+| `discovery` | 1 | read |
 | `launch` | 5 | read, simulate, execute |
 | `lend` | 6 | read, simulate, execute |
 | `liquidity` | 9 | read, simulate, execute |
@@ -130,11 +130,15 @@ A slice with tools has adapters behind them in `packages/solana/src/<slice>/`; a
 has a port tag and domain types and nothing wired. `market` covers Elfa Chat, token discovery, news
 and summaries, Jupiter prices and on-chain token metadata.
 
-`discovery` is the exception: it has no tools, but its `ToolSelector` port is wired. The port ranks
-the tool registry against a free-text request. JEV through Vercel AI Gateway does the ranking when
-`AI_GATEWAY_API_KEY` is set; the local matcher does it otherwise, or when JEV fails or is slow.
-Both adapters are in `packages/solana/src/discovery/`, and `solos discovery select --query` runs
-the selection.
+`discovery` owns the one tool every other tool is found through. The MCP server registers every
+tool the tier ceiling permits but advertises only `solana_discovery_search_tools`, the wallet
+balance and the portfolio state; a search (free text, one group, or exact names) enables its
+matches and fires `tools/list_changed` (ADR-0029). Free text goes through the `ToolSelector`
+port: JEV through Vercel AI Gateway when `AI_GATEWAY_API_KEY` is set, the local matcher otherwise
+or when JEV fails or is slow. The `ToolCatalogue` port carries the registry and the ceiling into
+the use case; composition roots provide it. `--tools all` (or `SOLOS_TOOLS=all`) advertises
+everything up front for clients that ignore list changes. Adapters live in
+`packages/solana/src/discovery/`; `solos discovery select --query` runs a bare selection.
 
 ## Conventions that lint will enforce
 

@@ -1,6 +1,6 @@
 // @ts-check
 import { Args, Command, Options } from "@effect/cli";
-import { connectMcp, solosServerCommand } from "@solos/mcp";
+import { SEARCH_TOOL, connectMcp, solosServerCommand } from "@solos/mcp";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 
@@ -14,6 +14,7 @@ const FORWARDED_ENV = [
   "SOLOS_CONFIG_DIR",
   "SOLOS_LOG_LEVEL",
   "SOLOS_TOOL_TIER",
+  "SOLOS_TOOLS",
   // Market intelligence (Elfa Iris): key + optional base URL override for fixtures.
   "ELFA_API_KEY",
   "ELFA_BASE_URL",
@@ -24,6 +25,9 @@ const FORWARDED_ENV = [
   "PHOENIX_BASE_URL",
   // Kamino reserve reads: optional configured market (RPC is shared above).
   "KAMINO_LENDING_MARKET",
+  // Free-text tool discovery through JEV: key + optional base URL override for fixtures.
+  "AI_GATEWAY_API_KEY",
+  "AI_GATEWAY_BASE_URL",
 ];
 
 /** Spawn our own server exactly as an external client would, forwarding only known env keys. */
@@ -68,9 +72,34 @@ const args = Options.text("args").pipe(
   Options.withDescription("JSON object of tool arguments"),
 );
 
+/**
+ * A Caller's first move when a tool is not advertised: ask for it by name (ADR-0029). The
+ * server enables it when the ceiling permits; otherwise the search result says why, and that
+ * result is the answer.
+ * @param {Awaited<ReturnType<typeof connectMcp>>} mcp
+ * @param {string} toolName
+ */
+const discover = (mcp, toolName) =>
+  Effect.promise(async () => {
+    const advertised = (await mcp.listTools()).some((tool) => tool.name === toolName);
+    if (advertised) return undefined;
+    const found = await mcp.callTool(SEARCH_TOOL, { names: [toolName] });
+    const { matches = [] } =
+      /** @type {{ matches?: Array<{ name: string; available: boolean }> }} */ (
+        found.structuredContent ?? {}
+      );
+    return matches.some((match) => match.name === toolName && match.available) ? undefined : found;
+  });
+
 const call = Command.make("call", { toolName, args }, (options) =>
   Effect.gen(function* () {
     const mcp = yield* connect;
+    const refused = yield* discover(mcp, options.toolName);
+    if (refused !== undefined) {
+      yield* emit({ ...refused, isError: true });
+      process.exitCode = 1;
+      return;
+    }
     const parsed = /** @type {Record<string, unknown>} */ (JSON.parse(options.args));
     const timeout = options.toolName === "solana_market_get_event_summary" ? 190_000 : undefined;
     const result = yield* Effect.promise(() => mcp.callTool(options.toolName, parsed, { timeout }));

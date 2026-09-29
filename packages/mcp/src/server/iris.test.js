@@ -25,6 +25,7 @@ describe("solos MCP Iris tool through a real server child [integration]", () => 
       SOLANA_WS_URL: surfnet.wsUrl,
       SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
       SOLOS_LOG_LEVEL: "warn",
+      SOLOS_TOOLS: "all",
       SOLOS_TOOL_TIER: "execute",
     };
     withKey = await connectMcp({

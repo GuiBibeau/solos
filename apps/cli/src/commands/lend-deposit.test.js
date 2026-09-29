@@ -42,6 +42,7 @@ beforeAll(async () => {
     SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(signerSeed),
     KAMINO_LENDING_MARKET: market,
     SOLOS_TOOL_TIER: "execute",
+    SOLOS_TOOLS: "all",
   };
   const reserveBytes = positionReserveBytes({
     market,

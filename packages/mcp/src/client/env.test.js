@@ -40,6 +40,8 @@ const childEnv = async (surfnet, extra) => ({
   SOLANA_RPC_URL: surfnet.rpcUrl,
   SOLANA_WS_URL: surfnet.wsUrl,
   SOLOS_SIGNER_PRIVATE_KEY: await seedToPrivateKeyString(randomSeed()),
+  // These children are called directly, so they advertise every tool rather than discover.
+  SOLOS_TOOLS: "all",
   ...extra,
 });
 

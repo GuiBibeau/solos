@@ -5,7 +5,7 @@
  * stdout carries JSON-RPC only; every log line goes to stderr as JSON.
  */
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { allTools, errorEnvelope } from "@solos/core";
+import { allTools, catalogueOf, errorEnvelope } from "@solos/core";
 import { loadSolanaEnv, rpcOrigin } from "@solos/solana";
 import { z } from "zod";
 import { makePreflightTelemetry, makeToolRuntime } from "../runtime.js";
@@ -13,31 +13,49 @@ import { createSolosServer } from "../server/create-server.js";
 
 const VERSION = "0.0.0";
 const TierSchema = z.enum(["read", "simulate", "execute"]).default("simulate");
+/** `discover` withholds tools until searched for (ADR-0029); `all` advertises them up front. */
+const ToolsSchema = z.enum(["discover", "all"]).default("discover");
 
 /**
- * `--tier <read|simulate|execute>` on the server command line. An explicit flag beats the
- * inherited `SOLOS_TOOL_TIER` env var, which stays supported for callers that already set it.
- * A `--tier` with no value (or another flag after it) is malformed and must fail startup rather
- * than fall back to a possibly more permissive environment value.
+ * One `--flag <value>` on the server command line. An explicit flag beats the inherited env
+ * var, which stays supported for callers that already set it. A flag with no value (or another
+ * flag after it) is malformed and must fail startup rather than fall back to a possibly more
+ * permissive environment value.
  * @param {ReadonlyArray<string>} argv
+ * @param {string} flag
  */
-const tierFlag = (argv) => {
-  const index = argv.indexOf("--tier");
+const flagValue = (argv, flag) => {
+  const index = argv.indexOf(flag);
   if (index === -1) return undefined;
   const value = argv[index + 1];
   return value === undefined || value.startsWith("--") ? "" : value;
 };
 
+/**
+ * An env var left blank, as a copied `.env.example` leaves it, means unset: the documented
+ * default applies. Only a flag given without a value fails startup.
+ * @param {string | undefined} value
+ */
+const envValue = (value) => (value === "" ? undefined : value);
+
 const main = async () => {
   const env = loadSolanaEnv(process.env);
-  const runtime = makeToolRuntime(env, { logLevel: process.env.SOLOS_LOG_LEVEL });
-  const telemetry = makePreflightTelemetry({ logLevel: process.env.SOLOS_LOG_LEVEL });
+  const tierCeiling = TierSchema.parse(
+    flagValue(process.argv, "--tier") ?? envValue(process.env.SOLOS_TOOL_TIER),
+  );
+  const tools = ToolsSchema.parse(
+    flagValue(process.argv, "--tools") ?? envValue(process.env.SOLOS_TOOLS),
+  );
+  const logLevel = process.env.SOLOS_LOG_LEVEL;
+  const runtime = makeToolRuntime(env, { logLevel, catalogue: catalogueOf(allTools, tierCeiling) });
+  const telemetry = makePreflightTelemetry({ logLevel });
   const server = createSolosServer({
     tools: allTools,
     runtime,
     telemetry,
     version: VERSION,
-    tierCeiling: TierSchema.parse(tierFlag(process.argv) ?? process.env.SOLOS_TOOL_TIER),
+    tierCeiling,
+    discovery: tools === "discover",
   });
   const shutdown = async () => {
     await server.close().catch(() => undefined);
@@ -55,6 +73,8 @@ const main = async () => {
       message: "solos mcp ready",
       rpcUrl: rpcOrigin(env.rpcUrl),
       tools: allTools.length,
+      tier: tierCeiling,
+      discovery: tools,
     }),
   );
 };

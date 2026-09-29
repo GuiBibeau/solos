@@ -6,6 +6,7 @@ check` fails when it drifts. Do not edit it by hand.
 <!-- generated: tools -->
 | Tool | Tier | Slice |
 |---|---|---|
+| `solana_discovery_search_tools` | read | `discovery` |
 | `solana_launch_execute_buy` | execute | `launch` |
 | `solana_launch_execute_sell` | execute | `launch` |
 | `solana_launch_get_curve` | read | `launch` |
@@ -72,7 +73,8 @@ composes the wallet, price feed and venue reads into the supported-portfolio sta
 (ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero
 holding is priced — a supported-assets view, never full net worth; `wallet` has the balance and
 address reads plus closing one token account the signer owns (rent back, and wrapped SOL unwrapped
-to native SOL) through the shared executor; `signals` has ports only.
+to native SOL) through the shared executor; `discovery` has the search tool the MCP server
+advertises first, which enables the tools a request needs (ADR-0029); `signals` has ports only.
 
 Every `execute` tool has a `simulate` twin, and the pages linked below still describe the read tiers
 in the most depth — the write tiers are specified in their ADRs (0019 lend, 0021 perp, 0022
@@ -80,6 +82,7 @@ liquidity) and their QA docs.
 
 ## Slice pages
 
+- [Discovery](discovery.md)
 - [Launch](launch.md)
 - [Lend](lend.md)
 - [Liquidity](liquidity.md)

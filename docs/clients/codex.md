@@ -37,3 +37,10 @@ env = { SOLOS_PROFILE = "main" }
 
 Accepted values are `read`, `simulate` and `execute`. `SOLOS_TOOL_TIER` in `env` still works; the
 `--tier` flag wins when both are set. Withheld tools never appear in `tools/list`.
+
+## Tool discovery
+
+By default the server advertises three tools and enables the rest on demand through
+`solana_discovery_search_tools` and `tools/list_changed`. A client that does not follow list
+changes needs everything up front: add `"--tools", "all"` to `args` (or `SOLOS_TOOLS = "all"`
+to `env`), and `enabled_tools` still filters on top.

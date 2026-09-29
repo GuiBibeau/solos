@@ -1,9 +1,10 @@
 // @ts-check
 import { annotationsForTier, requiresUserInteraction } from "@solos/core";
-import { Effect } from "effect";
-import { resultFromExit, thrownResult } from "./tool-result.js";
+import { Effect, Exit } from "effect";
+import { errorResult, successResult, thrownResult } from "./tool-result.js";
 
 /** @typedef {"read" | "simulate" | "execute"} Tier */
+/** @typedef {import("@modelcontextprotocol/server").RegisteredTool} RegisteredTool */
 const TIER_RANK = /** @type {Record<Tier, number>} */ ({ read: 0, simulate: 1, execute: 2 });
 
 /**
@@ -33,17 +34,27 @@ const observedRun = (tool, input) =>
   );
 
 /**
- * @param {import("@modelcontextprotocol/server").McpServer} server
- * @param {ReadonlyArray<import("@solos/core").AnyToolDefinition>} tools
- * @param {{
+ * @typedef {{
  *   runtime: import("effect").ManagedRuntime.ManagedRuntime<any, any>;
  *   telemetry?: import("../runtime.js").PreflightTelemetry;
- * }} runners
+ *   decorate?: (toolName: string, value: unknown) => unknown;
+ * }} Runners `decorate` is a success value's last stop before it is packaged; discovery uses it
+ *   to enable what a search found and to say so in the result.
+ */
+
+/**
+ * @param {import("@modelcontextprotocol/server").McpServer} server
+ * @param {ReadonlyArray<import("@solos/core").AnyToolDefinition>} tools
+ * @param {Runners} runners
+ * @returns {Map<string, RegisteredTool>} every registration by name, so discovery can withhold
+ *   and reveal
  */
 export const registerTools = (server, tools, runners) => {
-  const { runtime, telemetry } = runners;
+  const { runtime, telemetry, decorate = (_name, value) => value } = runners;
+  /** @type {Map<string, RegisteredTool>} */
+  const registered = new Map();
   for (const tool of tools) {
-    server.registerTool(
+    const handle = server.registerTool(
       tool.name,
       {
         title: tool.title,
@@ -70,8 +81,12 @@ export const registerTools = (server, tools, runners) => {
           }
         }
         const exit = await runtime.runPromiseExit(observedRun(tool, input));
-        return resultFromExit(exit);
+        return Exit.isSuccess(exit)
+          ? successResult(decorate(tool.name, exit.value))
+          : errorResult(exit.cause);
       },
     );
+    registered.set(tool.name, handle);
   }
+  return registered;
 };

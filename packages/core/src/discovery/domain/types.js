@@ -15,5 +15,50 @@ export const ToolMatchSchema = z.object({
   score: z.number().min(0).max(1).describe("Selector-specific relevance in [0, 1]"),
 });
 
+/** The tiers in rank order: a ceiling admits its own tier and every tier before it. */
+export const ToolTierSchema = z.enum(["read", "simulate", "execute"]);
+
+/** A tool as the catalogue lists it: the selector's four fields plus the tier a ceiling gates. */
+export const CatalogueToolSchema = ToolSummarySchema.extend({ tier: ToolTierSchema });
+
+/**
+ * One search: exactly one of `query`, `group` or `names` (ADR-0029). Only `query` consults a
+ * selector; the other two are exact and stay local.
+ */
+export const SearchToolsInputSchema = z.object({
+  query: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      'The request in your own words, e.g. "swap SOL for USDC". Give exactly one of query, group or names.',
+    ),
+  group: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "One tool group to list in full: discovery, launch, lend, liquidity, market, perp, portfolio, swap, transfer or wallet.",
+    ),
+  names: z
+    .array(z.string().trim().min(1))
+    .min(1)
+    .max(255)
+    .optional()
+    .describe('Exact tool names to look up, e.g. ["solana_swap_get_quote"].'),
+  limit: z
+    .number()
+    .int()
+    .min(0)
+    .max(255)
+    .default(8)
+    .describe("How many matches to list; the rest are counted, not listed."),
+});
+
 /** @typedef {z.infer<typeof ToolSummarySchema>} ToolSummary */
 /** @typedef {z.infer<typeof ToolMatchSchema>} ToolMatch */
+/** @typedef {z.infer<typeof ToolTierSchema>} CatalogueTier */
+/** @typedef {z.infer<typeof CatalogueToolSchema>} CatalogueTool */
+/** @typedef {z.infer<typeof SearchToolsInputSchema>} SearchToolsInput */

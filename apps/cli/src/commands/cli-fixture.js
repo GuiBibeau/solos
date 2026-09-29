@@ -63,4 +63,7 @@ export const solanaEnv = async (surfnet) => ({
   // These suites drive execute tools, so they opt into the ceiling an Operator would. The
   // simulate-by-default behaviour has its own coverage in packages/mcp/src/server/tier-ceiling.test.js.
   SOLOS_TOOL_TIER: "execute",
+  // Likewise they list and call tools directly, so they opt out of just-in-time discovery;
+  // the discover-by-default behaviour has its own coverage in mcp-discovery.test.js.
+  SOLOS_TOOLS: "all",
 });
