@@ -46,6 +46,10 @@ bun run solos dev evidence check --body-file pr.md --sha $(git rev-parse HEAD)  
 bun run solos dev surfpool down
 ```
 
+`bun run solos` sets `SOLOS_DEV=1`, and that flag is the only thing that puts the `dev` group in
+the command tree. An installed `solos`, or `bun apps/cli/src/main.js` run without it, shows the
+operator surface only (ADR-0034).
+
 ### Evidence
 
 The JSON printed by `solos dev verify` is the only accepted proof that a pull request's checks
@@ -104,7 +108,7 @@ unrecorded until both are in it.
 | `packages/solana/src/` | Kit + keychain Layers implementing core ports, `DirectSignerExecutor`, Submission and its `Submitter` adapters, credential profiles and discovery, Surfpool helpers | The only place Kit appears. |
 | `packages/mcp/src/` | stdio server, tool → MCP mapping, the one MCP client | HTTP transport later. |
 | `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
-| `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. |
+| `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. The `dev` group exists only under `SOLOS_DEV=1` (ADR-0034). |
 | `features/feature-map.json` | live-validated execute paths | Row shape in features/README.md. Write the row in the same change set as the QA notes. |
 
 Slices today, generated from the registry by `solos dev docs check --write` and gated by `solos

@@ -100,7 +100,8 @@ fallbacks and a reasoning level. Presets per provider, selected by `ROUTER_PRESE
 store. Imports core directly; goes through MCP only for third-party servers.
 
 **Lever** — the `solos` CLI used by humans and agents to verify behaviour instead of writing
-throwaway scripts.
+throwaway scripts. Its `dev` group exists only under `SOLOS_DEV=1`, which the checkout's
+`bun run solos` script sets; an installed `solos` is the operator surface alone (ADR-0034).
 
 **Live verification** — a mainnet round with real funds. The operator approves the wallet,
 cluster, token/amount cap, and SOL fee/rent cap first. Reusable tests stay on Surfnet.

@@ -12,7 +12,7 @@
   "scripts": {
     "check": "bun run check:lines && bun run docs:check && bun run format:check && bun run lint && bun run depcruise && bun run typecheck",
     "check:lines": "bun run scripts/check-physical-lines.js",
-    "docs:check": "bun run apps/cli/src/main.js dev docs check",
+    "docs:check": "bun run solos dev docs check",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint .",
@@ -23,7 +23,7 @@
     "test": "bun test --timeout 60000",
     "test:unit": "bun test --timeout 60000 --test-name-pattern '^(?!.*\\[integration\\])'",
     "test:integration": "bun test --timeout 60000 --test-name-pattern '\\[integration\\]'",
-    "solos": "bun run apps/cli/src/main.js",
+    "solos": "SOLOS_DEV=1 bun run apps/cli/src/main.js",
     "verify": "bun run solos dev verify",
     "mcp": "bun run packages/mcp/src/bin/stdio.js",
     "changeset": "changeset"
