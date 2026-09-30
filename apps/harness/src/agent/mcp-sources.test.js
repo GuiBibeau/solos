@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { solosServerCommand } from "@solos/mcp";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import { HarnessConfigSchema } from "../config.js";
 import { discoverMcpTools, externalToolName, MAX_TOOL_NAME_LENGTH } from "./mcp-sources.js";
 
 /** @type {string} */
@@ -38,6 +39,14 @@ describe("externalToolName", () => {
     const long = "x".repeat(MAX_TOOL_NAME_LENGTH - 4);
     expect(() => externalToolName("srv", long)).toThrow("exceeds 64 characters");
   });
+
+  test("a server name never contains the namespace delimiter", () => {
+    const entry = { name: "a__b", command: "x" };
+    expect(HarnessConfigSchema.safeParse({ mcpServers: [entry] }).success).toBe(false);
+    expect(HarnessConfigSchema.safeParse({ mcpServers: [{ ...entry, name: "a_b" }] }).success).toBe(
+      true,
+    );
+  });
 });
 
 describe("third-party MCP discovery [integration]", () => {
@@ -54,6 +63,12 @@ describe("third-party MCP discovery [integration]", () => {
     } finally {
       await external.close();
     }
+  });
+
+  test("two servers exposing the same namespaced name fail discovery instead of shadowing", async () => {
+    await expect(discoverMcpTools([twin(), twin()])).rejects.toThrow(
+      "is exposed by more than one configured server",
+    );
   });
 
   test("a server that cannot start fails discovery instead of leaving a partial set", async () => {

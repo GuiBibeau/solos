@@ -13,13 +13,15 @@ const RouteOverrideSchema = z.object({
 });
 
 const McpServerEntrySchema = z.object({
-  // Short: the name prefixes every tool the server exposes, inside the providers' 64-character
+  // Short, and never containing the `__` that separates it from the tool name, so an exposed
+  // `<server>__<tool>` splits one way; the whole name stays inside the providers' 64-character
   // tool-name limit.
   name: z
     .string()
     .min(1)
     .max(24)
-    .regex(/^[a-z][a-z0-9_-]*$/),
+    .regex(/^[a-z][a-z0-9_-]*$/)
+    .refine((name) => !name.includes("__"), "server name must not contain '__'"),
   command: z.string(),
   args: z.array(z.string()).default([]),
   env: z.record(z.string(), z.string()).default({}),

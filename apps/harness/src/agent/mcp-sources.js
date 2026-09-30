@@ -44,6 +44,26 @@ const connectExternal = async (server) => {
 };
 
 /**
+ * Register one server's tools under its namespace. A name already taken is a collision between
+ * two configured servers, and the later one must not silently replace the earlier one.
+ * @param {{ tools: Record<string, import("ai").Tool>; groups: Record<string, string> }} into
+ * @param {string} serverName
+ * @param {Array<[string, import("ai").Tool]>} discovered
+ */
+const addExposed = (into, serverName, discovered) => {
+  for (const [name, aiTool] of discovered) {
+    const exposed = externalToolName(serverName, name);
+    if (Object.hasOwn(into.tools, exposed)) {
+      throw new Error(
+        `external tool name "${exposed}" is exposed by more than one configured server (${into.groups[exposed]} and ${serverName}); rename one server in harness.config.js`,
+      );
+    }
+    into.tools[exposed] = aiTool;
+    into.groups[exposed] = serverName;
+  }
+};
+
+/**
  * One connection per configured server. A later server failing closes every earlier one, so a
  * partial discovery never leaves spawned processes behind.
  * @param {ReadonlyArray<ServerEntry>} servers
@@ -63,11 +83,7 @@ export const discoverMcpTools = async (servers) => {
     for (const server of servers) {
       const { client, discovered } = await connectExternal(server);
       closers.push(() => client.close());
-      for (const [name, aiTool] of discovered) {
-        const exposed = externalToolName(server.name, name);
-        tools[exposed] = aiTool;
-        groups[exposed] = server.name;
-      }
+      addExposed({ tools, groups }, server.name, discovered);
     }
   } catch (error) {
     await close();
