@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 // @ts-check
 /**
- * `solos`: operator CLI and the agent verification lever (ADR-0010).
- * Every command prints JSON. Exit code is non-zero on any domain error.
+ * `solos`: the operator CLI (ADR-0010). Every command prints JSON; the exit code is non-zero on
+ * any domain error. The developer lever (`solos dev ...`) joins the command tree only under
+ * `SOLOS_DEV=1`, which the checkout's `bun run solos` script sets; an installed `solos` never
+ * advertises it (ADR-0034).
  */
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
@@ -26,30 +28,38 @@ import { swap } from "./commands/swap.js";
 import { transfer } from "./commands/transfer.js";
 import { wallet } from "./commands/wallet.js";
 
+/**
+ * The lever is a checkout tool, not a product surface. Exactly "1" enables it: a blank value, as
+ * a copied `.env.example` leaves one, means unset.
+ * @param {NodeJS.ProcessEnv} env
+ */
+const hasDevLever = (env) => env.SOLOS_DEV === "1";
+
+const operatorCommands = /** @type {const} */ ([
+  login,
+  profiles,
+  doctor,
+  wallet,
+  transfer,
+  market,
+  swap,
+  launch,
+  lend,
+  liquidity,
+  perp,
+  portfolio,
+  discovery,
+  mcp,
+  router,
+  agent,
+  daemon,
+]);
+
 const root = Command.make("solos").pipe(
   Command.withDescription(
-    "solOS: Solana execution layer for LLM agents. Reusable tests run on Surfpool; live commands hit whatever SOLANA_RPC_URL points at.",
+    "solOS: Solana execution layer for LLM agents. Every command prints JSON; live commands hit whatever SOLANA_RPC_URL points at.",
   ),
-  Command.withSubcommands([
-    login,
-    profiles,
-    doctor,
-    wallet,
-    transfer,
-    market,
-    swap,
-    launch,
-    lend,
-    liquidity,
-    perp,
-    portfolio,
-    discovery,
-    mcp,
-    router,
-    agent,
-    daemon,
-    dev,
-  ]),
+  Command.withSubcommands(hasDevLever(process.env) ? [...operatorCommands, dev] : operatorCommands),
 );
 
 const cli = Command.run(root, { name: "solos", version: "0.0.0" });
