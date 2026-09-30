@@ -10,12 +10,27 @@
   "timezone": "America/Montreal",
   "labels": ["deps"],
   "rangeStrategy": "pin",
-  "lockFileMaintenance": { "enabled": true, "schedule": ["before 8am on monday"] },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 8am on monday"]
+  },
   "packageRules": [
-    { "groupName": "solana", "matchPackageNames": ["/^@solana//", "/^@solana-program//"] },
-    { "groupName": "effect", "matchPackageNames": ["/^effect$/", "/^@effect//"] },
-    { "groupName": "ai-sdk", "matchPackageNames": ["/^ai$/", "/^@ai-sdk//"] },
-    { "groupName": "mcp", "matchPackageNames": ["/^@modelcontextprotocol//"] },
+    {
+      "groupName": "solana",
+      "matchPackageNames": ["/^@solana//", "/^@solana-program//"]
+    },
+    {
+      "groupName": "effect",
+      "matchPackageNames": ["/^effect$/", "/^@effect//"]
+    },
+    {
+      "groupName": "ai-sdk",
+      "matchPackageNames": ["/^ai$/", "/^@ai-sdk//"]
+    },
+    {
+      "groupName": "mcp",
+      "matchPackageNames": ["/^@modelcontextprotocol//"]
+    },
     {
       "groupName": "lint",
       "matchPackageNames": [
@@ -33,6 +48,13 @@
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
+    },
+    {
+      "description": "A Surfpool bump must also update SURFPOOL_SHA256 in .github/actions/setup/action.yml; CI prints the observed digest",
+      "matchDepNames": ["solana-foundation/surfpool"],
+      "prBodyNotes": [
+        "This bump changes `.surfpool-version` only. CI verifies `surfpool-linux-x64.tar.gz` against `SURFPOOL_SHA256` in `.github/actions/setup/action.yml`, so this PR fails until that digest is updated for the new release. The failing step prints the observed sha256; check it against the release before pasting it in."
+      ]
     }
   ],
   "customManagers": [

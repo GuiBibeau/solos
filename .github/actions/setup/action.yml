@@ -61,7 +61,12 @@ runs:
         mkdir -p "$HOME/.local/bin"
         archive="$(mktemp)"
         curl -fsSL "$url" -o "$archive"
-        echo "${SURFPOOL_SHA256}  ${archive}" | sha256sum -c -
+        observed="$(sha256sum "$archive" | cut -d' ' -f1)"
+        if [ "$observed" != "$SURFPOOL_SHA256" ]; then
+          echo "::error title=Surfpool digest mismatch::surfpool-linux-x64.tar.gz for v${SURFPOOL_VERSION} has sha256 ${observed}, expected ${SURFPOOL_SHA256}. A version bump must update SURFPOOL_SHA256 in .github/actions/setup/action.yml with the digest of the new release archive after checking it against the release."
+          rm -f "$archive"
+          exit 1
+        fi
         tar -xz -C "$HOME/.local/bin" -f "$archive"
         rm -f "$archive"
 
