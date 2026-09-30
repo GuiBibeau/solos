@@ -70,11 +70,11 @@ const ceilingOf = (flag) =>
  */
 const run = Command.make("run", { task, groups, taskClass, tier }, (o) =>
   Effect.gen(function* () {
+    const ceiling = yield* ceilingOf(o.tier);
     const { layer, config } = yield* Effect.tryPromise({
-      try: () => loadHarness(),
+      try: () => loadHarness({ toolCeiling: ceiling }),
       catch: (error) => error,
     });
-    const ceiling = yield* ceilingOf(o.tier);
     const offered = filterByTier(allTools, ceiling);
     const runtime = makeHarnessRuntime(layer);
     const external = canAdmitExternalTools(ceiling)
