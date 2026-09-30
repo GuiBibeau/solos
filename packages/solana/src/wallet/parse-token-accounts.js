@@ -4,6 +4,17 @@ import { getMintDecoder, getTokenDecoder } from "@solana-program/token";
 
 export const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 export const TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+/** The base token-account layout; Token-2022 accounts carry at least this much. */
+export const TOKEN_ACCOUNT_SIZE = 165;
+
+/**
+ * Whether an account can be decoded as a token account at all. Anyone can put a system-owned
+ * account at a derived ATA address with a lamport transfer, and decoding that as a token account
+ * throws; callers refuse such rows with a fixed reason instead of dying on them.
+ * @param {{ readonly owner: string; readonly byteLength: number }} row
+ */
+export const isTokenAccountRow = ({ owner, byteLength }) =>
+  (owner === TOKEN_PROGRAM || owner === TOKEN_2022_PROGRAM) && byteLength >= TOKEN_ACCOUNT_SIZE;
 
 const base64 = getBase64Encoder();
 const tokenDecoder = getTokenDecoder();

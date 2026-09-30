@@ -1,21 +1,14 @@
 // @ts-check
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { Args, Command, Options } from "@effect/cli";
 import { deriveWsUrl } from "@solos/solana";
 import { jsonRpc, surfnetCheatcodes } from "@solos/solana/surfnet";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
+import { isSurfpoolPid, readState, STATE_DIR, STATE_FILE } from "./dev-surfpool-state.js";
 
-const STATE_DIR = ".solos";
-const STATE_FILE = `${STATE_DIR}/surfpool.json`;
 const DEFAULT_PORT = 8899;
-
-/** @typedef {{ pid: number; rpcUrl: string; wsUrl: string; offline: boolean }} SurfpoolState */
-
-/** @returns {SurfpoolState | undefined} */
-const readState = () =>
-  existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : undefined;
 
 /** @param {string} rpcUrl */
 const isHealthy = (rpcUrl) =>
@@ -57,17 +50,23 @@ const up = Command.make("up", { port, datasource }, (options) =>
     const forkArgs =
       options.datasource._tag === "Some" ? ["--rpc-url", options.datasource.value] : ["--offline"];
     const child = spawn("surfpool", [...args, ...forkArgs], { detached: true, stdio: "ignore" });
+    // A missing binary surfaces as an `error` event, not a throw; without a listener it is an
+    // uncaught exception, and the state file must never record a pid that was never assigned.
+    const spawned = new Promise((resolve, reject) => {
+      child.once("spawn", () => resolve(child.pid));
+      child.once("error", reject);
+    });
+    const pid = await spawned;
     child.unref();
+    if (typeof pid !== "number" || pid <= 0) throw new Error("surfpool did not start");
     const rpcUrl = `http://127.0.0.1:${p}`;
-    /** @type {SurfpoolState} */
-    const state = {
-      pid: child.pid ?? -1,
-      rpcUrl,
-      wsUrl: deriveWsUrl(rpcUrl),
-      offline: forkArgs[0] === "--offline",
-    };
+    /** @type {import("./dev-surfpool-state.js").SurfpoolState} */
+    const state = { pid, rpcUrl, wsUrl: deriveWsUrl(rpcUrl), offline: forkArgs[0] === "--offline" };
+    if (!(await waitHealthy(rpcUrl))) {
+      child.kill("SIGKILL");
+      throw new Error("surfpool did not become healthy");
+    }
     writeFileSync(STATE_FILE, JSON.stringify(state));
-    if (!(await waitHealthy(rpcUrl))) throw new Error("surfpool did not become healthy");
     return { ...state, alreadyRunning: false, hint: `export SOLANA_RPC_URL=${rpcUrl}` };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(Command.withDescription("Start a detached local Surfpool (offline unless --datasource)"));
@@ -75,14 +74,24 @@ const up = Command.make("up", { port, datasource }, (options) =>
 const down = Command.make("down", {}, () =>
   Effect.sync(() => {
     const state = readState();
-    if (!state) return { stopped: false, reason: "not running" };
-    try {
-      process.kill(state.pid, "SIGKILL");
-    } catch {
-      // already gone
+    if (!state) {
+      rmSync(STATE_FILE, { force: true });
+      return { stopped: false, reason: "not running" };
     }
-    rmSync(STATE_FILE, { force: true });
-    return { stopped: true, pid: state.pid };
+    // Refuse to signal a pid that no longer names a surfpool: pids are reused, and the file is
+    // writable by anything in the checkout. A surfpool that exits between the check and the
+    // signal is already stopped; the state file goes either way.
+    try {
+      const isSurfpool = isSurfpoolPid(state.pid);
+      if (isSurfpool) process.kill(state.pid, "SIGKILL");
+      return isSurfpool
+        ? { stopped: true, pid: state.pid }
+        : { stopped: false, reason: "stale state" };
+    } catch {
+      return { stopped: true, pid: state.pid, note: "exited before the signal" };
+    } finally {
+      rmSync(STATE_FILE, { force: true });
+    }
   }).pipe(Effect.flatMap(emit)),
 ).pipe(Command.withDescription("Stop the local Surfpool started by `up`"));
 

@@ -10,8 +10,9 @@ export const ExecuteSwapInputSchema = SwapQuoteRequestSchema.extend({
     .boolean()
     .default(false)
     .describe(
-      "Skip the pre-send simulation of the exact transaction. Defaults to false; bypassing only " +
-        "skips simulation, never validation.",
+      "Skip the pre-send simulation of the exact transaction. Defaults to false. Skipping also " +
+        "removes the measured spend bound, which is taken from that simulation (ADR-0024); " +
+        "validation still runs.",
     ),
 });
 
@@ -26,7 +27,7 @@ export const executeSwapTool = defineTool({
     "funds. A fresh Jupiter build is fetched for this call — a quote from an earlier read or " +
     "simulate is never reused, so prices may differ between calls. Simulates the exact " +
     "transaction first and sends nothing when simulation, validation, or the blockhash lifetime " +
-    "fails; skipSimulation bypasses only the simulation. Use " +
+    "fails; skipSimulation bypasses the simulation and with it the measured spend bound. Use " +
     "solana_swap_simulate_swap to preview without sending. Requires JUPITER_API_KEY.",
   input: ExecuteSwapInputSchema,
   run: (input) => executeSwap(input),

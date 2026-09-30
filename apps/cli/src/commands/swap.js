@@ -58,7 +58,7 @@ const simulate = Command.make("simulate", swapOptions, (options) =>
 const skipSimulation = Options.boolean("skip-simulation").pipe(
   Options.withDefault(false),
   Options.withDescription(
-    "Skip the pre-send simulation of the exact transaction. Defaults to false.",
+    "Skip the pre-send simulation of the exact transaction, and with it the measured spend bound. Defaults to false.",
   ),
 );
 

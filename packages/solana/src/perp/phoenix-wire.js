@@ -17,7 +17,10 @@ export const MarketConfigSchema = z.object({
   baseLotsDecimals: z.number().int().optional(),
 });
 
-export const MarketsListSchema = z.array(MarketConfigSchema);
+/** Bounds on provider arrays: a venue lists at most this many rows, and a body past them is not a venue read. */
+export const MAX_WIRE_ROWS = 1024;
+
+export const MarketsListSchema = z.array(MarketConfigSchema).max(MAX_WIRE_ROWS);
 
 /** One open or residual position row. The deprecated per-row trigger arrays are ignored. */
 export const PositionRowSchema = z.object({
@@ -28,15 +31,15 @@ export const PositionRowSchema = z.object({
 export const SubaccountSchema = z.object({
   subaccountIndex: z.number().int(),
   collateral: z.string(),
-  spotCollaterals: z.array(z.unknown()).optional(),
-  positions: z.array(PositionRowSchema).default([]),
+  spotCollaterals: z.array(z.unknown()).max(MAX_WIRE_ROWS).optional(),
+  positions: z.array(PositionRowSchema).max(MAX_WIRE_ROWS).default([]),
 });
 
 export const TraderStateSchema = z.object({
   authority: z.string().min(1),
   traderPdaIndex: z.number().int(),
   snapshot: z.object({
-    subaccounts: z.array(SubaccountSchema),
+    subaccounts: z.array(SubaccountSchema).max(MAX_WIRE_ROWS),
   }),
 });
 

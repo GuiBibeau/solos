@@ -7,6 +7,7 @@ import { rpcCall } from "../rpc/rpc-call.js";
 import { ownerBindingRejection } from "../swap/jupiter-swap-build-owner-binding.js";
 import { derivedAta } from "../swap/jupiter-swap-build-setup-account.js";
 import { ATA_PROGRAM, WSOL_MINT, dataBytes } from "../swap/jupiter-swap-build-validate.js";
+import { isTokenAccountRow } from "../wallet/parse-token-accounts.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} Envelope */
@@ -15,6 +16,10 @@ const PREEXISTING_WSOL =
   "the taker's pre-existing wSOL account holds a balance; cleanup would take it and its rent";
 const PREEXISTING_WSOL_REMEDY =
   "unwrap or spend the wSOL balance first (spl-token close <the wSOL ATA>), then retry";
+const FOREIGN_WSOL_SLOT =
+  "an account that is not a token account occupies the taker's wSOL address; nothing was signed or sent";
+const FOREIGN_WSOL_SLOT_REMEDY =
+  "the address holds a system account, usually from a stray lamport transfer; move its lamports out, or swap from a wallet whose wSOL address is free";
 const MINT_NOT_FOUND = "a requested swap mint was not found on chain; nothing was signed or sent";
 
 const tokenDecoder = getTokenDecoder();
@@ -37,7 +42,14 @@ const requireSafeTemporaryWsol = (ctx, taker) =>
       ctx.rpc.getAccountInfo(address(account), { encoding: "base64" }).send(),
     );
     if (value === null) return false;
-    const amount = wsolAmount(/** @type {readonly [string, string]} */ (value.data));
+    const data = /** @type {readonly [string, string]} */ (value.data);
+    if (!isTokenAccountRow({ owner: value.owner, byteLength: dataBytes(data[0]).length })) {
+      return yield* new BuildRejected({
+        reason: FOREIGN_WSOL_SLOT,
+        remedy: FOREIGN_WSOL_SLOT_REMEDY,
+      });
+    }
+    const amount = wsolAmount(data);
     if (amount === 0n) return true;
     return yield* new BuildRejected({
       reason: PREEXISTING_WSOL,

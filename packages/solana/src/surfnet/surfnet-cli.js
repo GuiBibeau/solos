@@ -154,12 +154,17 @@ export const surfnetCheatcodes = (rpcUrl) => ({
    * @param {string} mint
    * @param {number | string} amount raw base units
    */
-  setTokenAccount: (owner, mint, amount) =>
-    jsonRpc(rpcUrl, "surfnet_setTokenAccount", [
+  setTokenAccount: (owner, mint, amount) => {
+    // The cheatcode takes a JSON number; above 2^53 the value would silently lose precision.
+    if (!Number.isSafeInteger(Number(amount)) || BigInt(amount) > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new Error("surfnet_setTokenAccount amount must be a safe integer (below 2^53)");
+    }
+    return jsonRpc(rpcUrl, "surfnet_setTokenAccount", [
       owner,
       mint,
       { amount: Number(amount), state: "initialized" },
-    ]),
+    ]);
+  },
   /** @param {number} slot */
   timeTravelToSlot: (slot) => jsonRpc(rpcUrl, "surfnet_timeTravel", [{ absoluteSlot: slot }]),
   health: () => jsonRpc(rpcUrl, "getHealth"),

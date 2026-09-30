@@ -17,6 +17,7 @@ import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
+import { isTokenAccountRow } from "../wallet/parse-token-accounts.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
@@ -65,6 +66,37 @@ const isSatisfied = ({ isAbsent, balance, covered, required }) =>
   isAbsent ? covered > 0n && covered >= required : balance + covered >= required;
 
 /**
+ * Anyone can park a system account at a derived ATA with a lamport transfer; decoding it as a
+ * token account would throw, so it is refused with a reason instead.
+ * @param {"A" | "B"} label
+ */
+const foreignRow = (label) =>
+  fail(
+    `the token ${label} funding address holds an account that is not a token account`,
+    "the address holds a system account, usually from a stray lamport transfer; move its lamports out first",
+  );
+
+/**
+ * The side's current balance: zero when absent, decoded when it is a token account, and a typed
+ * refusal when something else sits at the address.
+ * @param {FetchedAccount | null | undefined} row @param {"A" | "B"} label
+ * @returns {bigint | import("effect").Effect.Effect<never, BuildRejected>}
+ */
+const fundingBalance = (row, label) => {
+  if (row === null || row === undefined) return 0n;
+  if (!isTokenAccountRow({ owner: row.owner, byteLength: row.bytes.length })) {
+    return foreignRow(label);
+  }
+  return tokenDecoder.decode(row.bytes).amount;
+};
+
+/** @param {{ mint: string; label: "A" | "B"; required: bigint; balance: bigint }} short */
+const shortRemedy = ({ mint, label, required, balance }) =>
+  mint === WSOL_MINT
+    ? "pass wrapSol: true to wrap native SOL for this side, or fund the wSOL account first"
+    : `fund the token ${label} account with ${required - balance} more base units`;
+
+/**
  * One funding side of a spend: nothing to do when it already covers the quote, an idempotent
  * create when the quote needs nothing from it, and a typed refusal when it is short or absent
  * but needed — a spend from an account that cannot cover it is not simulable honestly.
@@ -76,7 +108,8 @@ const isSatisfied = ({ isAbsent, balance, covered, required }) =>
  */
 export const fundingSide = ({ kit, row, required, mint, ata, program, label, verb, covered }) => {
   const isAbsent = row === null || row === undefined;
-  const balance = isAbsent ? 0n : tokenDecoder.decode(row.bytes).amount;
+  const balance = fundingBalance(row, label);
+  if (typeof balance !== "bigint") return balance;
   if (isSatisfied({ isAbsent, balance, covered: covered ?? 0n, required })) {
     return Effect.succeed(null);
   }
@@ -84,11 +117,10 @@ export const fundingSide = ({ kit, row, required, mint, ata, program, label, ver
     const detail = isAbsent
       ? "the funding account does not exist"
       : `${balance} available, the ${verb} needs ${required}`;
-    const remedy =
-      mint === WSOL_MINT
-        ? "pass wrapSol: true to wrap native SOL for this side, or fund the wSOL account first"
-        : `fund the token ${label} account with ${required - balance} more base units`;
-    return fail(`insufficient token ${label} balance: ${detail}`, remedy);
+    return fail(
+      `insufficient token ${label} balance: ${detail}`,
+      shortRemedy({ mint, label, required, balance }),
+    );
   }
   // Absent and owed nothing: the instruction still lists the account, so it has to exist.
   return Effect.succeed(createAta(kit, mint, { ata, program }));

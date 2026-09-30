@@ -42,7 +42,9 @@ const checkLifetime = (deps, sealed) =>
 
 /**
  * The simulate tier: seal, check the lifetime, simulate with the venue's probe. A failed
- * simulation is returned for the caller to report, not raised. Nothing signed here is sent.
+ * simulation is returned for the caller to report, not raised. Nothing signed here is sent, and
+ * nothing sent here is signed: the RPC receives the bytes with their signatures zeroed, so a
+ * hostile or compromised endpoint holds nothing it could broadcast (ADR-0033).
  * @param {SubmissionDeps} deps
  * @param {SubmissionRequest} request
  * @returns {Effect.Effect<import("./simulate.js").Simulated, import("@solos/core").ExecutorError>}
@@ -51,7 +53,7 @@ export const simulateDraft = (deps, request) =>
   Effect.gen(function* () {
     const sealed = yield* sealDraft(deps, request.draft);
     yield* checkLifetime(deps, sealed);
-    return yield* simulateSealed(deps.ctx, sealed, request.probe);
+    return yield* simulateSealed(deps.ctx, sealed, { probe: request.probe, unsigned: true });
   }).pipe(Effect.withSpan("submission.simulate"));
 
 /**
@@ -64,7 +66,7 @@ const simulates = (deps, request, options) =>
 
 /** @param {SubmissionDeps} deps @param {import("./sealed.js").Sealed} sealed @param {SubmissionRequest["probe"]} probe */
 const simulateOrRefuse = (deps, sealed, probe) =>
-  Effect.flatMap(simulateSealed(deps.ctx, sealed, probe), (outcome) =>
+  Effect.flatMap(simulateSealed(deps.ctx, sealed, { probe }), (outcome) =>
     outcome.err === null
       ? Effect.succeed(outcome.verdict)
       : Effect.fail(

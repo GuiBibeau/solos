@@ -10,6 +10,7 @@
  */
 import { BuildRejected, RpcError } from "@solos/core";
 import { Effect } from "effect";
+import { rpcOrigin } from "../rpc/rpc-origin.js";
 import {
   KaminoAmbiguousReserveError,
   KaminoMarketOwnerError,
@@ -17,6 +18,13 @@ import {
   sdkLedgerInstant,
   sdkLendingMarketAuthority,
 } from "./kamino-rpc-seam.js";
+
+/**
+ * Fixed sentences: the SDK's exception text can carry the endpoint or a response body, and an
+ * RpcError leaves the process (ADR-0033). The endpoint travels as its origin only.
+ */
+const RESERVE_READ_FAILED = "the Kamino reserve read failed at the configured RPC";
+const LEDGER_READ_FAILED = "the ledger instant read failed at the configured RPC";
 
 /** @type {Promise<typeof import("@kamino-finance/klend-sdk")> | undefined} */
 let sdkPromise;
@@ -72,8 +80,8 @@ const reserveFor = (read, target) =>
           ? new BuildRejected({ reason: reserveRefusal(error) })
           : new RpcError({
               method: "reserve-read",
-              url: read.url,
-              reason: error instanceof Error ? error.message : "unknown read failure",
+              url: rpcOrigin(read.url),
+              reason: RESERVE_READ_FAILED,
             }),
     }),
     (reserve) => {
@@ -156,12 +164,8 @@ export const depositFacts = (read, action) =>
     const reserve = yield* reserveFor(read, action);
     const instant = yield* Effect.tryPromise({
       try: () => sdkLedgerInstant(read.rpc),
-      catch: (error) =>
-        new RpcError({
-          method: "getSlot",
-          url: read.url,
-          reason: error instanceof Error ? error.message : "unknown read failure",
-        }),
+      catch: () =>
+        new RpcError({ method: "getSlot", url: rpcOrigin(read.url), reason: LEDGER_READ_FAILED }),
     });
     return yield* Effect.promise(() =>
       factsOf({ reserve, instant, market: action.market, amount: action.amount }),

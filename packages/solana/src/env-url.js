@@ -28,6 +28,21 @@ export const deriveWsUrl = (rpcUrl) => {
 };
 
 /**
+ * The scheme rule every configured endpoint follows: https, or plain http on a loopback host
+ * for local fixtures and Surfpool. A remote http endpoint would carry any embedded credential
+ * in clear.
+ * @param {string} raw
+ */
+export const isAllowedEndpoint = (raw) => {
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" || (url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname));
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Provider API base URL. HTTPS everywhere except plain HTTP on loopback hosts, which exists for
  * local test fixtures only.
  * @param {string | undefined} raw

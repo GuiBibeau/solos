@@ -1,6 +1,7 @@
 // @ts-check
 import { AddressSchema } from "@solos/actions";
 import { z } from "zod";
+import { isAllowedEndpoint } from "../env-url.js";
 import { PrivySessionSchema } from "../privy/session.js";
 
 /**
@@ -11,7 +12,12 @@ export const SecretRefSchema = z.string().min(1).describe("literal, $ENV_VAR, or
 
 const base = {
   wallet: z.object({ address: AddressSchema }),
-  rpcUrl: z.string().url().optional().describe("Default RPC for this profile; env still wins"),
+  rpcUrl: z
+    .string()
+    .url()
+    .refine(isAllowedEndpoint, "profile rpcUrl must use https (plain http only on loopback)")
+    .optional()
+    .describe("Default RPC for this profile; env still wins"),
   createdAt: z.number().int(),
 };
 

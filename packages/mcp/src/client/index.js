@@ -3,6 +3,7 @@
  * The one MCP client in the repo. Used by black-box tests, `solos mcp ...`, and the harness
  * to discover third-party servers. The AI SDK only converts tools; it never owns a transport.
  */
+import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/client/stdio";
 
@@ -18,6 +19,20 @@ import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotoc
  * }} McpSpawnOptions `onToolListChanged` runs after the SDK has re-fetched the list on a
  *   `tools/list_changed` notification, with the tools now advertised.
  */
+
+/**
+ * A stdio transport that is not yet started, for a client that starts it itself (the AI SDK's
+ * MCP client does). Only the given env keys are forwarded, on top of the SDK's safe defaults.
+ * @param {Omit<McpSpawnOptions, "name" | "onToolListChanged">} options
+ */
+export const stdioTransport = ({ command, args = [], env = {}, cwd, stderr = "inherit" }) =>
+  new StdioClientTransport({
+    command,
+    args,
+    env: { ...getDefaultEnvironment(), ...env },
+    cwd,
+    stderr,
+  });
 
 /**
  * The SDK re-fetches the tool list on `tools/list_changed` and hands it over here.
@@ -51,13 +66,7 @@ export const connectMcp = async ({
   stderr = "inherit",
   onToolListChanged,
 }) => {
-  const transport = new StdioClientTransport({
-    command,
-    args,
-    env: { ...getDefaultEnvironment(), ...env },
-    cwd,
-    stderr,
-  });
+  const transport = stdioTransport({ command, args, env, cwd, stderr });
   const client = new Client({ name, version: "0.0.0" }, clientOptions(onToolListChanged));
   await client.connect(transport);
   return {
@@ -80,5 +89,5 @@ export const connectMcp = async ({
 /** Parent callers select the environment; a server child must not reload ambient .env files. */
 export const solosServerCommand = () => ({
   command: "bun",
-  args: ["--no-env-file", new URL("../bin/stdio.js", import.meta.url).pathname],
+  args: ["--no-env-file", fileURLToPath(new URL("../bin/stdio.js", import.meta.url))],
 });

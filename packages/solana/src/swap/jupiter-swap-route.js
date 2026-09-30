@@ -81,21 +81,22 @@ const reachabilityRejection = (hops, quote) => {
 };
 
 /**
- * Terminal coverage: hops ending at the echoed output must jointly produce at least the quoted
- * net output — fees make gross exceed net (live: gross 1059158 vs net 1058947), so equality is
- * not required, but gross below net is impossible.
+ * Terminal coverage: what the route leaves in the output mint — every hop producing it, minus
+ * every hop that consumes it again on the way — must be at least the quoted net output. Fees
+ * make gross exceed net (live: gross 1059158 vs net 1058947), so equality is not required, but a
+ * net flow below the quote is impossible. Counting only production would let a pass-through hop
+ * (out to the output mint, then back in) satisfy the check with output the taker never keeps.
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope["routePlan"]} hops
  * @param {import("./jupiter-swap-quote.js").JupiterQuoteEnvelope} quote
  * @returns {string | undefined}
  */
 const terminalRejection = (hops, quote) => {
-  let gross = 0n;
+  let net = 0n;
   for (const hop of hops) {
-    if (hop.swapInfo.outputMint === quote.outputMint) {
-      gross += BigInt(hop.swapInfo.outAmount);
-    }
+    if (hop.swapInfo.outputMint === quote.outputMint) net += BigInt(hop.swapInfo.outAmount);
+    if (hop.swapInfo.inputMint === quote.outputMint) net -= BigInt(hop.swapInfo.inAmount);
   }
-  return gross >= BigInt(quote.outAmount)
+  return net >= BigInt(quote.outAmount)
     ? undefined
     : "route terminal output was below the quoted output";
 };

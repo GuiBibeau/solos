@@ -10,12 +10,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: oven-sh/setup-bun@v2
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
       with:
         bun-version-file: .bun-version
 
     - name: Cache Bun dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.bun/install/cache
         key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
@@ -31,26 +31,44 @@ runs:
       if: inputs.surfpool == 'true'
       id: surfpool
       shell: bash
-      run: echo "version=$(tr -d '[:space:]' < .surfpool-version)" >> "$GITHUB_OUTPUT"
+      env:
+        # sha256 of surfpool-linux-x64.tar.gz for the pinned version; the release publishes no
+        # digest, so the one recorded when the version was pinned is verified before extraction
+        # and is part of the cache key, so a cache from another digest is never restored.
+        # Bump both with .surfpool-version.
+        SURFPOOL_SHA256: 5b20a3b46e60c4f819af7b4da5c3ea211f76041710617841cc23247d15887ddc
+      run: |
+        echo "version=$(tr -d '[:space:]' < .surfpool-version)" >> "$GITHUB_OUTPUT"
+        echo "sha256=${SURFPOOL_SHA256}" >> "$GITHUB_OUTPUT"
 
     - name: Cache Surfpool
       if: inputs.surfpool == 'true'
       id: surfpool-cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.local/bin/surfpool
-        key: surfpool-${{ runner.os }}-${{ steps.surfpool.outputs.version }}
+        key: surfpool-${{ runner.os }}-${{ steps.surfpool.outputs.version }}-${{ steps.surfpool.outputs.sha256 }}
 
     - name: Install Surfpool ${{ steps.surfpool.outputs.version }}
       if: inputs.surfpool == 'true' && steps.surfpool-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         SURFPOOL_VERSION: ${{ steps.surfpool.outputs.version }}
+        SURFPOOL_SHA256: ${{ steps.surfpool.outputs.sha256 }}
       run: |
         set -euo pipefail
         url="https://github.com/solana-foundation/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
         mkdir -p "$HOME/.local/bin"
-        curl -fsSL "$url" | tar -xz -C "$HOME/.local/bin"
+        archive="$(mktemp)"
+        curl -fsSL "$url" -o "$archive"
+        observed="$(sha256sum "$archive" | cut -d' ' -f1)"
+        if [ "$observed" != "$SURFPOOL_SHA256" ]; then
+          echo "::error title=Surfpool digest mismatch::surfpool-linux-x64.tar.gz for v${SURFPOOL_VERSION} has sha256 ${observed}, expected ${SURFPOOL_SHA256}. A version bump must update SURFPOOL_SHA256 in .github/actions/setup/action.yml with the digest of the new release archive after checking it against the release."
+          rm -f "$archive"
+          exit 1
+        fi
+        tar -xz -C "$HOME/.local/bin" -f "$archive"
+        rm -f "$archive"
 
     - name: Put Surfpool on PATH
       if: inputs.surfpool == 'true'

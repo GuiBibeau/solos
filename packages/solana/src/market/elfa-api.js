@@ -1,4 +1,5 @@
 // @ts-check
+import { pinnedFetch } from "../http/pinned-fetch.js";
 
 /** @typedef {(input: string, init?: RequestInit) => Promise<Response>} Fetch */
 
@@ -29,13 +30,20 @@ export const elfaChat = async (
   { baseUrl, apiKey, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch },
   message,
 ) => {
-  const response = await fetchImpl(`${baseUrl}${CHAT_PATH}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-elfa-api-key": apiKey },
-    body: JSON.stringify({ analysisType: "chat", message, speed: "fast" }),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  return { status: response.status, ok: response.ok, body: await response.text() };
+  // A redirected POST is refused and the body is capped, so the key stays on this origin
+  // (ADR-0033).
+  const response = await pinnedFetch(
+    {
+      label: "Elfa chat",
+      method: "POST",
+      headers: { "content-type": "application/json", "x-elfa-api-key": apiKey },
+      body: JSON.stringify({ analysisType: "chat", message, speed: "fast" }),
+      signal: AbortSignal.timeout(timeoutMs),
+      fetchImpl,
+    },
+    new URL(`${baseUrl}${CHAT_PATH}`),
+  );
+  return { status: response.status, ok: response.ok, body: response.body };
 };
 
 /**
