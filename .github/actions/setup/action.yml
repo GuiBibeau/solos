@@ -31,7 +31,15 @@ runs:
       if: inputs.surfpool == 'true'
       id: surfpool
       shell: bash
-      run: echo "version=$(tr -d '[:space:]' < .surfpool-version)" >> "$GITHUB_OUTPUT"
+      env:
+        # sha256 of surfpool-linux-x64.tar.gz for the pinned version; the release publishes no
+        # digest, so the one recorded when the version was pinned is verified before extraction
+        # and is part of the cache key, so a cache from another digest is never restored.
+        # Bump both with .surfpool-version.
+        SURFPOOL_SHA256: 5b20a3b46e60c4f819af7b4da5c3ea211f76041710617841cc23247d15887ddc
+      run: |
+        echo "version=$(tr -d '[:space:]' < .surfpool-version)" >> "$GITHUB_OUTPUT"
+        echo "sha256=${SURFPOOL_SHA256}" >> "$GITHUB_OUTPUT"
 
     - name: Cache Surfpool
       if: inputs.surfpool == 'true'
@@ -39,17 +47,14 @@ runs:
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.local/bin/surfpool
-        key: surfpool-${{ runner.os }}-${{ steps.surfpool.outputs.version }}
+        key: surfpool-${{ runner.os }}-${{ steps.surfpool.outputs.version }}-${{ steps.surfpool.outputs.sha256 }}
 
     - name: Install Surfpool ${{ steps.surfpool.outputs.version }}
       if: inputs.surfpool == 'true' && steps.surfpool-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         SURFPOOL_VERSION: ${{ steps.surfpool.outputs.version }}
-        # sha256 of surfpool-linux-x64.tar.gz for the pinned version; the release publishes no
-        # digest, so the one recorded when the version was pinned is verified before extraction.
-        # Bump it with .surfpool-version.
-        SURFPOOL_SHA256: 5b20a3b46e60c4f819af7b4da5c3ea211f76041710617841cc23247d15887ddc
+        SURFPOOL_SHA256: ${{ steps.surfpool.outputs.sha256 }}
       run: |
         set -euo pipefail
         url="https://github.com/solana-foundation/surfpool/releases/download/v${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
