@@ -1,61 +1,14 @@
 // @ts-check
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { Args, Command, Options } from "@effect/cli";
 import { deriveWsUrl } from "@solos/solana";
 import { jsonRpc, surfnetCheatcodes } from "@solos/solana/surfnet";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
+import { isSurfpoolPid, readState, STATE_DIR, STATE_FILE } from "./dev-surfpool-state.js";
 
-const STATE_DIR = ".solos";
-const STATE_FILE = `${STATE_DIR}/surfpool.json`;
 const DEFAULT_PORT = 8899;
-
-/** @typedef {{ pid: number; rpcUrl: string; wsUrl: string; offline: boolean }} SurfpoolState */
-
-/** Only a loopback endpoint can be the local Surfpool this command started. @param {string} raw @param {string} scheme */
-const isLoopback = (raw, scheme) => {
-  try {
-    const url = new URL(raw);
-    return (
-      url.protocol === scheme && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
-    );
-  } catch {
-    return false;
-  }
-};
-
-/**
- * The workspace state file is gitignored and writable by anything in the checkout, so it is
- * validated like input: a positive pid and loopback URLs, or it is treated as absent.
- * @returns {SurfpoolState | undefined}
- */
-/** @param {Partial<SurfpoolState>} state */
-const isValidState = (state) =>
-  Number.isSafeInteger(state.pid) &&
-  /** @type {number} */ (state.pid) > 0 &&
-  typeof state.rpcUrl === "string" &&
-  isLoopback(state.rpcUrl, "http:") &&
-  typeof state.wsUrl === "string" &&
-  isLoopback(state.wsUrl, "ws:");
-
-const readState = () => {
-  if (!existsSync(STATE_FILE)) return undefined;
-  try {
-    const state = /** @type {Partial<SurfpoolState>} */ (
-      JSON.parse(readFileSync(STATE_FILE, "utf8"))
-    );
-    return isValidState(state) ? /** @type {SurfpoolState} */ (state) : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-/** Whether a pid still belongs to a surfpool process, so `down` never signals a reused pid. */
-const isSurfpoolPid = (/** @type {number} */ pid) => {
-  const probe = Bun.spawnSync(["ps", "-p", String(pid), "-o", "comm="]);
-  return probe.exitCode === 0 && probe.stdout.toString().trimEnd().endsWith("surfpool");
-};
 
 /** @param {string} rpcUrl */
 const isHealthy = (rpcUrl) =>
@@ -107,7 +60,7 @@ const up = Command.make("up", { port, datasource }, (options) =>
     child.unref();
     if (typeof pid !== "number" || pid <= 0) throw new Error("surfpool did not start");
     const rpcUrl = `http://127.0.0.1:${p}`;
-    /** @type {SurfpoolState} */
+    /** @type {import("./dev-surfpool-state.js").SurfpoolState} */
     const state = { pid, rpcUrl, wsUrl: deriveWsUrl(rpcUrl), offline: forkArgs[0] === "--offline" };
     if (!(await waitHealthy(rpcUrl))) {
       child.kill("SIGKILL");
@@ -126,11 +79,19 @@ const down = Command.make("down", {}, () =>
       return { stopped: false, reason: "not running" };
     }
     // Refuse to signal a pid that no longer names a surfpool: pids are reused, and the file is
-    // writable by anything in the checkout.
-    const stopped = isSurfpoolPid(state.pid);
-    if (stopped) process.kill(state.pid, "SIGKILL");
-    rmSync(STATE_FILE, { force: true });
-    return stopped ? { stopped: true, pid: state.pid } : { stopped: false, reason: "stale state" };
+    // writable by anything in the checkout. A surfpool that exits between the check and the
+    // signal is already stopped; the state file goes either way.
+    try {
+      const isSurfpool = isSurfpoolPid(state.pid);
+      if (isSurfpool) process.kill(state.pid, "SIGKILL");
+      return isSurfpool
+        ? { stopped: true, pid: state.pid }
+        : { stopped: false, reason: "stale state" };
+    } catch {
+      return { stopped: true, pid: state.pid, note: "exited before the signal" };
+    } finally {
+      rmSync(STATE_FILE, { force: true });
+    }
   }).pipe(Effect.flatMap(emit)),
 ).pipe(Command.withDescription("Stop the local Surfpool started by `up`"));
 

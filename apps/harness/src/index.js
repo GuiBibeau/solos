@@ -1,6 +1,8 @@
 // @ts-check
+/** @typedef {import("./agent/tool-ceiling.js").Tier} Tier */
 export { createSolosAgent } from "./agent/create-agent.js";
 export { discoverMcpTools, externalToolName } from "./agent/mcp-sources.js";
+export { canAdmitExternalTools, TierSchema, tierCeiling } from "./agent/tool-ceiling.js";
 export { groupIndex, toolsFromDefinitions } from "./agent/tools-from-definitions.js";
 export { loadHarness, makeHarnessRuntime } from "./composition.js";
 export {
