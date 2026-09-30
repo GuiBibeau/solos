@@ -18,6 +18,44 @@ import { persistProfile } from "./login-common.js";
 /** @param {string} line */
 const say = (line) => Effect.sync(() => process.stderr.write(`${line}\n`));
 
+/**
+ * The verification URL comes back from the provider. Only one on the configured auth host (or a
+ * privy.io host) over https is printed or opened; anything else is a substituted response, and a
+ * substituted login would store a session the substitute drives.
+ * @param {string} url @param {string} authBaseUrl
+ */
+export const isTrustedVerificationUrl = (url, authBaseUrl) => {
+  try {
+    const target = new URL(url);
+    const auth = new URL(authBaseUrl);
+    const isSameHost = target.host === auth.host && target.protocol === auth.protocol;
+    return isSameHost || (target.protocol === "https:" && target.hostname.endsWith(".privy.io"));
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Start the device flow and show the user where to approve it, refusing a verification URL that
+ * left the configured host.
+ * @param {ReturnType<typeof privyApi>} api @param {string} authBaseUrl
+ */
+const startDevice = (api, authBaseUrl) =>
+  Effect.gen(function* () {
+    const device = yield* Effect.promise(() => api.startDeviceAuthorization());
+    if (!isTrustedVerificationUrl(device.verification_uri_complete, authBaseUrl)) {
+      return yield* Effect.fail(
+        new Error("Privy returned a verification URL off the configured auth host; login refused"),
+      );
+    }
+    yield* say(`Open ${device.verification_uri_complete}`);
+    yield* say(
+      `Code: ${device.user_code}   (waiting for approval, ${Math.round(device.expires_in / 60)} min)`,
+    );
+    yield* openBrowser(device.verification_uri_complete);
+    return device;
+  });
+
 /** Best effort, never fatal: like `open` in the official Privy CLI. */
 /** @param {string} url */
 const openBrowser = (url) =>
@@ -108,12 +146,7 @@ export const loginPrivy = (common, options) =>
     }
     const config = privyConfig(process.env);
     const api = privyApi(config);
-    const device = yield* Effect.promise(() => api.startDeviceAuthorization());
-    yield* say(`Open ${device.verification_uri_complete}`);
-    yield* say(
-      `Code: ${device.user_code}   (waiting for approval, ${Math.round(device.expires_in / 60)} min)`,
-    );
-    yield* openBrowser(device.verification_uri_complete);
+    const device = yield* startDevice(api, config.authBaseUrl);
     const tokens = yield* waitForApproval(api, device);
     const { session, wallets } = yield* Effect.promise(() => sessionFromTokens(api, tokens));
     const wallet = yield* chooseSolanaWallet(wallets);

@@ -42,6 +42,12 @@ const json = async (response, step) => {
   return response.json();
 };
 
+/** Every Privy call gets one deadline; a stalled provider must not hang the signing path. */
+export const PRIVY_TIMEOUT_MS = 30_000;
+
+/** @param {RequestInit} init @returns {RequestInit} */
+const withDeadline = (init) => ({ ...init, signal: AbortSignal.timeout(PRIVY_TIMEOUT_MS) });
+
 /** @param {string | undefined} error */
 const pollOutcome = (error) => {
   if (error === "authorization_pending") return "pending";
@@ -59,15 +65,18 @@ const deviceEndpoints = (config, fetchImpl) => {
   const tokenUrl = `${config.authBaseUrl}/api/oauth/v2/token`;
   /** @param {unknown} body */
   const token = (body) =>
-    fetchImpl(tokenUrl, { method: "POST", headers, body: JSON.stringify(body) });
+    fetchImpl(tokenUrl, withDeadline({ method: "POST", headers, body: JSON.stringify(body) }));
   return {
     /** @returns {Promise<DeviceAuthorization>} */
     startDeviceAuthorization: () =>
-      fetchImpl(`${config.authBaseUrl}/api/oauth/v2/device_authorization`, {
-        method: "POST",
-        headers: { ...headers, Origin: config.agentUrl },
-        body: "{}",
-      }).then((r) => json(r, "device_authorization")),
+      fetchImpl(
+        `${config.authBaseUrl}/api/oauth/v2/device_authorization`,
+        withDeadline({
+          method: "POST",
+          headers: { ...headers, Origin: config.agentUrl },
+          body: "{}",
+        }),
+      ).then((r) => json(r, "device_authorization")),
 
     /**
      * One poll. Tokens, or `"pending"` / `"slow_down"` for the caller to schedule.
@@ -103,18 +112,21 @@ const GRANT_HEADERS = { "Content-Type": "application/json", "privy-grant-type": 
  */
 const authenticateWallets = async (config, fetchImpl, accessToken) => {
   const pair = await generateRecipientKeyPair();
-  const response = await fetchImpl(`${config.authBaseUrl}/api/oauth/v2/wallets/authenticate`, {
-    method: "POST",
-    headers: {
-      ...GRANT_HEADERS,
-      "privy-app-id": config.appId,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
-      encryption_type: "HPKE",
-      recipient_public_key: pair.publicKeySpkiBase64,
+  const response = await fetchImpl(
+    `${config.authBaseUrl}/api/oauth/v2/wallets/authenticate`,
+    withDeadline({
+      method: "POST",
+      headers: {
+        ...GRANT_HEADERS,
+        "privy-app-id": config.appId,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        encryption_type: "HPKE",
+        recipient_public_key: pair.publicKeySpkiBase64,
+      }),
     }),
-  });
+  );
   const data = await json(response, "wallets/authenticate");
   return {
     authorizationKey: await decryptAuthorizationKey(
@@ -136,16 +148,19 @@ const walletRpc = async (config, fetchImpl, { walletId, body, accessToken, autho
   const url = `${config.authBaseUrl}/api/oauth/v2/wallets/${walletId}/rpc`;
   const payload = authorizationPayload({ appId: config.appId, url, body });
   const signature = await signAuthorization(authorizationKey, payload);
-  return fetchImpl(url, {
-    method: "POST",
-    headers: {
-      ...GRANT_HEADERS,
-      "privy-app-id": config.appId,
-      "privy-authorization-signature": signature,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(body),
-  });
+  return fetchImpl(
+    url,
+    withDeadline({
+      method: "POST",
+      headers: {
+        ...GRANT_HEADERS,
+        "privy-app-id": config.appId,
+        "privy-authorization-signature": signature,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    }),
+  );
 };
 
 /** @param {PrivyConfig} config @param {Fetch} [fetchImpl] */

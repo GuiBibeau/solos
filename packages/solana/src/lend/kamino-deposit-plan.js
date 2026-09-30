@@ -54,6 +54,23 @@ const deriveAddresses = (intent, facts) =>
   );
 
 /**
+ * Kamino's obligation refresh requires every listed reserve refreshed in the same transaction,
+ * and the deposit refreshes only its own. Until a per-reserve refresh plan exists, a plain
+ * obligation that already holds another reserve is refused, as withdraw refuses it.
+ * @param {ObligationState} state @param {string} reserve
+ * @returns {DepositPlanReject | null}
+ */
+const otherActiveReserves = (state, reserve) =>
+  (state?.deposits ?? []).some(
+    (d) => d.depositReserve !== reserve && BigInt(d.depositedAmount.toString()) > 0n,
+  )
+    ? {
+        status: /** @type {const} */ ("reject"),
+        reason: "the obligation has other active reserves requiring a separate refresh plan",
+      }
+    : null;
+
+/**
  * Fetch the plan's five rows and apply every guard, or reject. The success value carries
  * what assembly needs: the collateral mint's program, the decoded obligation state, and
  * which accounts are missing.
@@ -78,6 +95,8 @@ const guardPlanRows = ({ reader, intent, facts, obligation, metadata, sourceAta 
     }
     const guarded = guardObligationRow(obligationRow, intent);
     if ("reason" in guarded) return guarded;
+    const otherReserves = otherActiveReserves(guarded.state, facts.reserve);
+    if (otherReserves) return otherReserves;
     const guardedSource = guardSourceRow(sourceRow, sourceAta, intent);
     if ("reason" in guardedSource) return guardedSource;
     return {

@@ -15,7 +15,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -36,7 +36,7 @@ jobs:
           bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json" 2> "$RUNNER_TEMP/diagnostics-nightly.log"
       - name: Upload verification diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: diagnostics-nightly
           path: ${{ runner.temp }}/diagnostics-nightly.log

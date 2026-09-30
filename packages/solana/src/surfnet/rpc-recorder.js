@@ -5,7 +5,7 @@
  * the executor simulated or submitted — the chain sees what solOS built, byte for byte.
  */
 
-/** @typedef {{ method: string; params: Array<unknown>; result?: unknown; error?: unknown }} RecordedCall */
+/** @typedef {{ id?: unknown; method: string; params: Array<unknown>; result?: unknown; error?: unknown }} RecordedCall */
 
 /** @param {string} body @param {RecordedCall[]} calls */
 const recordRequests = (body, calls) => {
@@ -13,9 +13,10 @@ const recordRequests = (body, calls) => {
     const payload = /** @type {unknown} */ (JSON.parse(body));
     const entries = Array.isArray(payload) ? payload : [payload];
     for (const entry of entries) {
-      const candidate = /** @type {{ method?: unknown; params?: unknown }} */ (entry);
+      const candidate = /** @type {{ id?: unknown; method?: unknown; params?: unknown }} */ (entry);
       if (typeof candidate?.method !== "string") continue;
       calls.push({
+        id: candidate.id,
         method: candidate.method,
         params: /** @type {Array<unknown>} */ (candidate.params ?? []),
       });
@@ -25,12 +26,21 @@ const recordRequests = (body, calls) => {
   }
 };
 
-/** @param {string} body @param {RecordedCall[]} calls */
+/**
+ * Attach a response to the request that carries its JSON-RPC id, so concurrent calls never
+ * swap results; a response without a matching id falls back to the latest unanswered call.
+ * @param {string} body @param {RecordedCall[]} calls
+ */
 const recordResult = (body, calls) => {
   try {
-    const payload = /** @type {{ result?: unknown; error?: unknown }} */ (JSON.parse(body));
-    const call = calls.at(-1);
-    if (call && !Array.isArray(payload)) {
+    const payload = /** @type {{ id?: unknown; result?: unknown; error?: unknown }} */ (
+      JSON.parse(body)
+    );
+    if (Array.isArray(payload)) return;
+    const call =
+      calls.findLast((c) => c.id !== undefined && c.id === payload.id && !("result" in c)) ??
+      calls.findLast((c) => !("result" in c));
+    if (call) {
       call.result = payload.result;
       if (payload.error !== undefined) call.error = payload.error;
     }

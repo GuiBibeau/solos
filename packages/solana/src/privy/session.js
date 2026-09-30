@@ -32,13 +32,18 @@ export const isSessionFresh = (session, now = Date.now()) =>
  */
 export const sessionFromTokens = async (api, tokens, now = Date.now()) => {
   const auth = await api.authenticateWallets(tokens.access_token);
+  const authorizationKeyExpiresAt = Date.parse(auth.expiresAt);
+  // A missing or malformed expiry would become NaN and silently defeat every freshness check.
+  if (!Number.isFinite(tokens.expires_in) || !Number.isFinite(authorizationKeyExpiresAt)) {
+    throw new TypeError("Privy returned a token response without a usable expiry");
+  }
   return {
     session: {
       refreshToken: tokens.refresh_token,
       accessToken: tokens.access_token,
       accessTokenExpiresAt: now + tokens.expires_in * 1000,
       authorizationKey: auth.authorizationKey,
-      authorizationKeyExpiresAt: Date.parse(auth.expiresAt),
+      authorizationKeyExpiresAt,
     },
     wallets: auth.wallets,
   };

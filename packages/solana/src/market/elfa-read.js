@@ -1,6 +1,7 @@
 // @ts-check
 import { IrisConfigMissing, IrisNetworkError, IrisResponseInvalid, IrisTimeout } from "@solos/core";
 import { Effect } from "effect";
+import { pinnedFetch } from "../http/pinned-fetch.js";
 import { DEFAULT_TIMEOUT_MS, isDeadlineAbort } from "./elfa-api.js";
 import { parseJson, statusError } from "./elfa-errors.js";
 
@@ -13,13 +14,19 @@ const requestElfa = async (config, request) => {
   for (const [key, value] of Object.entries(request.query)) {
     if (value !== undefined) url.searchParams.set(key, String(value));
   }
-  const response = await (config.fetchImpl ?? fetch)(url.href, {
-    headers: { "x-elfa-api-key": config.apiKey },
-    signal: AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-  });
+  // Redirects stay on the configured origin and the body is capped (ADR-0033).
+  const response = await pinnedFetch(
+    {
+      label: "Elfa",
+      headers: { "x-elfa-api-key": config.apiKey },
+      signal: AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+      fetchImpl: config.fetchImpl,
+    },
+    url,
+  );
   return {
     status: response.status,
-    body: await response.text(),
+    body: response.body,
     credits: readCredits(response.headers.get("x-elfa-credits")),
   };
 };

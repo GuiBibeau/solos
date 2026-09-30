@@ -13,9 +13,49 @@ const DEFAULT_PORT = 8899;
 
 /** @typedef {{ pid: number; rpcUrl: string; wsUrl: string; offline: boolean }} SurfpoolState */
 
-/** @returns {SurfpoolState | undefined} */
-const readState = () =>
-  existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : undefined;
+/** Only a loopback endpoint can be the local Surfpool this command started. @param {string} raw @param {string} scheme */
+const isLoopback = (raw, scheme) => {
+  try {
+    const url = new URL(raw);
+    return (
+      url.protocol === scheme && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
+    );
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The workspace state file is gitignored and writable by anything in the checkout, so it is
+ * validated like input: a positive pid and loopback URLs, or it is treated as absent.
+ * @returns {SurfpoolState | undefined}
+ */
+/** @param {Partial<SurfpoolState>} state */
+const isValidState = (state) =>
+  Number.isSafeInteger(state.pid) &&
+  /** @type {number} */ (state.pid) > 0 &&
+  typeof state.rpcUrl === "string" &&
+  isLoopback(state.rpcUrl, "http:") &&
+  typeof state.wsUrl === "string" &&
+  isLoopback(state.wsUrl, "ws:");
+
+const readState = () => {
+  if (!existsSync(STATE_FILE)) return undefined;
+  try {
+    const state = /** @type {Partial<SurfpoolState>} */ (
+      JSON.parse(readFileSync(STATE_FILE, "utf8"))
+    );
+    return isValidState(state) ? /** @type {SurfpoolState} */ (state) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Whether a pid still belongs to a surfpool process, so `down` never signals a reused pid. */
+const isSurfpoolPid = (/** @type {number} */ pid) => {
+  const probe = Bun.spawnSync(["ps", "-p", String(pid), "-o", "comm="]);
+  return probe.exitCode === 0 && probe.stdout.toString().trimEnd().endsWith("surfpool");
+};
 
 /** @param {string} rpcUrl */
 const isHealthy = (rpcUrl) =>
@@ -57,17 +97,23 @@ const up = Command.make("up", { port, datasource }, (options) =>
     const forkArgs =
       options.datasource._tag === "Some" ? ["--rpc-url", options.datasource.value] : ["--offline"];
     const child = spawn("surfpool", [...args, ...forkArgs], { detached: true, stdio: "ignore" });
+    // A missing binary surfaces as an `error` event, not a throw; without a listener it is an
+    // uncaught exception, and the state file must never record a pid that was never assigned.
+    const spawned = new Promise((resolve, reject) => {
+      child.once("spawn", () => resolve(child.pid));
+      child.once("error", reject);
+    });
+    const pid = await spawned;
     child.unref();
+    if (typeof pid !== "number" || pid <= 0) throw new Error("surfpool did not start");
     const rpcUrl = `http://127.0.0.1:${p}`;
     /** @type {SurfpoolState} */
-    const state = {
-      pid: child.pid ?? -1,
-      rpcUrl,
-      wsUrl: deriveWsUrl(rpcUrl),
-      offline: forkArgs[0] === "--offline",
-    };
+    const state = { pid, rpcUrl, wsUrl: deriveWsUrl(rpcUrl), offline: forkArgs[0] === "--offline" };
+    if (!(await waitHealthy(rpcUrl))) {
+      child.kill("SIGKILL");
+      throw new Error("surfpool did not become healthy");
+    }
     writeFileSync(STATE_FILE, JSON.stringify(state));
-    if (!(await waitHealthy(rpcUrl))) throw new Error("surfpool did not become healthy");
     return { ...state, alreadyRunning: false, hint: `export SOLANA_RPC_URL=${rpcUrl}` };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(Command.withDescription("Start a detached local Surfpool (offline unless --datasource)"));
@@ -75,14 +121,16 @@ const up = Command.make("up", { port, datasource }, (options) =>
 const down = Command.make("down", {}, () =>
   Effect.sync(() => {
     const state = readState();
-    if (!state) return { stopped: false, reason: "not running" };
-    try {
-      process.kill(state.pid, "SIGKILL");
-    } catch {
-      // already gone
+    if (!state) {
+      rmSync(STATE_FILE, { force: true });
+      return { stopped: false, reason: "not running" };
     }
+    // Refuse to signal a pid that no longer names a surfpool: pids are reused, and the file is
+    // writable by anything in the checkout.
+    const stopped = isSurfpoolPid(state.pid);
+    if (stopped) process.kill(state.pid, "SIGKILL");
     rmSync(STATE_FILE, { force: true });
-    return { stopped: true, pid: state.pid };
+    return stopped ? { stopped: true, pid: state.pid } : { stopped: false, reason: "stale state" };
   }).pipe(Effect.flatMap(emit)),
 ).pipe(Command.withDescription("Stop the local Surfpool started by `up`"));
 

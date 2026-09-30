@@ -1,10 +1,19 @@
 // @ts-check
 import { Args, Command } from "@effect/cli";
-import { credentialsPath, readCredentials, removeProfile, setDefaultProfile } from "@solos/solana";
+import {
+  credentialsPath,
+  readCredentials,
+  removeProfile,
+  rpcOrigin,
+  setDefaultProfile,
+} from "@solos/solana";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 
-/** Secrets never leave the file: list shows provider, address, and which is default. */
+/**
+ * Secrets never leave the file: list shows provider, address, which is default, and the RPC
+ * endpoint's origin only, since provider credentials can sit in an RPC URL's path or query.
+ */
 const list = Command.make("list", {}, () =>
   Effect.sync(() => {
     const credentials = readCredentials(process.env);
@@ -16,7 +25,7 @@ const list = Command.make("list", {}, () =>
         name,
         provider: p.provider,
         address: p.wallet.address,
-        rpcUrl: p.rpcUrl ?? null,
+        rpcUrl: p.rpcUrl === undefined ? null : rpcOrigin(p.rpcUrl),
       })),
     };
   }).pipe(Effect.flatMap(emit)),

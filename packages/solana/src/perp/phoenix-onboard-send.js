@@ -12,6 +12,7 @@ import { RPC_REQUEST_FAILED, rpcCall } from "../rpc/rpc-call.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
 import { confirmDelivery } from "../submission/confirm.js";
 import { SLOW } from "../submission/mode.js";
+import { unsignedWire } from "../submission/simulate.js";
 import { rpcStatus } from "../submission/submitter.js";
 import { buildOnboarding } from "./phoenix-onboard-build.js";
 import { submitEnrollment } from "./phoenix-onboard-submit.js";
@@ -58,7 +59,7 @@ const preflight = (deps, planned) =>
     );
     const { value } = yield* rpcCall("simulateTransaction", deps.ctx.url, () =>
       deps.ctx.rpc
-        .simulateTransaction(planned.wire, {
+        .simulateTransaction(unsignedWire(planned.wire), {
           encoding: "base64",
           sigVerify: false,
           accounts: { addresses: [address(planned.owner)], encoding: "base64" },

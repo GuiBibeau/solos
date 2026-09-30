@@ -1,6 +1,6 @@
 // @ts-check
 export { createSolosAgent } from "./agent/create-agent.js";
-export { discoverMcpTools } from "./agent/mcp-sources.js";
+export { discoverMcpTools, externalToolName } from "./agent/mcp-sources.js";
 export { groupIndex, toolsFromDefinitions } from "./agent/tools-from-definitions.js";
 export { loadHarness, makeHarnessRuntime } from "./composition.js";
 export {

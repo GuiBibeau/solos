@@ -10,6 +10,10 @@ on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, review_requested, converted_to_draft, closed]
 
+# The job uses GH_PROJECT_TOKEN, not GITHUB_TOKEN, so the default token needs nothing.
+permissions:
+  contents: read
+
 jobs:
   sync-stage:
     runs-on: ubuntu-latest
@@ -22,7 +26,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
       CONTENT_URL: ${{ github.event.issue.html_url || github.event.pull_request.html_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: New or reopened issue → Inbox
         if: github.event_name == 'issues' && contains(fromJSON('["opened","reopened","transferred"]'), github.event.action)

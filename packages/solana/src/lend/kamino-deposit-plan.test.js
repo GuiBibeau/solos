@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { address, getAddressEncoder, getBase58Codec } from "@solana/kit";
+import { address, getAddressEncoder } from "@solana/kit";
 import { findAssociatedTokenPda } from "@solana-program/token";
 import { Cause, Effect, Option } from "effect";
 import { KLEND_PROGRAM_ID } from "./kamino-addresses.js";
@@ -40,9 +40,6 @@ const facts = () => ({
 });
 
 const addressEncoder = getAddressEncoder();
-
-/** Deterministic stand-in for a 32-byte address: fixed bytes, valid base58 round-trip. */
-const fillerAddress = (byte) => getBase58Codec().decode(new Uint8Array(32).fill(byte));
 
 /** A real SPL token-account row: 165 bytes, mint at 0, owner at 32, u64 amount at 64. */
 const ataRow = (tokenOwner, amount) => {
@@ -143,14 +140,13 @@ describe("kamino deposit plan", () => {
     for (const ix of plan.instructions) expect(ix.programAddress).toBe(KLEND_PROGRAM_ID);
   });
 
-  test("an existing plain obligation refreshes with all its deposit reserves and skips init", async () => {
+  test("an existing plain obligation in this reserve refreshes it and skips init", async () => {
     const ata = await sourceAta();
-    const secondReserve = fillerAddress(1);
     const obligation = await vanillaObligationAddress(OWNER, MARKET);
+    // One reserve only: an obligation holding a second reserve is refused until every listed
+    // reserve can be refreshed in the same transaction (kamino-deposit-plan-reserves.test.js).
     const rows = rowsFor({
-      [obligation]: obligationRow({
-        deposits: [depositEntry(RESERVE, 1n), depositEntry(secondReserve, 2n)],
-      }),
+      [obligation]: obligationRow({ deposits: [depositEntry(RESERVE, 1n)] }),
       [ata]: ataRow(OWNER, 2_000_000n),
     });
     const plan = await runOf(
@@ -167,12 +163,10 @@ describe("kamino deposit plan", () => {
     expect(plan.quote.rentLamports).toBe("0");
     // No initObligation: only user metadata initializes before the reserve refresh.
     expect(plan.instructions[1].data.length).toBeGreaterThan(0);
-    // refreshObligation carries the deposit reserve and the obligation's existing reserves.
+    // refreshObligation carries the deposit reserve, listed once, as a writable remaining account.
     const refresh = plan.instructions[2];
     const remaining = refresh.accounts.slice(2);
-    const remainingAddresses = remaining.map((meta) => meta.address);
-    expect(remainingAddresses).toContain(RESERVE);
-    expect(remainingAddresses).toContain(secondReserve);
+    expect(remaining.map((meta) => meta.address)).toEqual([RESERVE]);
     for (const meta of remaining) expect(meta.role).toBe(1);
   });
 
