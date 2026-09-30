@@ -11,8 +11,23 @@ import { stdioTransport } from "@solos/mcp";
  * @typedef {{ tools: Record<string, import("ai").Tool>; groups: Record<string, string>; close: () => Promise<void> }} Discovered
  */
 
-/** @param {string} server @param {string} tool */
-export const externalToolName = (server, tool) => `${server}__${tool}`;
+/** The longest tool name every selectable provider accepts (OpenAI and Anthropic: 64). */
+export const MAX_TOOL_NAME_LENGTH = 64;
+
+/**
+ * `<server>__<tool>`, refused when it would exceed what a provider accepts: a rejected tool
+ * declaration would fail the whole run at the model, after the servers were already started.
+ * @param {string} server @param {string} tool
+ */
+export const externalToolName = (server, tool) => {
+  const name = `${server}__${tool}`;
+  if (name.length > MAX_TOOL_NAME_LENGTH) {
+    throw new Error(
+      `external tool name "${name}" exceeds ${MAX_TOOL_NAME_LENGTH} characters; shorten the server name in harness.config.js`,
+    );
+  }
+  return name;
+};
 
 /** @param {ServerEntry} server */
 const connectExternal = async (server) => {

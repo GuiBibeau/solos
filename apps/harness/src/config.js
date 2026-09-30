@@ -13,7 +13,13 @@ const RouteOverrideSchema = z.object({
 });
 
 const McpServerEntrySchema = z.object({
-  name: z.string().regex(/^[a-z][a-z0-9_-]*$/),
+  // Short: the name prefixes every tool the server exposes, inside the providers' 64-character
+  // tool-name limit.
+  name: z
+    .string()
+    .min(1)
+    .max(24)
+    .regex(/^[a-z][a-z0-9_-]*$/),
   command: z.string(),
   args: z.array(z.string()).default([]),
   env: z.record(z.string(), z.string()).default({}),

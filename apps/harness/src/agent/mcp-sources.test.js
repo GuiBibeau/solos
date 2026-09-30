@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { solosServerCommand } from "@solos/mcp";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
-import { discoverMcpTools, externalToolName } from "./mcp-sources.js";
+import { discoverMcpTools, externalToolName, MAX_TOOL_NAME_LENGTH } from "./mcp-sources.js";
 
 /** @type {string} */
 let configDir;
@@ -29,6 +29,16 @@ afterAll(async () => {
 
 /** The repo's own server standing in for a third party. */
 const twin = () => ({ name: "twin", ...solosServerCommand(), env });
+
+describe("externalToolName", () => {
+  test("prefixes with the server name and refuses names a provider would reject", () => {
+    expect(externalToolName("twin", "solana_wallet_get_address")).toBe(
+      "twin__solana_wallet_get_address",
+    );
+    const long = "x".repeat(MAX_TOOL_NAME_LENGTH - 4);
+    expect(() => externalToolName("srv", long)).toThrow("exceeds 64 characters");
+  });
+});
 
 describe("third-party MCP discovery [integration]", () => {
   test("connects once, exposes every tool under the server's namespace, and closes", async () => {
