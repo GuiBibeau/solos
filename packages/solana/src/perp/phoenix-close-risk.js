@@ -2,6 +2,7 @@
 import { BuildRejected, NoPositionToClose } from "@solos/core";
 import { Effect } from "effect";
 import { readTraderRiskSnapshot } from "./phoenix-open-risk.js";
+import { hasNonZeroSpotCollateral } from "./phoenix-spot-collateral.js";
 
 /** @typedef {import("@ellipsis-labs/rise").Trader} Trader */
 /** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;owner:string;trader:Trader;symbol:string;assetId:number}} Facts */
@@ -39,7 +40,7 @@ const hasPendingApiRisk = (sub) =>
   sub.orders.length > 0 ||
   sub.splines.length > 0 ||
   sub.triggers.length > 0 ||
-  sub.spotCollaterals.length > 0;
+  hasNonZeroSpotCollateral(sub.spotCollaterals);
 
 /** @param {Snapshot} snapshot @param {Trader} trader */
 const assertApiScope = (snapshot, trader) => {

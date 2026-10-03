@@ -5,6 +5,7 @@ import { z } from "zod";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { TRADER_STATE_PATH } from "./phoenix-api.js";
 import { phoenixOnboardGet } from "./phoenix-onboard-api.js";
+import { hasNonZeroSpotCollateral } from "./phoenix-spot-collateral.js";
 
 /** @typedef {import("@ellipsis-labs/rise").Trader} Trader */
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
@@ -17,7 +18,7 @@ const Access = z.object({
 const Subaccount = z.object({
   subaccountIndex: z.number().int(),
   collateral: Decimal,
-  // Rise 0.5.26 omits empty optional spot collateral arrays; any nonempty array fails closed.
+  // The venue sends a zero-balance row for every priced spot asset; only a nonzero balance is risk.
   spotCollaterals: z.array(z.unknown()).default([]),
   positions: z
     .array(
@@ -70,7 +71,7 @@ const hasExposure = (sub) =>
   sub.orders.length > 0 ||
   sub.splines.length > 0 ||
   sub.triggers.length > 0 ||
-  sub.spotCollaterals.length > 0 ||
+  hasNonZeroSpotCollateral(sub.spotCollaterals) ||
   sub.positions.some(
     ({ basePositionLots, virtualQuotePositionLots, unsettledFundingQuoteLots }) =>
       BigInt(basePositionLots) !== 0n ||

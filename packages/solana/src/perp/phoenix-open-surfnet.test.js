@@ -36,8 +36,10 @@ const action = {
 
 test("Phoenix IOC open risk [integration] accepts funded, fully flat trader with fresh all-market state", async () => {
   const surfnet = await ensureOfflineSurfnet();
+  // The live API sends a zero-balance SOL spot row for every trader; it must not read as risk.
   const scenario = await startCollateralScenario(surfnet.rpcUrl, randomSeed(), {
     collateral: 30_000_000n,
+    spotCollaterals: [{ assetIndex: 4_294_901_760, symbol: "SOL", balance: "0", decimals: 9 }],
   });
   try {
     const result = await Effect.runPromise(

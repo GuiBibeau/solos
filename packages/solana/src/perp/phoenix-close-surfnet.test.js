@@ -39,10 +39,12 @@ test("Phoenix reduce-only close [integration] simulates exactly one signed SDK I
   const surfnet = await ensureOfflineSurfnet();
   const seed = randomSeed();
   const { market } = await seedOpenMarket(surfnet.rpcUrl);
+  // The live API sends a zero-balance SOL spot row for every trader; it must not block a close.
   const scenario = await startCollateralScenario(surfnet.rpcUrl, seed, {
     collateral: 30_000_000n,
     market,
     positionLots: 100n,
+    spotCollaterals: [{ assetIndex: 4_294_901_760, symbol: "SOL", balance: "0", decimals: 9 }],
   });
   await seedClosePosition(surfnet.rpcUrl, scenario.trader, 100n);
   const recorder = startRpcRecorder(surfnet.rpcUrl);
