@@ -18,7 +18,7 @@ const Access = z.object({
 const Subaccount = z.object({
   subaccountIndex: z.number().int(),
   collateral: Decimal,
-  // The venue sends a zero-balance row for every priced spot asset; only a nonzero balance is risk.
+  // The venue sends a zero-balance native SOL spot row for every trader; only a nonzero balance is risk.
   spotCollaterals: z.array(z.unknown()).default([]),
   positions: z
     .array(

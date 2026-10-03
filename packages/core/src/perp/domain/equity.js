@@ -6,7 +6,7 @@ import { quoteLotsToUsd } from "./lots.js";
  * collateral and open exposure but no mark price, so:
  *
  * - any open position ⇒ null: unrealized PnL and funding are unknowable from this snapshot;
- * - any spot collateral ⇒ null: spot balances are valued off-snapshot (haircuts, index prices);
+ * - any nonzero spot collateral ⇒ null: spot balances are valued off-snapshot (haircuts, index prices);
  * - otherwise equity equals the exact collateral (nothing is open, so nothing is unvalued):
  *   the cold/absent trader therefore gets the confirmed zero, `"0"`.
  *
