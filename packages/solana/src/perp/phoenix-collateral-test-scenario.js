@@ -15,7 +15,7 @@ const positionRows = (exposure, positionLots, otherFunding) => {
   return rows;
 };
 
-/** @param {string} authority @param {{collateral:bigint; slot:number; exposure:boolean; positionLots:bigint; tradingRestricted:boolean; depositDisabled:boolean; withdrawDisabled:boolean; spotExposure:boolean;otherFunding:boolean}} snapshot */
+/** @param {string} authority @param {{collateral:bigint; slot:number; exposure:boolean; positionLots:bigint; tradingRestricted:boolean; depositDisabled:boolean; withdrawDisabled:boolean; spotCollaterals:unknown[]; otherFunding:boolean}} snapshot */
 const traderState = (
   authority,
   {
@@ -26,7 +26,7 @@ const traderState = (
     tradingRestricted,
     depositDisabled,
     withdrawDisabled,
-    spotExposure,
+    spotCollaterals,
     otherFunding,
   },
 ) => {
@@ -41,7 +41,7 @@ const traderState = (
     subaccount(0, {
       collateral: collateral.toString(),
       positions: positionRows(exposure, positionLots, otherFunding),
-      spotCollaterals: spotExposure ? [{ balance: "1" }] : [],
+      spotCollaterals,
     }),
   ];
   state.slot = slot;
@@ -89,7 +89,10 @@ const startSlotTracker = async (rpcUrl) => {
   return { current: () => slot, stop: () => clearInterval(timer) };
 };
 
-/** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; positionLots?:bigint; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean; spotExposure?: boolean; otherFunding?: boolean; market?:Record<string,unknown> }} [options] */
+/** @param {unknown[] | undefined} explicit @param {boolean} legacySpot @returns {unknown[]} */
+const spotRows = (explicit, legacySpot) => explicit ?? (legacySpot ? [{ balance: "1" }] : []);
+
+/** @param {string} rpcUrl @param {Uint8Array} seed @param {{ collateral?: bigint; walletUsdc?: number; exposure?: boolean; positionLots?:bigint; staleRisk?: boolean; tradingRestricted?: boolean; depositDisabled?: boolean; withdrawDisabled?: boolean; spotExposure?: boolean; spotCollaterals?: unknown[]; otherFunding?: boolean; market?:Record<string,unknown> }} [options] */
 export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
   const owner = await seedAddress(seed);
   const collateral = options.collateral ?? 0n;
@@ -111,7 +114,7 @@ export const startCollateralScenario = async (rpcUrl, seed, options = {}) => {
         tradingRestricted: options.tradingRestricted ?? false,
         depositDisabled: options.depositDisabled ?? false,
         withdrawDisabled: options.withdrawDisabled ?? false,
-        spotExposure: options.spotExposure ?? false,
+        spotCollaterals: spotRows(options.spotCollaterals, options.spotExposure ?? false),
         otherFunding: Boolean(options.otherFunding),
       }),
     exchangeSnapshot: { slot: String(slots.current()), exchange: exchange(global) },

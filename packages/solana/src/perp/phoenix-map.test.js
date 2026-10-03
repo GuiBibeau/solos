@@ -95,6 +95,29 @@ describe("mapPointRead", () => {
     expect(account.equityUsd).toBe("250");
   });
 
+  test("the live zero-balance SOL spot default does not void an otherwise exact equity", () => {
+    const state = traderState(DEFAULT_AUTHORITY, [
+      subaccount(0, {
+        spotCollaterals: [{ assetIndex: 4_294_901_760, symbol: "SOL", balance: "0", decimals: 9 }],
+      }),
+    ]);
+    const { account } = mapPointRead({ authority: DEFAULT_AUTHORITY, market: SOL_MARKET, state });
+    expect(account.equityUsd).toBe("250");
+  });
+
+  test("a nonzero spot balance still voids equity and is not mistaken for flat", () => {
+    const state = traderState(DEFAULT_AUTHORITY, [
+      subaccount(0, { spotCollaterals: [{ balance: "1" }] }),
+    ]);
+    const { position, account } = mapPointRead({
+      authority: DEFAULT_AUTHORITY,
+      market: SOL_MARKET,
+      state,
+    });
+    expect(position).toMatchObject({ side: "flat", amount: "0" });
+    expect(account.equityUsd).toBeNull();
+  });
+
   test("a market with no row is typed flat even when other markets are open", () => {
     const { position } = mapPointRead({
       authority: DEFAULT_AUTHORITY,

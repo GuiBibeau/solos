@@ -22,7 +22,7 @@ Part of the [tool reference](index.md).
 - **Equity is signed or null.** `account.equityUsd` is the shared trader-account equity,
   counted once across markets. A cold or absent trader is a typed flat zero-position success
   with confirmed-zero equity; an active flat account is worth exactly its collateral; any open
-  position or spot collateral makes equity null — unrealized PnL and spot valuation are
+  position or nonzero spot collateral makes equity null — unrealized PnL and spot valuation are
   unknowable from the state snapshot, and solOS never guesses collateral or notional.
 - **Distinct failures.** Unknown market, provider unavailability (`PerpTimeout`,
   `PerpNetworkError`, `PerpHttpError`, `PerpRateLimited`, `PerpAuthFailed`), a corrupt account

@@ -10,6 +10,7 @@ import {
   sideFromLots,
 } from "@solos/core";
 import { baseLotsDecimals, selectSubaccountZero, validateEcho } from "./phoenix-snapshot.js";
+import { nonZeroSpotCollateralCount } from "./phoenix-spot-collateral.js";
 
 /** @typedef {import("@solos/core").PerpPosition} PerpPosition */
 /** @typedef {import("@solos/core").PerpAccount} PerpAccount */
@@ -83,7 +84,7 @@ const accountFromSubaccount = (sub, account) => {
   const equityUsd = equityUsdFromSubaccount({
     collateral: lotsOrCorrupt(account, sub.collateral),
     openPositionCount: openPositions,
-    spotCollateralCount: sub.spotCollaterals?.length ?? 0,
+    spotCollateralCount: nonZeroSpotCollateralCount(sub.spotCollaterals),
   });
   return PerpAccountSchema.parse({ protocol: "phoenix", account, equityUsd });
 };
