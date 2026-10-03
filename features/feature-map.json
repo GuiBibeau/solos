@@ -2068,5 +2068,126 @@
       "The first send unwrapped the wSOL account BNP6pHgDRwiCNAJa3qfob88HbT9TWqwMFmHinZHTevAG (9999999 unwrapped, 1488440 rent); the second closed the empty Token-2022 pump-coin account FXQNgoWqdLTzduEbqodADwj3kWstzG7r1nnmVBgKAKn3. The row shape has no key for the closed account.",
       "Surfpool coverage is not claimed."
     ]
+  },
+  {
+    "status": "live-validated",
+    "action": "deposit_perp_collateral",
+    "protocol": "phoenix",
+    "issue": 191,
+    "codeSha": "aaabcebfaea8f1110085bff979fd8e3a430cc2c8",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/perp-qa.md#zero-balance-spot-collateral-is-not-exposure-191",
+    "sends": [
+      {
+        "signature": "2fM84iZ6onz7ERNc1r9uqF6ApiSx9uYRqrLNLf1JDv6jZxh4taaWTV8nUmPhRAo2UngFUZxu7bRdoYyDfqdroPn6",
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-49050501"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The estimated output was not guaranteed; reconciliation measured +49050501 trader collateral.",
+      "The execute-tier simulation compute units were not captured; the simulate-tier preview recorded 30340.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "open_perp",
+    "protocol": "phoenix",
+    "issue": 191,
+    "codeSha": "aaabcebfaea8f1110085bff979fd8e3a430cc2c8",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/perp-qa.md#zero-balance-spot-collateral-is-not-exposure-191",
+    "sends": [
+      {
+        "signature": "cRZ6zjfCq5KSgkBaDe1RjZP7nJKFYHrrLgQJyRt8V311D6jFiSu6HBHGRdQo9WNU5QtvCpr5dpZsQYdrkE4GjKW",
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The fill (50 base lots, 0.50 SOL long) comes from the follow-up position read, not from the send. The fill price was not recorded.",
+      "The execute-tier simulation compute units were not captured; the simulate-tier preview recorded 179201.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "close_perp",
+    "protocol": "phoenix",
+    "issue": 191,
+    "codeSha": "aaabcebfaea8f1110085bff979fd8e3a430cc2c8",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/perp-qa.md#zero-balance-spot-collateral-is-not-exposure-191",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.001011504",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "5frRHypZn4Dn1mAcM3n1A7L5vPtaALPyM1zzygNmbEfcQaqRD1xcoyCxCTNk5i57jANirTHsSSbret5b6r5KYP4C",
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Flat afterwards at equity 48.983610; the fill price was not recorded.",
+      "The execute-tier simulation compute units were not captured; the simulate-tier preview recorded 202482.",
+      "The round trip cost 66891 USDC base units of collateral; the split between taker fee and spread was not recorded.",
+      "Surfpool coverage is not claimed."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "withdraw_perp_collateral",
+    "protocol": "phoenix",
+    "issue": 191,
+    "codeSha": "aaabcebfaea8f1110085bff979fd8e3a430cc2c8",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/perp-qa.md#zero-balance-spot-collateral-is-not-exposure-191",
+    "sends": [
+      {
+        "signature": "67aVRzQYXhMwYGpaQDQbB3kEFV5kkKRdimnJ5874N5XJvUQNf2HsHKr9aPwbDZzQKxcaMZmoC7k5JS5xxoTyi6d7",
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+48983610"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."]
   }
 ]

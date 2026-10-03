@@ -205,6 +205,44 @@ zero/partial/full fills exercise follow-up reads, but **do not execute the Phoen
 cannot prove a funded close on mainnet. Do not perform funded trading until both #27 and #28
 are reviewed, merged and checked and a specific live exit plan is confirmed.
 
+## Zero-balance spot collateral is not exposure (#191)
+
+The trader-state API returns a default zero-balance native SOL `spotCollaterals` row for every
+trader. solOS counted *any* array entry as exposure, so a flat, funded trader was rejected at the
+open preflight with `Phoenix open requires an authorized, fully flat and settled trader`, and a
+flat account's equity read as `null`. `#191` reads the balance instead of the array length; the
+safe subset still fails closed on **nonzero** spot collateral.
+
+### 2026-10-03 funded mainnet open/close round validated
+
+Signer `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`, cluster mainnet, code
+`aaabcebfaea8f1110085bff979fd8e3a430cc2c8`. Budget: 0.41 SOL swapped to fund ~49 USDC of
+collateral, traded at 2x. The pre-fix `perp simulate-open` returned the flat/authorized
+rejection; post-fix it returns a bounded plan and the round ran:
+
+| Step | Signature | Observed |
+|---|---|---|
+| swap 0.41 SOL → USDC | `5LFBryiBqvX8LAikNiq3KHmKuuXkjGeDSNTg5VFNn6dViyd14LT9XTdhN4b7JR5gg4DGvokWHG95HLY8ewRzZZ5P` | +49050501 USDC |
+| deposit collateral | `2fM84iZ6onz7ERNc1r9uqF6ApiSx9uYRqrLNLf1JDv6jZxh4taaWTV8nUmPhRAo2UngFUZxu7bRdoYyDfqdroPn6` | +49050501 trader collateral |
+| open SOL long, $60 notional, 2x, limit $120 | `cRZ6zjfCq5KSgkBaDe1RjZP7nJKFYHrrLgQJyRt8V311D6jFiSu6HBHGRdQo9WNU5QtvCpr5dpZsQYdrkE4GjKW` | filled 50 base lots (0.50 SOL) |
+| close (reduce-only), limit $119 | `5frRHypZn4Dn1mAcM3n1A7L5vPtaALPyM1zzygNmbEfcQaqRD1xcoyCxCTNk5i57jANirTHsSSbret5b6r5KYP4C` | flat afterwards |
+| withdraw collateral | `67aVRzQYXhMwYGpaQDQbB3kEFV5kkKRdimnJ5874N5XJvUQNf2HsHKr9aPwbDZzQKxcaMZmoC7k5JS5xxoTyi6d7` | +48983610 USDC |
+| swap 48983610 USDC → SOL | `5hB6jjt9WvSTB3noQyrqJSx7SvjHApnXdEmurowCp4mvN4wQEiCFvfhrDKf36qq1h2nNrR74UCQrAreS9EJZCabY` | back to SOL |
+
+Reconciliation: SOL `1.772940021` → `1.771928517` (−0.001011504 SOL, ~$0.12 at $119.56);
+trader collateral 0 before and after; USDC 0 before and after; position flat before and after.
+The collateral leg alone moved 49.050501 → 48.983610 USDC (−0.066891), the trading cost of the
+open and close. A flat account read `equityUsd: "48.98361"` after the close and `"0"` at rest,
+not `null`, confirming the equity half of the fix.
+
+Gaps:
+
+- The execute-tier simulation compute units were not captured for the sends; the simulate-tier
+  previews recorded 30340 (deposit), 179201 (open), 202482 (close) and 47536 (withdraw).
+- The open and close fill prices were not recorded; only the fill size and the follow-up reads.
+- The split of the 0.066891 USDC collateral loss between taker fee and spread was not recorded.
+- Surfpool coverage is not claimed.
+
 ## What to compare once an operator account exists
 
 1. Pick the signer's trader account (subaccount 0). Run:
