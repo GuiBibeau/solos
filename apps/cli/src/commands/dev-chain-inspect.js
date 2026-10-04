@@ -1,8 +1,8 @@
 // @ts-check
 /** Read-only on-chain evidence for reconciling confirmed transactions and remaining rent. */
 import { Args, Command, Options } from "@effect/cli";
-import { AddressSchema } from "@solos/actions";
 import { SolanaRpc } from "@solos/solana";
+import { AddressSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";

@@ -16,7 +16,7 @@ import { toWithdrawAction, validateWithdrawInput } from "./validate-input.js";
  * Ambiguous submissions keep their signature in the structured failure.
  * @param {import("../domain/types.js").LiquidityExecuteWithdrawInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   ExecuteWithdrawError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}

@@ -1,6 +1,6 @@
 // @ts-check
-import { ActionSchema } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
+import { ActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { readOnboardingStatus } from "./perp-onboarder-live.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
@@ -11,7 +11,7 @@ import { planOpenLots, protocolLeverageForLots } from "./phoenix-open-math.js";
 import { readOpenRisk } from "./phoenix-open-risk.js";
 
 /** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape}} Deps */
-/** @typedef {Extract<import("@solos/actions").Action,{type:"open_perp"}>} OpenAction */
+/** @typedef {Extract<import("@solos-sh/actions").Action,{type:"open_perp"}>} OpenAction */
 
 const TX_CONFIG = Object.freeze({
   computeUnitLimit: 500_000,

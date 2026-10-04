@@ -1,4 +1,4 @@
-# @solos/actions
+# @solos-sh/actions
 
 ## 0.3.0
 

@@ -18,7 +18,7 @@ import { JupiterSwapBuildLive } from "../swap/jupiter-swap-build-live.js";
 
 /** @typedef {Awaited<ReturnType<typeof buildEnvelope>>} Envelope */
 
-/** @type {import("@solos/actions").SwapAction} */
+/** @type {import("@solos-sh/actions").SwapAction} */
 export const swapAction = {
   type: "swap",
   inputMint: INPUT_MINT,
@@ -98,7 +98,7 @@ export const withWrapAmount = (lamports) =>
  * Run one executor call and return its tagged failure with the recorded stub requests.
  * @param {"execute" | "simulate"} face
  * @param {(envelope: Envelope) => Envelope | Promise<Envelope>} [mutate]
- * @param {Partial<import("@solos/actions").SwapAction>} [actionOverrides]
+ * @param {Partial<import("@solos-sh/actions").SwapAction>} [actionOverrides]
  */
 export const runBranch = async (face, mutate, actionOverrides = {}) => {
   const fixture = startBuildFixture({

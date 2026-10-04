@@ -73,7 +73,7 @@ const discoverMintOwner = (ctx, mint) =>
  * setup ATA create names. A multi-hop route opens the taker's account for its intermediate
  * token, and `ownerBindingRejection` compares each create's token program against
  * `owners[mint]` — discovering only the pair leaves that `undefined` and refuses the build.
- * @param {Envelope} envelope @param {import("@solos/actions").SwapAction} action
+ * @param {Envelope} envelope @param {import("@solos-sh/actions").SwapAction} action
  */
 const mintsToDiscover = (envelope, action) => {
   const named = envelope.setupInstructions
@@ -83,7 +83,7 @@ const mintsToDiscover = (envelope, action) => {
   return [...new Set([action.inputMint, action.outputMint, ...named])];
 };
 
-/** @param {Rpc} ctx @param {Envelope} envelope @param {import("@solos/actions").SwapAction} action */
+/** @param {Rpc} ctx @param {Envelope} envelope @param {import("@solos-sh/actions").SwapAction} action */
 const discoverMintOwners = (ctx, envelope, action) =>
   Effect.gen(function* () {
     const mints = mintsToDiscover(envelope, action);
@@ -107,7 +107,7 @@ const discoverMintOwners = (ctx, envelope, action) =>
  * Returns whether the temp account already existed, so assembly can keep the provider's
  * idempotent create for it instead of pinning an exclusive one that would fail.
  * @param {Rpc} ctx
- * @param {{ envelope: Envelope; action: import("@solos/actions").SwapAction; taker: string }} bound
+ * @param {{ envelope: Envelope; action: import("@solos-sh/actions").SwapAction; taker: string }} bound
  */
 export const preflightSwapBuild = (ctx, { envelope, action, taker }) =>
   Effect.gen(function* () {

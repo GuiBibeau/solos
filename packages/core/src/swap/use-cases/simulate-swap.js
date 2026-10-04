@@ -10,7 +10,7 @@ import { validateSwapInput } from "./validate-input.js";
  * obtains a fresh quote that may differ from this one.
  * @param {import("../domain/types.js").SwapQuoteRequest} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").SimulationResult,
+ *   import("@solos-sh/actions").SimulationResult,
  *   import("../domain/errors.js").QuoteInputInvalid | import("../../shared/ports/action-executor.js").ExecutorError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape
  * >}

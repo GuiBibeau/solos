@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { LpPositionSchema } from "@solos/actions";
+import { LpPositionSchema } from "@solos-sh/actions";
 import { LiquidityGetPositionInputSchema } from "../domain/types.js";
 import { getLpPositionTool } from "./get-position.js";
 

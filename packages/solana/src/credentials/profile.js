@@ -1,5 +1,5 @@
 // @ts-check
-import { AddressSchema } from "@solos/actions";
+import { AddressSchema } from "@solos-sh/actions";
 import { z } from "zod";
 import { isAllowedEndpoint } from "../env-url.js";
 import { PrivySessionSchema } from "../privy/session.js";

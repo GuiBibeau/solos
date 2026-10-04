@@ -8,7 +8,7 @@ import { buildOpen } from "./phoenix-open-build.js";
 import { readOpenRisk } from "./phoenix-open-risk.js";
 
 /** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape;submission:import("../submission/submission.js").SubmissionDeps}} Deps */
-/** @typedef {Extract<import("@solos/actions").Action,{type:"open_perp"}>} OpenAction */
+/** @typedef {Extract<import("@solos-sh/actions").Action,{type:"open_perp"}>} OpenAction */
 /** @typedef {Effect.Effect.Success<ReturnType<typeof buildOpen>>} Plan */
 
 /**

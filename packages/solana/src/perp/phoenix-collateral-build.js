@@ -1,6 +1,6 @@
 // @ts-check
-import { ActionSchema } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
+import { ActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { rpcCall } from "../rpc/rpc-call.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
@@ -14,7 +14,7 @@ import {
 import { assertWithdrawalReady } from "./phoenix-collateral-withdraw.js";
 
 /** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape}} Deps */
-/** @typedef {Extract<import("@solos/actions").Action, {type:"deposit_perp_collateral" | "withdraw_perp_collateral"}>} Action */
+/** @typedef {Extract<import("@solos-sh/actions").Action, {type:"deposit_perp_collateral" | "withdraw_perp_collateral"}>} Action */
 
 const TX_CONFIG = Object.freeze({
   computeUnitLimit: 500_000,

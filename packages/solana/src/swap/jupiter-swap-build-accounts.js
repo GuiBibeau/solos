@@ -11,7 +11,7 @@ import { programRejection, signerRejection } from "./jupiter-swap-build-validate
  * recipient accounts. Undefined means the build is acceptable. Pure validation — nothing
  * signs, sends, or dials.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  * @param {string} taker
  * @returns {Promise<string | undefined>}
  */

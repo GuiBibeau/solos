@@ -46,7 +46,7 @@ const selfExpected = (meta, writable) => expected(meta?.pubkey || "", writable, 
  * A wSOL route party must ride the classic token program: the wrap funds and the cleanup closes
  * the classic-derived wSOL ATA, so a Token-2022 route party would derive a distinct empty
  * account and fail only on-chain — burning fees under an explicit simulation skip.
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  * @param {Meta | undefined} sourceProgram @param {Meta | undefined} destinationProgram
  */
 const wsolProgramRejection = (action, sourceProgram, destinationProgram) => {
@@ -100,7 +100,7 @@ const duplicateAuthorityRejection = (accounts, taker, authoritySlot) =>
     ? "swap instruction repeated the taker as a signer beyond its validated slot"
     : undefined;
 
-/** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
+/** @param {Meta[]} accounts @param {import("@solos-sh/actions").SwapAction} action @param {string} taker */
 const directRejection = async (accounts, action, taker) => {
   const sourceProgram = accounts[5];
   const destinationProgram = accounts[6];
@@ -131,7 +131,7 @@ const directRejection = async (accounts, action, taker) => {
   );
 };
 
-/** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action
+/** @param {Meta[]} accounts @param {import("@solos-sh/actions").SwapAction} action
  * @param {{taker: string, source: string, destination: string}} bound */
 const sharedBoundRejection = (accounts, action, bound) =>
   fixedRejection([
@@ -168,7 +168,7 @@ const sharedRoleRejection = (accounts) =>
     { meta: accounts[4], wanted: selfExpected(accounts[4], true), reason: ROLE_REASON },
   ]);
 
-/** @param {Meta[]} accounts @param {import("@solos/actions").SwapAction} action @param {string} taker */
+/** @param {Meta[]} accounts @param {import("@solos-sh/actions").SwapAction} action @param {string} taker */
 const sharedRejection = async (accounts, action, taker) => {
   const sourceProgram = accounts[8];
   const destinationProgram = accounts[9];
@@ -200,7 +200,7 @@ export const ROUTE_LAYOUT_SLOTS = {
 
 /** Validate the fixed V2 account prefix selected by the instruction discriminator.
  * @param {import("./jupiter-swap-build-response.js").RawInstruction} swap
- * @param {import("@solos/actions").SwapAction} action @param {string} taker */
+ * @param {import("@solos-sh/actions").SwapAction} action @param {string} taker */
 export const routeAccountsRejection = async (swap, action, taker) => {
   const layout = swapRouteLayout(swap);
   if (layout === "route-v2") return directRejection(swap.accounts, action, taker);

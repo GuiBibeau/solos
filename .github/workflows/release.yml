@@ -1,6 +1,6 @@
 name: release
 
-# Changesets: opens/updates the "Version Packages" PR. Publishing @solos/actions to npm is
+# Changesets: opens/updates the "Version Packages" PR. Publishing @solos-sh/actions to npm is
 # intentionally disabled until the package is ready; flip vars.NPM_PUBLISH to "true" then.
 on:
   push:

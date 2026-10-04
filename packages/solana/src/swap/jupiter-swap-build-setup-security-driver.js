@@ -11,7 +11,7 @@ export const meta = (pubkey, isWritable, isSigner) => ({ pubkey, isWritable, isS
 /** @param {...number} bytes */
 export const b64 = (...bytes) => getBase64Codec().decode(Uint8Array.of(...bytes));
 
-/** @type {import("@solos/actions").SwapAction} */
+/** @type {import("@solos-sh/actions").SwapAction} */
 const ACTION = {
   type: "swap",
   inputMint: INPUT_MINT,
@@ -28,11 +28,11 @@ export const createSetupSecurityDriver = async () => {
   const action = ACTION;
 
   /** @param {Record<string, unknown>} envelopeOverrides
-   * @param {Partial<import("@solos/actions").SwapAction>} actionOverrides */
+   * @param {Partial<import("@solos-sh/actions").SwapAction>} actionOverrides */
   const rejectionForAction = (envelopeOverrides, actionOverrides) =>
     buildRejection(
       { ...envelope, ...envelopeOverrides },
-      /** @type {import("@solos/actions").SwapAction} */ ({ ...action, ...actionOverrides }),
+      /** @type {import("@solos-sh/actions").SwapAction} */ ({ ...action, ...actionOverrides }),
       taker,
     );
 

@@ -18,7 +18,7 @@ import { toDepositAction, validateDepositInput } from "./validate-input.js";
  * operator's decision until the matching withdrawal exists and is checked (ADR-0019).
  * @param {import("../domain/types.js").LendExecuteDepositInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   ExecuteDepositError,
  *   import("../ports/lending-venue.js").LendingVenueShape | import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}

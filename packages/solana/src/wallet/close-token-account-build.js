@@ -90,7 +90,7 @@ export const closeRefusal = (facts, signer) => {
   };
 };
 
-/** @param {TokenAccountFacts} facts @returns {import("@solos/actions").TokenAccountCloseQuote} */
+/** @param {TokenAccountFacts} facts @returns {import("@solos-sh/actions").TokenAccountCloseQuote} */
 const quoteOf = (facts) => ({
   kind: "token_account_close",
   account: facts.account,
@@ -102,7 +102,7 @@ const quoteOf = (facts) => ({
 
 /**
  * @param {{ ctx: import("../rpc/solana-rpc.js").SolanaRpcShape; kit: import("../signer/kit-signer.js").KitSignerShape }} deps
- * @param {import("@solos/actions").CloseTokenAccountAction} action
+ * @param {import("@solos-sh/actions").CloseTokenAccountAction} action
  */
 export const draftTokenAccountClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {

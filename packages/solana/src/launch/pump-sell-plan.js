@@ -73,7 +73,7 @@ const sellInstruction = async ({ accounts, tokensIn, minSolOutput }) => {
 
 /**
  * @param {Rpc} ctx
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  * @param {import("../signer/kit-signer.js").KitCompatibleSigner} signer
  */
 export const planPumpSell = (ctx, action, signer) =>

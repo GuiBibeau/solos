@@ -10,7 +10,7 @@ import { Effect } from "effect";
 import { base64AccountData } from "../market/mint-account.js";
 
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof import("./phoenix-collateral-build.js").buildCollateral>>} Plan */
-/** @typedef {import("@solos/actions").PerpCollateralQuote} Quote */
+/** @typedef {import("@solos-sh/actions").PerpCollateralQuote} Quote */
 
 /** @param {unknown} value @param {string} owner @param {string} mint */
 const decodedWallet = (value, owner, mint) => {

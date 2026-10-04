@@ -1,6 +1,6 @@
 // @ts-check
-import { ActionSchema } from "@solos/actions";
 import { BuildRejected, NoPositionToClose } from "@solos/core";
+import { ActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { buildCloseInstruction } from "./phoenix-close-instructions.js";
 import { planCloseLots } from "./phoenix-close-math.js";
@@ -10,7 +10,7 @@ import { readCollateralExchange } from "./phoenix-collateral-exchange-live.js";
 import { readOpenMarket } from "./phoenix-open-market.js";
 
 /** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape}} Deps */
-/** @typedef {Extract<import("@solos/actions").Action,{type:"close_perp"}>} CloseAction */
+/** @typedef {Extract<import("@solos-sh/actions").Action,{type:"close_perp"}>} CloseAction */
 const TX_CONFIG = Object.freeze({
   computeUnitLimit: 500_000,
   loadedAccountsDataSizeLimit: 67_108_864,

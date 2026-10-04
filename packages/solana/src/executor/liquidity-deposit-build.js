@@ -26,7 +26,7 @@ const EXECUTOR = "direct-signer";
 /** @typedef {import("../liquidity/whirlpool-deposit-plan.js").DepositPlanOk} DepositPlanOk */
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
-/** @typedef {import("@solos/actions").AddLiquidityAction} AddLiquidityAction */
+/** @typedef {import("@solos-sh/actions").AddLiquidityAction} AddLiquidityAction */
 /** @typedef {import("../submission/seal-draft.js").Draft} Draft */
 /** @typedef {Draft["instructions"][number]} SetupInstruction */
 /**
@@ -120,7 +120,7 @@ const depositDraft = ({ plan, creates, closes }) => ({
  * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
  * decimal strings, at the pre-send pool price.
  * @param {DepositQuoteSource} plan
- * @returns {import("@solos/actions").LiquidityDepositQuote}
+ * @returns {import("@solos-sh/actions").LiquidityDepositQuote}
  */
 export const depositQuoteOf = (plan) => ({
   kind: "deposit",

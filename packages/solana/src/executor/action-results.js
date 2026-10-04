@@ -1,16 +1,16 @@
 // @ts-check
 /**
- * The two `@solos/actions` results every branch of the direct-signer executor returns, shaped
+ * The two `@solos-sh/actions` results every branch of the direct-signer executor returns, shaped
  * once from what Submission reports.
  */
 import { Clock, Effect } from "effect";
 import { simulationErrorText } from "./simulation-error-text.js";
 
 /**
- * @param {import("@solos/actions").Action} action
+ * @param {import("@solos-sh/actions").Action} action
  * @param {import("../submission/simulate.js").Simulated} simulated
- * @param {import("@solos/actions").VenueQuote | null} venueQuote
- * @returns {import("@solos/actions").SimulationResult}
+ * @param {import("@solos-sh/actions").VenueQuote | null} venueQuote
+ * @returns {import("@solos-sh/actions").SimulationResult}
  */
 export const simulationResult = (action, simulated, venueQuote) => {
   const isOk = simulated.err === null;
@@ -26,7 +26,7 @@ export const simulationResult = (action, simulated, venueQuote) => {
 };
 
 /**
- * @param {import("@solos/actions").Action} action
+ * @param {import("@solos-sh/actions").Action} action
  * @param {import("../submission/submission.js").Delivered} delivered
  */
 export const executionResult = (action, delivered) =>

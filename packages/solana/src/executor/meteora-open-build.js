@@ -8,8 +8,8 @@
  * already refuses.
  */
 import { generateKeyPairSigner } from "@solana/kit";
-import { meteoraWidthIssue } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
+import { meteoraWidthIssue } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { eventAuthorityAddress } from "../liquidity/meteora-dlmm-bins.js";

@@ -11,7 +11,7 @@ import { reconcileCollateral } from "./phoenix-collateral-reconcile.js";
 import { assertWithdrawalReady } from "./phoenix-collateral-withdraw.js";
 
 /** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape,submission: import("../submission/submission.js").SubmissionDeps}} Deps */
-/** @typedef {Extract<import("@solos/actions").Action, {type:"deposit_perp_collateral" | "withdraw_perp_collateral"}>} Action */
+/** @typedef {Extract<import("@solos-sh/actions").Action, {type:"deposit_perp_collateral" | "withdraw_perp_collateral"}>} Action */
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof buildCollateral>>} Plan */
 
 /** @param {Deps} deps @param {Action} action */
@@ -76,7 +76,7 @@ export const simulateCollateral = (deps, action) =>
       draft: plan.draft,
       probe: collateralProbe(plan),
     });
-    const quote = /** @type {import("@solos/actions").PerpCollateralQuote | null} */ (
+    const quote = /** @type {import("@solos-sh/actions").PerpCollateralQuote | null} */ (
       simulated.verdict
     );
     return simulationResult(action, simulated, quote);

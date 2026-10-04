@@ -17,7 +17,7 @@ import { toSellAction, validateSellInput } from "./to-buy-action.js";
  * re-plans and may differ.
  * @param {import("../domain/types.js").LaunchSellInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").SimulationResult,
+ *   import("@solos-sh/actions").SimulationResult,
  *   SimulateSellError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape
  * >}

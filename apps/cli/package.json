@@ -10,7 +10,7 @@
     "@effect/cli": "latest",
     "@effect/platform": "0.97.2",
     "@effect/platform-bun": "0.91.2",
-    "@solos/actions": "workspace:*",
+    "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
     "@solos/harness": "workspace:*",
     "@solos/mcp": "workspace:*",

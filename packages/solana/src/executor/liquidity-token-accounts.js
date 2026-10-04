@@ -11,8 +11,8 @@ import {
   getCreateAssociatedTokenIdempotentInstruction,
   getTokenDecoder,
 } from "@solana-program/token";
-import { WSOL_MINT } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
+import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";

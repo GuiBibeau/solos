@@ -5,8 +5,8 @@ import { AddressSchema } from "../../shared/domain/address.js";
 
 /** @typedef {import("../../shared/domain/address.js").Address} Address */
 
-/** @typedef {z.infer<typeof import("@solos/actions").PerpPositionSchema>} PerpPosition */
-/** @typedef {z.infer<typeof import("@solos/actions").PerpAccountSchema>} PerpAccount */
+/** @typedef {z.infer<typeof import("@solos-sh/actions").PerpPositionSchema>} PerpPosition */
+/** @typedef {z.infer<typeof import("@solos-sh/actions").PerpAccountSchema>} PerpAccount */
 
 /** @typedef {z.infer<typeof GetPositionInputSchema>} GetPositionInput */
 /** @typedef {z.infer<typeof ListPositionsInputSchema>} ListPositionsInput */
@@ -55,4 +55,4 @@ export const ListPositionsInputSchema = z.object({
   ),
 });
 
-export { PerpAccountSchema, PerpPositionSchema } from "@solos/actions";
+export { PerpAccountSchema, PerpPositionSchema } from "@solos-sh/actions";

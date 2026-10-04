@@ -1,7 +1,7 @@
 // @ts-check
 
 /** One venue's complete owner enumeration (ADR-0018 shape, shared by lend/perp/liquidity). */
-/** @typedef {{ readonly positions: readonly import("@solos/actions").Position[]; readonly perpAccounts: readonly { readonly protocol: string; readonly account: string; readonly equityUsd: string | null }[]; readonly receiptMints: readonly string[] }} VenueEnumeration */
+/** @typedef {{ readonly positions: readonly import("@solos-sh/actions").Position[]; readonly perpAccounts: readonly { readonly protocol: string; readonly account: string; readonly equityUsd: string | null }[]; readonly receiptMints: readonly string[] }} VenueEnumeration */
 /** @typedef {{ readonly lend: VenueEnumeration; readonly perp: VenueEnumeration; readonly liquidity: VenueEnumeration }} VenueReads */
 /** @typedef {{ readonly mint: string; readonly tokenAccount: string; readonly amount: string; readonly decimals: number }} TokenBalanceRecord */
 /** @typedef {{ readonly lamports: bigint; readonly tokenBalances: readonly TokenBalanceRecord[]; readonly venues: VenueReads }} WalletReads */

@@ -24,8 +24,8 @@ export const PUMP_BUY_V1_CONFIG = Object.freeze({
  * Draft one pump trade. Both directions share the v1 budget; only the planner differs, and each
  * planner decides its own refusals. Sealing proves the lifetime before any signer is involved.
  * @param {{ ctx: Rpc; kit: Kit }} deps
- * @param {import("@solos/actions").SwapAction} action
- * @param {(ctx: Rpc, action: import("@solos/actions").SwapAction, signer: Kit["signer"]) =>
+ * @param {import("@solos-sh/actions").SwapAction} action
+ * @param {(ctx: Rpc, action: import("@solos-sh/actions").SwapAction, signer: Kit["signer"]) =>
  *   import("effect").Effect.Effect<
  *     { quote: unknown; instructions: readonly unknown[] },
  *     import("@solos/core").BuildRejected | import("@solos/core").RpcError
@@ -42,8 +42,8 @@ const draftPumpTrade = ({ ctx, kit }, action, planner) =>
     quote: plan.quote,
   })).pipe(Effect.withSpan("executor.buildPumpBuy"));
 
-/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").SwapAction} action */
+/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos-sh/actions").SwapAction} action */
 export const draftPumpBuy = (deps, action) => draftPumpTrade(deps, action, planPumpBuy);
 
-/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").SwapAction} action */
+/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos-sh/actions").SwapAction} action */
 export const draftPumpSell = (deps, action) => draftPumpTrade(deps, action, planPumpSell);

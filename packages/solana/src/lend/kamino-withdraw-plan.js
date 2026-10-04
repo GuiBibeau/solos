@@ -11,12 +11,12 @@ import { exactCollateralForWithdrawal } from "./kamino-withdraw-math.js";
 /** @typedef {import("./kamino-deposit-plan.js").DepositIntent} Intent */
 /** @typedef {import("./kamino-deposit-plan.js").ReserveFacts} Facts */
 /** @typedef {{ readonly status: "reject"; readonly reason: string }} Rejection */
-/** @typedef {{ readonly status: "ok"; readonly instructions: readonly { programAddress: string }[]; readonly destination: string; readonly quote: import("@solos/actions").LendWithdrawQuote }} WithdrawalPlan */
+/** @typedef {{ readonly status: "ok"; readonly instructions: readonly { programAddress: string }[]; readonly destination: string; readonly quote: import("@solos-sh/actions").LendWithdrawQuote }} WithdrawalPlan */
 
 /** @param {string} reason @returns {Rejection} */
 const reject = (reason) => ({ status: "reject", reason });
 
-/** @param {{ intent: Intent; facts: Facts; obligation: string; collateral: bigint; rentLamports: bigint }} parts @returns {import("@solos/actions").LendWithdrawQuote} */
+/** @param {{ intent: Intent; facts: Facts; obligation: string; collateral: bigint; rentLamports: bigint }} parts @returns {import("@solos-sh/actions").LendWithdrawQuote} */
 const withdrawalQuote = ({ intent, facts, obligation, collateral, rentLamports }) => ({
   kind: "lend_withdraw",
   reserve: facts.reserve,

@@ -73,7 +73,7 @@ const spendSides = (plan) => [sideSpec(plan, "A"), sideSpec(plan, "B")];
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
- * @param {import("@solos/actions").AddLiquidityAction} action
+ * @param {import("@solos-sh/actions").AddLiquidityAction} action
  * @returns {import("effect").Effect.Effect<{ draft: import("../submission/seal-draft.js").Draft; plan: Extract<MeteoraDepositPlan, { status: "ok" }> }, import("@solos/core").ExecutorError>}
  */
 export const draftMeteoraDeposit = ({ ctx, kit }, action) =>

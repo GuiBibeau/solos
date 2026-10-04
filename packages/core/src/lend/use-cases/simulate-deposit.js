@@ -15,7 +15,7 @@ import { toDepositAction, validateDepositInput } from "./validate-input.js";
  * submitted. A later execute call re-plans and may differ.
  * @param {import("../domain/types.js").LendDepositInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").SimulationResult,
+ *   import("@solos-sh/actions").SimulationResult,
  *   SimulateDepositError,
  *   import("../ports/lending-venue.js").LendingVenueShape | import("../../shared/ports/action-executor.js").ActionExecutorShape
  * >}

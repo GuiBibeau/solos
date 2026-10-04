@@ -12,12 +12,12 @@ import { EventBus } from "../ports/event-bus.js";
  * not proof of the requested economic fill. An optional dotted event name publishes the
  * confirmed result on the EventBus, so every execute-tier use case announces success alike.
  * @param {{
- *   readonly action: import("@solos/actions").Action;
+ *   readonly action: import("@solos-sh/actions").Action;
  *   readonly skipSimulation?: boolean;
  *   readonly event?: string;
  * }} request
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   TransactionFailed | import("../ports/action-executor.js").ExecutorError,
  *   import("../ports/action-executor.js").ActionExecutorShape | import("../ports/event-bus.js").EventBusShape
  * >}

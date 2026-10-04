@@ -1,5 +1,5 @@
 // @ts-check
-import { ClosePerpActionSchema } from "@solos/actions";
+import { ClosePerpActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { simulateAction } from "../../shared/use-cases/simulate-action.js";

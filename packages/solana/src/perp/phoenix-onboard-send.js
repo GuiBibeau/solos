@@ -19,7 +19,7 @@ import { submitEnrollment } from "./phoenix-onboard-submit.js";
 import { assertPhoenixV0WireForSubmission } from "./phoenix-onboard-v0.js";
 
 /** @typedef {{config: import("./phoenix-api.js").PhoenixConfig,ctx: import("../rpc/solana-rpc.js").SolanaRpcShape,kit: import("../signer/kit-signer.js").KitSignerShape,submission?: import("../submission/submission.js").SubmissionDeps}} Deps */
-/** @typedef {import("@solos/actions").Action} Action */
+/** @typedef {import("@solos-sh/actions").Action} Action */
 
 /** @typedef {import("effect").Effect.Effect.Success<ReturnType<typeof import("./phoenix-onboard-build.js").buildOnboarding>>} Plan */
 /** @param {Plan} planned */

@@ -155,7 +155,7 @@ everything up front for clients that ignore list changes. Adapters live in
   `domain/errors.js`, structured props only (use `reason`, never `cause`). Adapters translate library
   errors at the boundary; nothing library-specific escapes.
 - Zod 4 for every schema. Domain types are `z.infer` typedefs.
-- Execute-tier use cases build an `Action` from `@solos/actions` and call the `ActionExecutor` port.
+- Execute-tier use cases build an `Action` from `@solos-sh/actions` and call the `ActionExecutor` port.
   They never touch a signer or RPC. `DirectSignerExecutor` (local keypair) is the default; a vault
   engine is a different Layer, never a dependency (ADR-0013, ADR-0014).
 - Tools: `defineTool` in `<slice>/tools/`, named `solana_<group>_<verb>_<object>`, tier

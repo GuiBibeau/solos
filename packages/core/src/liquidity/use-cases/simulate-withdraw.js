@@ -13,7 +13,7 @@ import { toWithdrawAction, validateWithdrawInput } from "./validate-input.js";
  * would submit. Nothing is ever sent, and a later execute re-plans and may differ.
  * @param {import("../domain/types.js").LiquidityWithdrawInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").SimulationResult,
+ *   import("@solos-sh/actions").SimulationResult,
  *   SimulateWithdrawError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape
  * >}

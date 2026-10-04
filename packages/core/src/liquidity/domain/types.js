@@ -4,14 +4,14 @@ import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 
 /** @typedef {import("../../shared/domain/address.js").Address} Address */
-/** @typedef {z.infer<typeof import("@solos/actions").LpPositionSchema>} LpPosition */
-/** @typedef {z.infer<typeof import("@solos/actions").PerpAccountSchema>} PerpAccount */
+/** @typedef {z.infer<typeof import("@solos-sh/actions").LpPositionSchema>} LpPosition */
+/** @typedef {z.infer<typeof import("@solos-sh/actions").PerpAccountSchema>} PerpAccount */
 
 /** @typedef {z.infer<typeof LiquidityGetPositionInputSchema>} LiquidityGetPositionInput */
 /** @typedef {z.infer<typeof LiquidityListPositionsInputSchema>} LiquidityListPositionsInput */
 
 /**
- * The venue selector, mirroring the merged contract enum in `@solos/actions`
+ * The venue selector, mirroring the merged contract enum in `@solos-sh/actions`
  * (trading-primitives LiquidityProtocolSchema, not exported from the published index).
  * Point reads, deposits, withdrawals, and owner enumeration cover orca, raydium, and meteora.
  * Opens and closes cover raydium and an empty meteora position.
@@ -205,4 +205,4 @@ export const LiquidityExecuteDepositInputSchema = DepositInputBaseSchema.extend(
  * @typedef {{ readonly positions: LpPosition[]; readonly perpAccounts: PerpAccount[]; readonly receiptMints: Address[] }} LiquidityEnumeration
  */
 
-export { LpPositionSchema } from "@solos/actions";
+export { LpPositionSchema } from "@solos-sh/actions";

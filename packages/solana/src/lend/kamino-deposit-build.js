@@ -17,7 +17,7 @@ import { depositPlan } from "./kamino-deposit-plan.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
-/** @typedef {import("@solos/actions").LendAction} LendAction */
+/** @typedef {import("@solos-sh/actions").LendAction} LendAction */
 /** @typedef {import("./kamino-deposit-plan.js").DepositPlanOk} DepositPlanOk */
 
 /** Local v1 policy for the deposit: bounded compute, the chain-max data limit, small tip. */
@@ -171,6 +171,6 @@ export const lendDraft = (label, instructions) => ({
  * The plan's quote as the published venueQuote value: exact encoded amount, the pinned-math
  * collateral estimate at the read-time rate, and the rent/fee evidence (ADR-0019).
  * @param {DepositPlanOk["quote"]} quote
- * @returns {import("@solos/actions").LendDepositQuote}
+ * @returns {import("@solos-sh/actions").LendDepositQuote}
  */
 export const lendQuoteOf = (quote) => quote;

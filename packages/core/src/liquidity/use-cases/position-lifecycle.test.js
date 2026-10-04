@@ -13,7 +13,7 @@ import {
 
 const ADDRESS = "11111111111111111111111111111111";
 
-/** @type {import("@solos/actions").Action | undefined} */
+/** @type {import("@solos-sh/actions").Action | undefined} */
 let seen;
 
 const executorLayer = Layer.succeed(

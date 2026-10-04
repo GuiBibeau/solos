@@ -56,7 +56,7 @@ const overspent = (spent, allowed) =>
  * stronger guarantee than the one this credit reconstructs, and one a crafted route cannot
  * reach. The overhead allowance still caps what such a trade may take.
  * @param {{ otherAmountThreshold?: string } | undefined} envelope
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  */
 export const minSolCredit = (envelope, action) =>
   action.outputMint === WSOL_MINT ? BigInt(envelope?.otherAmountThreshold ?? "0") : 0n;
@@ -71,7 +71,7 @@ export const minSolCredit = (envelope, action) =>
  * the balance must end at least `credit - allowance` above where it started.
  *
  * A non-SOL input never debits lamports for the swap itself, so only the overhead is allowed.
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  * @param {bigint} [credit] lamports the swap must return, from `minSolCredit`
  */
 export const maxSpendLamports = (action, credit = 0n) =>
@@ -85,7 +85,7 @@ export const maxSpendLamports = (action, credit = 0n) =>
  * unbounded send is exactly what the bound exists to prevent.
  * @param {{ pre: bigint | number | string | null | undefined;
  *   post: bigint | number | null | undefined;
- *   action: import("@solos/actions").SwapAction; credit: bigint }} observed
+ *   action: import("@solos-sh/actions").SwapAction; credit: bigint }} observed
  */
 export const spendRejection = ({ pre, post, action, credit }) => {
   if (pre === undefined || pre === null) return UNREADABLE;
@@ -100,7 +100,7 @@ export const spendRejection = ({ pre, post, action, credit }) => {
  * read strictly before the simulation so "before" is unambiguous; the allowance absorbs a
  * one-slot skew from unrelated activity between the two.
  * @param {import("../rpc/solana-rpc.js").SolanaRpcShape} ctx
- * @param {{ taker: string; action: import("@solos/actions").SwapAction; credit: bigint }} bound
+ * @param {{ taker: string; action: import("@solos-sh/actions").SwapAction; credit: bigint }} bound
  * @returns {import("../submission/simulate.js").Probe}
  */
 export const spendBoundProbe = (ctx, { taker, action, credit }) => ({
