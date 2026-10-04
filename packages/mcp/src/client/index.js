@@ -86,8 +86,32 @@ export const connectMcp = async ({
   };
 };
 
-/** Parent callers select the environment; a server child must not reload ambient .env files. */
-export const solosServerCommand = () => ({
-  command: "bun",
-  args: ["--no-env-file", fileURLToPath(new URL("../bin/stdio.js", import.meta.url))],
-});
+/** The subcommand under which an installed `solos` serves MCP over stdio (ADR-0035). */
+export const SERVE_ARGS = Object.freeze(["mcp", "serve"]);
+
+/**
+ * Inside a compiled executable, modules live in Bun's virtual filesystem: `/$bunfs/` on Unix,
+ * `/~BUN/` on Windows. A module URL there means "this process is the binary".
+ */
+const COMPILED_URL = /\/\$bunfs\/|\/~BUN\//;
+
+/**
+ * The command that starts this server, kept pure for tests. From a checkout it is
+ * `bun --no-env-file <stdio.js>`: parent callers select the environment, and a server child
+ * must not reload ambient `.env` files. From a compiled binary it is the binary itself with
+ * `mcp serve`; `solos dev build` turns dotenv autoload off, so the isolation is the same.
+ * @param {{ executable: string; moduleUrl: string }} input the running executable and this
+ *   module's `import.meta.url`
+ * @returns {{ command: string; args: string[] }}
+ */
+export const serverCommandFor = ({ executable, moduleUrl }) =>
+  COMPILED_URL.test(moduleUrl)
+    ? { command: executable, args: [...SERVE_ARGS] }
+    : {
+        command: "bun",
+        args: ["--no-env-file", fileURLToPath(new URL("../bin/stdio.js", moduleUrl))],
+      };
+
+/** Spawn our own server the way an external client would, whichever way this process runs. */
+export const solosServerCommand = () =>
+  serverCommandFor({ executable: process.execPath, moduleUrl: import.meta.url });

@@ -2,6 +2,7 @@
 import { Command, Options } from "@effect/cli";
 import { Effect } from "effect";
 import { emit } from "../output.js";
+import { build } from "./dev-build.js";
 import { inspect } from "./dev-chain-inspect.js";
 import { docs } from "./dev-docs.js";
 import { qa } from "./dev-qa.js";
@@ -41,5 +42,5 @@ const test = Command.make("test", { filter, integrationOnly }, (o) => {
 
 export const dev = Command.make("dev").pipe(
   Command.withDescription("Developer and agent verification lever"),
-  Command.withSubcommands([surfpool, inspect, check, docs, qa, test, verify, evidence]),
+  Command.withSubcommands([surfpool, inspect, check, docs, qa, test, verify, evidence, build]),
 );

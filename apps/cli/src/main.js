@@ -8,6 +8,7 @@
  */
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
+import { SOLOS_VERSION } from "@solos/mcp";
 import { Effect } from "effect";
 import { agent } from "./commands/agent.js";
 import { daemon } from "./commands/daemon.js";
@@ -62,7 +63,7 @@ const root = Command.make("solos").pipe(
   Command.withSubcommands(hasDevLever(process.env) ? [...operatorCommands, dev] : operatorCommands),
 );
 
-const cli = Command.run(root, { name: "solos", version: "0.0.0" });
+const cli = Command.run(root, { name: "solos", version: SOLOS_VERSION });
 
 const program = /** @type {Effect.Effect<void, unknown, never>} */ (
   cli(process.argv).pipe(Effect.scoped, Effect.provide(BunContext.layer))

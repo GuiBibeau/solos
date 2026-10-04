@@ -3,6 +3,7 @@ import { Args, Command, Options } from "@effect/cli";
 import { SEARCH_TOOL, connectMcp, solosServerCommand } from "@solos/mcp";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
+import { serve } from "./mcp-serve.js";
 
 /** Exactly what a real MCP client would pass: network, signer or profile selection, logging, tier. */
 const FORWARDED_ENV = [
@@ -110,5 +111,5 @@ const call = Command.make("call", { toolName, args }, (options) =>
 
 export const mcp = Command.make("mcp").pipe(
   Command.withDescription("Exercise the MCP server as a client would"),
-  Command.withSubcommands([list, call]),
+  Command.withSubcommands([serve, list, call]),
 );
