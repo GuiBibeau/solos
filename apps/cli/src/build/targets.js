@@ -17,18 +17,37 @@ export const TARGETS = Object.freeze([
 export const hostTargetName = (platform = process.platform, arch = process.arch) =>
   `${platform}-${arch}`;
 
-/**
- * `all`, one target name, or nothing for the host.
- * @param {string | undefined} selection
- * @returns {ReadonlyArray<BuildTarget>}
- */
-export const selectTargets = (selection) => {
-  if (selection === "all") return TARGETS;
-  const name = selection ?? hostTargetName();
+/** @param {string} name */
+const targetNamed = (name) => {
   const target = TARGETS.find((candidate) => candidate.name === name);
   if (target === undefined) {
     const known = TARGETS.map((candidate) => candidate.name).join(", ");
     throw new Error(`unknown build target ${name}; known targets: ${known}, all`);
   }
-  return [target];
+  return target;
+};
+
+/**
+ * `all`, one or more comma-separated target names, or nothing for the host.
+ * @param {string | undefined} selection
+ * @returns {ReadonlyArray<BuildTarget>}
+ */
+export const selectTargets = (selection) => {
+  if (selection === "all") return TARGETS;
+  const names = (selection ?? hostTargetName())
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+  if (names.length === 0) throw new Error(`no build target named in ${JSON.stringify(selection)}`);
+  return names.map((name) => targetNamed(name));
+};
+
+/**
+ * Node's names for a target's platform, as npm's `os` and `cpu` fields and `process.platform`
+ * / `process.arch` spell them. Target names are built from them, so this is a split.
+ * @param {BuildTarget} target
+ */
+export const platformOf = (target) => {
+  const [os, cpu] = target.name.split("-", 2);
+  return { os: /** @type {string} */ (os), cpu: /** @type {string} */ (cpu) };
 };
