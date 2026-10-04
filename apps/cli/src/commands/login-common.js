@@ -1,7 +1,7 @@
 // @ts-check
 import { Prompt } from "@effect/cli";
 import { ValidationError } from "@solos/core";
-import { KitSigner, KitSignerLive, isAllowedEndpoint, saveProfile } from "@solos/solana";
+import { KitSigner, KitSignerLive, PROVIDERS, isAllowedEndpoint, saveProfile } from "@solos/solana";
 import { Effect, Option, Redacted } from "effect";
 import { emit } from "../output.js";
 
@@ -32,6 +32,7 @@ export const persistProfile = ({ name, profile, setDefault }) =>
         rpcUrl: profile.rpcUrl ?? null,
         file,
         hint: `export SOLOS_PROFILE=${name}`,
+        next: "solos connect claude | codex | cursor",
       }),
     ),
   );
@@ -115,4 +116,39 @@ export const resolveRpcUrl = (flag, io = {}) => {
   const fromEnv = storableEnvUrl(env);
   if (fromEnv !== undefined) return Effect.succeed(fromEnv);
   return isTTY ? promptRpcUrl() : Effect.succeed(undefined);
+};
+
+/** @typedef {(typeof PROVIDERS)[number]} Provider */
+
+/** The providers an Operator picks from at the prompt; privy-server is for scripts with an app secret. */
+const PROVIDER_CHOICES =
+  /** @type {ReadonlyArray<{ title: string; value: Provider; description: string }>} */ ([
+    {
+      title: "A keypair file on this machine",
+      value: "local",
+      description: "Solana CLI keypairs under ~/.config/solana are listed",
+    },
+    { title: "Privy", value: "privy", description: "Log in with a browser; no key on disk" },
+    { title: "A pay account", value: "pay", description: "An account of the pay CLI" },
+  ]);
+
+/**
+ * Which wallet provider `login` uses: the flag, or a choice at the prompt, so `solos login` alone
+ * is a complete first step. A non-interactive run must say.
+ * @param {Option.Option<Provider>} flag
+ * @param {{ isTTY?: boolean }} [io]
+ */
+export const resolveProvider = (flag, { isTTY = process.stdin.isTTY === true } = {}) => {
+  if (Option.isSome(flag)) return Effect.succeed(flag.value);
+  if (!isTTY) {
+    return Effect.fail(
+      new ValidationError({
+        field: "provider",
+        value: undefined,
+        reason: "no --provider was given and there is no terminal to ask in",
+        remedy: `pass --provider ${PROVIDERS.join("|")}`,
+      }),
+    );
+  }
+  return Prompt.select({ message: "Connect a wallet with", choices: PROVIDER_CHOICES });
 };

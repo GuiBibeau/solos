@@ -1,94 +1,109 @@
 # solOS
 
-A thin Solana execution layer for LLM agents. An MCP server, a harness, and the `solos` CLI
-share one core. Many tools, no policy. Execute paths are proven with a real mainnet spend.
+A Solana execution layer for LLM agents. One `solos` binary with an MCP server inside: swaps,
+lending, perps, liquidity, transfers and market reads as 49 well-named tools your agent discovers
+on demand. Mainnet by default. Your keys stay on your machine, and nothing that signs is offered
+until you raise the ceiling yourself.
 
-Bun, Effect, Zod, and Solana Kit. Mainnet by default.
+## Get started
 
-## Quick start
+**1. Install**
 
 ```sh
+npm i -g @solos-sh/cli
+```
+
+Without Node: `curl -fsSL https://raw.githubusercontent.com/GuiBibeau/solos/main/install.sh | sh`.
+Either way you get one `solos` command, with Bun embedded; nothing else to install.
+
+**2. Connect a wallet**
+
+```sh
+solos login
+```
+
+Picks a Solana CLI keypair already on this machine, or logs you in with Privy, asks for your RPC
+URL, and saves a profile under `~/.config/solos`. There is no default RPC endpoint; the free tiers
+at Helius, QuickNode and Triton all work.
+
+**3. Connect your agent**
+
+```sh
+solos connect claude      # or: codex | cursor
+```
+
+Writes the solos entry into the client's config, keeps a backup of the file, and ends with the
+`solos doctor` report. Restart the client and ask it: *what is my SOL balance?*
+
+That is the whole setup. `solos doctor` tells you what is missing at any point, and prints the
+MCP entry to paste into any other client.
+
+## What your agent can do
+
+| Group | Tools | Venues |
+|---|---|---|
+| `wallet`, `transfer`, `portfolio` | balances, addresses, SOL transfers, a supported-asset portfolio view | |
+| `swap`, `launch` | quotes, simulated and executed swaps; bonding-curve buys and sells | Jupiter, Pump |
+| `lend` | reserve rates, positions, deposits and withdrawals | Kamino |
+| `liquidity` | positions, deposits, withdrawals, opening and closing concentrated ranges | Orca, Raydium, Meteora |
+| `perp` | positions, equity, collateral, bounded IOC opens and closes | Phoenix |
+| `market` | prices, token metadata, trending tokens, news and research summaries | Jupiter, Elfa |
+
+The full catalogue with every argument is [Tools](docs/reference/tools/index.md). The server
+advertises three tools at start, a search tool, the balance read and the portfolio read, and
+enables the rest when the agent asks for them, so a 49-tool surface costs the agent nothing it
+does not use.
+
+## Safe by default
+
+- **Read and simulate only, until you say otherwise.** Execute tools, the ones that sign and
+  send, are absent from the server until you connect with `--tier execute`. Every execute tool
+  has a simulate twin, and execution simulates first.
+- **Your keys never leave the machine.** Client configs carry a profile name, never a secret
+  (ADR-0015). A local keypair, a Privy wallet or a `pay` account are the signer choices.
+- **No policy inside.** solOS is a thin execution layer: it does exactly what the agent asks,
+  within the ceiling you set, and nothing more (ADR-0006). Bounds, approvals and strategy belong
+  to the agent harness you run it in. If you wire the execute tier into an unattended loop, that
+  loop is the policy; choose it deliberately.
+
+## The CLI
+
+Every command prints JSON and exits non-zero on a domain error with `{ code, reason, remedy }`.
+
+```sh
+solos wallet balance
+solos swap quote --input-mint So11111111111111111111111111111111111111112 \
+  --output-mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --amount 10000000
+solos swap simulate --input-mint So111... --output-mint EPjF... --amount 10000000   # builds, never sends
+solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+solos perp position --market SOL-PERP
+solos portfolio state --owner <owner>
+solos mcp list                       # what an MCP client sees
+solos mcp call solana_swap_get_quote --args '{"inputMint":"So111...","outputMint":"EPjF...","amount":"10000000"}'
+```
+
+`solos --help` lists every group. Swap quotes and price reads need a `JUPITER_API_KEY`; market
+research needs an `ELFA_API_KEY`; everything else needs only the RPC URL and the wallet.
+
+## From source
+
+```sh
+git clone https://github.com/GuiBibeau/solos && cd solos
 bun install
-bun run solos login --provider privy --rpc-url https://your-provider-url   # or local | pay
+bun run solos login
 bun run solos mcp list
-bun run solos wallet balance
 ```
 
-Requires Bun ≥ 1.3.
-
-## Examples
-
-Commands print JSON. Reads do not sign. `swap simulate` builds the swap for the configured
-signer and does not send it. `swap execute` takes the same flags and, by default, simulates
-before it submits. `--skip-simulation` skips that pre-submit simulation, and for swaps the
-measured spend bound that comes from it (ADR-0024). Swap calls need `JUPITER_API_KEY`.
-
-```sh
-# Indicative quote: 0.01 wSOL to USDC. Nothing is signed.
-bun run solos swap quote \
-  --input-mint So11111111111111111111111111111111111111112 \
-  --output-mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
-  --amount 10000000
-
-# Same swap, simulated for the configured signer. Nothing is submitted.
-bun run solos swap simulate \
-  --input-mint So11111111111111111111111111111111111111112 \
-  --output-mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
-  --amount 10000000
-
-# USDC supply APY, borrow APY, and available liquidity on Kamino's default market.
-bun run solos lend reserve --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-
-# Phoenix SOL-PERP position for the configured trader.
-bun run solos perp position --market SOL-PERP
-
-# One Meteora DLMM position.
-bun run solos liquidity position --protocol meteora --position <position-account>
-
-# Simulate a deposit into that existing position. Caps are maximum spends. Nothing is submitted.
-bun run solos liquidity simulate-deposit --protocol meteora --pool <pair> \
-  --position <position-account> --amount-a <base-units> --amount-b <base-units>
-
-# Simulate a withdrawal from that existing position. Nothing is submitted.
-bun run solos liquidity simulate-withdraw --protocol meteora \
-  --position <position-account> --bps <1..10000>
-
-# Simulate an empty Meteora DLMM open. Nothing is submitted.
-bun run solos liquidity simulate-open --protocol meteora --pool <pair> \
-  --lower-bin-id <bin> --width <1..70>
-
-# Simulate closing that position after every liquidity share is gone. Nothing is submitted.
-bun run solos liquidity simulate-close --protocol meteora --position <position-account>
-
-# Portfolio, including that owner's Meteora DLMM positions. Read-only.
-bun run solos portfolio state --owner <owner>
-```
-
-Open and close an empty Meteora DLMM position:
-[open](docs/reference/tools/liquidity.md#open-an-empty-meteora-dlmm-position),
-[close](docs/reference/tools/liquidity.md#close-an-empty-meteora-dlmm-position).
-
-The same quote over MCP:
-
-```sh
-bun run solos mcp call solana_swap_get_quote --args '{"inputMint":"So11111111111111111111111111111111111111112","outputMint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"10000000"}'
-```
-
-The full catalog is [Tools](docs/reference/tools/index.md). A deeper Learn path comes later.
-
-## Layout
-
-`packages/` is actions, core, Solana adapters, and the MCP server. `apps/` is the harness and the
-`solos` CLI.
+Requires Bun 1.3 or later. The checkout's own `.mcp.json` points Claude Code at the source
+server. [AGENTS.md](AGENTS.md) is the contributor guide; `bun run solos dev build` compiles the
+binary.
 
 ## Docs
 
-- [Tools](docs/reference/tools/index.md)
-- [Decisions](docs/adr/README.md)
-- [Clients](docs/clients/) — Claude Code, Codex, and Cursor
-- [AGENTS.md](AGENTS.md)
-- [CONTEXT.md](CONTEXT.md)
-- [Feature map](features/README.md)
+- [Getting started](docs/getting-started.md), the long version of the three steps above
+- [Tools](docs/reference/tools/index.md) and [Errors](docs/reference/errors.md)
+- Clients: [Claude Code](docs/clients/claude-code.md), [Codex](docs/clients/codex.md), [Cursor](docs/clients/cursor.md)
+- [Decisions](docs/adr/README.md), [CONTEXT.md](CONTEXT.md), [Feature map](features/README.md)
 
 ## License
 
