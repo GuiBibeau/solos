@@ -108,7 +108,6 @@ const storableEnvUrl = (env) => {
  * trap doctor reports as `ProfileRpcUrlMissing`. A non-TTY run with nothing storable stores nothing.
  * @param {Option.Option<string>} flag
  * @param {{ env?: NodeJS.ProcessEnv; isTTY?: boolean }} [io]
- * @returns {Effect.Effect<string | undefined, ValidationError | import("@effect/cli/Prompt").Prompt.QuitException, import("@effect/platform/Terminal").Terminal>}
  */
 export const resolveRpcUrl = (flag, io = {}) => {
   const { env = process.env, isTTY = process.stdin.isTTY === true } = io;

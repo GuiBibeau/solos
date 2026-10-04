@@ -37,7 +37,7 @@ describe("the RPC URL a new profile stores", () => {
     if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
       expect(exit.cause.error._tag).toBe("ValidationError");
       expect(exit.cause.error.field).toBe("rpcUrl");
-      expect(exit.cause.error.value).toBe("http://remote.example");
+      expect(exit.cause.error.value).toBe(new URL(remoteWithKey).origin);
       expect(exit.cause.error.remedy).toContain("https");
     }
   });
