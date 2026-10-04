@@ -29,18 +29,35 @@ export const renderCodexTable = (entry) => {
   return `${lines.join("\n")}\n`;
 };
 
+/** The solos table itself or any descendant table, `[mcp_servers.solos.env]` included. */
+const SOLOS_HEADER = /^\s*\[\s*mcp_servers\.solos(?:\.[^\]]+)?\s*\]\s*(?:#.*)?$/;
+const ANY_HEADER = /^\s*\[/;
+
 /**
- * The line range of the solos table: from its header to the line before the next table header,
- * or to the end of the file.
+ * Every line that belongs to the solos table or one of its descendant tables is dropped, and
+ * the index where the first of them stood is where the new table goes, so an entry whose env was
+ * written as `[mcp_servers.solos.env]` cannot survive a replacement.
  * @param {string[]} lines
+ * @returns {{ kept: string[]; insertAt: number }} insertAt is -1 when no solos table existed
  */
-const solosBlock = (lines) => {
-  const start = lines.findIndex((line) => line.trim() === HEADER);
-  if (start === -1) return null;
-  let end = start + 1;
-  while (end < lines.length && !/^\s*\[/.test(/** @type {string} */ (lines[end]))) end += 1;
-  return { start, end };
+const withoutSolos = (lines) => {
+  /** @type {string[]} */
+  const kept = [];
+  let insertAt = -1;
+  let isDropping = false;
+  for (const line of lines) {
+    if (ANY_HEADER.test(line)) isDropping = SOLOS_HEADER.test(line);
+    if (!isDropping) {
+      kept.push(line);
+    } else if (insertAt === -1) {
+      insertAt = kept.length;
+    }
+  }
+  return { kept, insertAt };
 };
+
+/** One blank line between tables, one newline at the end, nothing else. @param {string} text */
+const trimBlock = (text) => text.replaceAll(/^\n+|\n+$/g, "");
 
 /**
  * @param {string | null} existing the current file text, or null when there is no file
@@ -49,13 +66,12 @@ const solosBlock = (lines) => {
 export const mergeCodexConfig = (existing, entry) => {
   const table = renderCodexTable(entry);
   if (existing === null || existing.trim() === "") return finish(table);
-  const lines = existing.split("\n");
-  const block = solosBlock(lines);
-  if (block === null) return finish(`${existing.replace(/\n*$/, "\n\n")}${table}`);
-  const before = lines.slice(0, block.start).join("\n");
-  const after = lines.slice(block.end).join("\n");
-  const separator = before.length === 0 ? "" : "\n";
-  return finish(`${before}${separator}${table}${after.length === 0 ? "" : `\n${after}`}`);
+  const { kept, insertAt } = withoutSolos(existing.split("\n"));
+  if (insertAt === -1) return finish(`${trimBlock(existing)}\n\n${table}`);
+  const before = trimBlock(kept.slice(0, insertAt).join("\n"));
+  const after = trimBlock(kept.slice(insertAt).join("\n"));
+  const parts = [before, trimBlock(table), after].filter((part) => part.length > 0);
+  return finish(`${parts.join("\n\n")}\n`);
 };
 
 /**

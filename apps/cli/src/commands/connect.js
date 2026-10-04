@@ -81,7 +81,9 @@ export const connect = Command.make(
         return yield* emit({ ...base, written: false, snippet: adapter.render(entry) });
       }
       const { backup } = writeWithBackup(file, adapter.merge(readIfExists(file), entry));
-      const doctor = diagnoseSolanaEnv(process.env);
+      // The verdict is on the environment the written entry will start the server in, so a
+      // --profile overlays whatever profile this shell inherited.
+      const doctor = diagnoseSolanaEnv({ ...process.env, ...entry.env });
       yield* emit({
         ...base,
         written: true,

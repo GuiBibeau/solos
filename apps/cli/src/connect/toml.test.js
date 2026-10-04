@@ -56,4 +56,26 @@ describe("the Codex TOML table for solos", () => {
       mcp_servers: { solos: entry, other: { command: "other" } },
     });
   });
+
+  test("descendant tables of the old entry go with it, wherever they sit", () => {
+    const existing = [
+      "[mcp_servers.solos.env]",
+      'SOLOS_PROFILE = "old"',
+      "",
+      "[mcp_servers.solos]",
+      'command = "bun"',
+      "",
+      "[mcp_servers.other]",
+      'command = "other"',
+      "",
+    ].join("\n");
+    const merged = mergeCodexConfig(existing, { ...entry, env: {} });
+    expect(merged).not.toContain("old");
+    expect(Bun.TOML.parse(merged)).toEqual({
+      mcp_servers: {
+        solos: { command: entry.command, args: entry.args },
+        other: { command: "other" },
+      },
+    });
+  });
 });

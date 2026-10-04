@@ -89,6 +89,16 @@ describe("solos connect writes an MCP client's config [integration]", () => {
     expect(readdirSync(home).some((name) => name.startsWith(".claude.json.bak-"))).toBe(true);
   });
 
+  test("the doctor verdict is about the profile written into the entry", async () => {
+    const { code, json } = await connect(["cursor", "--profile", "nope"]);
+    expect(code).toBe(0);
+    expect(json.entry.env).toEqual({ SOLOS_PROFILE: "nope" });
+    expect(json.doctor.ok).toBe(false);
+    expect(json.doctor.issues.map((/** @type {{ code: string }} */ i) => i.code)).toContain(
+      "ProfileNotFound",
+    );
+  });
+
   test("claude --scope project writes .mcp.json in the current directory", async () => {
     const { code, json } = await connect(["claude", "--scope", "project"], { cwd: project });
     expect(code).toBe(0);
