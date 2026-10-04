@@ -92,13 +92,18 @@ jobs:
             cat dist/SHA256SUMS
             echo '```'
           } > "$RUNNER_TEMP/notes.md"
+      # Idempotent, so a failed job can be re-run: an existing release gets its assets replaced.
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ github.ref_name }}
         run: |
-          gh release create "$VERSION" dist/solos-* dist/SHA256SUMS \
-            --verify-tag --title "solos ${VERSION#solos@}" --notes-file "$RUNNER_TEMP/notes.md"
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" dist/solos-* dist/SHA256SUMS --clobber
+          else
+            gh release create "$VERSION" dist/solos-* dist/SHA256SUMS \
+              --verify-tag --title "solos ${VERSION#solos@}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
@@ -114,7 +119,9 @@ jobs:
         if: vars.NPM_PUBLISH == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+          # npm verifies a provenance statement against the source repository and accepts only
+          # public ones; a private repository publishes without provenance rather than failing.
+          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
         run: |
           for dir in $(jq -r '.packages[].dir' "$RUNNER_TEMP/pack.json"); do
             echo "publishing $(jq -r .name "$dir/package.json")"
