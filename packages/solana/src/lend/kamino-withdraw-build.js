@@ -13,7 +13,7 @@ import { withdrawPlan } from "./kamino-withdraw-plan.js";
  * withdrawal. A rejection never simulates or sends; Submission seals and simulates the exact
  * bytes it would send, not a quote.
  * @param {{ ctx: Rpc; kit: Kit; market: string }} deps
- * @param {import("@solos/actions").WithdrawLendAction} action
+ * @param {import("@solos-sh/actions").WithdrawLendAction} action
  */
 export const draftLendWithdraw = ({ ctx, kit, market }, action) =>
   Effect.gen(function* () {

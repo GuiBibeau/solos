@@ -14,7 +14,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "latest",
     "@opentelemetry/sdk-trace-base": "latest",
     "@opentelemetry/sdk-trace-node": "latest",
-    "@solos/actions": "workspace:*",
+    "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
     "@solos/mcp": "workspace:*",
     "@solos/solana": "workspace:*",

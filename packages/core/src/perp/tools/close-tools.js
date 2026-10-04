@@ -1,5 +1,5 @@
 // @ts-check
-import { ClosePerpActionSchema } from "@solos/actions";
+import { ClosePerpActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { simulatePerpClose, executePerpClose } from "../use-cases/close.js";

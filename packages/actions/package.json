@@ -1,8 +1,22 @@
 {
-  "name": "@solos/actions",
+  "name": "@solos-sh/actions",
   "version": "0.3.0",
-  "description": "Shared action and state schemas between solOS (finance-harness) and any executor, vault-engine included",
+  "description": "The contract between an agent that decides and an executor that acts on Solana: Action, PortfolioState, Mandate, SimulationResult and ExecutionResult as Zod 4 schemas",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuiBibeau/solos.git",
+    "directory": "packages/actions"
+  },
+  "homepage": "https://github.com/GuiBibeau/solos/tree/main/packages/actions#readme",
+  "bugs": "https://github.com/GuiBibeau/solos/issues",
+  "keywords": [
+    "solana",
+    "mcp",
+    "agents",
+    "zod",
+    "trading"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.js"

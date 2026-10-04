@@ -27,7 +27,7 @@ const TRANSACTION_FEE_LAMPORTS = 5000n;
 /** @typedef {{ readonly rows: (accounts: readonly string[]) => import("effect").Effect.Effect<ReadonlyArray<FetchedRow | null>, import("@solos/core").RpcError>; readonly rent: (sizes: readonly number[]) => import("effect").Effect.Effect<ReadonlyArray<bigint>, import("@solos/core").RpcError> }} DepositReader */
 /** @typedef {{ readonly market: string; readonly mint: string; readonly amount: bigint; readonly owner: string }} DepositIntent */
 /** @typedef {{ readonly reserve: string; readonly liquidityMint: string; readonly liquiditySupplyVault: string; readonly liquidityTokenProgram: string; readonly collateralMint: string; readonly collateralSupplyVault: string; readonly lendingMarketAuthority: string; readonly estimatedCollateral: string; readonly exchangeRate: string; readonly availableLiquidity: string; readonly farmCollateral?: string | null; readonly oracles: import("./kamino-refresh-reserve.js").ReserveOracles }} ReserveFacts */
-/** @typedef {{ readonly status: "ok"; readonly instructions: readonly { programAddress: string }[]; readonly quote: import("@solos/actions").LendDepositQuote }} DepositPlanOk */
+/** @typedef {{ readonly status: "ok"; readonly instructions: readonly { programAddress: string }[]; readonly quote: import("@solos-sh/actions").LendDepositQuote }} DepositPlanOk */
 /** @typedef {{ readonly status: "reject"; readonly reason: string }} DepositPlanReject */
 /** @typedef {DepositPlanOk | DepositPlanReject} DepositPlan */
 /** @typedef {import("./kamino-deposit-guards.js").ObligationState} ObligationState */
@@ -111,7 +111,7 @@ const guardPlanRows = ({ reader, intent, facts, obligation, metadata, sourceAta 
  * The venueQuote evidence for one planned deposit: the exact encoded amount, the
  * pinned-math collateral estimate at the read rate, and the rent/fee lamports.
  * @param {{ readonly facts: ReserveFacts; readonly obligation: string; readonly amount: bigint; readonly shouldInitializeObligation: boolean; readonly rentLamports: bigint }} parts
- * @returns {import("@solos/actions").LendDepositQuote}
+ * @returns {import("@solos-sh/actions").LendDepositQuote}
  */
 const quoteFor = ({ facts, obligation, amount, shouldInitializeObligation, rentLamports }) => ({
   kind: /** @type {const} */ ("lend_deposit"),

@@ -46,7 +46,7 @@ per-step activation in the agent loop.
 **Tier** — `read` (no side effects), `simulate` (builds and simulates, never sends), `execute`
 (signs and sends). Mapped to MCP annotations. Every `execute` has a `simulate` twin.
 
-**Action** — what the agent wants done on chain, as a typed value from `@solos/actions`
+**Action** — what the agent wants done on chain, as a typed value from `@solos-sh/actions`
 (`transfer_sol`, `swap`, ...). Who executes it is not part of the action.
 
 **Executor** — the `ActionExecutor` port: `simulate(action)` and `execute(action)`. The default

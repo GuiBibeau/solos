@@ -15,7 +15,7 @@ const ASSEMBLY_GUARD_REASON = "build could not be assembled; nothing was signed 
 /**
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
  * @typedef {import("../swap/jupiter-swap-build-live.js").JupiterSwapBuildShape} Build
- * @typedef {import("@solos/actions").SwapAction} SwapAction
+ * @typedef {import("@solos-sh/actions").SwapAction} SwapAction
  * @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} JupiterBuildEnvelope
  */
 

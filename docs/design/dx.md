@@ -21,7 +21,7 @@ groomed.
 
 **The CLI is a validation tool**, not a product. It proves behaviour quickly and adapts. It ships
 with the repo, never to npm. That settles the open question in #150: publish the MCP server and
-`@solos/actions`, nothing else, and cut the `dev` surface from anything published.
+`@solos-sh/actions`, nothing else, and cut the `dev` surface from anything published.
 
 ## Discovery
 

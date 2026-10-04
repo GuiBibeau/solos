@@ -1,6 +1,6 @@
 // @ts-check
 import { z } from "zod";
-export { LendPositionSchema } from "@solos/actions";
+export { LendPositionSchema } from "@solos-sh/actions";
 import { AddressSchema } from "../../shared/domain/address.js";
 import { base58ByteLength } from "../../shared/domain/base58.js";
 
@@ -159,5 +159,5 @@ export const ListLendPositionsInputSchema = z.object({
 /** @typedef {z.infer<typeof LendExecuteWithdrawInputSchema>} LendExecuteWithdrawInput */
 /** @typedef {z.infer<typeof LendDepositInputSchema>} LendDepositInput */
 /** @typedef {z.infer<typeof LendExecuteDepositInputSchema>} LendExecuteDepositInput */
-/** @typedef {z.infer<typeof import("@solos/actions").LendPositionSchema>} LendPosition */
+/** @typedef {z.infer<typeof import("@solos-sh/actions").LendPositionSchema>} LendPosition */
 /** @typedef {{ readonly positions: LendPosition[]; readonly perpAccounts: []; readonly receiptMints: Address[] }} LendEnumeration */

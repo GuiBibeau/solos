@@ -17,7 +17,7 @@ describe("DirectSignerExecutor", () => {
       const executor = yield* ActionExecutor;
       const exit = yield* Effect.exit(
         executor.simulate(
-          /** @type {import("@solos/actions").Action} */ (
+          /** @type {import("@solos-sh/actions").Action} */ (
             /** @type {unknown} */ ({ type: "future_action" })
           ),
         ),

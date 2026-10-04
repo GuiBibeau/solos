@@ -1,5 +1,5 @@
 // @ts-check
-import { SwapActionSchema } from "@solos/actions";
+import { SwapActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { CurveInputInvalid } from "../domain/errors.js";
 
@@ -38,7 +38,7 @@ export const validateBuyInput = (schema, input) => {
  * The re-parse is the identity guard: core and the published contract must agree byte for byte,
  * and a drift fails here rather than at an executor.
  * @param {{ mint: string; amount: string; maxSlippageBps: number }} request
- * @returns {import("@solos/actions").SwapAction | null}
+ * @returns {import("@solos-sh/actions").SwapAction | null}
  */
 export const toBuyAction = (request) => {
   const parsed = SwapActionSchema.safeParse({
@@ -57,7 +57,7 @@ export const toBuyAction = (request) => {
  * is the input and wSOL the output. The contract's rule is wSOL on exactly one side, so this is
  * the mirror of the buy rather than an exception to it.
  * @param {{ mint: string; amount: string; maxSlippageBps: number }} request
- * @returns {import("@solos/actions").SwapAction | null}
+ * @returns {import("@solos-sh/actions").SwapAction | null}
  */
 export const toSellAction = (request) => {
   const parsed = SwapActionSchema.safeParse({

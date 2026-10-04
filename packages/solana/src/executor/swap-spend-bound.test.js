@@ -12,7 +12,7 @@ const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 /** @param {string} inputMint @param {string} amount */
 const action = (inputMint, amount) =>
-  /** @type {import("@solos/actions").SwapAction} */ ({
+  /** @type {import("@solos-sh/actions").SwapAction} */ ({
     type: "swap",
     inputMint,
     outputMint: inputMint === WSOL ? USDC : WSOL,

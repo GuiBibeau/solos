@@ -1,10 +1,10 @@
 // @ts-check
-import { PortfolioStateSchema } from "@solos/actions";
+import { PortfolioStateSchema } from "@solos-sh/actions";
 import { walletHoldings } from "./holdings.js";
 import { CASH_MINTS, WSOL_MINT, compareString } from "./mints.js";
 import { assetValueScaled6, formatUsd, toScaled6 } from "./valuation.js";
 
-/** @typedef {import("@solos/actions").Position} Position */
+/** @typedef {import("@solos-sh/actions").Position} Position */
 /** @typedef {Extract<Position, { kind: "lp" }>} LpPosition */
 /** @typedef {Extract<Position, { kind: "lend" }>} LendPosition */
 /** @typedef {{ readonly amount: bigint; readonly decimals: number }} HoldingAmount */
@@ -150,7 +150,7 @@ export const mintsToPrice = (reads) => {
  * Assemble the published PortfolioState from one owner's wallet read, the three venue
  * enumerations and observed prices. Pure: the caller owns every byte on the wire.
  * @param {import("./holdings.js").WalletReads & { readonly owner: string; readonly prices: ReadonlyMap<string, { readonly priceUsd: string }>; readonly at: number }} input
- * @returns {import("@solos/actions").PortfolioState}
+ * @returns {import("@solos-sh/actions").PortfolioState}
  */
 export const assembleState = (input) => {
   const { owner, lamports, tokenBalances, venues, prices, at } = input;

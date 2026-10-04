@@ -27,7 +27,7 @@ const EXECUTOR = "direct-signer";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
 /** @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit */
-/** @typedef {import("@solos/actions").RemoveLiquidityAction} RemoveLiquidityAction */
+/** @typedef {import("@solos-sh/actions").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {import("../submission/seal-draft.js").Draft} Draft */
 /** @typedef {Draft["instructions"][number]} SetupInstruction */
 /**
@@ -109,7 +109,7 @@ const withdrawDraft = ({ plan, creates }) => ({
  * The plan's quote as the published venueQuote value: exact amounts and encoded bounds,
  * decimal strings, at the pre-send pool price.
  * @param {WithdrawQuoteSource} plan
- * @returns {import("@solos/actions").LiquidityRemovalQuote}
+ * @returns {import("@solos-sh/actions").LiquidityRemovalQuote}
  */
 export const withdrawQuoteOf = (plan) => ({
   kind: "removal",

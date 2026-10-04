@@ -71,7 +71,7 @@ const ataRoleRejection = (ix) => {
  * refuses a build whose lamport debit exceeds the swap's input plus the overhead allowance
  * (ADR-0024), which is roughly nine ATAs' worth of rent.
  * @param {RawInstruction} ix
- * @param {import("@solos/actions").SwapAction} _action
+ * @param {import("@solos-sh/actions").SwapAction} _action
  * @param {string} taker
  */
 export const ataCreateRejection = async (ix, _action, taker) => {
@@ -114,7 +114,7 @@ const hasWrapPair = (envelope) => {
 };
 
 /** @param {{ envelope: import("./jupiter-swap-build-response.js").JupiterBuildEnvelope;
- * action: import("@solos/actions").SwapAction; taker: string; tempWsol: string }} bound */
+ * action: import("@solos-sh/actions").SwapAction; taker: string; tempWsol: string }} bound */
 const cleanupCreateRejection = async ({ envelope, action, taker, tempWsol }) => {
   const creates = envelope.setupInstructions.filter((ix) => isTargetAccount(ix, tempWsol));
   if (creates.length !== 1) {
@@ -150,7 +150,7 @@ const isCanonicalWsolCreate = (ix) => {
   return bytes[0] === 0 || bytes[0] === 1;
 };
 
-/** @param {import("@solos/actions").SwapAction} action */
+/** @param {import("@solos-sh/actions").SwapAction} action */
 const nativeDirection = (action) => {
   const isInput = action.inputMint === WSOL_MINT;
   const isOutput = action.outputMint === WSOL_MINT;
@@ -159,7 +159,7 @@ const nativeDirection = (action) => {
 };
 
 /** @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action */
+ * @param {import("@solos-sh/actions").SwapAction} action */
 const cleanupDirectionRejection = (envelope, action) => {
   const direction = nativeDirection(action);
   if (direction === "invalid") return "cleanup was not bound to one native-SOL swap direction";
@@ -186,7 +186,7 @@ const cleanupIdentityRejection = (cleanup, taker, tempWsol) => {
 /**
  * Bind cleanup to one complete build-owned wSOL ATA lifecycle.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action @param {string} taker
+ * @param {import("@solos-sh/actions").SwapAction} action @param {string} taker
  */
 export const cleanupBindingRejection = async (envelope, action, taker) => {
   const cleanup = envelope.cleanupInstruction;

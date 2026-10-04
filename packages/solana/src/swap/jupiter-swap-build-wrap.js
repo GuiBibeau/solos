@@ -15,7 +15,7 @@ const MISSING_SYNC_REASON = "setup wSOL funding transfer had no SyncNative behin
 
 /** @typedef {import("./jupiter-swap-build-response.js").RawInstruction} RawInstruction */
 
-/** @param {{ transfer: RawInstruction; action: import("@solos/actions").SwapAction;
+/** @param {{ transfer: RawInstruction; action: import("@solos-sh/actions").SwapAction;
  * taker: string; tempWsol: string }} bound */
 const transferRejection = ({ transfer, action, taker, tempWsol }) => {
   if (transfer.accounts[0]?.pubkey !== taker) return "setup transfer source was not the taker";
@@ -50,7 +50,7 @@ const syncPairRejection = ({ order, transfer, syncs, tempWsol }) => {
 /**
  * Require an exact System-transfer/SyncNative pair for a wSOL input.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action @param {string} taker
+ * @param {import("@solos-sh/actions").SwapAction} action @param {string} taker
  */
 export const wrapRejection = async (envelope, action, taker) => {
   const order = envelope.setupInstructions;

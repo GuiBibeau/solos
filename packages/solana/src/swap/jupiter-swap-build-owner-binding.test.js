@@ -17,7 +17,7 @@ import { ATA_PROGRAM, TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "./jupiter-swap-b
  * derived account matches, so only the discovered owner can refuse it before signing.
  */
 
-/** @type {import("@solos/actions").SwapAction} */
+/** @type {import("@solos-sh/actions").SwapAction} */
 const action = {
   type: "swap",
   inputMint: INPUT_MINT,

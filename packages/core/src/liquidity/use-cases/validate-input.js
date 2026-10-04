@@ -1,5 +1,5 @@
 // @ts-check
-import { AddLiquidityActionSchema, RemoveLiquidityActionSchema } from "@solos/actions";
+import { AddLiquidityActionSchema, RemoveLiquidityActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { LiquidityInputInvalid, LiquidityUnsupportedProtocol } from "../domain/errors.js";
 import { isDepositable, isReadable } from "../domain/types.js";
@@ -43,7 +43,7 @@ export const validateDepositInput = (schema, input) =>
  * the identity guard: core and contract must agree byte for byte, and a drift fails here,
  * before an executor is ever asked to act.
  * @param {LiquidityDepositInput} request
- * @returns {import("@solos/actions").AddLiquidityAction | null}
+ * @returns {import("@solos-sh/actions").AddLiquidityAction | null}
  */
 export const toDepositAction = (request) => {
   const parsed = AddLiquidityActionSchema.safeParse({
@@ -92,7 +92,7 @@ export const validateWithdrawInput = (schema, input) =>
  * re-parse is the identity guard: core and contract must agree byte for byte, and a drift
  * fails here, before an executor is ever asked to act.
  * @param {LiquidityWithdrawInput} request
- * @returns {import("@solos/actions").RemoveLiquidityAction | null}
+ * @returns {import("@solos-sh/actions").RemoveLiquidityAction | null}
  */
 export const toWithdrawAction = (request) => {
   const parsed = RemoveLiquidityActionSchema.safeParse({

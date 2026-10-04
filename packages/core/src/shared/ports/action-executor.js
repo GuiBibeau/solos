@@ -22,10 +22,10 @@ import { Context } from "effect";
  * configured here turns it into a transaction: the local wallet by default, a vault engine later.
  * @typedef {{
  *   readonly name: string;
- *   readonly simulate: (action: import("@solos/actions").Action) =>
- *     import("effect").Effect.Effect<import("@solos/actions").SimulationResult, ExecutorError>;
- *   readonly execute: (action: import("@solos/actions").Action, options: { readonly skipSimulation: boolean }) =>
- *     import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, ExecutorError>;
+ *   readonly simulate: (action: import("@solos-sh/actions").Action) =>
+ *     import("effect").Effect.Effect<import("@solos-sh/actions").SimulationResult, ExecutorError>;
+ *   readonly execute: (action: import("@solos-sh/actions").Action, options: { readonly skipSimulation: boolean }) =>
+ *     import("effect").Effect.Effect<import("@solos-sh/actions").ExecutionResult, ExecutorError>;
  * }} ActionExecutorShape
  */
 

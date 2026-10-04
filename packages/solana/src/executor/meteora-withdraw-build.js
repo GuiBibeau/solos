@@ -77,7 +77,7 @@ const withdrawDraft = (plan, creates) => ({
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
- * @param {import("@solos/actions").RemoveLiquidityAction} action
+ * @param {import("@solos-sh/actions").RemoveLiquidityAction} action
  * @returns {import("effect").Effect.Effect<{ draft: import("../submission/seal-draft.js").Draft; plan: MeteoraWithdrawOk }, import("@solos/core").ExecutorError>}
  */
 export const draftMeteoraWithdraw = ({ ctx, kit }, action) =>

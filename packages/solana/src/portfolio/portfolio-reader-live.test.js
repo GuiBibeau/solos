@@ -1,7 +1,6 @@
 // @ts-check
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getBase16Decoder } from "@solana/kit";
-import { PortfolioStateSchema } from "@solos/actions";
 import {
   getState,
   LendingEnumerationIncomplete,
@@ -9,6 +8,7 @@ import {
   LiquidityVenue,
   PerpVenue,
 } from "@solos/core";
+import { PortfolioStateSchema } from "@solos-sh/actions";
 import { Cause, Effect, Layer, Option } from "effect";
 import { PortfolioReaderLive, SolanaTestLive } from "../index.js";
 import { randomAddress, tokenBytes } from "../liquidity/liquidity-token-fixture.js";

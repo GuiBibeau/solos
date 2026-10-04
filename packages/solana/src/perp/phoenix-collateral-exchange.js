@@ -4,8 +4,8 @@ import {
   PHOENIX_PROGRAM_ADDRESS,
   USDC_MINT_ADDRESS,
 } from "@ellipsis-labs/rise";
-import { AddressSchema } from "@solos/actions";
 import { BuildRejected } from "@solos/core";
+import { AddressSchema } from "@solos-sh/actions";
 import { z } from "zod";
 
 const Address = AddressSchema;

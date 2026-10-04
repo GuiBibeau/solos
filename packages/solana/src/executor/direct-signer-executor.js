@@ -32,7 +32,7 @@ const PERP_ACTIONS = new Set([
  * @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
  * @typedef {import("../swap/jupiter-swap-build-live.js").JupiterSwapBuildShape} Build
- * @typedef {import("@solos/actions").Action} Action
+ * @typedef {import("@solos-sh/actions").Action} Action
  */
 
 /**
@@ -61,7 +61,7 @@ const build = ({ ctx, kit }, action) => {
  * Keep the plan's venueQuote alongside the draft.
  * @template P
  * @param {import("effect").Effect.Effect<{ draft: Draft; plan: P }, import("@solos/core").ExecutorError>} planned
- * @param {(plan: P) => import("@solos/actions").VenueQuote} toQuote
+ * @param {(plan: P) => import("@solos-sh/actions").VenueQuote} toQuote
  */
 const quoted = (planned, toQuote) =>
   Effect.map(planned, ({ draft, plan }) => ({ draft, venueQuote: toQuote(plan) }));
@@ -71,7 +71,7 @@ const quoted = (planned, toQuote) =>
  * bounds are what the caller records (ADR-0022 QA reconciliation). Submission seals the draft.
  * @param {Deps} deps
  * @param {Action} action
- * @returns {import("effect").Effect.Effect<{ draft: Draft; venueQuote: import("@solos/actions").VenueQuote | null; probe?: import("../submission/simulate.js").Probe; position?: string }, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<{ draft: Draft; venueQuote: import("@solos-sh/actions").VenueQuote | null; probe?: import("../submission/simulate.js").Probe; position?: string }, import("@solos/core").ExecutorError>}
  */
 const plannedDraft = ({ ctx, kit, build: buildSwap, market }, action) => {
   switch (action.type) {
@@ -110,7 +110,7 @@ const perpDeps = ({ phoenix, ctx, kit, submission }) => ({ config: phoenix, ctx,
 /**
  * @param {Deps} deps
  * @param {Action} action
- * @returns {import("effect").Effect.Effect<import("@solos/actions").SimulationResult, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<import("@solos-sh/actions").SimulationResult, import("@solos/core").ExecutorError>}
  */
 const simulate = (deps, action) =>
   Effect.gen(function* () {
@@ -124,7 +124,7 @@ const simulate = (deps, action) =>
  * @param {Deps} deps
  * @param {Action} action
  * @param {{ readonly skipSimulation: boolean }} options
- * @returns {import("effect").Effect.Effect<import("@solos/actions").ExecutionResult, import("@solos/core").ExecutorError>}
+ * @returns {import("effect").Effect.Effect<import("@solos-sh/actions").ExecutionResult, import("@solos/core").ExecutorError>}
  */
 const execute = (deps, action, options) =>
   Effect.gen(function* () {

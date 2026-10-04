@@ -8,7 +8,7 @@ import { readCloseRisk } from "./phoenix-close-risk.js";
 import { readCollateralTrader } from "./phoenix-collateral-accounts.js";
 
 /** @typedef {{config:import("./phoenix-api.js").PhoenixConfig;ctx:import("../rpc/solana-rpc.js").SolanaRpcShape;kit:import("../signer/kit-signer.js").KitSignerShape;submission:import("../submission/submission.js").SubmissionDeps}} Deps */
-/** @typedef {Extract<import("@solos/actions").Action,{type:"close_perp"}>} CloseAction */
+/** @typedef {Extract<import("@solos-sh/actions").Action,{type:"close_perp"}>} CloseAction */
 /** @typedef {Effect.Effect.Success<ReturnType<typeof buildClose>>} Plan */
 
 /**

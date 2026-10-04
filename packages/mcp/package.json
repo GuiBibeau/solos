@@ -13,7 +13,7 @@
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
-    "@solos/actions": "workspace:*",
+    "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
     "@solos/solana": "workspace:*",
     "effect": "3.22.2",

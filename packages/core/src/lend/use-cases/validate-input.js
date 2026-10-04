@@ -1,5 +1,5 @@
 // @ts-check
-import { LendActionSchema, WithdrawLendActionSchema } from "@solos/actions";
+import { LendActionSchema, WithdrawLendActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { LendingInputInvalid } from "../domain/errors.js";
 
@@ -34,7 +34,7 @@ export const validateDepositInput = (schema, input) =>
  * fails here, before an executor is ever asked to act.
  * @param {import("../domain/types.js").LendDepositInput} request
  * @param {string} market
- * @returns {import("@solos/actions").LendAction | null}
+ * @returns {import("@solos-sh/actions").LendAction | null}
  */
 export const toDepositAction = (request, market) => {
   const parsed = LendActionSchema.safeParse({

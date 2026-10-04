@@ -7,7 +7,7 @@ import {
   SimulationResultSchema,
 } from "./index.js";
 
-describe("@solos/actions", () => {
+describe("@solos-sh/actions", () => {
   test("parses every action without changing exact amounts or routing", () => {
     for (const sample of ACTION_SAMPLES) expect(ActionSchema.parse(sample)).toEqual(sample);
     expect(ACTION_SAMPLES.map((sample) => sample.type)).toEqual([...ACTION_TYPES]);

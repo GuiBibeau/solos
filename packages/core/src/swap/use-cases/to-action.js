@@ -4,7 +4,7 @@
  * omission means Jupiter, and explicit pump launch buys are a separate action path. Amounts
  * cross as exact decimal strings.
  * @param {import("../domain/types.js").SwapQuoteRequest} request
- * @returns {import("@solos/actions").SwapAction}
+ * @returns {import("@solos-sh/actions").SwapAction}
  */
 export const toSwapAction = (request) => ({
   type: "swap",
