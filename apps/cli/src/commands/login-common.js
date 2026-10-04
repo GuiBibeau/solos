@@ -52,3 +52,41 @@ export const flagOrPrompt = (flag, message, options = {}) =>
         : Prompt.text({ message });
     },
   });
+
+/** @param {string} value */
+const isHttpUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const RPC_PROMPT =
+  "RPC URL for this profile (mainnet; Helius, QuickNode and Triton have free tiers). Leave blank to export SOLANA_RPC_URL yourself";
+
+/**
+ * The RPC URL a new profile stores. The flag wins. Otherwise `SOLANA_RPC_URL` from the environment
+ * is the answer: env wins at runtime anyway (ADR-0015), and a profile that carries the URL works
+ * in MCP clients that pass no env. On a TTY with neither, ask, because a profile with no rpcUrl is
+ * the trap doctor reports as `ProfileRpcUrlMissing`. A blank answer means the Operator will export
+ * `SOLANA_RPC_URL`; a non-TTY run without either stores nothing and says nothing.
+ * @param {Option.Option<string>} flag
+ * @param {{ env?: NodeJS.ProcessEnv; isTTY?: boolean }} [io]
+ */
+export const resolveRpcUrl = (
+  flag,
+  { env = process.env, isTTY = process.stdin.isTTY === true } = {},
+) => {
+  if (Option.isSome(flag)) return Effect.succeed(/** @type {string | undefined} */ (flag.value));
+  const fromEnv = env.SOLANA_RPC_URL || undefined;
+  if (fromEnv !== undefined || !isTTY) return Effect.succeed(fromEnv);
+  return Prompt.text({
+    message: RPC_PROMPT,
+    validate: (value) =>
+      value === "" || isHttpUrl(value)
+        ? Effect.succeed(value)
+        : Effect.fail("enter an http(s) URL, or leave blank"),
+  }).pipe(Effect.map((value) => (value === "" ? undefined : value)));
+};
