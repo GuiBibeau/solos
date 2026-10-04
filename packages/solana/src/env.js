@@ -19,6 +19,7 @@ export {
   DEFAULT_PHOENIX_BASE_URL,
   deriveWsUrl,
   elfaBaseUrl,
+  isAllowedEndpoint,
   jupiterBaseUrl,
   phoenixBaseUrl,
 } from "./env-url.js";

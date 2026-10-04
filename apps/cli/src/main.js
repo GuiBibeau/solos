@@ -11,6 +11,7 @@ import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { SOLOS_VERSION } from "@solos/mcp";
 import { Effect } from "effect";
 import { agent } from "./commands/agent.js";
+import { connect } from "./commands/connect.js";
 import { daemon } from "./commands/daemon.js";
 import { dev } from "./commands/dev.js";
 import { discovery } from "./commands/discovery.js";
@@ -40,6 +41,7 @@ const operatorCommands = /** @type {const} */ ([
   login,
   profiles,
   doctor,
+  connect,
   wallet,
   transfer,
   market,
