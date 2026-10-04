@@ -21,7 +21,11 @@ and whether the CLI ships at all. Three facts settled them.
   `@orca-so/whirlpools-core` reads its WASM from a build-machine path. Bun 1.4.2 has both bugs.
   Both are fixed by build plugins that change no behaviour.
 
-The npm name `solos` belongs to an unrelated 2022 package, so the CLI package is scoped.
+The npm name `solos` belongs to an unrelated 2022 package and the `@solos` scope to an active npm
+user, so nothing publishes under either. The project's npm org is `solos-sh`, chosen for the
+`solos.sh` install domain, and the contract package moves from `@solos/actions` to
+`@solos-sh/actions` before its first publish. Private workspace packages keep their `@solos/*`
+names; they never publish.
 
 ## Decision
 
@@ -46,12 +50,13 @@ The npm name `solos` belongs to an unrelated 2022 package, so the CLI package is
   directory with an empty config dir: `--version`, `doctor` (both issues, config names the
   binary) and `mcp list` (the server inside the binary lists its tools). The lever exits 1
   when any check fails, and the Evidence of the release PR includes that run.
-- **Distribution channels**: GitHub Releases carry the binaries and `SHA256SUMS`; a scoped npm
-  launcher whose bin is `solos` depends on one platform package per target as
-  `optionalDependencies`, so `npm i -g` and `npx` work on machines without Bun; and an
-  `install.sh` in the repo downloads the release binary. The npm scope is settled at first
-  publish; the launcher is plain Node and the binary embeds Bun, so ADR-0001's "no Node
-  compatibility promise" still holds for the code.
+- **Distribution channels**: GitHub Releases carry the binaries and `SHA256SUMS`; the npm
+  launcher `@solos-sh/cli`, whose bin is `solos`, depends on one platform package per target
+  (`@solos-sh/cli-darwin-arm64`, `-darwin-x64`, `-linux-x64`, `-linux-arm64`) as
+  `optionalDependencies`, so `npm i -g @solos-sh/cli` and `npx @solos-sh/cli` work on machines
+  without Bun; and an `install.sh` in the repo downloads the release binary. The launcher is
+  plain Node and the binary embeds Bun, so ADR-0001's "no Node compatibility promise" still
+  holds for the code.
 - **The developer lever stays out of the product by ADR-0034**, not by the bundle: the binary
   carries the lever's code but never advertises it, and the heavy tools the lever drives
   (eslint, biome, tsc, Surfpool) are spawned, never bundled. Cutting modules with `bun:bundle`
