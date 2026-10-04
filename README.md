@@ -1,5 +1,7 @@
 # solOS
 
+<img src="docs/assets/soleebee-flying-kawaii.png" alt="Soleebee, the flying solOS robot bee mascot, holding a wrench" width="320" />
+
 A Solana execution layer for LLM agents. One `solos` binary with an MCP server inside: swaps,
 lending, perps, liquidity, transfers and market reads as 49 well-named tools your agent discovers
 on demand. Mainnet by default. Your keys stay on your machine, and nothing that signs is offered
