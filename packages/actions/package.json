@@ -1,6 +1,6 @@
 {
   "name": "@solos-sh/actions",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The contract between an agent that decides and an executor that acts on Solana: Action, PortfolioState, Mandate, SimulationResult and ExecutionResult as Zod 4 schemas",
   "license": "Apache-2.0",
   "repository": {
