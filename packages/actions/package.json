@@ -23,12 +23,16 @@
   },
   "files": [
     "src",
-    "README.md"
+    "!src/**/*.test.js",
+    "!src/**/*.fixtures.js",
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
     "zod": "4.6.5"
-  }
+  },
+  "sideEffects": false
 }
