@@ -39,7 +39,7 @@ export const build = Command.make("build", { target, outdir, version, skipSmoke 
     for (const item of targets) {
       built.push(await compileSolos({ target: item, outdir: o.outdir, version: o.version }));
     }
-    const checksums = path.join(o.outdir, "SHA256SUMS");
+    const checksums = path.resolve(o.outdir, "SHA256SUMS");
     writeFileSync(checksums, checksumsText(built));
     const host = built.find((item) => item.name === hostTargetName());
     const smoke =

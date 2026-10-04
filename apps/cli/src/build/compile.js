@@ -26,7 +26,8 @@ const sha256Of = async (path) => {
  * @returns {Promise<Built>}
  */
 export const compileSolos = async ({ target, outdir, version }) => {
-  const outfile = path.join(outdir, target.binary);
+  // Absolute, because the smoke test runs the binary from a neutral working directory.
+  const outfile = path.resolve(outdir, target.binary);
   const result = await Bun.build({
     entrypoints: [CLI_ENTRY],
     target: "bun",

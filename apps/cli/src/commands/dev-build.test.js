@@ -3,18 +3,22 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { runSolos } from "./cli-fixture.js";
+import { ROOT, runSolos } from "./cli-fixture.js";
 
 const VERSION = "0.0.0-test";
-/** @type {string} */
-let outdir = "";
+/**
+ * A relative outdir, as the documented `bun run solos dev build` leaves it: the smoke test runs
+ * the binary from a neutral directory, so the build must resolve the path before handing it over.
+ * `dist/` is gitignored.
+ */
+const RELATIVE_OUTDIR = path.join("dist", `test-build-${process.pid}`);
+const outdir = path.join(ROOT, RELATIVE_OUTDIR);
 /** @type {{ stdout: string; stderr: string; code: number }} */
 let result = { stdout: "", stderr: "", code: -1 };
 
 /** One build for the whole suite: it writes an executable of tens of megabytes. */
 beforeAll(async () => {
-  outdir = await mkdtemp(path.join(tmpdir(), "solos-dev-build-"));
-  result = await runSolos(["dev", "build", "--outdir", outdir, "--version", VERSION], {
+  result = await runSolos(["dev", "build", "--outdir", RELATIVE_OUTDIR, "--version", VERSION], {
     SOLOS_DEV: "1",
   });
 }, 120_000);
@@ -32,6 +36,10 @@ describe("solos dev build compiles one binary and proves it runs [integration]",
     expect(report.built[0].name).toBe(`${process.platform}-${process.arch}`);
     expect(report.built[0].sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(report.built[0].bytes).toBeGreaterThan(10_000_000);
+    expect(path.isAbsolute(report.built[0].outfile)).toBe(true);
+    expect(report.built[0].outfile).toBe(
+      path.join(outdir, report.built[0].name.replace(/^/, "solos-")),
+    );
     expect(report.smoke.ok).toBe(true);
     expect(report.smoke.checks.map((/** @type {{ name: string }} */ c) => c.name)).toEqual([
       "version",
