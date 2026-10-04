@@ -15,6 +15,8 @@ describe("build targets", () => {
 
   test("an unknown name is refused and the known ones are named", () => {
     expect(() => selectTargets("windows-x64")).toThrow(/unknown build target windows-x64.*all/);
+    expect(() => selectTargets(",")).toThrow(/no build target named/);
+    expect(() => selectTargets(" , ")).toThrow(/no build target named/);
   });
 
   test("a target's platform is what npm's os and cpu fields want", () => {

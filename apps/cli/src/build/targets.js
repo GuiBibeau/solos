@@ -38,6 +38,7 @@ export const selectTargets = (selection) => {
     .split(",")
     .map((name) => name.trim())
     .filter((name) => name.length > 0);
+  if (names.length === 0) throw new Error(`no build target named in ${JSON.stringify(selection)}`);
   return names.map((name) => targetNamed(name));
 };
 

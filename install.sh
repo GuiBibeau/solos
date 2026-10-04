@@ -27,11 +27,18 @@ case "$arch" in
 esac
 asset="solos-$os-$arch"
 
+# "latest" means the newest solos@* release. The repository's own /releases/latest can be a
+# release of another package (the contract package publishes through the same repository), so
+# the tag is resolved from the release list instead.
 if [ "$VERSION" = "latest" ]; then
-  base="https://github.com/$REPO/releases/latest/download"
-else
-  base="https://github.com/$REPO/releases/download/solos@$VERSION"
+  VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=50" \
+    | grep -o '"tag_name": *"solos@[^"]*"' | head -n 1 | cut -d'"' -f4 | sed 's/^solos@//')
+  if [ -z "$VERSION" ]; then
+    echo "solos: no solos@* release found; set SOLOS_VERSION explicitly" >&2
+    exit 1
+  fi
 fi
+base="https://github.com/$REPO/releases/download/solos@$VERSION"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
