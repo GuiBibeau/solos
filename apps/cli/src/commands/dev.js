@@ -5,6 +5,7 @@ import { emit } from "../output.js";
 import { build } from "./dev-build.js";
 import { inspect } from "./dev-chain-inspect.js";
 import { docs } from "./dev-docs.js";
+import { pack } from "./dev-pack.js";
 import { qa } from "./dev-qa.js";
 import { surfpool } from "./dev-surfpool.js";
 import { evidence, verify } from "./dev-verify.js";
@@ -42,5 +43,16 @@ const test = Command.make("test", { filter, integrationOnly }, (o) => {
 
 export const dev = Command.make("dev").pipe(
   Command.withDescription("Developer and agent verification lever"),
-  Command.withSubcommands([surfpool, inspect, check, docs, qa, test, verify, evidence, build]),
+  Command.withSubcommands([
+    surfpool,
+    inspect,
+    check,
+    docs,
+    qa,
+    test,
+    verify,
+    evidence,
+    build,
+    pack,
+  ]),
 );

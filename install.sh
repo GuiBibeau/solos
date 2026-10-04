@@ -1,0 +1,63 @@
+#!/bin/sh
+# Install the solos binary from GitHub Releases.
+#
+#   curl -fsSL https://raw.githubusercontent.com/GuiBibeau/solos/main/install.sh | sh
+#
+# SOLOS_VERSION selects a release (default: latest); SOLOS_INSTALL the prefix (default: ~/.solos).
+# The binary lands in $SOLOS_INSTALL/bin/solos after its SHA-256 is checked against the release's
+# SHA256SUMS. Then: `solos login`, `solos connect claude` (or codex, cursor).
+set -eu
+
+REPO="GuiBibeau/solos"
+VERSION="${SOLOS_VERSION:-latest}"
+PREFIX="${SOLOS_INSTALL:-$HOME/.solos}"
+BIN_DIR="$PREFIX/bin"
+
+os=$(uname -s)
+arch=$(uname -m)
+case "$os" in
+  Darwin) os=darwin ;;
+  Linux) os=linux ;;
+  *) echo "solos: unsupported operating system: $os" >&2; exit 1 ;;
+esac
+case "$arch" in
+  arm64 | aarch64) arch=arm64 ;;
+  x86_64 | amd64) arch=x64 ;;
+  *) echo "solos: unsupported architecture: $arch" >&2; exit 1 ;;
+esac
+asset="solos-$os-$arch"
+
+if [ "$VERSION" = "latest" ]; then
+  base="https://github.com/$REPO/releases/latest/download"
+else
+  base="https://github.com/$REPO/releases/download/solos@$VERSION"
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+echo "downloading $asset ($VERSION)"
+curl -fsSL "$base/$asset" -o "$tmp/$asset"
+curl -fsSL "$base/SHA256SUMS" -o "$tmp/SHA256SUMS"
+
+expected=$(awk -v name="$asset" '$2 == name { print $1 }' "$tmp/SHA256SUMS")
+if command -v sha256sum >/dev/null 2>&1; then
+  actual=$(sha256sum "$tmp/$asset" | cut -d' ' -f1)
+else
+  actual=$(shasum -a 256 "$tmp/$asset" | cut -d' ' -f1)
+fi
+if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+  echo "solos: checksum mismatch for $asset; refusing to install" >&2
+  exit 1
+fi
+
+mkdir -p "$BIN_DIR"
+mv "$tmp/$asset" "$BIN_DIR/solos"
+chmod +x "$BIN_DIR/solos"
+echo "installed $BIN_DIR/solos"
+
+case ":$PATH:" in
+  *":$BIN_DIR:"*) ;;
+  *) echo "add it to your PATH:  export PATH=\"$BIN_DIR:\$PATH\"" ;;
+esac
+"$BIN_DIR/solos" --version

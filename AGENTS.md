@@ -44,6 +44,7 @@ bun run solos dev test                   # unit + integration (Surfpool starts i
 bun run solos dev verify --scope unit    # check + unit tests, prints Evidence JSON (scope: check|unit|full)
 bun run solos dev evidence check --body-file pr.md --sha $(git rev-parse HEAD)  # what CI runs on PR bodies
 bun run solos dev build                  # compile the solos binary for this machine (or --target all) and smoke-test it
+bun run solos dev pack --version 0.1.0   # assemble the npm launcher and platform packages from dist/
 bun run solos dev surfpool down
 ```
 
