@@ -34,6 +34,7 @@ on domain errors. `bun run solos --help` is the source of truth for the surface.
 ```sh
 bun run solos login --provider local     # pick a keypair already on this machine, save it as a profile
 bun run solos profiles list
+bun run solos connect claude             # write the solos MCP entry into a client's config (claude | codex | cursor), with a backup
 bun run solos dev surfpool up            # local Solana (offline mainnet fork), prints SOLANA_RPC_URL hint
 bun run solos dev surfpool fund <addr> --sol 2
 bun run solos wallet balance             # through core + adapters

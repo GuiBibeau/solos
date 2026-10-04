@@ -3,6 +3,7 @@ import { Command, Options } from "@effect/cli";
 import { PROVIDERS } from "@solos/solana";
 import { Effect, Option } from "effect";
 import { exitOnFailure } from "../output.js";
+import { resolveRpcUrl } from "./login-common.js";
 import { loginLocal, loginPay } from "./login-local.js";
 import { loginPrivy } from "./login-privy.js";
 import { loginPrivyServer } from "./login-vendors.js";
@@ -55,12 +56,8 @@ export const login = Command.make(
     authorizationKey,
   },
   (o) => {
-    const common = {
-      name: Option.getOrElse(o.profile, () => o.provider),
-      setDefault: o.setDefault,
-      rpcUrl: Option.getOrUndefined(o.rpcUrl),
-    };
-    const flow = () => {
+    /** @param {import("./login-local.js").Common} common */
+    const flow = (common) => {
       switch (o.provider) {
         case "local": {
           return loginLocal(common, o.keypair);
@@ -81,6 +78,13 @@ export const login = Command.make(
         }
       }
     };
-    return Effect.suspend(flow).pipe(exitOnFailure);
+    return Effect.gen(function* () {
+      const rpcUrl = yield* resolveRpcUrl(o.rpcUrl);
+      return yield* flow({
+        name: Option.getOrElse(o.profile, () => o.provider),
+        setDefault: o.setDefault,
+        rpcUrl,
+      });
+    }).pipe(exitOnFailure);
   },
 ).pipe(Command.withDescription("Connect a wallet and save it as a profile"));
