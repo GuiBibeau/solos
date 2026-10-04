@@ -44,8 +44,10 @@ solos login
   answer blank if you would rather export `SOLANA_RPC_URL` yourself; `SOLANA_RPC_URL` in the
   environment always wins over the profile.
 
-`login` verifies the wallet once, prints its address, and the profile becomes the default. More
-profiles: `solos login --profile trading`, then `solos profiles list | default | remove`.
+`login` verifies the wallet once and prints its address. The first profile is the default. A
+later one is not, unless you say so: `solos login --profile trading --default`, or switch
+afterwards with `solos profiles default trading`, or pin it for one client with
+`solos connect claude --profile trading`. `solos profiles list | default | remove` manage them.
 
 ## 3. Connect your agent
 
@@ -92,17 +94,20 @@ starts from.
 ## 5. The ceiling
 
 By default the server offers **read and simulate** tools only. A simulate tool builds the real
-transaction for your wallet and simulates it, and never sends. The execute tools, the ones that
-sign and send, do not exist on the server until you raise the ceiling:
+transaction for your wallet, may ask your signer to sign it so the simulation is faithful, and
+sends only a simulation request with the signatures blanked (ADR-0033): nothing it does can land
+on chain. The execute tools, the ones that send, do not exist on the server until you raise the
+ceiling:
 
 ```sh
 solos connect claude --tier execute
 ```
 
-That is the one deliberate act. Every execute tool has a simulate twin, execution simulates
-first, and the server still has no spending policy of its own (ADR-0006): the agent decides,
-within what your keypair holds. If you run the execute tier in an unattended loop, size the
-wallet for it.
+That is the one deliberate act. Every execute tool has a simulate twin. Execution simulates
+first unless the caller passes `--skip-simulation` (CLI) or `skipSimulation` (tools), which for
+swaps also drops the measured spend bound (ADR-0024). And the server still has no spending policy
+of its own (ADR-0006): the agent decides, within what your keypair holds. If you run the execute
+tier in an unattended loop, size the wallet for it.
 
 `--tier read` is the other direction: a read-only deployment that cannot even build.
 

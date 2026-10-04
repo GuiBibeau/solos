@@ -56,9 +56,13 @@ does not use.
 
 ## Safe by default
 
-- **Read and simulate only, until you say otherwise.** Execute tools, the ones that sign and
-  send, are absent from the server until you connect with `--tier execute`. Every execute tool
-  has a simulate twin, and execution simulates first.
+- **Read and simulate only, until you say otherwise.** Execute tools, the ones that send a
+  transaction, are absent from the server until you connect with `--tier execute`. A simulate
+  tool builds the real transaction and may ask your signer to sign it so the simulation is
+  faithful, then sends only a simulation request with the signatures blanked (ADR-0033); nothing
+  it does can land on chain. Every execute tool has a simulate twin, and execution simulates
+  first unless the caller opts out with `--skip-simulation` (CLI) or `skipSimulation` (tools),
+  which for swaps also drops the measured spend bound (ADR-0024).
 - **Your keys never leave the machine.** Client configs carry a profile name, never a secret
   (ADR-0015). A local keypair, a Privy wallet or a `pay` account are the signer choices.
 - **No policy inside.** solOS is a thin execution layer: it does exactly what the agent asks,
