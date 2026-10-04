@@ -22,8 +22,8 @@ and whether the CLI ships at all. Three facts settled them.
   Both are fixed by build plugins that change no behaviour.
 
 The npm name `solos` belongs to an unrelated 2022 package and the `@solos` scope to an active npm
-user, so nothing publishes under either. The project's npm org is `solos-sh`, chosen for the
-`solos.sh` install domain, and the contract package moves from `@solos/actions` to
+user, so nothing publishes under either. The project's npm org is `solos-sh`, named to pair
+with a `solos.sh` install domain the project does not own yet, and the contract package moves from `@solos/actions` to
 `@solos-sh/actions` before its first publish. Private workspace packages keep their `@solos/*`
 names; they never publish.
 
@@ -54,7 +54,9 @@ names; they never publish.
   launcher `@solos-sh/cli`, whose bin is `solos`, depends on one platform package per target
   (`@solos-sh/cli-darwin-arm64`, `-darwin-x64`, `-linux-x64`, `-linux-arm64`) as
   `optionalDependencies`, so `npm i -g @solos-sh/cli` and `npx @solos-sh/cli` work on machines
-  without Bun; and an `install.sh` in the repo downloads the release binary. The launcher is
+  without Bun; and an
+  `install.sh` in the repo, served from the repository's raw URL until an install domain fronts
+  it, downloads the release binary. The launcher is
   plain Node and the binary embeds Bun, so ADR-0001's "no Node compatibility promise" still
   holds for the code.
 - **The developer lever stays out of the product by ADR-0034**, not by the bundle: the binary
