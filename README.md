@@ -1,5 +1,7 @@
 # solOS
 
+<img src="docs/assets/soleebee-flying-kawaii.png" alt="Soleebee, the flying solOS robot bee mascot, holding a wrench" width="320" />
+
 A thin Solana execution layer for LLM agents. An MCP server, a harness, and the `solos` CLI
 share one core. Many tools, no policy. Execute paths are proven with a real mainnet spend.
 
