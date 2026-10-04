@@ -3,7 +3,7 @@ import { Command, Options } from "@effect/cli";
 import { PROVIDERS } from "@solos/solana";
 import { Effect, Option } from "effect";
 import { exitOnFailure } from "../output.js";
-import { resolveRpcUrl } from "./login-common.js";
+import { resolveProvider, resolveRpcUrl } from "./login-common.js";
 import { loginLocal, loginPay } from "./login-local.js";
 import { loginPrivy } from "./login-privy.js";
 import { loginPrivyServer } from "./login-vendors.js";
@@ -16,8 +16,9 @@ const opt = (name, description) =>
   Options.text(name).pipe(Options.optional, Options.withDescription(description));
 
 const provider = Options.choice("provider", [...PROVIDERS]).pipe(
+  Options.optional,
   Options.withDescription(
-    "privy (browser login) · local keypair file · pay account · privy-server (operators, app secret)",
+    "privy (browser login) · local keypair file · pay account · privy-server (operators, app secret). Asked for when omitted.",
   ),
 );
 const profile = opt("profile", "Profile name. Defaults to the provider name.");
@@ -56,9 +57,12 @@ export const login = Command.make(
     authorizationKey,
   },
   (o) => {
-    /** @param {import("./login-local.js").Common} common */
-    const flow = (common) => {
-      switch (o.provider) {
+    /**
+     * @param {import("./login-common.js").Provider} provider
+     * @param {import("./login-local.js").Common} common
+     */
+    const flow = (provider, common) => {
+      switch (provider) {
         case "local": {
           return loginLocal(common, o.keypair);
         }
@@ -79,9 +83,10 @@ export const login = Command.make(
       }
     };
     return Effect.gen(function* () {
+      const provider = yield* resolveProvider(o.provider);
       const rpcUrl = yield* resolveRpcUrl(o.rpcUrl);
-      return yield* flow({
-        name: Option.getOrElse(o.profile, () => o.provider),
+      return yield* flow(provider, {
+        name: Option.getOrElse(o.profile, () => provider),
         setDefault: o.setDefault,
         rpcUrl,
       });
