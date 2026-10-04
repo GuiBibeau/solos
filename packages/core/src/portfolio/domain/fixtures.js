@@ -110,7 +110,7 @@ export const lpPosition = {
 };
 
 /** Same identity rule the published schema refines on.
- * @param {import("@solos/actions").Position} entry */
+ * @param {import("@solos-sh/actions").Position} entry */
 export const identityOf = (entry) => {
   if (entry.kind === "token") return JSON.stringify([entry.kind, entry.instrument]);
   if (entry.kind === "lend") {

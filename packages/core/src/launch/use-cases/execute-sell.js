@@ -23,7 +23,7 @@ import { toSellAction, validateSellInput } from "./to-buy-action.js";
  * trades on the curve at all, and the sell is never rerouted to PumpSwap or Jupiter.
  * @param {import("../domain/types.js").LaunchExecuteSellInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   ExecuteSellError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}

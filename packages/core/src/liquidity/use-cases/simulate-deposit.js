@@ -13,7 +13,7 @@ import { toDepositAction, validateDepositInput } from "./validate-input.js";
  * state, and nothing is ever submitted. A later execute call re-plans and may differ.
  * @param {import("../domain/types.js").LiquidityDepositInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").SimulationResult,
+ *   import("@solos-sh/actions").SimulationResult,
  *   SimulateDepositError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape
  * >}

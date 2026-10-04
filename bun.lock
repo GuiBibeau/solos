@@ -28,7 +28,7 @@
         "@effect/cli": "latest",
         "@effect/platform": "0.97.2",
         "@effect/platform-bun": "0.91.2",
-        "@solos/actions": "workspace:*",
+        "@solos-sh/actions": "workspace:*",
         "@solos/core": "workspace:*",
         "@solos/harness": "workspace:*",
         "@solos/mcp": "workspace:*",
@@ -49,7 +49,7 @@
         "@opentelemetry/exporter-trace-otlp-http": "latest",
         "@opentelemetry/sdk-trace-base": "latest",
         "@opentelemetry/sdk-trace-node": "latest",
-        "@solos/actions": "workspace:*",
+        "@solos-sh/actions": "workspace:*",
         "@solos/core": "workspace:*",
         "@solos/mcp": "workspace:*",
         "@solos/solana": "workspace:*",
@@ -59,7 +59,7 @@
       },
     },
     "packages/actions": {
-      "name": "@solos/actions",
+      "name": "@solos-sh/actions",
       "version": "0.3.0",
       "dependencies": {
         "zod": "4.6.5",
@@ -69,7 +69,7 @@
       "name": "@solos/core",
       "version": "0.0.0",
       "dependencies": {
-        "@solos/actions": "workspace:*",
+        "@solos-sh/actions": "workspace:*",
         "effect": "3.22.2",
         "zod": "4.6.5",
       },
@@ -83,7 +83,7 @@
       "dependencies": {
         "@modelcontextprotocol/client": "2.0.0",
         "@modelcontextprotocol/server": "2.0.0",
-        "@solos/actions": "workspace:*",
+        "@solos-sh/actions": "workspace:*",
         "@solos/core": "workspace:*",
         "@solos/solana": "workspace:*",
         "effect": "3.22.2",
@@ -105,7 +105,7 @@
         "@solana/keychain": "1.4.0",
         "@solana/keychain-memory": "1.4.0",
         "@solana/kit": "8.3.0",
-        "@solos/actions": "workspace:*",
+        "@solos-sh/actions": "workspace:*",
         "@solos/core": "workspace:*",
         "canonicalize": "5.0.0",
         "effect": "3.22.2",
@@ -560,7 +560,7 @@
 
     "@solana/web3.js": ["@solana/web3.js@1.99.0", "", { "dependencies": { "@babel/runtime": "^7.29.7", "@noble/curves": "^1.9.7", "@noble/hashes": "^1.8.0", "@solana/buffer-layout": "^4.0.1", "@solana/codecs-numbers": "^5.5.1", "agentkeepalive": "^4.6.0", "bn.js": "^5.2.5", "borsh": "^0.7.0", "bs58": "^4.0.1", "buffer": "6.0.3", "fast-stable-stringify": "^1.0.0", "jayson": "^4.3.0", "node-fetch": "^2.7.0", "rpc-websockets": "^9.0.2", "superstruct": "^2.0.2" } }, "sha512-QZYQ2T1z6xWisoyALPq25i/QZTsRlM02BABtAsfaQ1p8wX4SdTfxrKTRue/ZZqrhNVh5oL7T/DUFiTS9DRgxow=="],
 
-    "@solos/actions": ["@solos/actions@workspace:packages/actions"],
+    "@solos-sh/actions": ["@solos-sh/actions@workspace:packages/actions"],
 
     "@solos/cli": ["@solos/cli@workspace:apps/cli"],
 

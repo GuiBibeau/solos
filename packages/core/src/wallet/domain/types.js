@@ -1,5 +1,5 @@
 // @ts-check
-import { CloseTokenAccountActionSchema } from "@solos/actions";
+import { CloseTokenAccountActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 

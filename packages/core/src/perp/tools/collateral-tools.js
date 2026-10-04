@@ -2,7 +2,7 @@
 import {
   DepositPerpCollateralActionSchema,
   WithdrawPerpCollateralActionSchema,
-} from "@solos/actions";
+} from "@solos-sh/actions";
 import { z } from "zod";
 import { defineTool } from "../../shared/tools/define-tool.js";
 import {

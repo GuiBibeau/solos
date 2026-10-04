@@ -1,5 +1,5 @@
 // @ts-check
-import { OpenPerpActionSchema } from "@solos/actions";
+import { OpenPerpActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
 import { defineTool } from "../../shared/tools/define-tool.js";
 import { executePerpOpen, simulatePerpOpen } from "../use-cases/open.js";

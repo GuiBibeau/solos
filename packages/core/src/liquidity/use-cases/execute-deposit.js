@@ -16,7 +16,7 @@ import { toDepositAction, validateDepositInput } from "./validate-input.js";
  * failure — confirmation is not proof of the requested economic fill.
  * @param {import("../domain/types.js").LiquidityExecuteDepositInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   ExecuteDepositError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}

@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { PortfolioStateSchema } from "@solos/actions";
+import { PortfolioStateSchema } from "@solos-sh/actions";
 import { assembleState } from "./assemble.js";
 import {
   balance,

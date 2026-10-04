@@ -23,7 +23,7 @@ import { toBuyAction, validateBuyInput } from "./to-buy-action.js";
  * stops trading on the curve, and neither direction is ever rerouted to another venue.
  * @param {import("../domain/types.js").LaunchExecuteBuyInput} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   ExecuteBuyError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}

@@ -30,7 +30,7 @@
     "@solana/keychain": "1.4.0",
     "@solana/keychain-memory": "1.4.0",
     "@solana/kit": "8.3.0",
-    "@solos/actions": "workspace:*",
+    "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
     "canonicalize": "5.0.0",
     "effect": "3.22.2",

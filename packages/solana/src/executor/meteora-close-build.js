@@ -79,7 +79,7 @@ const coverageOf = (lbPair, lowerBinId) =>
     Promise.all(closeCoverageIndexes(lowerBinId).map((index) => binArrayAddress(lbPair, index))),
   );
 
-/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos/actions").ClosePositionAction} action */
+/** @param {{ ctx: Rpc; kit: Kit }} deps @param {import("@solos-sh/actions").ClosePositionAction} action */
 export const draftMeteoraClose = ({ ctx, kit }, action) =>
   Effect.gen(function* () {
     if (action.protocol !== "meteora") return yield* notMeteora("close_position", action.protocol);

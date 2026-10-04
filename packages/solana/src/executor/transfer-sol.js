@@ -5,7 +5,7 @@ import { TRANSFER_PRIORITY_FEE_LAMPORTS } from "@solos/core";
 
 /**
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
- * @typedef {import("@solos/actions").TransferSolAction} TransferSolAction
+ * @typedef {import("@solos-sh/actions").TransferSolAction} TransferSolAction
  */
 
 export const TRANSFER_V1_CONFIG = Object.freeze({

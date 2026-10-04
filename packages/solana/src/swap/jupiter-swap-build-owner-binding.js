@@ -14,7 +14,7 @@ import { ATA_PROGRAM } from "./jupiter-swap-build-validate.js";
  */
 
 /** @typedef {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} Envelope */
-/** @typedef {import("@solos/actions").SwapAction} SwapAction */
+/** @typedef {import("@solos-sh/actions").SwapAction} SwapAction */
 /** @typedef {Record<string, string>} MintOwners Discovered mint account owner per requested mint. */
 
 const SOURCE_OWNER_REASON = "route source program did not match the input mint's on-chain owner";

@@ -11,7 +11,7 @@ import { validateSwapInput } from "./validate-input.js";
  * transaction that will be submitted is simulated first unless `skipSimulation` is true.
  * @param {import("../domain/types.js").SwapQuoteRequest & { skipSimulation?: boolean }} input
  * @returns {import("effect").Effect.Effect<
- *   import("@solos/actions").ExecutionResult,
+ *   import("@solos-sh/actions").ExecutionResult,
  *   import("../domain/errors.js").QuoteInputInvalid | import("../../shared/domain/errors.js").TransactionFailed | import("../../shared/ports/action-executor.js").ExecutorError,
  *   import("../../shared/ports/action-executor.js").ActionExecutorShape | import("../../shared/ports/event-bus.js").EventBusShape
  * >}

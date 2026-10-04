@@ -1,6 +1,6 @@
 // @ts-check
-import { WSOL_MINT } from "@solos/actions";
 import { UnsupportedAction } from "@solos/core";
+import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { draftPumpBuy, draftPumpSell } from "../launch/pump-buy-build.js";
 import { preflightSwapBuild } from "./swap-preflight.js";
@@ -15,7 +15,7 @@ export { SWAP_AMOUNT_U64_MAX } from "./swap-sol-build.js";
  * @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
  * @typedef {import("../swap/jupiter-swap-build-live.js").JupiterSwapBuildShape} Build
- * @typedef {import("@solos/actions").SwapAction} SwapAction
+ * @typedef {import("@solos-sh/actions").SwapAction} SwapAction
  * @typedef {import("../swap/jupiter-swap-build-response.js").JupiterBuildEnvelope} JupiterBuildEnvelope
  * @typedef {import("../submission/seal-draft.js").Draft} Draft
  */

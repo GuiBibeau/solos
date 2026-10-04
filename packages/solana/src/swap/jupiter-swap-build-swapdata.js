@@ -58,7 +58,7 @@ const decodeRouteArgs = (bytes) => {
 
 /**
  * @param {import("./jupiter-swap-build-response.js").RawInstruction} swap
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
  */
 export const swapDataRejection = (swap, action, envelope) => {

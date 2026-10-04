@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { LiquidityRemovalQuoteSchema, SimulationResultSchema } from "@solos/actions";
+import { LiquidityRemovalQuoteSchema, SimulationResultSchema } from "@solos-sh/actions";
 import { depositQuoteOf } from "./liquidity-deposit-build.js";
 import { withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 

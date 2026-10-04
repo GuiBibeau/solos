@@ -12,7 +12,7 @@ import { PortfolioReader } from "../ports/portfolio-reader.js";
  * Assemble one owner's supported-portfolio state (ADR-0018). Complete or failed: a venue
  * that cannot enumerate raises its own typed failure, never a silent zero.
  * @param {import("../domain/types.js").PortfolioStateInput} input
- * @returns {import("effect").Effect.Effect<import("@solos/actions").PortfolioState, GetStateError, GetStateContext>}
+ * @returns {import("effect").Effect.Effect<import("@solos-sh/actions").PortfolioState, GetStateError, GetStateContext>}
  */
 export const getState = (input) =>
   Effect.gen(function* () {

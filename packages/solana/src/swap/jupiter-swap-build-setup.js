@@ -8,7 +8,7 @@ export { derivedAta } from "./jupiter-swap-build-setup-account.js";
 /**
  * The full ownership-binding rejection for setup and cleanup. Undefined means acceptable.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action @param {string} taker
+ * @param {import("@solos-sh/actions").SwapAction} action @param {string} taker
  */
 export const setupBindingRejection = async (envelope, action, taker) => {
   for (const ix of envelope.setupInstructions) {

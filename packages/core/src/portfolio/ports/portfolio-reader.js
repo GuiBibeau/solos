@@ -8,7 +8,7 @@ import { Context } from "effect";
  * accounting, no background cache.
  * @typedef {{
  *   readonly getState: (request: { readonly owner: import("../../shared/domain/address.js").Address }) =>
- *     import("effect").Effect.Effect<import("@solos/actions").PortfolioState, import("../domain/errors.js").PortfolioError>;
+ *     import("effect").Effect.Effect<import("@solos-sh/actions").PortfolioState, import("../domain/errors.js").PortfolioError>;
  * }} PortfolioReaderShape
  */
 

@@ -2,7 +2,7 @@
 /**
  * The slice-local request becomes the shared contract's action. Amounts cross as decimal strings.
  * @param {import("../domain/types.js").TransferSolRequest} request
- * @returns {import("@solos/actions").TransferSolAction}
+ * @returns {import("@solos-sh/actions").TransferSolAction}
  */
 export const toTransferAction = (request) => ({
   type: "transfer_sol",

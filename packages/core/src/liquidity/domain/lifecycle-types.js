@@ -5,7 +5,7 @@
  * solOS validates what it is given and refuses what does not fit, and never picks a range itself.
  */
 
-import { openPositionIssue } from "@solos/actions";
+import { openPositionIssue } from "@solos-sh/actions";
 import { z } from "zod";
 import { AddressSchema } from "../../shared/domain/address.js";
 import { DepositBudgetSchema, LiquidityProtocolSchema } from "./types.js";

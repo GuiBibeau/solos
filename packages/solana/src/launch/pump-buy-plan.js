@@ -18,7 +18,7 @@ import { PUMP_PROGRAM } from "./pump-program.js";
 import { PUMP_BUY_REJECTIONS, accountAt, roleOf, validateTradeReads } from "./pump-read-gates.js";
 
 /** @typedef {import("../rpc/solana-rpc.js").SolanaRpcShape} Rpc */
-/** @typedef {import("@solos/actions").SwapAction} SwapAction */
+/** @typedef {import("@solos-sh/actions").SwapAction} SwapAction */
 
 export { PUMP_BUY_REJECTIONS, accountAt, dataBytes, roleOf } from "./pump-read-gates.js";
 export { validateTradeReads as validateBuyReads } from "./pump-read-gates.js";

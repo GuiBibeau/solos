@@ -1,4 +1,4 @@
-# @solos/actions
+# @solos-sh/actions
 
 The contract between an agent that decides and an executor that acts on Solana.
 
@@ -47,7 +47,7 @@ The addresses below are illustrative identities, not provisioned execution targe
 amounts illustrate units, not current quotes. All eight discriminants are included.
 
 ```js
-import { ActionSchema, PositionSchema, PortfolioStateSchema } from "@solos/actions";
+import { ActionSchema, PositionSchema, PortfolioStateSchema } from "@solos-sh/actions";
 
 const owner = "7Zr8cNF4XeAgP3ttjTgzHk5Ffm4NWEoHuHybwDC6D8dY";
 const usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";

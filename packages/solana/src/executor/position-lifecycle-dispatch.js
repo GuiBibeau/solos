@@ -20,7 +20,7 @@ import { draftRaydiumOpen } from "./raydium-position-build.js";
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
- * @param {import("@solos/actions").OpenPositionAction} action
+ * @param {import("@solos-sh/actions").OpenPositionAction} action
  */
 export const plannedOpen = ({ ctx, kit }, action) => {
   if (action.protocol === "meteora") {
@@ -39,7 +39,7 @@ export const plannedOpen = ({ ctx, kit }, action) => {
 
 /**
  * @param {{ ctx: Rpc; kit: Kit }} deps
- * @param {import("@solos/actions").ClosePositionAction} action
+ * @param {import("@solos-sh/actions").ClosePositionAction} action
  * @returns {import("effect").Effect.Effect<Draft, import("@solos/core").ExecutorError>}
  */
 export const plannedClose = ({ ctx, kit }, action) => {

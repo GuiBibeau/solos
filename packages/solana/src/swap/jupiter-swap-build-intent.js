@@ -12,7 +12,7 @@ import { toleranceRejection } from "./jupiter-swap-tolerance.js";
 /**
  * Echo checks hold the provider to the exact requested pair, amount, and tolerance.
  * @param {import("./jupiter-swap-build-response.js").JupiterBuildEnvelope} envelope
- * @param {import("@solos/actions").SwapAction} action
+ * @param {import("@solos-sh/actions").SwapAction} action
  */
 export const echoRejection = (envelope, action) => {
   if (envelope.inputMint !== action.inputMint || envelope.outputMint !== action.outputMint) {

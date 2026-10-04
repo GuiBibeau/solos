@@ -2,7 +2,7 @@
 import {
   DepositPerpCollateralActionSchema,
   WithdrawPerpCollateralActionSchema,
-} from "@solos/actions";
+} from "@solos-sh/actions";
 import { Effect } from "effect";
 import { executeAction } from "../../shared/use-cases/execute-action.js";
 import { simulateAction } from "../../shared/use-cases/simulate-action.js";
