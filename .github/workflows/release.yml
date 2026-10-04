@@ -34,4 +34,9 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+          # setup-node points NPM_CONFIG_USERCONFIG at an .npmrc that reads NODE_AUTH_TOKEN, so the
+          # $HOME/.npmrc the changesets action writes from NPM_TOKEN is never consulted; pass both.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Provenance needs a public source repository; see release-cli.yml.
+          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
