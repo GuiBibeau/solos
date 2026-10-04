@@ -1,26 +1,17 @@
 #!/usr/bin/env bun
 // @ts-check
 /**
- * stdio entry point. Spawned by MCP clients (Claude Code, Codex, Cursor, the solos CLI).
- * stdout carries JSON-RPC only; every log line goes to stderr as JSON.
+ * stdio entry point for a checkout: spawned by MCP clients (Claude Code, Codex, Cursor) and by
+ * `solos mcp ...` as `bun --no-env-file <this file>`. An installed solos serves the same thing
+ * through `solos mcp serve` (ADR-0035). stdout carries JSON-RPC only; every log line goes to
+ * stderr as JSON.
  */
-import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { allTools, catalogueOf, errorEnvelope } from "@solos/core";
-import { loadSolanaEnv, rpcOrigin } from "@solos/solana";
-import { z } from "zod";
-import { makePreflightTelemetry, makeToolRuntime } from "../runtime.js";
-import { createSolosServer } from "../server/create-server.js";
-
-const VERSION = "0.0.0";
-const TierSchema = z.enum(["read", "simulate", "execute"]).default("simulate");
-/** `discover` withholds tools until searched for (ADR-0029); `all` advertises them up front. */
-const ToolsSchema = z.enum(["discover", "all"]).default("discover");
+import { describeStartupFailure, serveStdio } from "../server/serve-stdio.js";
 
 /**
  * One `--flag <value>` on the server command line. An explicit flag beats the inherited env
- * var, which stays supported for callers that already set it. A flag with no value (or another
- * flag after it) is malformed and must fail startup rather than fall back to a possibly more
- * permissive environment value.
+ * var. A flag with no value (or another flag after it) is malformed and must fail startup
+ * rather than fall back to a possibly more permissive environment value.
  * @param {ReadonlyArray<string>} argv
  * @param {string} flag
  */
@@ -31,61 +22,16 @@ const flagValue = (argv, flag) => {
   return value === undefined || value.startsWith("--") ? "" : value;
 };
 
-/**
- * An env var left blank, as a copied `.env.example` leaves it, means unset: the documented
- * default applies. Only a flag given without a value fails startup.
- * @param {string | undefined} value
- */
-const envValue = (value) => (value === "" ? undefined : value);
-
-const main = async () => {
-  const env = loadSolanaEnv(process.env);
-  const tierCeiling = TierSchema.parse(
-    flagValue(process.argv, "--tier") ?? envValue(process.env.SOLOS_TOOL_TIER),
-  );
-  const tools = ToolsSchema.parse(
-    flagValue(process.argv, "--tools") ?? envValue(process.env.SOLOS_TOOLS),
-  );
-  const logLevel = process.env.SOLOS_LOG_LEVEL;
-  const runtime = makeToolRuntime(env, { logLevel, catalogue: catalogueOf(allTools, tierCeiling) });
-  const telemetry = makePreflightTelemetry({ logLevel });
-  const server = createSolosServer({
-    tools: allTools,
-    runtime,
-    telemetry,
-    version: VERSION,
-    tierCeiling,
-    discovery: tools === "discover",
-  });
-  const shutdown = async () => {
-    await server.close().catch(() => undefined);
-    await runtime.dispose();
-    await telemetry.dispose();
-    process.exit(0);
-  };
-  process.once("SIGINT", shutdown);
-  process.once("SIGTERM", shutdown);
-  await server.connect(new StdioServerTransport());
-  // Credentials can sit in an authenticated endpoint's path or query: the startup line, like
-  // every token-read error, carries the origin only.
+serveStdio({
+  tier: flagValue(process.argv, "--tier"),
+  tools: flagValue(process.argv, "--tools"),
+}).catch((error) => {
   console.error(
     JSON.stringify({
-      message: "solos mcp ready",
-      rpcUrl: rpcOrigin(env.rpcUrl),
-      tools: allTools.length,
-      tier: tierCeiling,
-      discovery: tools,
+      level: "ERROR",
+      message: "solos mcp failed to start",
+      cause: describeStartupFailure(error),
     }),
-  );
-};
-
-main().catch((error) => {
-  const message =
-    error instanceof z.ZodError
-      ? z.prettifyError(error)
-      : (errorEnvelope(error)?.reason ?? String(error));
-  console.error(
-    JSON.stringify({ level: "ERROR", message: "solos mcp failed to start", cause: message }),
   );
   process.exit(1);
 });
