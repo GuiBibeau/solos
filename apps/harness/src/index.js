@@ -12,8 +12,6 @@ export {
   loadHarnessConfig,
   loadHarnessEnv,
 } from "./config.js";
-export { runDaemon } from "./daemon/daemon.js";
 export { TracingLive } from "./observability/tracing.js";
 export { PRESETS } from "./router/presets.js";
 export { Router, RouterLive, callSettingsFor, resolveRoute } from "./router/router.js";
-export { StoreSqlite } from "./store/sqlite-store.js";

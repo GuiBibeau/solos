@@ -110,7 +110,7 @@ unrecorded until both are in it.
 | `packages/actions/src/` | `Action`, `PortfolioState`, `Mandate`, `SimulationResult`, `ExecutionResult` schemas | The only published package. Imports nothing from the repo. Every change is an API change. |
 | `packages/solana/src/` | Kit + keychain Layers implementing core ports, `DirectSignerExecutor`, Submission and its `Submitter` adapters, credential profiles and discovery, Surfpool helpers | The only place Kit appears. |
 | `packages/mcp/src/` | stdio server, tool → MCP mapping, the one MCP client | HTTP transport later. |
-| `apps/harness/src/` | daemon, router, ToolLoopAgent, sqlite store, tracing | Composition root in `composition.js`. |
+| `apps/harness/src/` | router, ToolLoopAgent, external MCP discovery, tracing | Composition root in `composition.js`. |
 | `apps/cli/src/` | `solos` (`@effect/cli`) | Thin: parse, provide Layers, emit JSON. The `dev` group exists only under `SOLOS_DEV=1` (ADR-0034). |
 | `features/feature-map.json` | live-validated execute paths | Row shape in features/README.md. Write the row in the same change set as the QA notes. |
 

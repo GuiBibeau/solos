@@ -13,9 +13,6 @@ export default {
   agent: {
     maxSteps: 20,
   },
-  daemon: {
-    storePath: ".solos/harness.sqlite",
-  },
   mcpServers: [
     // Third-party MCP servers discovered by the harness agent loop, e.g.
     // { name: "surfpool", command: "surfpool", args: ["mcp"] }

@@ -16,9 +16,8 @@ Status: scoped through grill-with-docs for implementation through a GitHub issue
 
 - Core tool definitions are shared by the MCP server and the harness.
 - The signals slice has a `SignalSource` port and a generic `Signal` schema, but no adapter.
-- `apps/harness/src/daemon/daemon.js` forwards a provided source to `signal.received` and logs
-  and sinks events. It does not invoke the agent. Delivering a signal to this bus alone would
-  not satisfy the agreed wake-up behavior.
+- Wake-ups will be an Engine concern (the Engine epic, #203); the open decisions below are
+  unchanged.
 - The harness composition currently provides no `SignalSource` and uses `EventSinkNoop`.
 
 ## Provider facts to account for
