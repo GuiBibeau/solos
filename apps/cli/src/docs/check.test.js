@@ -47,12 +47,14 @@ describe("docs gate", () => {
     );
   });
 
-  test("the committed tool reference and AGENTS.md match the registry", () => {
+  test("the committed tool reference, AGENTS.md and the landing page match the registry", () => {
     const report = checkDocs({ write: false });
     expect(report.regions.map((r) => [r.file, r.status, r.detail])).toEqual([
       ["docs/reference/tools/index.md", "current", ""],
       ["AGENTS.md", "current", ""],
       ["docs/reference/tools/liquidity.md", "current", ""],
+      ["apps/landing/public/tools.html", "current", ""],
+      ["apps/landing/public/llms-full.txt", "current", ""],
     ]);
     expect(report.ok).toBe(true);
   });

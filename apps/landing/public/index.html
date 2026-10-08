@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>solOS</title>
+    <meta name="description" content="One binary between your agent and Solana. It turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads. You hold the keys and set the limits." />
+    <link rel="canonical" href="https://solos.sh/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0e0e11" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="solOS" />
+    <meta property="og:url" content="https://solos.sh/" />
+    <meta property="og:title" content="solOS" />
+    <meta property="og:description" content="One binary between your agent and Solana. It turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads. You hold the keys and set the limits." />
+    <meta property="og:image" content="https://solos.sh/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Soleebee, the solOS robot bee, flying with a wrench" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="solOS" />
+    <meta name="twitter:description" content="One binary between your agent and Solana. It turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads. You hold the keys and set the limits." />
+    <meta name="twitter:image" content="https://solos.sh/og.png" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="alternate" type="text/plain" href="https://solos.sh/llms.txt" title="llms.txt" />
+    <link rel="stylesheet" href="style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://solos.sh/#site",
+            "name": "solOS",
+            "url": "https://solos.sh/",
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://solos.sh/#app",
+            "name": "solOS",
+            "description": "One binary between your agent and Solana. It turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads. You hold the keys and set the limits.",
+            "url": "https://solos.sh/",
+            "image": "https://solos.sh/og.png",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "macOS, Linux",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "installUrl": "https://www.npmjs.com/package/@solos-sh/cli",
+            "downloadUrl": "https://github.com/GuiBibeau/solos/releases",
+            "sameAs": [
+              "https://github.com/GuiBibeau/solos",
+              "https://www.npmjs.com/package/@solos-sh/cli"
+            ],
+            "featureList": [
+              "MCP server over stdio",
+              "Jupiter swaps and quotes",
+              "Pump bonding-curve buys and sells",
+              "Kamino lending",
+              "Orca, Raydium and Meteora liquidity",
+              "Phoenix perpetuals",
+              "SOL transfers and wallet reads",
+              "Market data from Jupiter and Elfa",
+              "Read, simulate and execute tiers with a tier ceiling"
+            ],
+            "author": {
+              "@type": "Person",
+              "name": "Guillaume Bibeau Laviolette"
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="wrap">
+      <nav class="nav">
+        <a class="brand" href="index.html"><img src="favicon.png" alt="" /> solOS</a>
+        <a href="docs.html">Docs</a>
+        <a href="tools.html">Tools</a>
+        <a href="https://github.com/GuiBibeau/solos">GitHub</a>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <div>
+          <h1>Give your agent Solana.</h1>
+          <p class="lead">
+            Swap, lend, trade perps, add liquidity, move SOL, read the market. One binary your
+            agent calls, across every venue.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="docs.html">Get started</a>
+            <a class="button" href="https://github.com/GuiBibeau/solos">Source</a>
+          </div>
+        </div>
+        <img src="soleebee.png" alt="Soleebee, the solOS robot bee, flying with a wrench" width="320" height="320" fetchpriority="high" />
+      </section>
+
+      <section class="section">
+        <h2>Up in three commands</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="label"><span class="num">1</span> Install</div>
+            <pre><code><span class="prompt">$</span> npm i -g @solos-sh/cli</code></pre>
+          </div>
+          <div class="step">
+            <div class="label"><span class="num">2</span> Connect a wallet</div>
+            <pre><code><span class="prompt">$</span> solos login</code></pre>
+          </div>
+          <div class="step">
+            <div class="label"><span class="num">3</span> Connect your agent</div>
+            <pre><code><span class="prompt">$</span> solos connect claude   <span class="comment"># or: codex | cursor</span></code></pre>
+          </div>
+        </div>
+        <p class="prose" style="margin-top: 16px">
+          Restart the client and ask it: <em>what is my SOL balance?</em>
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>What your agent can do</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>wallet · transfer · portfolio</h3>
+            <p>Balances, addresses, SOL transfers, a portfolio view.</p>
+          </div>
+          <div class="card">
+            <h3>swap · launch <span class="venues">Jupiter, Pump</span></h3>
+            <p>Quotes, simulated and executed swaps. Bonding-curve buys and sells.</p>
+          </div>
+          <div class="card">
+            <h3>lend <span class="venues">Kamino</span></h3>
+            <p>Reserve rates, positions, deposits and withdrawals.</p>
+          </div>
+          <div class="card">
+            <h3>liquidity <span class="venues">Orca, Raydium, Meteora</span></h3>
+            <p>Positions, deposits, withdrawals, opening and closing ranges.</p>
+          </div>
+          <div class="card">
+            <h3>perp <span class="venues">Phoenix</span></h3>
+            <p>Positions, equity, collateral, bounded IOC opens and closes.</p>
+          </div>
+          <div class="card">
+            <h3>market <span class="venues">Jupiter, Elfa</span></h3>
+            <p>Prices, token metadata, trending tokens, news and research.</p>
+          </div>
+        </div>
+        <p class="prose" style="margin-top: 16px">
+          The agent sees three tools at start: search, balance, portfolio. It asks for more by
+          name or in plain words, and the matching tools appear. The other 46 cost nothing until
+          they are used.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Same calls, every venue</h2>
+        <p class="prose">
+          Jupiter, Pump, Kamino, Orca, Raydium, Meteora and Phoenix each sit behind the same kind
+          of call: a name, a few arguments, a JSON result. The agent learns one way to ask. The
+          layer knows how each venue works, builds the transaction, simulates it, and sends it
+          through one path that signs once. A new venue is a new driver, not a new interface.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>You set the limits</h2>
+        <ul class="list">
+          <li>
+            <strong>Read and simulate until you say so.</strong> Tools that send a transaction do
+            not exist on the server until you connect with <code>--tier execute</code>. Every
+            execute tool has a simulate twin.
+          </li>
+          <li>
+            <strong>Keys stay on your machine.</strong> Client configs carry a profile name, never
+            a secret. A local keypair, Privy, or a <code>pay</code> account signs.
+          </li>
+          <li>
+            <strong>No rules inside.</strong> It does what the agent asks, within the ceiling you
+            set. How much and when is the job of the harness you run it in.
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="wrap footer">
+      <img src="favicon.png" alt="" />
+      <span>Apache-2.0</span>
+      <div class="links">
+        <a href="docs.html">Docs</a>
+        <a href="tools.html">Tools</a>
+        <a href="https://github.com/GuiBibeau/solos">GitHub</a>
+      </div>
+    </footer>
+  </body>
+</html>

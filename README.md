@@ -1,11 +1,17 @@
 # solOS
 
+[![npm](https://img.shields.io/npm/v/@solos-sh/cli?label=npm&color=cb3837)](https://www.npmjs.com/package/@solos-sh/cli)
+[![release](https://img.shields.io/github/v/release/GuiBibeau/solos?display_name=release&label=release)](https://github.com/GuiBibeau/solos/releases/latest)
+[![ci](https://github.com/GuiBibeau/solos/actions/workflows/ci.yml/badge.svg)](https://github.com/GuiBibeau/solos/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 <img src="docs/assets/soleebee-flying-kawaii.png" alt="Soleebee, the flying solOS robot bee mascot, holding a wrench" width="320" />
 
 A Solana execution layer for LLM agents. One `solos` binary with an MCP server inside: swaps,
 lending, perps, liquidity, transfers and market reads as 49 well-named tools your agent discovers
-on demand. Mainnet by default. Your keys stay on your machine, and nothing that signs is offered
-until you raise the ceiling yourself.
+on demand. Works with Claude Code, Codex, Cursor and any other MCP client. Mainnet by default.
+Your keys stay on your machine, and nothing that signs is offered until you raise the ceiling
+yourself.
 
 ## Get started
 
@@ -110,6 +116,16 @@ binary.
 - [Tools](docs/reference/tools/index.md) and [Errors](docs/reference/errors.md)
 - Clients: [Claude Code](docs/clients/claude-code.md), [Codex](docs/clients/codex.md), [Cursor](docs/clients/cursor.md)
 - [Decisions](docs/adr/README.md), [CONTEXT.md](CONTEXT.md), [Feature map](features/README.md)
+
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) is the short version;
+[AGENTS.md](AGENTS.md) has the conventions the lint rules enforce. Issues labelled
+[good first issue](https://github.com/GuiBibeau/solos/labels/good%20first%20issue) are scoped
+for a first change. Report security problems through [SECURITY.md](SECURITY.md), never in a
+public issue.
+
+If solOS saves you time, a star on GitHub helps other agent builders find it.
 
 ## License
 

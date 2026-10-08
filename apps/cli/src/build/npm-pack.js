@@ -19,6 +19,24 @@ const launcherFile = (/** @type {string} */ name) =>
 const LICENSE = fileURLToPath(new URL("../../../../LICENSE", import.meta.url));
 const REPO = "https://github.com/GuiBibeau/solos";
 const SEMVER = /^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/;
+/** npm search terms for the launcher; the GitHub repo carries the same topics. */
+const KEYWORDS = [
+  "solana",
+  "mcp",
+  "mcp-server",
+  "model-context-protocol",
+  "ai-agents",
+  "llm-agents",
+  "claude",
+  "cursor",
+  "codex",
+  "defi",
+  "trading",
+  "perpetuals",
+  "jupiter",
+  "kamino",
+  "cli",
+];
 
 /** The fields every published package shares. @param {string} version */
 const shared = (version) => ({
@@ -81,11 +99,13 @@ const packLauncher = ({ outdir, version, platforms }) => {
       "solOS: a Solana execution layer for LLM agents, as one solos binary with the MCP server inside",
     ...shared(version),
     type: "module",
+    // The MCP Registry's ownership marker for npm packages; equals `name` in the root server.json.
+    mcpName: "io.github.GuiBibeau/solos",
     bin: { solos: "launcher.js" },
     engines: { node: ">=20" },
     files: LAUNCHER_FILES,
     optionalDependencies: Object.fromEntries(platforms.map((pkg) => [pkg.name, version])),
-    keywords: ["solana", "mcp", "agents", "cli", "trading"],
+    keywords: KEYWORDS,
   });
   writeFileSync(
     path.join(dir, "README.md"),

@@ -26,6 +26,7 @@
     "solos": "SOLOS_DEV=1 bun run apps/cli/src/main.js",
     "verify": "bun run solos dev verify",
     "mcp": "bun run packages/mcp/src/bin/stdio.js",
+    "landing": "bun run apps/landing/src/serve.js",
     "changeset": "changeset"
   },
   "devDependencies": {

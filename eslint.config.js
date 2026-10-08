@@ -24,6 +24,7 @@ const elements = [
   { type: "mcp", pattern: "packages/mcp/src/**", partialMatch: false },
   { type: "harness", pattern: "apps/harness/src/**", partialMatch: false },
   { type: "cli", pattern: "apps/cli/src/**", partialMatch: false },
+  { type: "landing", pattern: "apps/landing/src/**", partialMatch: false },
   { type: "scripts", pattern: "scripts/**", partialMatch: false },
 ];
 
@@ -127,6 +128,7 @@ const boundaryRules = {
         policy("mcp", [to("actions"), to("mcp")]),
         policy("harness", [to("actions"), to("harness")]),
         policy("cli", [to("actions"), to("cli")]),
+        policy("landing", [to("landing")]),
         policy("scripts", [to("scripts")]),
       ],
     },

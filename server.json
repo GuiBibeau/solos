@@ -1,0 +1,80 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.GuiBibeau/solos",
+  "title": "solOS",
+  "description": "Solana execution layer for LLM agents: swaps, lending, perps, liquidity, transfers, market reads.",
+  "websiteUrl": "https://solos.sh",
+  "repository": {
+    "url": "https://github.com/GuiBibeau/solos",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@solos-sh/cli",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "SOLOS_PROFILE",
+          "description": "Wallet profile saved by `solos login`; the default profile when unset",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "SOLANA_RPC_URL",
+          "description": "Solana RPC URL; overrides the profile's. Mainnet by default, the URL is the only network switch",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "SOLOS_TOOL_TIER",
+          "description": "Highest tier the server offers: read, simulate or execute",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "simulate"
+        },
+        {
+          "name": "SOLOS_TOOLS",
+          "description": "Set to `all` to advertise every tool up front instead of on demand",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "JUPITER_API_KEY",
+          "description": "Unlocks swap quotes and price reads",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "ELFA_API_KEY",
+          "description": "Unlocks market research tools",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "SOLOS_LOG_LEVEL",
+          "description": "Level of the JSON logs on stderr",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "info"
+        }
+      ]
+    }
+  ]
+}

@@ -58,6 +58,10 @@
         "zod": "4.6.5",
       },
     },
+    "apps/landing": {
+      "name": "@solos/landing",
+      "version": "0.0.0",
+    },
     "packages/actions": {
       "name": "@solos-sh/actions",
       "version": "0.3.0",
