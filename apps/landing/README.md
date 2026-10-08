@@ -14,6 +14,20 @@ bun run landing            # serves public/ on http://localhost:4173 (PORT overr
 Deploy by pointing any static host at `apps/landing/public`. Links use `.html` so no rewrite
 rules are needed.
 
+## Accessibility
+
+Audited with axe-core and Lighthouse at 360, 640 and 1280 px; keep these when editing:
+
+- Every page starts with a `.skip-link` to `#main`; `main` carries `id="main" tabindex="-1"`.
+- Each `nav` has an `aria-label` (Primary, On this page, Tool groups, Footer).
+- Anything that scrolls sideways is keyboard-reachable: `pre` and `.table-wrap` carry
+  `tabindex="0"`, and a `.table-wrap` is a named `role="region"`. Tables keep `display: table`.
+- Inline `code` wraps (`overflow-wrap: anywhere`); nothing may widen the page at 360 px.
+- The `$` prompt and step numbers are decorative: `aria-hidden="true"`.
+- Focus is one honey ring (`:focus-visible`); link underlines use `--muted` so they are visible;
+  `--border-strong` is for boundaries that must be seen (3:1 on `--bg`).
+- Link targets in the nav, toc and footer are at least 24 px tall (padding, not font size).
+
 ## Discovery
 
 - `llms.txt` is the agent-facing index ([llmstxt.org](https://llmstxt.org)); `llms-full.txt`

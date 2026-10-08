@@ -78,8 +78,9 @@
     </script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="wrap">
-      <nav class="nav">
+      <nav class="nav" aria-label="Primary">
         <a class="brand" href="index.html"><img src="favicon.png" alt="" /> solOS</a>
         <a href="docs.html">Docs</a>
         <a href="tools.html">Tools</a>
@@ -87,7 +88,7 @@
       </nav>
     </header>
 
-    <main class="wrap">
+    <main class="wrap" id="main" tabindex="-1">
       <section class="hero">
         <div>
           <h1>Give your agent Solana.</h1>
@@ -105,20 +106,20 @@
 
       <section class="section">
         <h2>Up in three commands</h2>
-        <div class="steps">
-          <div class="step">
-            <div class="label"><span class="num">1</span> Install</div>
-            <pre><code><span class="prompt">$</span> npm i -g @solos-sh/cli</code></pre>
-          </div>
-          <div class="step">
-            <div class="label"><span class="num">2</span> Connect a wallet</div>
-            <pre><code><span class="prompt">$</span> solos login</code></pre>
-          </div>
-          <div class="step">
-            <div class="label"><span class="num">3</span> Connect your agent</div>
-            <pre><code><span class="prompt">$</span> solos connect claude   <span class="comment"># or: codex | cursor</span></code></pre>
-          </div>
-        </div>
+        <ol class="steps" role="list">
+          <li class="step">
+            <span class="label"><span class="num" aria-hidden="true">1</span> Install</span>
+            <pre tabindex="0"><code><span class="prompt" aria-hidden="true">$</span> npm i -g @solos-sh/cli</code></pre>
+          </li>
+          <li class="step">
+            <span class="label"><span class="num" aria-hidden="true">2</span> Connect a wallet</span>
+            <pre tabindex="0"><code><span class="prompt" aria-hidden="true">$</span> solos login</code></pre>
+          </li>
+          <li class="step">
+            <span class="label"><span class="num" aria-hidden="true">3</span> Connect your agent</span>
+            <pre tabindex="0"><code><span class="prompt" aria-hidden="true">$</span> solos connect claude   <span class="comment"># or: codex | cursor</span></code></pre>
+          </li>
+        </ol>
         <p class="prose" style="margin-top: 16px">
           Restart the client and ask it: <em>what is my SOL balance?</em>
         </p>
@@ -126,32 +127,32 @@
 
       <section class="section">
         <h2>What your agent can do</h2>
-        <div class="grid">
-          <div class="card">
+        <ul class="grid" role="list">
+          <li class="card">
             <h3>wallet · transfer · portfolio</h3>
             <p>Balances, addresses, SOL transfers, a portfolio view.</p>
-          </div>
-          <div class="card">
+          </li>
+          <li class="card">
             <h3>swap · launch <span class="venues">Jupiter, Pump</span></h3>
             <p>Quotes, simulated and executed swaps. Bonding-curve buys and sells.</p>
-          </div>
-          <div class="card">
+          </li>
+          <li class="card">
             <h3>lend <span class="venues">Kamino</span></h3>
             <p>Reserve rates, positions, deposits and withdrawals.</p>
-          </div>
-          <div class="card">
+          </li>
+          <li class="card">
             <h3>liquidity <span class="venues">Orca, Raydium, Meteora</span></h3>
             <p>Positions, deposits, withdrawals, opening and closing ranges.</p>
-          </div>
-          <div class="card">
+          </li>
+          <li class="card">
             <h3>perp <span class="venues">Phoenix</span></h3>
             <p>Positions, equity, collateral, bounded IOC opens and closes.</p>
-          </div>
-          <div class="card">
+          </li>
+          <li class="card">
             <h3>market <span class="venues">Jupiter, Elfa</span></h3>
             <p>Prices, token metadata, trending tokens, news and research.</p>
-          </div>
-        </div>
+          </li>
+        </ul>
         <p class="prose" style="margin-top: 16px">
           The agent sees three tools at start: search, balance, portfolio. It asks for more by
           name or in plain words, and the matching tools appear. The other 46 cost nothing until
@@ -192,11 +193,11 @@
     <footer class="wrap footer">
       <img src="favicon.png" alt="" />
       <span>Apache-2.0</span>
-      <div class="links">
+      <nav class="links" aria-label="Footer">
         <a href="docs.html">Docs</a>
         <a href="tools.html">Tools</a>
         <a href="https://github.com/GuiBibeau/solos">GitHub</a>
-      </div>
+      </nav>
     </footer>
   </body>
 </html>
