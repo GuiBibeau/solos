@@ -1,0 +1,16 @@
+# What a `vercel deploy` run from this checkout may upload. The landing site deploys from Git
+# (project root directory apps/landing/public), so a CLI upload should never be needed; if one
+# happens anyway, nothing private or heavy leaves the machine. Mirrors .gitignore.
+.git
+node_modules
+dist
+coverage
+output
+.claude
+.solos
+.vercel
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store

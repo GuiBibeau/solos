@@ -14,3 +14,7 @@ coverage/
 
 # local environment overrides
 .env.local
+.vercel
+
+# Vercel CLI link metadata (apps/landing is hosted from Git, see apps/landing/README.md)
+.vercel
