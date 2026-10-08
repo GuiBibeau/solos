@@ -1,22 +1,39 @@
 # Contributing to solOS
 
-Thanks for looking. solOS is small on purpose: a thin execution layer, strict lint rules, and a
-single CLI that doubles as the verification tool. This page is the short version;
-[AGENTS.md](AGENTS.md) is the full contributor guide and the source of truth for conventions.
+solOS signs and sends real transactions on behalf of an agent. That shapes how the project is
+maintained, and it is the first thing to know before you spend time on a change.
 
-## Before you start
+## Pull requests are maintainer-only
 
-- **Bugs and small fixes:** open an issue with the [bug template](https://github.com/GuiBibeau/solos/issues/new/choose),
-  or a pull request straight away if the fix is obvious.
-- **New tools, venues or slices:** open a [change](https://github.com/GuiBibeau/solos/issues/new/choose)
-  issue first. Design decisions live in [docs/adr](docs/adr/README.md); a new capability usually
-  needs one.
-- **First time here?** Issues labelled
-  [good first issue](https://github.com/GuiBibeau/solos/labels/good%20first%20issue) are scoped
-  for one focused change.
-- **Security problems** go through [SECURITY.md](SECURITY.md), never a public issue.
+The project does not accept pull requests from outside the project. Every execute path in solOS
+is validated by the maintainer with a real mainnet spend before it ships, and the maintainer
+answers for every line that can move funds. In that security environment, code written outside
+the project is a risk we do not take, however good it is: reviewing it to the standard the money
+paths need would cost more than writing it. A workflow closes external pull requests
+automatically with this explanation; it is not a judgement of the change.
 
-## Set up
+The licence is Apache-2.0. Fork, change and ship your own build freely.
+
+## What helps
+
+- **Bug reports** with a reproduction: the command or tool call, the JSON it printed, what you
+  expected. Use the [bug template](https://github.com/GuiBibeau/solos/issues/new/choose). Never
+  paste keys, RPC URLs that carry a key, or `~/.config/solos/credentials.json`.
+- **Change requests** through the [change template](https://github.com/GuiBibeau/solos/issues/new/choose):
+  what the agent could not do, on which venue, and what it should have returned.
+- **Security problems**, privately, through [SECURITY.md](SECURITY.md). Never in a public issue.
+- **Documentation mistakes**: an issue pointing at the line is enough.
+
+Issues are read by the maintainer, who builds the change, tests it on Surfpool, live-validates it
+on mainnet when money moves, and records that round in
+[features/feature-map.json](features/feature-map.json).
+
+## Working in this repository
+
+The rest of this page is for the maintainer and for agents working in this checkout.
+[AGENTS.md](AGENTS.md) is the full guide and the source of truth for conventions.
+
+### Set up
 
 ```sh
 git clone https://github.com/GuiBibeau/solos && cd solos
@@ -28,7 +45,7 @@ bun run solos dev test           # unit + integration against Surfpool
 
 Reusable tests never touch mainnet. Surfpool starts itself when a test needs it.
 
-## Making a change
+### Making a change
 
 1. Branch from `main`.
 2. Follow the layout in [AGENTS.md](AGENTS.md#where-things-live): zero I/O in `packages/core`,
@@ -41,7 +58,7 @@ Reusable tests never touch mainnet. Surfpool starts itself when a test needs it.
 
 A description of what you ran is not evidence. The JSON is.
 
-## Style
+### Style
 
 - Plain `.js` with JSDoc types, `tsc --noEmit` strict, no build step.
 - Effect for ports, adapters and use cases. Zod 4 for every schema.
@@ -51,13 +68,8 @@ A description of what you ran is not evidence. The JSON is.
 `bun run solos dev check` enforces all of this. Fix the code rather than the rule; a rule change
 needs an ADR.
 
-## Live validation
+### Live validation
 
-Execute paths are validated with a real mainnet spend the operator authorises. Contributors do
-not need to do this. If your change touches an execute path, say so in the PR and the maintainer
-runs the live round and records it in [features/feature-map.json](features/feature-map.json).
-
-## License
-
-By contributing you agree that your contributions are licensed under the
-[Apache-2.0](LICENSE) license that covers the project.
+Execute paths ship only after a real mainnet spend the operator authorises, reconciled before and
+after, and recorded in [features/feature-map.json](features/feature-map.json) in the same change
+set as the QA notes. Offline tests do not stand in for that round.
