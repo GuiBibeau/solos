@@ -25,13 +25,19 @@ const argumentRow = (row) =>
   `<td>${row.required ? "yes" : "no"}</td>` +
   `<td>${escapeHtml(row.description)}${row.meta ? ` <span class="meta">${escapeHtml(row.meta)}</span>` : ""}</td></tr>`;
 
-/** @param {import("zod").ZodObject} input */
-const renderArguments = (input) => {
+/**
+ * The table sits in a focusable, named scroll region: on a narrow screen it overflows sideways and
+ * keyboard users must be able to reach it, and the table itself keeps its native semantics.
+ * @param {import("zod").ZodObject} input @param {string} name
+ */
+const renderArguments = (input, name) => {
   const rows = argumentsOf(input);
   if (rows.length === 0) return '<p class="noargs">No arguments.</p>';
   return [
-    '<table class="args"><thead><tr><th>Argument</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>',
-    `<tbody>${rows.map(argumentRow).join("")}</tbody></table>`,
+    `<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of ${escapeHtml(name)}">`,
+    '<table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th>',
+    '<th scope="col">Required</th><th scope="col">Description</th></tr></thead>',
+    `<tbody>${rows.map(argumentRow).join("")}</tbody></table></div>`,
   ].join("");
 };
 
@@ -42,7 +48,7 @@ const renderTool = (tool) =>
     `<h3><code>${escapeHtml(tool.name)}</code> <span class="tier tier-${escapeHtml(tool.tier)}">${escapeHtml(tool.tier)}</span></h3>`,
     `<p class="title">${escapeHtml(tool.title)}</p>`,
     `<p class="desc">${escapeHtml(tool.description)}</p>`,
-    renderArguments(tool.input),
+    renderArguments(tool.input, tool.name),
     "</article>",
   ].join("\n");
 
@@ -75,5 +81,5 @@ export const renderToolsHtml = (tools) => {
       tools.filter((tool) => tool.group === group),
     ),
   );
-  return [`<nav class="toc">\n${index}\n</nav>`, ...sections].join("\n");
+  return [`<nav class="toc" aria-label="Tool groups">\n${index}\n</nav>`, ...sections].join("\n");
 };

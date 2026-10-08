@@ -3,6 +3,7 @@
   --surface: #16161b;
   --surface-2: #1d1d24;
   --border: #2a2a33;
+  --border-strong: #6b685f; /* 3.4:1 on --bg: boundaries that must be seen */
   --text: #ece9e2;
   --muted: #9b988f;
   --honey: #ffc53d;
@@ -34,12 +35,40 @@ body {
 a {
   color: var(--text);
   text-decoration: underline;
-  text-decoration-color: var(--border);
+  text-decoration-color: var(--muted);
   text-underline-offset: 3px;
 }
 
-a:hover {
+a:hover,
+a:focus-visible {
   text-decoration-color: var(--honey);
+}
+
+/* Keyboard focus: one ring everywhere, visible on every surface. */
+:focus-visible {
+  outline: 2px solid var(--honey);
+  outline-offset: 3px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--gutter);
+  z-index: 10;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--honey);
+  color: #15120a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 12px;
 }
 
 code,
@@ -52,7 +81,7 @@ code {
   background: var(--surface-2);
   padding: 0.1em 0.35em;
   border-radius: 5px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 pre {
@@ -147,6 +176,7 @@ p {
 
 .nav a:not(.brand) {
   color: var(--muted);
+  padding: 6px 0;
 }
 
 .nav a:not(.brand):hover,
@@ -209,7 +239,7 @@ p {
   padding: 10px 18px;
   border-radius: 8px;
   font-weight: 600;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--text);
 }
 
@@ -231,6 +261,9 @@ p {
 .steps {
   display: grid;
   gap: 16px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .step {
@@ -254,6 +287,9 @@ p {
 .grid {
   display: grid;
   gap: 14px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
@@ -331,6 +367,11 @@ td code {
   overflow-x: auto;
 }
 
+.table-wrap:focus-visible,
+pre:focus-visible {
+  outline-offset: 0;
+}
+
 /* tool reference */
 .reference .toc {
   margin-bottom: 8px;
@@ -391,6 +432,13 @@ td code {
   margin: 0 0 12px;
 }
 
+/* Tool names in prose are one long word; let them break rather than widen the page. */
+.tool p,
+.lead,
+.prose {
+  overflow-wrap: anywhere;
+}
+
 .tool .noargs {
   color: var(--muted);
   font-size: 0.9rem;
@@ -398,8 +446,6 @@ td code {
 }
 
 .tool .args {
-  display: block;
-  overflow-x: auto;
   font-size: 0.9rem;
 }
 
@@ -467,6 +513,7 @@ td code {
 
 .footer a {
   color: var(--muted);
+  padding: 6px 0;
 }
 
 .footer a:hover {
@@ -489,6 +536,7 @@ td code {
 
 .toc a {
   color: var(--muted);
+  padding: 4px 1px;
 }
 
 .toc a:hover {

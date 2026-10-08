@@ -34,7 +34,7 @@ describe("tool reference html", () => {
 
   test("one section per group, in first-seen order, with a group index", () => {
     expect(html).toContain(
-      '<nav class="toc">\n<a href="#perp">perp</a>\n<a href="#wallet">wallet</a>\n</nav>',
+      '<nav class="toc" aria-label="Tool groups">\n<a href="#perp">perp</a>\n<a href="#wallet">wallet</a>\n</nav>',
     );
     expect(html.indexOf('<section class="group" id="perp">')).toBeLessThan(
       html.indexOf('<section class="group" id="wallet">'),
@@ -57,6 +57,14 @@ describe("tool reference html", () => {
     );
     expect(html).toContain("<td>string[]</td>");
     expect(html).toContain('<td>Requested leverage <span class="meta">1 to 100</span></td>');
+  });
+
+  test("arguments live in a focusable named scroll region with column headers", () => {
+    expect(html).toContain(
+      '<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_perp_execute_open">',
+    );
+    expect(html).toContain('<th scope="col">Argument</th>');
+    expect(html).toContain("</table></div>");
   });
 
   test("a tool without arguments says so", () => {
