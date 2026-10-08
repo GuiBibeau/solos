@@ -8,6 +8,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { allTools, SUPPORTED_VENUES } from "@solos/core";
 import { compareRegion } from "./compare.js";
 import { replaceRegion } from "./regions.js";
+import { renderToolsHtml } from "./render-html.js";
+import { renderToolsMarkdown } from "./render-llms.js";
 import { renderSliceTable, renderToolTable, sliceNames } from "./render.js";
 import { DocsReportSchema } from "./schema.js";
 
@@ -21,6 +23,12 @@ const targets = () => [
   { file: "docs/reference/tools/index.md", region: "tools", body: renderToolTable(allTools) },
   { file: "AGENTS.md", region: "slices", body: renderSliceTable(sliceNames(), allTools) },
   { file: "docs/reference/tools/liquidity.md", region: "liquidity-venues", body: SUPPORTED_VENUES },
+  { file: "apps/landing/public/tools.html", region: "tools", body: renderToolsHtml(allTools) },
+  {
+    file: "apps/landing/public/llms-full.txt",
+    region: "tools",
+    body: renderToolsMarkdown(allTools),
+  },
 ];
 
 /** @param {Target} target @param {boolean} write */

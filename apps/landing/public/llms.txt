@@ -1,0 +1,27 @@
+# solOS
+
+> One binary that sits between an LLM agent and Solana and turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads, 49 tools discovered on demand. Mainnet by default. Keys stay on the operator's machine. Tools that send transactions are withheld until the operator raises the tier ceiling.
+
+Install with `npm i -g @solos-sh/cli`, connect a wallet with `solos login`, connect an agent with `solos connect claude` (or `codex`, `cursor`). The MCP server is `solos mcp serve` over stdio. Tools are named `solana_<group>_<verb>_<object>` with tiers read, simulate and execute; every execute tool has a simulate twin. Every CLI command prints JSON and exits non-zero on a domain error with `{ code, reason, remedy }`.
+
+## Docs
+
+- [Getting started](https://solos.sh/docs.html): install, wallet, agent, first calls, the tier ceiling, doctor
+- [Tool reference](https://solos.sh/tools.html): every tool with its tier and arguments, generated from the registry
+- [Full tool catalogue as Markdown](https://solos.sh/llms-full.txt): the same reference in one file, for agents
+
+## Source
+
+- [Repository](https://github.com/GuiBibeau/solos): Apache-2.0, Bun, plain JavaScript with JSDoc, Effect, Zod
+- [Getting started, long version](https://github.com/GuiBibeau/solos/blob/main/docs/getting-started.md): what each command writes and what to do when something is missing
+- [Errors](https://github.com/GuiBibeau/solos/blob/main/docs/reference/errors.md): every error code with its reason and remedy
+- [AGENTS.md](https://github.com/GuiBibeau/solos/blob/main/AGENTS.md): the contributor guide written for agents
+- [CONTEXT.md](https://github.com/GuiBibeau/solos/blob/main/CONTEXT.md): vocabulary, from Caller and Operator to Submission and Lifetime
+- [Decisions](https://github.com/GuiBibeau/solos/blob/main/docs/adr/README.md): architecture decision records
+
+## Optional
+
+- [Claude Code setup](https://github.com/GuiBibeau/solos/blob/main/docs/clients/claude-code.md)
+- [Codex setup](https://github.com/GuiBibeau/solos/blob/main/docs/clients/codex.md)
+- [Cursor setup](https://github.com/GuiBibeau/solos/blob/main/docs/clients/cursor.md)
+- [npm package](https://www.npmjs.com/package/@solos-sh/cli): the launcher that installs the binary for your platform

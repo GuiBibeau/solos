@@ -4,9 +4,14 @@ import { readRegion } from "./regions.js";
 
 /** @typedef {{ status: "current" | "stale" | "missing", detail: string }} Comparison */
 
-/** First cell of every table row, which is the tool or slice name. @param {string} text */
+/** A table row's first cell, an HTML article's id or an H3: the tool or slice name either way. */
+const KEY_PATTERNS = [/^\|\s*`([^`]+)`/u, /^<article class="tool" id="([^"]+)"/u, /^### (\S+)$/u];
+
+/** @param {string} text */
 const keysOf = (text) =>
-  text.split("\n").flatMap((line) => /^\|\s*`([^`]+)`/u.exec(line)?.[1] ?? []);
+  text
+    .split("\n")
+    .flatMap((line) => KEY_PATTERNS.flatMap((pattern) => pattern.exec(line)?.[1] ?? []));
 
 /**
  * Which rows drifted, named. The message is usually the whole fix, so it beats a row count.

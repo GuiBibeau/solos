@@ -62,6 +62,7 @@ describe("solos dev pack assembles the npm packages", () => {
       name: "@solos-sh/cli",
       version: "1.2.3",
       type: "module",
+      mcpName: "io.github.GuiBibeau/solos",
       bin: { solos: "launcher.js" },
       files: ["launcher.js", "launcher-lib.js"],
       optionalDependencies: {
