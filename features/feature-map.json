@@ -2189,5 +2189,931 @@
       }
     ],
     "gaps": ["Surfpool coverage is not claimed."]
+  },
+  {
+    "status": "live-validated",
+    "action": "transfer_sol",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#transfer-sol",
+    "sends": [
+      {
+        "signature": "3SqANRB7B48upsocq7br38HZ18pbuY7h8fa8EYoUkUUddZibsEF2cHHB3ABPdUh4hB7fCG8m4Sf48Gnup2ASRrGJ",
+        "simulation": {
+          "computeUnits": 150
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "A self-transfer: the recipient delta is the sender delta.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "protocol": "jupiter",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#jupiter-swaps",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000434881",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "0"
+        },
+        "b": {
+          "symbol": "USDT",
+          "unit": "raw",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "2jR5ncrWuLq2bU1fshC8be5bnukUsi7HFyLTcbmmCErNiXrWvxpCt6FZ45PBReqQVgh3AJ6tP8iCkghpxYVZk3wA",
+        "simulation": {
+          "computeUnits": 204258
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+3371852"
+          },
+          "sol": {
+            "delta": "-0.030105",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "4Rt1Dooz26v96Rp2bp8ZTCYVjXowHSQsDP26YRu1JoP9EkTHv2uQvF5KCchgaLPF2656iBTTAmpk1GFJDcHpvQpi",
+        "simulation": {
+          "computeUnits": 270021
+        },
+        "wallet": {
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "delta": "+1124668"
+          },
+          "sol": {
+            "delta": "-0.01159344",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "2B7iRbpJhr626wKwf43jgq76SBynzfH5YfNeAGcxuZqpjb2a5oKDFvGvgnAKdmUKuScUFhmgMHkAPM5aqo7oNfAx",
+        "simulation": {
+          "computeUnits": 80482
+        },
+        "wallet": {
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "delta": "-1124637"
+          },
+          "sol": {
+            "delta": "+0.009896035",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "5RemgfnaQhP1X651UHo2awpjd7Lu1gxFPpAbVriWVTaLjwb1eV8vecFu1AB93xU3EfBJmecq5ayRj7nA8tvAKiVp",
+        "simulation": {
+          "computeUnits": 165267
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-3371297"
+          },
+          "sol": {
+            "delta": "+0.029879084",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The token nets are zero only across the whole round: 555 USDC and 31 USDT base units were consumed by the venues between the buying and selling legs.",
+      "The second leg's SOL delta includes 1488440 lamports of rent for the new USDT account, reclaimed by closing it.",
+      "The third leg was first refused before a build while the wSOL account held a balance; it was sent after that account was closed.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "protocol": "pump",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "maxSlippageBps": 100,
+    "qa": "docs/signer-qa.md#pump-buy-and-sell",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000333459",
+      "tokens": {
+        "a": {
+          "symbol": "6UjqmVAaBtq5htSXvjK3Ve6zHNygksYpRK3zDKLKpump",
+          "unit": "raw",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "nwVLouS88qvAisSJJSiUuwT3RE4cmkLP9GhNU3G9da8CzsbrgroUFNYhHPeinYFGnQmArUquifH42fEquBKpZSn",
+        "simulation": {
+          "computeUnits": 104263
+        },
+        "wallet": {
+          "a": {
+            "symbol": "6UjqmVAaBtq5htSXvjK3Ve6zHNygksYpRK3zDKLKpump",
+            "unit": "raw",
+            "delta": "+1476755747200"
+          },
+          "sol": {
+            "delta": "-0.00661884",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "4HaURpfsEFNFB5BpBHKZNV8p7WvgydWigPK5VjVhzKYS33Br6hFf1rVE2mjNqD26zB9oYVJ2XTVvbzMCnXDEsLrd",
+        "simulation": {
+          "computeUnits": 75584
+        },
+        "wallet": {
+          "a": {
+            "symbol": "6UjqmVAaBtq5htSXvjK3Ve6zHNygksYpRK3zDKLKpump",
+            "unit": "raw",
+            "delta": "-1476755747200"
+          },
+          "sol": {
+            "delta": "+0.004771541",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The buy's SOL delta includes 1513840 lamports of rent for the recreated Token-2022 coin account, reclaimed by closing it; the lifecycle net excludes that rent.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "deposit_perp_collateral",
+    "protocol": "phoenix",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#phoenix-collateral-open-close-and-withdraw",
+    "sends": [
+      {
+        "signature": "jFdnJXbRv2ELMUs4yXJUPES4diYsyewagQ2fj53WWA4efVWgHyTuwrHk3KU2zGdteYnPrWghiXSSuRbGKwnbCtD",
+        "simulation": {
+          "computeUnits": 29954
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-2500000"
+          },
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The estimated output was not guaranteed; the reconciliation measured +2500000 trader collateral.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "open_perp",
+    "protocol": "phoenix",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#phoenix-collateral-open-close-and-withdraw",
+    "sends": [
+      {
+        "signature": "48jefzGBPU1Nhbp3Eh2nBwXj6aaf4mBUCt1NmDHhVt5q8qzxX9dF1Qfy7a6AqJ1ezALHMhTzrwLgJngk1kg5w3cA",
+        "simulation": {
+          "computeUnits": 187777
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The fill (2 lots, 0.02 SOL long at a 113.12 limit) comes from the follow-up position read, not from the send. The fill price was not recorded.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "close_perp",
+    "protocol": "phoenix",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#phoenix-collateral-open-close-and-withdraw",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000024",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "-579"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "37MhwdjaoZkZ85ACHBtJSP84tzbT3Hp9HMAbcz3hL2iPkHe2Ynbxa6SiUMR93r4oKWVpsJ4frb8siojZjXovppoM",
+        "simulation": {
+          "computeUnits": 196555
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Two earlier close attempts, 20 and 25 seconds after the open, were refused before a build (BuildRejected: position disagrees with on-chain state) and sent nothing.",
+      "The lifecycle net covers deposit, open, close and withdraw.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "withdraw_perp_collateral",
+    "protocol": "phoenix",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#phoenix-collateral-open-close-and-withdraw",
+    "sends": [
+      {
+        "signature": "5iDqoy2M89ZWJJxAkujyxqUwSy8doRGKEXFQFwYn2aHBQQYUm2xVwndjshX8iFsEHqMLjfnL9ouu7fSk4wdwbFSv",
+        "simulation": {
+          "computeUnits": 46767
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+2499421"
+          },
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The equity read right after the send still showed 2.499421; a read 70 seconds later showed 0.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "lend",
+    "protocol": "kamino",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#kamino-deposit-and-withdraw",
+    "sends": [
+      {
+        "signature": "5F4jtztPTdE4bYDp8TW4kh1DrN1HpjtKtxYUADP82xBdqkjRTunjmPGf3hNEcWbH8aTXSPC4iiXrjqJjkNVuKB2S",
+        "simulation": {
+          "computeUnits": 135301
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-1000000"
+          },
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The obligation was re-initialised and its rent locked; the wallet delta of this send alone was not read, only the two-send net of -12000 lamports, which shows the rent came back on withdrawal.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "withdraw_lend",
+    "protocol": "kamino",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#kamino-deposit-and-withdraw",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000012",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "-1"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "3DURHQBjF4GouiQZtdNJ8jhjuZsiKgFiptuJXcVi5CLLkSxPNYmCZtgaDwW23xmEaRBZ86jbbhxqEJGK6V7dgtFL",
+        "simulation": {
+          "computeUnits": 123309
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+999999"
+          },
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "open_position",
+    "protocol": "meteora",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "GyL9gbViTzce2otneTzppp7vEt5kL2v5R8NHazobiVbN",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "maxSlippageBps": 50,
+    "open": {
+      "activeId": 5,
+      "lowerBinId": 3,
+      "width": 5
+    },
+    "qa": "docs/signer-qa.md#meteora-dlmm-open-to-close",
+    "sends": [
+      {
+        "signature": "7p5fscw6kcYMqQSHeovW63JdCyNZ3Bq5BrzQ37DPKAjEYoZ7Stkgc1Yyfcd99CEUs1ewT99qvd76aaUDoZUVHKW",
+        "simulation": {
+          "computeUnits": 10030
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.04200984",
+            "feeLamportsApprox": "110000"
+          }
+        }
+      },
+      {
+        "signature": "2fpiYz1WTBNu2Gesm1w4fj1BHNiwMRenTzjH2KGooTLdBCq67MqdKCEgQL57oL8DwUQ41EPi5NQHD6Aoie7csMtk",
+        "simulation": {
+          "computeUnits": 10030
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.04200984",
+            "feeLamportsApprox": "110000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The first send opened Mmu2FUp7tz6UX7BUWH3kfr84eSwV1hvgm1vQdZSRkj3 on bins -1 to 3, below the active bin 5; its deposit was refused at simulation and it was closed empty. The second send is the position this row names.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "meteora",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "GyL9gbViTzce2otneTzppp7vEt5kL2v5R8NHazobiVbN",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#meteora-dlmm-open-to-close",
+    "sends": [
+      {
+        "signature": "3eJFMiEdjBvFDf3Dg5JRN5tb9GMZUMyRMfbRLjYxFNEF3dECXsmRuS94vgGYRKZVydpqWNJJM4LXQLNRXQUeTq6i",
+        "simulation": {
+          "computeUnits": 45096
+        },
+        "venue": {
+          "requiredA": "1000000",
+          "requiredB": "706813"
+        },
+        "budgets": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "amount": "1000000"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "amount": "1000000"
+          }
+        },
+        "positionTokens": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "after": "1000026"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "after": "706782"
+          }
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-1000000"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "delta": "-706813"
+          },
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "meteora",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "GyL9gbViTzce2otneTzppp7vEt5kL2v5R8NHazobiVbN",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#meteora-dlmm-open-to-close",
+    "sends": [
+      {
+        "signature": "4pP4msiqXzCVZ8Qz82AHj18qYjRBGujLKR8t7pzVcQXVTo6cscRBDwACCEWDwKZ53oqFor9r7kWSCb3wQgQvGVNA",
+        "simulation": {
+          "computeUnits": 45126,
+          "estA": "1000026",
+          "estB": "706782"
+        },
+        "wallet": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+1000026"
+          },
+          "b": {
+            "symbol": "USDT",
+            "unit": "raw",
+            "delta": "+706782"
+          },
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          }
+        },
+        "bps": 10000
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "close_position",
+    "protocol": "meteora",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "GyL9gbViTzce2otneTzppp7vEt5kL2v5R8NHazobiVbN",
+    "pool": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
+    "qa": "docs/signer-qa.md#meteora-dlmm-open-to-close",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.00064",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "+26"
+        },
+        "b": {
+          "symbol": "USDT",
+          "unit": "raw",
+          "delta": "-31"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "3a7YUoBmDXCBc641Lawehp5EmoHTeAtXfqb2jagEP95hrVxX8XtGAWQo8VBUUwM68oDSwhzp5f22GGbhFiAAhVnx",
+        "simulation": {
+          "computeUnits": 6364
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.04179484",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "5Mi5jgTcMBjYs1BGC5zPk3FLZKRkfvyed7t4FJ9QJSTWxSydwY8s5ukkKUFArHUCTBiTFE6tMjc1dnQ9fQLRuqzb",
+        "simulation": {
+          "computeUnits": 6364
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.04179484",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The first send closed the empty position Mmu2FUp7tz6UX7BUWH3kfr84eSwV1hvgm1vQdZSRkj3; the second closed the position this row names. The lifecycle net covers all six Meteora sends.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "open_position",
+    "protocol": "raydium",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "5WMqZqxtaDriG8rLy855TdeYq8rSDfkahoV8yqdPVk72",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#raydium-clmm-open-to-close",
+    "sends": [
+      {
+        "signature": "3LSurkWbqcMV7w5EHrCVJaQXNWAt4Y1NKwCQx4Ei8iFagnu3GuexsUuz2pEiRedpAszyWhQkXHzT5SQmyVa9bCvG",
+        "simulation": {
+          "computeUnits": 99452
+        },
+        "liquidity": {
+          "before": "0",
+          "after": "605352511"
+        },
+        "budgets": {
+          "a": {
+            "symbol": "SOL",
+            "unit": "raw",
+            "amount": "1000"
+          },
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "amount": "1000000"
+          }
+        },
+        "positionTokens": {
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "after": "999999"
+          }
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.00011",
+            "feeLamportsApprox": "110000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Ticks -22200..-22100. The open created an empty wSOL account (1488440 lamports of rent) for the side it did not spend, reclaimed by closing that account.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "raydium",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "5WMqZqxtaDriG8rLy855TdeYq8rSDfkahoV8yqdPVk72",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#raydium-clmm-open-to-close",
+    "sends": [
+      {
+        "signature": "4KUmUaaCcEBgqEDVukvi8Q5v9TgTzUEmrbFEUXSFrUwV6edq3X1WSWboSjGZTwL5URVee9z9WEbBrqfqC8ZTugGh",
+        "simulation": {
+          "computeUnits": 34403
+        },
+        "venue": {
+          "requiredA": "0",
+          "requiredB": "500000"
+        },
+        "liquidity": {
+          "before": "605352511",
+          "after": "908028766"
+        },
+        "wallet": {
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "-500000"
+          },
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": ["Surfpool coverage is not claimed."],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "raydium",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "5WMqZqxtaDriG8rLy855TdeYq8rSDfkahoV8yqdPVk72",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#raydium-clmm-open-to-close",
+    "sends": [
+      {
+        "signature": "63yxLzE5fkxsFNrijwkEUMLL4AYMGGYk1ThjZWepyN2m3C4FwgaaTA535vtT9418zHzaSB8oXXHRGGvgLEoXraLH",
+        "simulation": {
+          "computeUnits": 61905,
+          "estA": "0",
+          "estB": "1499999"
+        },
+        "liquidity": {
+          "before": "908028766",
+          "after": "0"
+        },
+        "wallet": {
+          "b": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "delta": "+1499999"
+          },
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          }
+        },
+        "bps": 10000
+      }
+    ],
+    "gaps": [
+      "The withdraw created an empty RAY reward token account (1488440 lamports of rent), reclaimed by closing that account.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "close_position",
+    "protocol": "raydium",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "5WMqZqxtaDriG8rLy855TdeYq8rSDfkahoV8yqdPVk72",
+    "pool": "3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv",
+    "qa": "docs/signer-qa.md#raydium-clmm-open-to-close",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.00340188",
+      "tokens": {
+        "b": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "-1"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "5VqKxv4JqJpHQER4vwftp6oBc6oqg1z3KVeYwtQZG7yCAGyWimm6TR7mxhokKQa8C1C3bdagrLmx8myYHxyBrmX3",
+        "simulation": {
+          "computeUnits": 18897
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000105",
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The lifecycle SOL net includes the 2976880 lamports held in the wSOL and RAY accounts the venue created, reclaimed later by closing them.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "add_liquidity",
+    "protocol": "orca",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "2LyZJBNUWMH7YXJvhT61NUNXjTbk7kHKZuwyPVA7QgWZ",
+    "pool": "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#orca-whirlpool-deposit-and-withdraw",
+    "sends": [
+      {
+        "signature": "YnxDFGuM4U8XtkEcLCafy1gKVd8PLrGh2cY6quH8BLJYEUF9sNrYBanehiTQFU97XoLQJ2a5tLZMWsfieMNqm8s",
+        "simulation": {
+          "computeUnits": 10823
+        },
+        "venue": {
+          "requiredA": "10000000",
+          "requiredB": "0"
+        },
+        "liquidity": {
+          "before": "0",
+          "after": "27422001"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The canonical wSOL account already existed empty, so the wrap funded it rather than creating and closing a temporary one.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "remove_liquidity",
+    "protocol": "orca",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "position": "2LyZJBNUWMH7YXJvhT61NUNXjTbk7kHKZuwyPVA7QgWZ",
+    "pool": "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d",
+    "maxSlippageBps": 50,
+    "qa": "docs/signer-qa.md#orca-whirlpool-deposit-and-withdraw",
+    "sends": [
+      {
+        "signature": "555Bqj4FM7QVkTeBr3gJyoCrQ767Rtc5tcVFNKUh34uez4dGxmbx5MgtqrYcqnanX2if4EzqR6dNMfUaXoeN7yUg",
+        "simulation": {
+          "computeUnits": 10435,
+          "estA": "9999999",
+          "estB": "0"
+        },
+        "liquidity": {
+          "before": "27422001",
+          "after": "0"
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.000006",
+            "feeLamportsApprox": "6000"
+          }
+        },
+        "bps": 10000
+      }
+    ],
+    "gaps": [
+      "The 9999999 lamports came back as wSOL in the canonical account and were unwrapped by closing it.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "close_token_account",
+    "issue": 192,
+    "codeSha": "947e970a3003f9a0cea1b42d068ebf33b0a5fa1b",
+    "cluster": "mainnet",
+    "qa": "docs/signer-qa.md#close-token-accounts",
+    "sends": [
+      {
+        "signature": "46rLYBNBdx6nX4BQeyqE3AnL3jUfcjQd2fnDBmmHbJUQh3VeSF7FwUbwinTWiZnF6QnongbH9FAZouXhX2mw26EZ",
+        "simulation": {
+          "computeUnits": 118
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.011482439",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "2Jtn8BFRGsENe52G1oQNKbtwitemzexSGi5s6NqZPizVfnqwP6sGe6D871TqukZ6kNxj2zhJsXo9FT1TrGWS9JGH",
+        "simulation": {
+          "computeUnits": 120
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.00148244",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "U2j7myhfNJSWXQBTuzoUY8N76sW2UDMpTgmfqFvkEu96pwJaEGRVAAQJu3YVDGn1XAjBEbufYCJVv1eRgG4zCrr",
+        "simulation": {
+          "computeUnits": 120
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.00148244",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "2C6Tzy6BqBJrCeiwCvoYqu9ug9tpBMbDvPVSeBihLuGQZKGWhzAUdBuYSJ5ro8maX2Fw9Un94e375ckZACNDs7Kj",
+        "simulation": {
+          "computeUnits": 1464
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.00150784",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The first send unwrapped the wSOL account BNP6pHgDRwiCNAJa3qfob88HbT9TWqwMFmHinZHTevAG (9999999 unwrapped, 1488440 rent); the others closed the empty USDT, RAY and Token-2022 pump-coin accounts.",
+      "Surfpool coverage is not claimed."
+    ],
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
   }
 ]
