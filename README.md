@@ -119,11 +119,12 @@ binary.
 
 ## Contributing
 
-Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) is the short version;
-[AGENTS.md](AGENTS.md) has the conventions the lint rules enforce. Issues labelled
-[good first issue](https://github.com/GuiBibeau/solos/labels/good%20first%20issue) are scoped
-for a first change. Report security problems through [SECURITY.md](SECURITY.md), never in a
-public issue.
+Issues are welcome: bugs with a reproduction, change requests, documentation mistakes. Pull
+requests are maintainer-only. solOS signs real transactions, every money path is live-tested by
+the maintainer before it ships, and in that security environment outside code is not merged,
+however good it is; [CONTRIBUTING.md](CONTRIBUTING.md) explains, and a workflow closes external
+pull requests automatically. Report security problems through [SECURITY.md](SECURITY.md), never
+in a public issue. The licence is Apache-2.0: fork and ship your own build freely.
 
 If solOS saves you time, a star on GitHub helps other agent builders find it.
 

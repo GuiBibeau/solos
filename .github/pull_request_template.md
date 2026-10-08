@@ -1,3 +1,5 @@
+<!-- Maintainer-only. Pull requests from forks are closed automatically; see CONTRIBUTING.md. -->
+
 ## What
 
 <!-- One paragraph. Link the issue: Closes #NNN -->

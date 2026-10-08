@@ -1,0 +1,37 @@
+name: external-pull-requests
+
+# solOS signs and sends real transactions, and every money path is live-tested by the maintainer
+# before it ships. Pull requests from outside the project are not accepted (CONTRIBUTING.md); this
+# closes them with the explanation. It runs on pull_request_target so the token can comment and
+# close on a fork's PR, and it never checks out or executes anything from the fork.
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  close:
+    # Branches pushed to this repository (the maintainer, Renovate, the changesets bot) are not forks.
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+    steps:
+      - name: Explain and close
+        run: |
+          gh pr comment "$PR_URL" --body-file - <<MSG
+          Thanks for taking the time to open this. solOS does not merge pull requests from outside the project, so this one is closed automatically. It is not a judgement of the change.
+
+          **Why.** solOS signs and sends real transactions. Every money path is live-tested by the maintainer with real funds before it ships, and the maintainer answers for every line that can move funds. In that security environment, code written outside the project is a risk we do not take, however good it is.
+
+          **What helps instead.** Open an issue describing the bug or the change you want, with a reproduction or the tool call and its JSON; the maintainer builds it, tests it on Surfpool, and live-validates it on mainnet when money moves. Security problems go through [SECURITY.md](${REPO_URL}/blob/main/SECURITY.md), privately. The licence is Apache-2.0, so your fork and this branch remain yours to ship.
+
+          [CONTRIBUTING.md](${REPO_URL}/blob/main/CONTRIBUTING.md) has the full policy.
+          MSG
+          gh pr close "$PR_URL"
