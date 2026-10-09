@@ -102,6 +102,12 @@ const reason = Options.text("reason").pipe(
 export const rollback = Command.make("rollback", { to, from, reason, skipRegistry, dryRun }, (o) =>
   attempt(async () => {
     const target = stable(o.to, "--to");
+    if (o.reason.trim().length === 0) {
+      throw new ReleaseRefused({
+        reason: "--reason is empty; npm reads an empty deprecation message as un-deprecating",
+        remedy: "pass --reason <why this version is rolled back>",
+      });
+    }
     const bad = Option.isSome(o.from) ? semver(o.from.value, "--from") : await currentLatest();
     if (bad === target) {
       throw new ReleaseRefused({

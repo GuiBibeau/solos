@@ -27,6 +27,10 @@ describe("release versions", () => {
     expect(parseVersion("1.2.3-canary.7.g1f232a4")?.prerelease).toBe("canary.7.g1f232a4");
     expect(parseVersion("v1.2.3")).toBeNull();
     expect(parseVersion("1.2")).toBeNull();
+    expect(parseVersion("01.0.0")).toBeNull();
+    expect(parseVersion("1.0.0-01")).toBeNull();
+    expect(parseVersion("1.0.0-")).toBeNull();
+    expect(parseVersion("1.0.0-rc.1")?.prerelease).toBe("rc.1");
     expect(formatVersion({ major: 1, minor: 2, patch: 3, prerelease: "rc.1" })).toBe("1.2.3-rc.1");
   });
 

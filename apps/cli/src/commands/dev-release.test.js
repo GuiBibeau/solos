@@ -50,6 +50,49 @@ describe("solos dev release", () => {
     });
   });
 
+  test("version refuses a prerelease --base", async () => {
+    const { stderr, code } = await runSolos(
+      [
+        "dev",
+        "release",
+        "version",
+        "--lane",
+        "stable",
+        "--bump",
+        "patch",
+        "--base",
+        "0.1.1-canary.7.g1f232a4",
+      ],
+      env,
+    );
+    expect(code).toBe(1);
+    expect(stderrJson(stderr)?.error).toMatchObject({
+      code: "ReleaseRefused",
+      reason: "--base 0.1.1-canary.7.g1f232a4 is not a stable semver version",
+    });
+  });
+
+  test("rollback refuses an empty reason, which npm would read as un-deprecating", async () => {
+    const { stderr, code } = await runSolos(
+      [
+        "dev",
+        "release",
+        "rollback",
+        "--to",
+        "0.1.0",
+        "--from",
+        "0.1.1",
+        "--reason",
+        "",
+        "--dry-run",
+      ],
+      env,
+    );
+    expect(code).toBe(1);
+    expect(stderrJson(stderr)?.error).toMatchObject({ code: "ReleaseRefused" });
+    expect(stderrJson(stderr)?.error.reason).toContain("--reason is empty");
+  });
+
   test("check reads the branch and names what a release PR still lacks", async () => {
     const { stdout, code } = await runSolos(
       ["dev", "release", "check", "--branch", "release/0.1.0"],

@@ -10,7 +10,14 @@ import { ReleaseRefused } from "./errors.js";
 /** @typedef {"patch" | "minor" | "major"} Bump */
 /** @typedef {"source" | "canary" | "stable"} Lane */
 
-const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?$/u;
+// The semver grammar npm accepts: no leading zeros on numbers, prerelease identifiers that are
+// either numbers without leading zeros or alphanumerics, dot-separated; build metadata is not used.
+const NUMBER = String.raw`(?:0|[1-9]\d*)`;
+const IDENTIFIER = String.raw`(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)`;
+const SEMVER = new RegExp(
+  String.raw`^(${NUMBER})\.(${NUMBER})\.(${NUMBER})(?:-(${IDENTIFIER}(?:\.${IDENTIFIER})*))?$`,
+  "u",
+);
 export const TAG_PREFIX = "solos@";
 
 /** @param {string} text @returns {Version | null} */

@@ -41,10 +41,10 @@ export const gitShowOrEmpty = async (spec) => {
 export const baseVersion = async (base) => {
   if (Option.isSome(base)) {
     const parsed = parseVersion(base.value);
-    if (parsed === null) {
+    if (parsed === null || parsed.prerelease !== null) {
       throw new ReleaseRefused({
-        reason: `--base ${base.value} is not a semver version`,
-        remedy: "pass --base <major.minor.patch>",
+        reason: `--base ${base.value} is not a stable semver version`,
+        remedy: "pass --base <major.minor.patch>, the stable release to derive from",
       });
     }
     return parsed;
