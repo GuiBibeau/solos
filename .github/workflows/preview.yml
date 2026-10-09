@@ -27,7 +27,8 @@ jobs:
       code: ${{ steps.files.outputs.code }}
     steps:
       # Code is anything that reaches the binary: the apps and packages, the dependency set, the
-      # Bun version, the setup action and this workflow. Docs, ADRs, issues and the landing are not.
+      # Bun version, the setup action and this workflow. Docs, ADRs, issues and the landing page
+      # (apps/landing, a static site) are not; jq drops the landing before the test below.
       - name: Does this pull request change code?
         id: files
         env:
@@ -36,7 +37,8 @@ jobs:
         run: |
           set -euo pipefail
           # A renamed file counts under both its names: moving source out of apps/ changes the binary.
-          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate \
+            --jq '.[] | .filename, (.previous_filename // empty) | select(startswith("apps/landing/") | not)')"
           # A here-string, not a pipe: with pipefail, grep -q closing early on a long listing
           # would turn a matching pull request into code=false.
           if grep -qE '^(apps/|packages/|package\.json$|bun\.lock$|\.bun-version$|\.github/actions/|\.github/workflows/preview\.yml$)' <<<"$files"; then
@@ -118,7 +120,7 @@ jobs:
             if [ "$CODE" != "true" ]; then
               echo "## Preview binaries: skipped for \`$short\`"
               echo
-              echo "This push changes no code (nothing under \`apps/\` or \`packages/\`, no dependency change), so there is nothing new to build."
+              echo "This push changes no code (nothing under \`apps/\` but the landing page, nothing under \`packages/\`, no dependency change), so there is nothing new to build."
             elif [ "$BUILD" != "success" ]; then
               echo "## Preview binaries: build $BUILD for \`$short\`"
               echo
