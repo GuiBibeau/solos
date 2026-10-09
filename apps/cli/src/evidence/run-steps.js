@@ -19,13 +19,13 @@ const DEFAULT_NODE_OPTIONS = "--max-old-space-size=6144";
 
 /**
  * Spawn a command and capture its combined output.
- * @param {string[]} argv
+ * @param {string[]} argv @param {string} [cwd] where to run it; default: the current directory
  * @returns {Promise<{ code: number; output: string }>}
  */
-export const captureCommand = async (argv) => {
+export const captureCommand = async (argv, cwd) => {
   try {
     const env = { ...process.env, NODE_OPTIONS: process.env.NODE_OPTIONS ?? DEFAULT_NODE_OPTIONS };
-    const proc = Bun.spawn(argv, { env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn(argv, { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),

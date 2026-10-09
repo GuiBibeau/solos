@@ -8,7 +8,7 @@ import { TARGETS } from "../build/targets.js";
 import { SCOPE } from "../npm/launcher-lib.js";
 import { releaseTag } from "./version.js";
 
-/** @typedef {{ name: string; argv: string[] }} Step */
+/** @typedef {{ name: string; argv: string[]; cwd?: string }} Step */
 
 /** The launcher, then one platform package per build target. */
 export const releasePackages = () => [
@@ -34,13 +34,28 @@ export const promotePlan = ({ version, registry }) => [
   ...(registry ? [{ name: "MCP Registry publish", argv: ["mcp-publisher", "publish"] }] : []),
 ];
 
-/** @param {{ to: string; from: string; reason: string }} input @returns {Step[]} */
-export const rollbackPlan = ({ to, from, reason }) => [
+/**
+ * Point back, deprecate the bad version everywhere, then republish the MCP Registry from the
+ * target's own `server.json`, which the caller has placed in `registryDir` (ADR-0036). Without
+ * that last step MCP clients would keep discovering the rolled-back version.
+ * @param {{ to: string; from: string; reason: string; registryDir?: string }} input
+ * @returns {Step[]}
+ */
+export const rollbackPlan = ({ to, from, reason, registryDir }) => [
   ...pointLatestAt(to),
   ...releasePackages().map((pkg) => ({
     name: `deprecate ${pkg}@${from}`,
     argv: ["npm", "deprecate", `${pkg}@${from}`, reason],
   })),
+  ...(registryDir === undefined
+    ? []
+    : [
+        {
+          name: `MCP Registry republish from ${releaseTag(to)}`,
+          argv: ["mcp-publisher", "publish"],
+          cwd: registryDir,
+        },
+      ]),
 ];
 
 /** The argv that proves `pkg@version` exists on npm. @param {string} pkg @param {string} version */

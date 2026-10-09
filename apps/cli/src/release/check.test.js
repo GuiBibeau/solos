@@ -57,6 +57,6 @@ describe("release PR check", () => {
   test("a branch that is not release/<semver> is refused outright", () => {
     const report = checkReleasePr({ branch: "feat/x", serverJson: manifest("0.1.1"), notes: null });
     expect(report.version).toBeNull();
-    expect(report.problems[0]?.remedy).toContain("solos dev release prepare");
+    expect(report.problems[0]?.remedy).toContain("check out release/<semver>");
   });
 });

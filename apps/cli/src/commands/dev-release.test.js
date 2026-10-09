@@ -79,6 +79,37 @@ describe("solos dev release", () => {
     expect(result.steps.every((/** @type {{ ok: unknown }} */ s) => s.ok === null)).toBe(true);
   });
 
+  test("promote refuses a canary: latest only ever points at a stable version", async () => {
+    const { stderr, code } = await runSolos(
+      ["dev", "release", "promote", "0.1.1-canary.7.g1f232a4", "--dry-run"],
+      env,
+    );
+    expect(code).toBe(1);
+    expect(stderrJson(stderr)?.error).toMatchObject({
+      code: "ReleaseRefused",
+      reason:
+        "version 0.1.1-canary.7.g1f232a4 is a prerelease; latest only ever points at a stable version",
+    });
+  });
+
+  test("rollback --dry-run ends with the registry republish from the target's tag", async () => {
+    const { stdout, code } = await runSolos(
+      ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.1", "--dry-run"],
+      env,
+    );
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.steps.at(-1)).toMatchObject({
+      name: "MCP Registry republish from solos@0.1.0",
+      command: "mcp-publisher publish",
+      ok: null,
+    });
+    const deprecations = result.steps.filter((/** @type {{ command: string }} */ s) =>
+      s.command.startsWith("npm deprecate"),
+    );
+    expect(deprecations).toHaveLength(5);
+  });
+
   test("rollback refuses when latest already points at the target", async () => {
     const { stderr, code } = await runSolos(
       ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.0", "--dry-run"],

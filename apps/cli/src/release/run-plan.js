@@ -7,7 +7,7 @@ import { captureCommand, lastLine } from "../evidence/run-steps.js";
 import { ReleaseRefused } from "./errors.js";
 import { latestProbe, publishedProbe, releasePackages } from "./plans.js";
 
-/** @typedef {(argv: string[]) => Promise<{ code: number; output: string }>} Runner */
+/** @typedef {(argv: string[], cwd?: string) => Promise<{ code: number; output: string }>} Runner */
 /** @typedef {import("./plans.js").Step} Step */
 /** @typedef {{ name: string; command: string; ok: boolean | null; summary: string }} RanStep */
 
@@ -24,7 +24,7 @@ export const runPlan = async (steps, { runner = captureCommand, dryRun }) => {
       ran.push({ name: step.name, command, ok: null, summary: "dry run" });
       continue;
     }
-    const { code, output } = await runner(step.argv);
+    const { code, output } = await runner(step.argv, step.cwd);
     ran.push({ name: step.name, command, ok: code === 0, summary: lastLine(output) });
     if (code !== 0) break;
   }

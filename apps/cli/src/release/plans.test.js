@@ -40,15 +40,40 @@ describe("promotion and rollback plans", () => {
     expect(promotePlan({ version: "0.1.1", registry: false }).at(-1)?.argv[0]).toBe("gh");
   });
 
-  test("rollback points back, then deprecates the rolled-back version everywhere", () => {
-    const argv = rollbackPlan({ to: "0.1.0", from: "0.1.1", reason: "bad build" }).map((s) =>
-      s.argv.join(" "),
-    );
+  test("rollback points back, deprecates everywhere, then republishes the registry from the target", () => {
+    const plan = rollbackPlan({
+      to: "0.1.0",
+      from: "0.1.1",
+      reason: "bad build",
+      registryDir: "/tmp/r",
+    });
+    const argv = plan.map((s) => s.argv.join(" "));
     expect(argv[0]).toBe("npm dist-tag add @solos-sh/cli@0.1.0 latest");
     expect(argv[5]).toBe("gh release edit solos@0.1.0 --latest --prerelease=false");
-    expect(argv.slice(6)).toEqual(
+    expect(argv.slice(6, 11)).toEqual(
       releasePackages().map((pkg) => `npm deprecate ${pkg}@0.1.1 bad build`),
     );
+    expect(plan.at(-1)).toEqual({
+      name: "MCP Registry republish from solos@0.1.0",
+      argv: ["mcp-publisher", "publish"],
+      cwd: "/tmp/r",
+    });
+    expect(rollbackPlan({ to: "0.1.0", from: "0.1.1", reason: "x" }).at(-1)?.argv[0]).toBe("npm");
+  });
+
+  test("the runner receives a step's cwd", async () => {
+    /** @type {Array<string | undefined>} */
+    const cwds = [];
+    const runner = async (/** @type {string[]} */ _argv, /** @type {string | undefined} */ cwd) => {
+      cwds.push(cwd);
+      return { code: 0, output: "ok" };
+    };
+    const steps = [
+      { name: "a", argv: ["x"] },
+      { name: "b", argv: ["y"], cwd: "/tmp/r" },
+    ];
+    await runPlan(steps, { runner, dryRun: false });
+    expect(cwds).toEqual([undefined, "/tmp/r"]);
   });
 
   test("a dry run prints every step and runs nothing; a failure stops the plan", async () => {

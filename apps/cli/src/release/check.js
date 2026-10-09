@@ -100,7 +100,8 @@ export const checkReleasePr = ({ branch, serverJson, notes }) => {
   if (version === null) {
     const problem = {
       reason: `branch ${branch} is not release/<semver>`,
-      remedy: "run solos dev release prepare, which names the branch",
+      remedy:
+        "check out release/<semver>, set both server.json versions to it and write docs/releases/<semver>.md with solos dev release notes",
     };
     return { ok: false, version: null, major: false, problems: [problem] };
   }
