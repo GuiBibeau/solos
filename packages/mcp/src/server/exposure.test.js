@@ -70,6 +70,23 @@ describe("exposure by tier ceiling and feature flag (ADR-0036)", () => {
     expect(enabled).toContain("solana_swap_simulate_route — Simulate a routed swap\n");
   });
 
+  test("with --tools all the up-front sentence does not claim withheld experimental tools", () => {
+    const allButExperimental = buildInstructions(tools, {
+      ceiling: "execute",
+      discovery: false,
+      experimental: false,
+    });
+    expect(allButExperimental).toContain(
+      "Every tool the tier ceiling permits, except the experimental ones, is advertised up front.",
+    );
+    const all = buildInstructions(tools, {
+      ceiling: "execute",
+      discovery: false,
+      experimental: true,
+    });
+    expect(all).toContain("Every tool the tier ceiling permits is advertised up front.");
+  });
+
   test("a tool both above the ceiling and experimental names both gates", () => {
     const both = buildInstructions(tools, { ceiling: "read", experimental: false });
     expect(both).toContain(

@@ -7,11 +7,11 @@ check` fails when it drifts. Do not edit it by hand.
 | Tool | Tier | Stability | Slice |
 |---|---|---|---|
 | `solana_discovery_search_tools` | read | beta | `discovery` |
-| `solana_launch_execute_buy` | execute | beta | `launch` |
-| `solana_launch_execute_sell` | execute | beta | `launch` |
+| `solana_launch_execute_buy` | execute | stable | `launch` |
+| `solana_launch_execute_sell` | execute | stable | `launch` |
 | `solana_launch_get_curve` | read | beta | `launch` |
-| `solana_launch_simulate_buy` | simulate | beta | `launch` |
-| `solana_launch_simulate_sell` | simulate | beta | `launch` |
+| `solana_launch_simulate_buy` | simulate | stable | `launch` |
+| `solana_launch_simulate_sell` | simulate | stable | `launch` |
 | `solana_lend_execute_deposit` | execute | stable | `lend` |
 | `solana_lend_execute_withdraw` | execute | stable | `lend` |
 | `solana_lend_get_position` | read | beta | `lend` |

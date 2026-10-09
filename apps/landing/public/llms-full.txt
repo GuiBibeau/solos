@@ -36,7 +36,7 @@ Find which solOS tools serve a request, and make them callable. Most tools are w
 
 ### solana_launch_execute_buy
 
-Tier: execute. Stability: beta. Buy a pump.fun coin.
+Tier: execute. Stability: stable. Buy a pump.fun coin.
 
 Buy a pump.fun coin with a bounded SOL budget and submit it. amount is the maximum SOL the wallet may spend, in lamports, including Pump's trading fees — it is never a token quantity, and the same maximum is encoded in the transaction, so nothing more can ever be spent. Network fees and any account rent are reported separately and sit outside that budget. The executor re-reads live curve state and derives the minimum tokens the program must deliver from it and maxSlippageBps; that minimum is enforced on chain, so a curve that moves between planning and landing reverts the buy instead of filling it badly. The exact transaction that will be submitted is simulated first unless skipSimulation is true, which bypasses only the simulation and never the validation or that minimum. A completed curve, a curve quoted in anything but SOL, a missing curve, an unsupported mint extension or an underfunded wallet sends nothing, and the buy is never rerouted to PumpSwap or Jupiter. An ambiguous submission keeps its signature in a structured failure and is never re-sent or rebuilt; confirmation is not proof of the requested fill. The curve-side exit is solana_launch_execute_sell, which stops working once the curve completes. Use solana_launch_simulate_buy to preview.
 
@@ -47,7 +47,7 @@ Buy a pump.fun coin with a bounded SOL budget and submit it. amount is the maxim
 
 ### solana_launch_execute_sell
 
-Tier: execute. Stability: beta. Sell a pump.fun coin.
+Tier: execute. Stability: stable. Sell a pump.fun coin.
 
 Sell a pump.fun coin back to its bonding curve and submit it. amount is the exact quantity of the coin to sell, in its base units — it is never a SOL figure. The executor re-reads live curve state and derives the least SOL the program must return from it and maxSlippageBps; that minimum is enforced on chain, so a curve that moves between planning and landing reverts the sell instead of filling it badly. Network fees are reported separately. The exact transaction that will be submitted is simulated first unless skipSimulation is true, which bypasses only the simulation and never the validation or that minimum. A completed curve, a curve quoted in anything but SOL, a missing curve, an unsupported mint extension, or a wallet holding less of the coin than the sell asks for sends nothing, and the sell is never rerouted to PumpSwap or Jupiter. An ambiguous submission keeps its signature in a structured failure and is never re-sent or rebuilt; confirmation is not proof of the requested fill. This is the curve-side exit for a coin bought with solana_launch_execute_buy. Use solana_launch_simulate_sell to preview.
 
@@ -66,7 +66,7 @@ Read the current state of a pump.fun bonding curve for one launched token mint: 
 
 ### solana_launch_simulate_buy
 
-Tier: simulate. Stability: beta. Simulate a pump.fun buy.
+Tier: simulate. Stability: stable. Simulate a pump.fun buy.
 
 Simulate buying a pump.fun coin with a bounded SOL budget without submitting anything. amount is the maximum SOL the wallet may spend, in lamports, including Pump's trading fees — it is never a token quantity, and the same maximum is encoded in the transaction, so nothing more can ever be spent. Network fees and any account rent are reported separately and sit outside that budget. The executor re-reads live curve state and derives the minimum tokens the program must deliver from it and maxSlippageBps; that minimum is enforced on chain, so a curve that moves reverts the buy instead of filling it badly. A completed curve, a curve quoted in anything but SOL, a missing curve, an unsupported mint extension or an underfunded wallet is reported without building or sending, and the buy is never rerouted to PumpSwap or Jupiter. Nothing is ever signed for submission, and a later execute re-plans and may differ. The curve-side exit is solana_launch_simulate_sell / solana_launch_execute_sell, which stop working once the curve completes. Use solana_launch_execute_buy to send.
 
@@ -76,7 +76,7 @@ Simulate buying a pump.fun coin with a bounded SOL budget without submitting any
 
 ### solana_launch_simulate_sell
 
-Tier: simulate. Stability: beta. Simulate a pump.fun sell.
+Tier: simulate. Stability: stable. Simulate a pump.fun sell.
 
 Simulate selling a pump.fun coin back to its bonding curve without submitting anything. amount is the exact quantity of the coin to sell, in its base units — it is never a SOL figure. The executor re-reads live curve state and derives the least SOL the program must return from it and maxSlippageBps; that minimum is enforced on chain, so a curve that moves reverts the sell instead of filling it badly. Network fees are reported separately. A completed curve, a curve quoted in anything but SOL, a missing curve, an unsupported mint extension, or a wallet holding less of the coin than the sell asks for is reported without building or sending, and the sell is never rerouted to PumpSwap or Jupiter. Nothing is ever signed for submission, and a later execute re-plans and may differ. Use solana_launch_execute_sell to send.
 

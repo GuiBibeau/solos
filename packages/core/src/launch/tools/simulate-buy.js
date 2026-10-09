@@ -7,7 +7,7 @@ export const simulateBuyTool = defineTool({
   name: "solana_launch_simulate_buy",
   group: "launch",
   tier: "simulate",
-  stability: "beta",
+  stability: "stable",
   action: "swap",
   title: "Simulate a pump.fun buy",
   description:

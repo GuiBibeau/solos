@@ -20,19 +20,21 @@ const HEADER = [
  * ceiling keeps out of reach; and whether experimental tools are withheld (ADR-0036).
  * @param {Availability} options @param {ReadonlyArray<Tool>} tools
  */
-const availability = ({ ceiling, discovery, experimental }, tools) => [
-  discovery
-    ? `Most tools are withheld until asked for. Call ${SEARCH_TOOL} with a query in your own words, one group, or exact names; the matching tools then join the tool list with their full schema (tools/list_changed). Always available: ${BOOTSTRAP_TOOLS.join(", ")}.`
-    : "Every tool the tier ceiling permits is advertised up front.",
-  ...(ceiling === "execute"
-    ? []
-    : [
-        `Tier ceiling: ${ceiling}. Tools above it exist and are marked unavailable below; the Operator raises the ceiling with --tier.`,
-      ]),
-  ...(!experimental && tools.some((tool) => tool.stability === "experimental")
-    ? [EXPERIMENTAL_LINE]
-    : []),
-];
+const availability = ({ ceiling, discovery, experimental }, tools) => {
+  const withholdsExperimental =
+    !experimental && tools.some((tool) => tool.stability === "experimental");
+  return [
+    discovery
+      ? `Most tools are withheld until asked for. Call ${SEARCH_TOOL} with a query in your own words, one group, or exact names; the matching tools then join the tool list with their full schema (tools/list_changed). Always available: ${BOOTSTRAP_TOOLS.join(", ")}.`
+      : `Every tool the tier ceiling permits${withholdsExperimental ? ", except the experimental ones," : ""} is advertised up front.`,
+    ...(ceiling === "execute"
+      ? []
+      : [
+          `Tier ceiling: ${ceiling}. Tools above it exist and are marked unavailable below; the Operator raises the ceiling with --tier.`,
+        ]),
+    ...(withholdsExperimental ? [EXPERIMENTAL_LINE] : []),
+  ];
+};
 
 /**
  * Why a listed tool cannot be called here, or nothing. A tool both above the ceiling and

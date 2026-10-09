@@ -7,7 +7,7 @@ export const executeBuyTool = defineTool({
   name: "solana_launch_execute_buy",
   group: "launch",
   tier: "execute",
-  stability: "beta",
+  stability: "stable",
   action: "swap",
   title: "Buy a pump.fun coin",
   description:

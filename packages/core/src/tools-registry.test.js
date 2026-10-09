@@ -84,6 +84,10 @@ describe("tool registry", () => {
       else expect(typeof tool.action, tool.name).toBe("string");
     }
     expect(allTools.filter((t) => t.stability === "stable").map((t) => t.name)).toEqual([
+      "solana_launch_execute_buy",
+      "solana_launch_execute_sell",
+      "solana_launch_simulate_buy",
+      "solana_launch_simulate_sell",
       "solana_lend_execute_deposit",
       "solana_lend_execute_withdraw",
       "solana_lend_simulate_deposit",
