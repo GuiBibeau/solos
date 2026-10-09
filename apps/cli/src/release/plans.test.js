@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { promotePlan, releasePackages, rollbackPlan } from "./plans.js";
-import { assertPublished, currentLatest, runPlan } from "./run-plan.js";
+import { assertForward, assertPublished, currentLatest, runPlan } from "./run-plan.js";
 
 /** @param {Record<string, { code: number; output: string }>} answers */
 const fakeRunner = (answers) => {
@@ -88,6 +88,22 @@ describe("promotion and rollback plans", () => {
     ];
     await runPlan(steps, { runner, dryRun: false });
     expect(cwds).toEqual([undefined, "/tmp/r"]);
+  });
+
+  test("promotion only moves forward from the current latest", () => {
+    expect(assertForward("0.1.1", "0.1.0")).toBeUndefined();
+    expect(() => assertForward("0.1.0", "0.1.0")).toThrow();
+    expect(() => assertForward("0.0.9", "0.1.0")).toThrow();
+    let refusal;
+    try {
+      assertForward("0.0.9", "0.1.0");
+    } catch (error) {
+      refusal = error;
+    }
+    expect(refusal).toMatchObject({
+      _tag: "ReleaseRefused",
+      reason: "0.0.9 is not newer than latest, 0.1.0; promote only moves forward",
+    });
   });
 
   test("published checks refuse a version npm does not have, and read the current latest", async () => {

@@ -13,7 +13,7 @@ import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { ReleaseRefused } from "../release/errors.js";
 import { promotePlan, rollbackPlan } from "../release/plans.js";
-import { assertPublished, currentLatest, runPlan } from "../release/run-plan.js";
+import { assertForward, assertPublished, currentLatest, runPlan } from "../release/run-plan.js";
 import { compareVersions, parseVersion, releaseTag } from "../release/version.js";
 import { attempt, dryRun, git } from "./dev-release-shared.js";
 
@@ -75,7 +75,10 @@ export const promote = Command.make(
   (o) =>
     attempt(async () => {
       const version = stable(o.version, "version");
-      if (!o.dryRun) await assertPublished(version);
+      if (!o.dryRun) {
+        assertForward(version, await currentLatest());
+        await assertPublished(version);
+      }
       const registryDir = await registryDirMaybe(version, {
         skip: o.skipRegistry,
         dryRun: o.dryRun,

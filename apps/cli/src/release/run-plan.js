@@ -6,6 +6,7 @@
 import { captureCommand, lastLine } from "../evidence/run-steps.js";
 import { ReleaseRefused } from "./errors.js";
 import { latestProbe, publishedProbe, releasePackages } from "./plans.js";
+import { compareVersions, parseVersion } from "./version.js";
 
 /** @typedef {(argv: string[], cwd?: string) => Promise<{ code: number; output: string }>} Runner */
 /** @typedef {import("./plans.js").Step} Step */
@@ -47,6 +48,22 @@ export const assertPublished = async (version, runner = captureCommand) => {
     throw new ReleaseRefused({
       reason: `${missing.join(", ")} not published at ${version}`,
       remedy: "promote or roll back only to a version the release workflow published",
+    });
+  }
+};
+
+/**
+ * Promotion only moves forward: a version at or behind what `latest` points at is a rollback in
+ * disguise, without rollback's checks and deprecation.
+ * @param {string} version @param {string} latest
+ */
+export const assertForward = (version, latest) => {
+  const next = parseVersion(version);
+  const current = parseVersion(latest);
+  if (next === null || current === null || compareVersions(next, current) <= 0) {
+    throw new ReleaseRefused({
+      reason: `${version} is not newer than latest, ${latest}; promote only moves forward`,
+      remedy: "promote the staged candidate, or use rollback to go back",
     });
   }
 };
