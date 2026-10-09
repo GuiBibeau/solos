@@ -3115,5 +3115,88 @@
       "Surfpool coverage is not claimed."
     ],
     "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f"
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "protocol": "jupiter",
+    "codeSha": "ba2d217d835a05223283e21f6c543fdc47935aaa",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/swap-qa.md#local-two-dollar-round-trip-2026-10-08",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000218247",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "raw",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "KsacJCoBnq6cY51mp6278BrZ9CosAiNyPHERyqcEDnjWpBjWrSRAa4p2AvWd9AjftWqrNUK92N1e7WMeQmRwkFc",
+        "simulation": {
+          "computeUnits": 82316,
+          "violations": []
+        },
+        "budgets": {
+          "a": {
+            "symbol": "SOL",
+            "unit": "raw",
+            "amount": "17267637"
+          }
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.017372637",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "before": "0",
+            "after": "1998371",
+            "delta": "+1998371"
+          }
+        }
+      },
+      {
+        "signature": "4WPw3UKgPXALkBRBCoVNFLCmcsWQF8adVXe9eUYdb9i7KyLAE6nAU76Z6dFYLJaqV16pKR93fDbwBXmXERhA6rBA",
+        "simulation": {
+          "computeUnits": 121277,
+          "violations": []
+        },
+        "budgets": {
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "amount": "1998371"
+          }
+        },
+        "wallet": {
+          "sol": {
+            "delta": "+0.017154390",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "raw",
+            "before": "1998371",
+            "after": "0",
+            "delta": "-1998371"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The round ran the named HEAD with a dirty working tree containing read-only QA inspection additions and unrelated pre-existing changes; it is not clean-commit PR Evidence.",
+      "The compute-unit figures are from separate fresh preview builds (MCP on the first leg, CLI on the return), not the submitted builds.",
+      "An earlier first-leg signature 2nzPWLMbagtsJQoSn4R2ifmEYnBYx9hjRAgUEYYEsZkhBf8PghDgetxaSdW3PkgFgkupvo2CQKijxVYBUTRXmUVc hit the confirmation deadline, was absent from history after its expiry bound and cost zero. The landing failure was not diagnosed.",
+      "The 8247-lamport trade loss was measured; its spread and venue-fee split was not.",
+      "No GitHub issue was opened for this operator-requested local QA round."
+    ]
   }
 ]
