@@ -29,7 +29,7 @@ export const parseVersion = (text) => {
   const match = SEMVER.exec(text);
   if (match === null) return null;
   const [major, minor, patch] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  if (![major, minor, patch].every((part) => Number.isSafeInteger(part))) return null;
+  if ([major, minor, patch].some((part) => !Number.isSafeInteger(part))) return null;
   return { major, minor, patch, prerelease: match[4] ?? null };
 };
 
