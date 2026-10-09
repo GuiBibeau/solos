@@ -21,6 +21,8 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      pull-requests: read
     outputs:
       code: ${{ steps.files.outputs.code }}
     steps:
@@ -56,10 +58,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
+      # The head commit, not the merge commit a pull_request run checks out by default: the
+      # binary must be reproducible from the commit it advertises.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/setup
       # A preview is a build of the source, so it reports version 0.0.0 (lane source) and the
-      # pull request's head commit, which is not the merge commit checked out here.
+      # head commit it was built from.
       - name: Build and smoke-test
         env:
           COMMIT: ${{ github.event.pull_request.head.sha }}
