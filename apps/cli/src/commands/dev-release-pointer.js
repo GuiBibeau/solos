@@ -28,7 +28,7 @@ const semver = (value, flag) => {
   return value;
 };
 
-/** `latest` only ever points at a stable version: a canary never reaches it, nor the registry. */
+/** The stable lane's versions only: `latest` never points at a canary, and never rolls back from one. */
 const stable = (/** @type {string} */ value, /** @type {string} */ flag) => {
   if (parseVersion(semver(value, flag))?.prerelease !== null) {
     throw new ReleaseRefused({
@@ -116,7 +116,7 @@ export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (
         remedy: "pass --reason <why this version is rolled back>",
       });
     }
-    const bad = Option.isSome(o.from) ? semver(o.from.value, "--from") : await currentLatest();
+    const bad = Option.isSome(o.from) ? stable(o.from.value, "--from") : await currentLatest();
     // A rollback restores a previous release: --to must be older than --from, never equal or
     // newer, or the "rollback" would move every latest pointer forward.
     const toParsed = /** @type {import("../release/version.js").Version} */ (parseVersion(target));

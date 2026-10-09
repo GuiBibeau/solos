@@ -47,6 +47,9 @@ const manifestProblems = (serverJson, version) => {
   return problems;
 };
 
+/** @param {string} text */
+const withoutComments = (text) => text.replaceAll(/<!--[\s\S]*?-->/gu, "");
+
 /**
  * The text under `## Migration` up to the next heading, with HTML comments removed, so the
  * generated placeholder does not count as a filled section.
@@ -58,7 +61,7 @@ const migrationBody = (notes) => {
   const rest = notes.slice(start).split("\n").slice(1);
   const end = rest.findIndex((line) => /^#{1,2} /u.test(line));
   const body = (end === -1 ? rest : rest.slice(0, end)).join("\n");
-  return body.replaceAll(/<!--[\s\S]*?-->/gu, "").trim();
+  return withoutComments(body).trim();
 };
 
 /** @param {string} notes @param {string} version @returns {Problem[]} */
@@ -73,7 +76,7 @@ const majorProblems = (notes, version) => {
       remedy: "write what changes for users and how they move, under ## Migration",
     });
   }
-  if (!ADR_LINK.test(notes)) {
+  if (!ADR_LINK.test(withoutComments(notes))) {
     problems.push({
       reason: `${version} is a major and ${file} names no ADR`,
       remedy: "link the ADR that decided the break, e.g. docs/adr/00NN-<slug>.md",
