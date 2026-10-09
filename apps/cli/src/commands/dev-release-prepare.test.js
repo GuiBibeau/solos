@@ -5,7 +5,14 @@ import path from "node:path";
 import { runSolos, stderrJson } from "./cli-fixture.js";
 import { gitIn, releasedRepo } from "./release-fixture.js";
 
-const env = { SOLOS_DEV: "1" };
+/** The commit prepare makes needs an identity; a CI runner has none of its own. */
+const env = {
+  SOLOS_DEV: "1",
+  GIT_AUTHOR_NAME: "solos",
+  GIT_AUTHOR_EMAIL: "solos@example.com",
+  GIT_COMMITTER_NAME: "solos",
+  GIT_COMMITTER_EMAIL: "solos@example.com",
+};
 const manifest = JSON.stringify(
   { name: "io.github.GuiBibeau/solos", version: "0.0.9", packages: [{ version: "0.0.9" }] },
   null,
@@ -30,12 +37,12 @@ describe("solos dev release prepare [integration]", () => {
     });
     expect(existsSync(path.join(dir, "docs", "releases", "0.0.10.md"))).toBe(false);
 
-    const { stdout, code } = await runSolos(
+    const { stdout, stderr, code } = await runSolos(
       ["dev", "release", "prepare", "--bump", "patch", "--no-pr"],
       env,
       { cwd: dir },
     );
-    expect(code).toBe(0);
+    expect(code, stderr).toBe(0);
     const report = JSON.parse(stdout);
     expect(report).toMatchObject({ version: "0.0.10", branch: "release/0.0.10", pr: null });
     expect(report.commit).toMatch(/^[0-9a-f]{40}$/);
