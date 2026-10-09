@@ -85,13 +85,14 @@ beside the version. There is no separate channel file to drift.
   **beta** tool may change in a minor, and the release notes say so; an **experimental** tool
   may change or disappear in any release.
 - An execute or simulate tool may be `stable` only when its Action has a `live-validated` row in
-  `features/feature-map.json`. The docs gate checks that rule, so a label cannot outrun a funded
-  round. Read tools are labelled by the maintainer and the rule for them is written in the
-  tool's issue.
+  `features/feature-map.json`. The tool names the Action type it builds in `action`; that is how
+  the docs gate finds the row, so a label cannot outrun a funded round. Read tools are labelled
+  by the maintainer and the rule for them is written in the tool's issue.
 - Exposure follows the label the way it follows the tier (ADR-0029, ADR-0033): `stable` and
   `beta` tools register as today; `experimental` tools register only when the server starts with
   `--features experimental` (or `SOLOS_FEATURES=experimental`, which `solos connect --features
-  experimental` writes into the client config). Discovery still names a withheld experimental
+  experimental` writes into the client config); `solos agent run --features experimental` is
+  the same gate on the agent loop. Discovery still names a withheld experimental
   tool, marks it unavailable and says how to turn it on, exactly as it does for a tool above the
   tier ceiling.
 - The label is rendered wherever a tool is described: the generated reference tables, the

@@ -140,13 +140,15 @@ has a port tag and domain types and nothing wired. `market` covers Elfa Chat, to
 and summaries, Jupiter prices and on-chain token metadata.
 
 `discovery` owns the one tool every other tool is found through. The MCP server registers every
-tool the tier ceiling permits but advertises only `solana_discovery_search_tools`, the wallet
+tool the tier ceiling permits and the feature flags enable (experimental tools need
+`--features experimental`, ADR-0036) but advertises only `solana_discovery_search_tools`, the wallet
 balance and the portfolio state; a search (free text, one group, or exact names) enables its
 matches and fires `tools/list_changed` (ADR-0029). Free text goes through the `ToolSelector`
 port: JEV through Vercel AI Gateway when `AI_GATEWAY_API_KEY` is set, the local matcher otherwise
 or when JEV fails or is slow. The `ToolCatalogue` port carries the registry and the ceiling into
 the use case; composition roots provide it. `--tools all` (or `SOLOS_TOOLS=all`) advertises
-everything up front for clients that ignore list changes. Adapters live in
+everything the ceiling and the feature flags admit up front, for clients that ignore list
+changes. Adapters live in
 `packages/solana/src/discovery/`; `solos discovery select --query` runs a bare selection.
 
 ## Conventions that lint will enforce
@@ -163,9 +165,12 @@ everything up front for clients that ignore list changes. Adapters live in
   They never touch a signer or RPC. `DirectSignerExecutor` (local keypair) is the default; a vault
   engine is a different Layer, never a dependency (ADR-0013, ADR-0014).
 - Tools: `defineTool` in `<slice>/tools/`, named `solana_<group>_<verb>_<object>`, tier
-  `read | simulate | execute`, every argument `.describe()`d, description written the way a user
-  would ask. Every `execute` tool has a `simulate` twin. `packages/core/src/tools-registry.test.js`
-  enforces all of this.
+  `read | simulate | execute`, a `stability` label `experimental | beta | stable` (ADR-0036), every
+  argument `.describe()`d, description written the way a user would ask. Every `execute` tool has
+  a `simulate` twin. A simulate or execute tool names the Action type it builds in `action` and
+  may be `stable` only when `features/feature-map.json` holds a live-validated row for it, which
+  `solos dev docs check` enforces; `experimental` tools register only under `--features
+  experimental`. `packages/core/src/tools-registry.test.js` enforces the rest.
 - Production files are capped at 150 logical lines (comments and blanks excluded) and 225 physical
   lines; test files are capped at 300 logical and physical lines. `solos dev check` blocks changed
   files over those physical limits, requires touched legacy debt to be split, and reports untouched

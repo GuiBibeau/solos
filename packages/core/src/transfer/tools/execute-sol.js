@@ -8,6 +8,8 @@ export const executeSolTool = defineTool({
   name: "solana_transfer_execute_sol",
   group: "transfer",
   tier: "execute",
+  stability: "stable",
+  action: "transfer_sol",
   title: "Send SOL",
   description:
     "Send SOL from the configured signer wallet to a recipient address and wait for confirmation. " +

@@ -7,6 +7,8 @@ export const executeBuyTool = defineTool({
   name: "solana_launch_execute_buy",
   group: "launch",
   tier: "execute",
+  stability: "stable",
+  action: "swap",
   title: "Buy a pump.fun coin",
   description:
     "Buy a pump.fun coin with a bounded SOL budget and submit it. amount is the maximum SOL " +

@@ -1,6 +1,12 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { canAdmitExternalTools, INVALID_TIER, tierCeiling } from "./tool-ceiling.js";
+import {
+  INVALID_FEATURES,
+  INVALID_TIER,
+  canAdmitExternalTools,
+  featureFlags,
+  tierCeiling,
+} from "./tool-ceiling.js";
 
 describe("tierCeiling", () => {
   test("the flag wins over the environment", () => {
@@ -30,5 +36,16 @@ describe("canAdmitExternalTools", () => {
     expect(canAdmitExternalTools("execute")).toBe(true);
     expect(canAdmitExternalTools("simulate")).toBe(false);
     expect(canAdmitExternalTools("read")).toBe(false);
+  });
+
+  test("experimental tools are withheld unless the flag or SOLOS_FEATURES enables them (ADR-0036)", () => {
+    expect(featureFlags(undefined, {})).toEqual({ experimental: false });
+    expect(featureFlags(undefined, { SOLOS_FEATURES: " " })).toEqual({ experimental: false });
+    expect(featureFlags(undefined, { SOLOS_FEATURES: "experimental" })).toEqual({
+      experimental: true,
+    });
+    expect(featureFlags("experimental", {})).toEqual({ experimental: true });
+    expect(() => featureFlags(undefined, { SOLOS_FEATURES: "beta" })).toThrow(INVALID_FEATURES);
+    expect(() => featureFlags("all", { SOLOS_FEATURES: "experimental" })).toThrow(INVALID_FEATURES);
   });
 });

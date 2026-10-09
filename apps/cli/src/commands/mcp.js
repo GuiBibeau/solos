@@ -1,7 +1,7 @@
 // @ts-check
 import { Args, Command, Options } from "@effect/cli";
 import { SEARCH_TOOL, connectMcp, solosServerCommand } from "@solos/mcp";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { serve } from "./mcp-serve.js";
 
@@ -16,6 +16,7 @@ const FORWARDED_ENV = [
   "SOLOS_LOG_LEVEL",
   "SOLOS_TOOL_TIER",
   "SOLOS_TOOLS",
+  "SOLOS_FEATURES",
   // Market intelligence (Elfa Iris): key + optional base URL override for fixtures.
   "ELFA_API_KEY",
   "ELFA_BASE_URL",
@@ -31,26 +32,47 @@ const FORWARDED_ENV = [
   "AI_GATEWAY_BASE_URL",
 ];
 
-/** Spawn our own server exactly as an external client would, forwarding only known env keys. */
-const connect = Effect.acquireRelease(
-  Effect.promise(() =>
-    connectMcp({
-      ...solosServerCommand(),
-      env: Object.fromEntries(
-        FORWARDED_ENV.filter((key) => process.env[key] !== undefined).map((key) => [
-          key,
-          /** @type {string} */ (process.env[key]),
-        ]),
-      ),
-      stderr: "ignore",
-    }),
+/**
+ * Spawn our own server exactly as an external client would, forwarding only known env keys plus
+ * what the command itself sets.
+ * @param {Record<string, string>} [overrides]
+ */
+const connectWith = (overrides = {}) =>
+  Effect.acquireRelease(
+    Effect.promise(() =>
+      connectMcp({
+        ...solosServerCommand(),
+        env: {
+          ...Object.fromEntries(
+            FORWARDED_ENV.filter((key) => process.env[key] !== undefined).map((key) => [
+              key,
+              /** @type {string} */ (process.env[key]),
+            ]),
+          ),
+          ...overrides,
+        },
+        stderr: "ignore",
+      }),
+    ),
+    (mcp) => Effect.promise(() => mcp.close()),
+  );
+const connect = connectWith();
+
+const features = Options.choice("features", ["experimental"]).pipe(
+  Options.optional,
+  Options.withDescription(
+    "experimental lists the tools labelled experimental too, which the server withholds by default (ADR-0036)",
   ),
-  (mcp) => Effect.promise(() => mcp.close()),
 );
 
-const list = Command.make("list", {}, () =>
+/** The label the server stamps on a tool (ADR-0036). @param {unknown} meta */
+const stabilityOf = (meta) =>
+  /** @type {Record<string, unknown> | undefined} */ (meta)?.["solos/stability"];
+
+const list = Command.make("list", { features }, (o) =>
   Effect.gen(function* () {
-    const mcp = yield* connect;
+    const flag = Option.getOrUndefined(o.features);
+    const mcp = yield* connectWith(flag === undefined ? {} : { SOLOS_FEATURES: flag });
     const tools = yield* Effect.promise(() => mcp.listTools());
     yield* emit({
       server: mcp.serverInfo,
@@ -58,12 +80,17 @@ const list = Command.make("list", {}, () =>
       tools: tools.map((t) => ({
         name: t.name,
         title: t.title,
+        stability: stabilityOf(t._meta),
         annotations: t.annotations,
         meta: t._meta,
       })),
     });
   }).pipe(Effect.scoped, exitOnFailure),
-).pipe(Command.withDescription("Spawn the solos MCP server over stdio and list its tools"));
+).pipe(
+  Command.withDescription(
+    "Spawn the solos MCP server over stdio and list its tools with their stability labels",
+  ),
+);
 
 const toolName = Args.text({ name: "tool" }).pipe(
   Args.withDescription("Tool name, e.g. solana_wallet_get_balance"),

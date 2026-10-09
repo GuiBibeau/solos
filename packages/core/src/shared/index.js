@@ -36,7 +36,13 @@ export { ActionExecutor } from "./ports/action-executor.js";
 export { EventBus } from "./ports/event-bus.js";
 export { EventSink } from "./ports/event-sink.js";
 export { Store } from "./ports/store.js";
-export { annotationsForTier, defineTool, requiresUserInteraction } from "./tools/define-tool.js";
+export {
+  STABILITIES,
+  annotationsForTier,
+  defineTool,
+  mcpDescription,
+  requiresUserInteraction,
+} from "./tools/define-tool.js";
 export { validateTool } from "./tools/validate-tool.js";
 export { executeAction } from "./use-cases/execute-action.js";
 export { simulateAction } from "./use-cases/simulate-action.js";

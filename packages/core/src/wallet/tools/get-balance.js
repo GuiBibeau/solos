@@ -8,6 +8,7 @@ export const getBalanceTool = defineTool({
   name: "solana_wallet_get_balance",
   group: "wallet",
   tier: "read",
+  stability: "beta",
   title: "Get wallet balance",
   description:
     "Get the SOL balance and all SPL token balances (Token and Token-2022) of a Solana wallet. " +

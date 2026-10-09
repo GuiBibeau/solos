@@ -2,8 +2,9 @@
 /**
  * The sentences a search result carries so a Caller can act without guessing (ADR-0029): when
  * more matched than were listed, when nothing matched and what solOS does cover, when names
- * were not tools, and when matches exist above this server's tier ceiling. The wording is fixed;
- * only counts, registry group names and the tier to ask for vary.
+ * were not tools, when matches exist above this server's tier ceiling, and when matches are
+ * experimental tools this server has not enabled. The wording is fixed; only counts, registry
+ * group names and the tier to ask for vary.
  */
 import { highestTier } from "./catalogue.js";
 
@@ -19,8 +20,22 @@ const count = (n, noun) => `${n} ${noun}${n === 1 ? "" : "s"}`;
  *   readonly groups: ReadonlyArray<string>;
  *   readonly ceiling: import("./types.js").CatalogueTier;
  *   readonly unavailable: ReadonlyArray<import("./types.js").CatalogueTier>;
- * }} SearchFacts
+ *   readonly experimental: number;
+ * }} SearchFacts `unavailable` holds the tiers of the matches above the ceiling; `experimental`
+ *   counts the matches within it that are withheld as experimental.
  */
+
+/** @param {SearchFacts} facts */
+const ceilingNote = (facts) =>
+  facts.unavailable.length === 0
+    ? null
+    : `${count(facts.unavailable.length, "matching tool")} ${facts.unavailable.length === 1 ? "exists" : "exist"} above this server's tier ceiling (${facts.ceiling}) and cannot be called here. Ask the Operator to start the server with --tier ${highestTier(facts.unavailable)}.`;
+
+/** @param {SearchFacts} facts */
+const experimentalNote = (facts) =>
+  facts.experimental === 0
+    ? null
+    : `${count(facts.experimental, "matching tool")} ${facts.experimental === 1 ? "is" : "are"} experimental and not enabled on this server. Ask the Operator to start the server with --features experimental.`;
 
 /** @param {SearchFacts} facts */
 const nothingMatched = (facts) =>
@@ -44,10 +59,8 @@ export const searchNotes = (facts) => {
     const verb = facts.unknown === 1 ? "is not a tool" : "are not tools";
     notes.push(`${facts.unknown} of the names given ${verb}; see unknown.`);
   }
-  if (facts.unavailable.length > 0) {
-    notes.push(
-      `${count(facts.unavailable.length, "matching tool")} ${facts.unavailable.length === 1 ? "exists" : "exist"} above this server's tier ceiling (${facts.ceiling}) and cannot be called here. Ask the Operator to start the server with --tier ${highestTier(facts.unavailable)}.`,
-    );
+  for (const note of [ceilingNote(facts), experimentalNote(facts)]) {
+    if (note !== null) notes.push(note);
   }
   return notes;
 };

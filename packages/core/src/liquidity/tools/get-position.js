@@ -9,6 +9,7 @@ export const getLpPositionTool = defineTool({
   name: "solana_liquidity_get_position",
   group: "liquidity",
   tier: "read",
+  stability: "beta",
   title: "Get a concentrated-liquidity LP position",
   description:
     "Read one existing concentrated-liquidity LP position on orca (Whirlpools), raydium " +

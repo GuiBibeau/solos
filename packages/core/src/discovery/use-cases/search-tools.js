@@ -1,6 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
-import { isWithinCeiling } from "../domain/catalogue.js";
+import { isExposed, isWithinCeiling } from "../domain/catalogue.js";
 import { SelectionInputInvalid } from "../domain/errors.js";
 import { searchNotes } from "../domain/search-notes.js";
 import { ToolCatalogue } from "../ports/tool-catalogue.js";
@@ -108,8 +108,13 @@ const rank = (mode, input, tools) => {
  * @param {{ mode: SearchMode; limit: number; catalogue: Catalogue; result: Found }} parts
  */
 const assemble = ({ mode, limit, catalogue, result }) => {
-  const isAvailable = (/** @type {CatalogueTool} */ tool) =>
-    isWithinCeiling(tool.tier, catalogue.ceiling);
+  const isAvailable = (/** @type {CatalogueTool} */ tool) => isExposed(tool, catalogue);
+  const isAboveCeiling = (/** @type {CatalogueTool} */ tool) =>
+    !isWithinCeiling(tool.tier, catalogue.ceiling);
+  const isExperimentalWithheld = (/** @type {CatalogueTool} */ tool) =>
+    tool.stability === "experimental" && !catalogue.experimental;
+  // Over everything that matched, not only what the cap lists.
+  const withheld = result.found.filter((tool) => !isAvailable(tool));
   const matches = result.found.slice(0, limit).map((tool) => ({
     ...tool,
     available: isAvailable(tool),
@@ -134,17 +139,20 @@ const assemble = ({ mode, limit, catalogue, result }) => {
       unknown: result.unknown.length,
       groups,
       ceiling: catalogue.ceiling,
-      // Over everything that matched, not only what the cap lists.
-      unavailable: result.found.filter((tool) => !isAvailable(tool)).map((tool) => tool.tier),
+      // A tool both above the ceiling and experimental counts under both gates: lifting one
+      // alone would not make it callable, so the Caller hears both remedies.
+      unavailable: withheld.filter((tool) => isAboveCeiling(tool)).map((tool) => tool.tier),
+      experimental: withheld.filter((tool) => isExperimentalWithheld(tool)).length,
     }),
   };
 };
 
 /**
  * Rank the catalogue against one request in exactly one mode. Every match is named, including
- * those above the tier ceiling, which are marked unavailable rather than dropped; the notes say
- * when more matched than were listed, what solOS covers when nothing did, and how to raise the
- * ceiling (ADR-0029).
+ * those above the tier ceiling or withheld as experimental, which are marked unavailable rather
+ * than dropped; the notes say when more matched than were listed, what solOS covers when
+ * nothing did, how to raise the ceiling (ADR-0029) and how to enable experimental tools
+ * (ADR-0036).
  * @param {SearchToolsInput} input
  */
 export const searchTools = (input) =>

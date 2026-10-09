@@ -9,6 +9,8 @@ export const simulateDepositTool = defineTool({
   name: "solana_liquidity_simulate_deposit",
   group: "liquidity",
   tier: "simulate",
+  stability: "stable",
+  action: "add_liquidity",
   title: "Simulate position deposit",
   description:
     "Simulate adding liquidity to one existing Orca, Raydium, or Meteora position without " +

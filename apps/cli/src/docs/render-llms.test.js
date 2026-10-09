@@ -10,6 +10,7 @@ const sample = [
     name: "solana_swap_get_quote",
     group: "swap",
     tier: "read",
+    stability: "beta",
     title: "Get indicative swap quote",
     description: "Quote a swap.",
     input: z.object({
@@ -21,6 +22,7 @@ const sample = [
     name: "solana_wallet_get_address",
     group: "wallet",
     tier: "read",
+    stability: "beta",
     title: "Get the wallet address",
     description: "No input.",
     input: z.object({}),
@@ -32,7 +34,7 @@ describe("tool catalogue markdown", () => {
 
   test("groups are H2, tools are H3 with tier, title and description", () => {
     expect(markdown).toContain(
-      "## swap\n\n### solana_swap_get_quote\n\nTier: read. Get indicative swap quote.\n\nQuote a swap.",
+      "## swap\n\n### solana_swap_get_quote\n\nTier: read. Stability: beta. Get indicative swap quote.\n\nQuote a swap.",
     );
     expect(markdown.indexOf("## swap")).toBeLessThan(markdown.indexOf("## wallet"));
   });
@@ -46,7 +48,7 @@ describe("tool catalogue markdown", () => {
 
   test("a tool without arguments says so", () => {
     expect(markdown).toContain(
-      "### solana_wallet_get_address\n\nTier: read. Get the wallet address.\n\nNo input.\n\nNo arguments.",
+      "### solana_wallet_get_address\n\nTier: read. Stability: beta. Get the wallet address.\n\nNo input.\n\nNo arguments.",
     );
   });
 

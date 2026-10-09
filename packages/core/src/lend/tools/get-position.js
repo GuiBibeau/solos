@@ -7,6 +7,7 @@ export const getLendPositionTool = defineTool({
   name: "solana_lend_get_position",
   group: "lend",
   tier: "read",
+  stability: "beta",
   title: "Get a Kamino supply position",
   description:
     "Read one owner's total supplied amount for an underlying token in the configured " +

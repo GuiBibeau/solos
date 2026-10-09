@@ -15,6 +15,8 @@ import { RouterLive } from "./router/router.js";
 import { StoreSqlite } from "./store/sqlite-store.js";
 
 const DEFAULT_CONFIG_PATH = "harness.config.js";
+/** Experimental tools are withheld unless the Operator enables them. */
+const NO_FEATURES = Object.freeze({ experimental: false });
 
 /**
  * The harness composition root. Reads env and config, returns the full Layer plus the parsed
@@ -26,7 +28,9 @@ const DEFAULT_CONFIG_PATH = "harness.config.js";
  *   env?: Record<string, string | undefined>;
  *   configPath?: string;
  *   toolCeiling?: import("./agent/tool-ceiling.js").Tier;
- * }} [options]
+ *   features?: { experimental: boolean };
+ * }} [options] `features` is what the surface exposes beyond the default (ADR-0036): experimental
+ *   tools are withheld unless the Operator enabled them, on this surface as on the MCP server.
  */
 export const loadHarness = async (options = {}) => {
   const env = options.env ?? process.env;
@@ -41,7 +45,10 @@ export const loadHarness = async (options = {}) => {
     EventSinkNoop,
     StoreSqlite(config.daemon.storePath),
     RouterLive(harnessEnv.ROUTER_PRESET, config.router),
-    Layer.succeed(ToolCatalogue, catalogueOf(allTools, options.toolCeiling ?? "execute")),
+    Layer.succeed(
+      ToolCatalogue,
+      catalogueOf(allTools, options.toolCeiling ?? "execute", options.features ?? NO_FEATURES),
+    ),
   ).pipe(
     Layer.provideMerge(TracingLive(harnessEnv.OTEL_EXPORTER_OTLP_ENDPOINT, "solos-harness")),
     Layer.provideMerge(LoggerJsonStderr(harnessEnv.SOLOS_LOG_LEVEL)),

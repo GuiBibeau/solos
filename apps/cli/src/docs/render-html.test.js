@@ -10,6 +10,7 @@ const sample = [
     name: "solana_perp_execute_open",
     group: "perp",
     tier: "execute",
+    stability: "stable",
     title: "Open a perp position",
     description: "Open <b>bounded</b> & capped.",
     input: z.object({
@@ -23,6 +24,7 @@ const sample = [
     name: "solana_wallet_get_address",
     group: "wallet",
     tier: "read",
+    stability: "beta",
     title: "Get the wallet address",
     description: "No input.",
     input: z.object({}),

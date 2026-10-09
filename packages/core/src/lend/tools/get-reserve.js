@@ -7,6 +7,7 @@ export const getReserveTool = defineTool({
   name: "solana_lend_get_reserve",
   group: "lend",
   tier: "read",
+  stability: "beta",
   title: "Get Kamino reserve rates and liquidity",
   description:
     "Read one token's reserve in the configured Kamino lending market (Main Market by default): " +

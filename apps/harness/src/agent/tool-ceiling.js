@@ -27,6 +27,24 @@ export const tierCeiling = (flag, env) => {
   return parsed.data;
 };
 
+export const INVALID_FEATURES = "SOLOS_FEATURES must be experimental or unset";
+
+/**
+ * The feature flags for a surface that runs tools (ADR-0036), read the way the MCP server reads
+ * them: experimental tools are withheld unless the Operator enables them. The flag wins; an
+ * absent or blank `SOLOS_FEATURES` means none; anything but `experimental` fails rather than
+ * silently exposing or hiding tools.
+ * @param {string | undefined} flag
+ * @param {Record<string, string | undefined>} env
+ * @returns {{ experimental: boolean }}
+ */
+export const featureFlags = (flag, env) => {
+  const raw = (flag ?? env.SOLOS_FEATURES ?? "").trim();
+  if (raw === "") return { experimental: false };
+  if (raw !== "experimental") throw new Error(INVALID_FEATURES);
+  return { experimental: true };
+};
+
 /**
  * A third-party MCP tool carries no tier this loop can trust, so it is admitted only when the
  * ceiling already admits everything. Below `execute` the configured servers are not even started.

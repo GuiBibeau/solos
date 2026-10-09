@@ -25,6 +25,7 @@ const flagValue = (argv, flag) => {
 serveStdio({
   tier: flagValue(process.argv, "--tier"),
   tools: flagValue(process.argv, "--tools"),
+  features: flagValue(process.argv, "--features"),
 }).catch((error) => {
   console.error(
     JSON.stringify({

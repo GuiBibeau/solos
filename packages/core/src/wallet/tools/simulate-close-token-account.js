@@ -7,6 +7,8 @@ export const simulateCloseTokenAccountTool = defineTool({
   name: "solana_wallet_simulate_close_token_account",
   group: "wallet",
   tier: "simulate",
+  stability: "stable",
+  action: "close_token_account",
   title: "Simulate closing a token account",
   description:
     "Preview closing one of the wallet's token accounts to get its rent back, or to unwrap " +

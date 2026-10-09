@@ -2,21 +2,26 @@
 /**
  * The MCP server entry a client config carries for solos: the command that starts this very
  * installation (a checkout's `bun --no-env-file <stdio.js>`, or the compiled binary with
- * `mcp serve`, ADR-0035), the ceiling and discovery flags the Operator chose, and the profile
- * when one is named. Secrets never go in: the server resolves them from the profile (ADR-0015).
+ * `mcp serve`, ADR-0035), the ceiling and discovery flags the Operator chose, the feature flag
+ * as the SOLOS_FEATURES variable (ADR-0036), and the profile when one is named. Secrets never go
+ * in: the server resolves them from the profile (ADR-0015).
  */
 import { solosServerCommand } from "@solos/mcp";
 
 /** @typedef {{ command: string; args: string[]; env: Record<string, string> }} McpEntry */
 
 /**
- * @param {{ tier?: string | undefined; tools?: string | undefined; profile?: string | undefined }} options
+ * @param {{ tier?: string | undefined; tools?: string | undefined; features?: string | undefined; profile?: string | undefined }} options
  * @returns {McpEntry}
  */
-export const serverEntry = ({ tier, tools, profile } = {}) => {
+export const serverEntry = ({ tier, tools, features, profile } = {}) => {
   const { command, args } = solosServerCommand();
   const flags = [...(tier ? ["--tier", tier] : []), ...(tools ? ["--tools", tools] : [])];
-  return { command, args: [...args, ...flags], env: profile ? { SOLOS_PROFILE: profile } : {} };
+  const env = {
+    ...(profile && { SOLOS_PROFILE: profile }),
+    ...(features && { SOLOS_FEATURES: features }),
+  };
+  return { command, args: [...args, ...flags], env };
 };
 
 /**

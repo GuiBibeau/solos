@@ -7,6 +7,7 @@ export const askIrisTool = defineTool({
   name: "solana_market_ask_iris",
   group: "market",
   tier: "read",
+  stability: "beta",
   title: "Ask Iris about the market",
   description:
     "Ask Iris for current market context, catalysts, and risks behind one market question, " +

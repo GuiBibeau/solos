@@ -3,21 +3,21 @@ import { describe, expect, test } from "bun:test";
 import { allTools } from "@solos/core";
 import { renderSliceTable, renderToolTable, sliceNames } from "./render.js";
 
-/** @type {Array<{ name: string, tier: string, group: string }>} */
+/** @type {Array<{ name: string, tier: string, stability: string, group: string }>} */
 const sample = [
-  { name: "solana_lend_execute_deposit", tier: "execute", group: "lend" },
-  { name: "solana_lend_get_reserve", tier: "read", group: "lend" },
-  { name: "solana_wallet_get_balance", tier: "read", group: "wallet" },
+  { name: "solana_lend_execute_deposit", tier: "execute", stability: "stable", group: "lend" },
+  { name: "solana_lend_get_reserve", tier: "read", stability: "beta", group: "lend" },
+  { name: "solana_wallet_get_balance", tier: "read", stability: "beta", group: "wallet" },
 ];
 
 describe("docs rendering", () => {
-  test("the tool table carries a row per tool with its tier and slice", () => {
+  test("the tool table carries a row per tool with its tier, stability and slice", () => {
     expect(renderToolTable(sample).split("\n")).toEqual([
-      "| Tool | Tier | Slice |",
-      "|---|---|---|",
-      "| `solana_lend_execute_deposit` | execute | `lend` |",
-      "| `solana_lend_get_reserve` | read | `lend` |",
-      "| `solana_wallet_get_balance` | read | `wallet` |",
+      "| Tool | Tier | Stability | Slice |",
+      "|---|---|---|---|",
+      "| `solana_lend_execute_deposit` | execute | stable | `lend` |",
+      "| `solana_lend_get_reserve` | read | beta | `lend` |",
+      "| `solana_wallet_get_balance` | read | beta | `wallet` |",
     ]);
   });
 

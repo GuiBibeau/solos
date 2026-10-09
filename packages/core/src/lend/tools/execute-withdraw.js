@@ -7,6 +7,8 @@ export const executeWithdrawTool = defineTool({
   name: "solana_lend_execute_withdraw",
   group: "lend",
   tier: "execute",
+  stability: "stable",
+  action: "withdraw_lend",
   title: "Execute Kamino withdrawal",
   description:
     "Redeem fixed collateral units chosen from a target underlying base-unit amount at the " +

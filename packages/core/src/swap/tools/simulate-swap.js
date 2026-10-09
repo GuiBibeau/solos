@@ -7,6 +7,8 @@ export const simulateSwapTool = defineTool({
   name: "solana_swap_simulate_swap",
   group: "swap",
   tier: "simulate",
+  stability: "stable",
+  action: "swap",
   title: "Simulate swap",
   description:
     "Simulate selling an amount of one mint for another on Jupiter without submitting anything. " +

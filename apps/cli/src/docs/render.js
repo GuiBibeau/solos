@@ -1,7 +1,7 @@
 // @ts-check
 import { readdirSync } from "node:fs";
 
-/** @typedef {{ name: string, tier: string, group: string }} ToolRow */
+/** @typedef {{ name: string, tier: string, stability: string, group: string }} ToolRow */
 
 const CORE_SRC = new URL("../../../../packages/core/src/", import.meta.url);
 /** Read before simulate before execute: the order an agent meets a slice in, not alphabetical. */
@@ -31,8 +31,10 @@ const table = (header, rows) =>
  */
 export const renderToolTable = (tools) =>
   table(
-    ["Tool", "Tier", "Slice"],
-    tools.map((tool) => `| \`${tool.name}\` | ${tool.tier} | \`${tool.group}\` |`),
+    ["Tool", "Tier", "Stability", "Slice"],
+    tools.map(
+      (tool) => `| \`${tool.name}\` | ${tool.tier} | ${tool.stability} | \`${tool.group}\` |`,
+    ),
   );
 
 /**

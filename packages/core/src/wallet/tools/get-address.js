@@ -7,6 +7,7 @@ export const getAddressTool = defineTool({
   name: "solana_wallet_get_address",
   group: "wallet",
   tier: "read",
+  stability: "beta",
   title: "Get signer address",
   description:
     "Get the public address and backend type of the wallet this server signs with. " +

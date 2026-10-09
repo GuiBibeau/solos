@@ -7,6 +7,8 @@ export const executeCloseTokenAccountTool = defineTool({
   name: "solana_wallet_execute_close_token_account",
   group: "wallet",
   tier: "execute",
+  stability: "stable",
+  action: "close_token_account",
   title: "Close a token account",
   description:
     "Close one of the wallet's token accounts and wait for confirmation: reclaim the rent of " +

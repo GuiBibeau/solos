@@ -40,6 +40,13 @@ existence is not the secret, the signer is.
 **Tier ceiling** — the highest tier an Operator lets a server offer. Withheld tools are never
 registered, so a Caller plans around what it can see instead of discovering refusals.
 
+**Stability label** — `experimental`, `beta` or `stable` on every tool (ADR-0036): the
+compatibility promise. A stable tool's name, arguments, result keys and tier change only in a
+major with a Migration note; a beta tool may change in a minor; an experimental tool may change
+or disappear in any release and is exposed only when the server runs with `--features
+experimental`. An execute or simulate tool is stable only once `features/feature-map.json` holds
+a live-validated row for the Action it names in `action`; `solos dev docs check` enforces it.
+
 **Group** — the tool namespace, equal to the slice name. Used for search, server instructions, and
 per-step activation in the agent loop.
 

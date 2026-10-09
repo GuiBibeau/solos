@@ -1,5 +1,5 @@
 // @ts-check
-import { annotationsForTier, requiresUserInteraction } from "@solos/core";
+import { annotationsForTier, mcpDescription, requiresUserInteraction } from "@solos/core";
 import { Effect, Exit } from "effect";
 import { errorResult, successResult, thrownResult } from "./tool-result.js";
 
@@ -14,6 +14,15 @@ const TIER_RANK = /** @type {Record<Tier, number>} */ ({ read: 0, simulate: 1, e
  */
 export const filterByTier = (tools, ceiling) =>
   tools.filter((tool) => TIER_RANK[tool.tier] <= TIER_RANK[ceiling]);
+
+/**
+ * What a deployment offers: nothing above its tier ceiling, and experimental tools only when the
+ * Operator enabled them with --features experimental (ADR-0036).
+ * @param {ReadonlyArray<import("@solos/core").AnyToolDefinition>} tools
+ * @param {{ ceiling: Tier; experimental: boolean }} exposure
+ */
+export const filterByExposure = (tools, { ceiling, experimental }) =>
+  filterByTier(tools, ceiling).filter((tool) => experimental || tool.stability !== "experimental");
 
 /**
  * The observed run of one tool: span, completion and failure logs around the use case.
@@ -58,12 +67,13 @@ export const registerTools = (server, tools, runners) => {
       tool.name,
       {
         title: tool.title,
-        description: tool.description,
+        description: mcpDescription(tool),
         inputSchema: tool.input,
         annotations: annotationsForTier(tool.tier),
         _meta: {
           "anthropic/requiresUserInteraction": requiresUserInteraction(tool.tier),
           "solos/tier": tool.tier,
+          "solos/stability": tool.stability,
           "solos/group": tool.group,
         },
       },

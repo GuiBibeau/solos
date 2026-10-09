@@ -8,6 +8,8 @@ export const simulateSolTool = defineTool({
   name: "solana_transfer_simulate_sol",
   group: "transfer",
   tier: "simulate",
+  stability: "stable",
+  action: "transfer_sol",
   title: "Simulate SOL transfer",
   description:
     "Simulate sending SOL from the configured signer wallet to a recipient without submitting anything. " +

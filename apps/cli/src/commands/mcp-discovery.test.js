@@ -92,4 +92,19 @@ describe("`solos mcp` as a Caller under just-in-time discovery [integration]", (
     expect(names).toContain("solana_transfer_simulate_sol");
     expect(names).not.toContain("solana_transfer_execute_sol");
   });
+
+  test("`mcp list` shows every tool's stability label; --features experimental is accepted (ADR-0036)", async () => {
+    const { stdout, code } = await runSolos(["mcp", "list", "--features", "experimental"], {
+      ...env,
+      SOLOS_TOOLS: "all",
+      SOLOS_TOOL_TIER: "execute",
+    });
+    expect(code).toBe(0);
+    /** @type {Array<{ name: string; stability: string }>} */
+    const tools = JSON.parse(stdout).tools;
+    for (const tool of tools) expect(["beta", "stable"], tool.name).toContain(tool.stability);
+    const byName = new Map(tools.map((tool) => [tool.name, tool.stability]));
+    expect(byName.get("solana_swap_execute_swap")).toBe("stable");
+    expect(byName.get("solana_market_ask_iris")).toBe("beta");
+  });
 });
