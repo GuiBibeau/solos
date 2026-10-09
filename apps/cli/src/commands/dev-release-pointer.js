@@ -13,6 +13,7 @@ import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { ReleaseRefused } from "../release/errors.js";
 import { promotePlan, rollbackPlan } from "../release/plans.js";
+import { registryHasVersion } from "../release/registry.js";
 import {
   assertForward,
   assertManifestVersion,
@@ -20,7 +21,6 @@ import {
   assertPublished,
   assertRollbackSource,
   currentLatest,
-  registryHasVersion,
   runPlan,
 } from "../release/run-plan.js";
 import { compareVersions, parseVersion, releaseTag } from "../release/version.js";

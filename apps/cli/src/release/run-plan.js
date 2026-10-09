@@ -11,7 +11,7 @@ import { compareVersions, parseVersion } from "./version.js";
 /** @typedef {(argv: string[], cwd?: string) => Promise<{ code: number; output: string; stdout?: string }>} Runner */
 
 /** What a probe parses: stdout alone when the runner keeps the streams apart, else the merged output. @param {{ output: string; stdout?: string }} result */
-const parsed = ({ output, stdout }) => stdout ?? output;
+export const parsed = ({ output, stdout }) => stdout ?? output;
 
 /**
  * The value `npm view … --json` printed: a scalar on npm 11, a one-element array on npm 12, an
@@ -39,30 +39,6 @@ export const displayCommand = (argv) =>
   argv
     .map((arg) => (PLAIN.test(arg) ? arg : `'${arg.replaceAll("'", String.raw`'\''`)}'`))
     .join(" ");
-
-export const REGISTRY_URL = "https://registry.modelcontextprotocol.io";
-
-/** What the probe learned: an HTTP status, or the curl exit when no request completed. @param {number} code @param {string} output */
-const registryAnswer = (code, output) =>
-  code === 0 ? `HTTP ${/^(\d{3})/u.exec(output.trim())?.[1] ?? "?"}` : `curl exit ${code}`;
-
-/**
- * Whether the MCP Registry already lists this server version: a promote retry must not publish
- * it twice, since the registry refuses a duplicate. Only a 200 or a 404 is an answer; any other
- * status, or a transport failure, refuses before a single pointer moves.
- * @param {{ name: string; version: string }} server @param {Runner} [runner]
- */
-export const registryHasVersion = async ({ name, version }, runner = captureCommand) => {
-  const url = `${REGISTRY_URL}/v0.1/servers/${encodeURIComponent(name)}/versions/${version}`;
-  const result = await runner(["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}", url]);
-  const answer = registryAnswer(result.code, parsed(result));
-  if (answer === "HTTP 200") return true;
-  if (answer === "HTTP 404") return false;
-  throw new ReleaseRefused({
-    reason: `MCP Registry lookup for ${name}@${version} failed (${answer}); nothing was changed`,
-    remedy: "retry when the registry answers, or pass --skip-registry to promote without it",
-  });
-};
 
 /**
  * @param {ReadonlyArray<Step>} steps

@@ -10,7 +10,6 @@ import {
   currentLatest,
   displayCommand,
   npmJsonValue,
-  registryHasVersion,
   runPlan,
 } from "./run-plan.js";
 
@@ -176,47 +175,6 @@ describe("promotion and rollback plans", () => {
     expect(printed.steps.at(-1)?.command).toBe(
       String.raw`npm deprecate @solos-sh/cli-linux-arm64@0.1.1 'it'\''s bad'`,
     );
-  });
-
-  test("the registry probe answers only on 200 or 404 and refuses anything else", async () => {
-    /** @type {string[][]} */
-    const seen = [];
-    const answer =
-      (/** @type {number} */ code, /** @type {string} */ output) =>
-      async (/** @type {string[]} */ argv) => {
-        seen.push(argv);
-        return { code, output };
-      };
-    expect(
-      await registryHasVersion(
-        { name: "io.github.GuiBibeau/solos", version: "0.1.1" },
-        answer(0, "200"),
-      ),
-    ).toBe(true);
-    expect(seen[0]).toEqual([
-      "curl",
-      "-sS",
-      "-o",
-      "/dev/null",
-      "-w",
-      "%{http_code}",
-      "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.GuiBibeau%2Fsolos/versions/0.1.1",
-    ]);
-    expect(await registryHasVersion({ name: "x", version: "1.0.0" }, answer(0, "404\n"))).toBe(
-      false,
-    );
-    await expect(
-      registryHasVersion({ name: "x", version: "1.0.0" }, answer(0, "503")),
-    ).rejects.toMatchObject({
-      _tag: "ReleaseRefused",
-      reason: "MCP Registry lookup for x@1.0.0 failed (HTTP 503); nothing was changed",
-    });
-    await expect(
-      registryHasVersion({ name: "x", version: "1.0.0" }, answer(6, "000")),
-    ).rejects.toMatchObject({
-      _tag: "ReleaseRefused",
-      reason: "MCP Registry lookup for x@1.0.0 failed (curl exit 6); nothing was changed",
-    });
   });
 
   test("a deprecated version is never pointed at again", async () => {

@@ -53,7 +53,9 @@ published versions only. The lanes below are built from what those facts allow.
   deprecates the bad one on npm with the reason. No rebuild. The MCP Registry is left alone: its
   versions are immutable and an existing version cannot be published again, so the registry
   cannot point backwards. The rolled-back version stays listed until a fix-forward patch release
-  is promoted, which is the remedy the command prints. The registry's supported operation is
+  is promoted, which is the remedy the command prints. `promote` asks the registry about the
+  version first, deleted entries included, and refuses a version the registry has deleted: it
+  cannot be published again and must not become `latest`. The registry's supported operation is
   `PATCH /v0.1/servers/{name}/versions/{version}/status` to mark the bad version `deprecated`
   with a message; it needs the publisher's token, so the stable-lane workflow runs it, not the
   lever on a laptop.
