@@ -97,8 +97,9 @@ jobs:
 
   comment:
     needs: [changes, build]
-    # Runs when the build passed, failed or was skipped for a docs-only push; not for a fork.
-    if: always() && needs.changes.result == 'success'
+    # Runs when the build passed, failed or was skipped for a docs-only push; not for a fork, and
+    # not for a run a newer push cancelled, which must not overwrite the comment with stale news.
+    if: ${{ !cancelled() && needs.changes.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
