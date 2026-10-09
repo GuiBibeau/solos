@@ -140,13 +140,15 @@ has a port tag and domain types and nothing wired. `market` covers Elfa Chat, to
 and summaries, Jupiter prices and on-chain token metadata.
 
 `discovery` owns the one tool every other tool is found through. The MCP server registers every
-tool the tier ceiling permits but advertises only `solana_discovery_search_tools`, the wallet
+tool the tier ceiling permits and the feature flags enable (experimental tools need
+`--features experimental`, ADR-0036) but advertises only `solana_discovery_search_tools`, the wallet
 balance and the portfolio state; a search (free text, one group, or exact names) enables its
 matches and fires `tools/list_changed` (ADR-0029). Free text goes through the `ToolSelector`
 port: JEV through Vercel AI Gateway when `AI_GATEWAY_API_KEY` is set, the local matcher otherwise
 or when JEV fails or is slow. The `ToolCatalogue` port carries the registry and the ceiling into
 the use case; composition roots provide it. `--tools all` (or `SOLOS_TOOLS=all`) advertises
-everything up front for clients that ignore list changes. Adapters live in
+everything the ceiling and the feature flags admit up front, for clients that ignore list
+changes. Adapters live in
 `packages/solana/src/discovery/`; `solos discovery select --query` runs a bare selection.
 
 ## Conventions that lint will enforce
