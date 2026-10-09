@@ -1,5 +1,6 @@
 // @ts-check
 /** What the `solos dev release` verbs share: the git reads, the base version and the option shapes. */
+import { existsSync, readFileSync } from "node:fs";
 import { Options } from "@effect/cli";
 import { Effect, Option } from "effect";
 import { captureCommand } from "../evidence/run-steps.js";
@@ -77,3 +78,30 @@ export const dryRun = Options.boolean("dry-run").pipe(
   Options.withDefault(false),
   Options.withDescription("Print the commands without running them"),
 );
+
+/** @param {string} path */
+export const readIfPresent = (path) => (existsSync(path) ? readFileSync(path, "utf8") : null);
+
+/**
+ * A malformed manifest is a release problem with a remedy, never a parser error across the CLI
+ * boundary. A missing file reads as an empty manifest so the version checks name what is absent.
+ * @param {string | null} text
+ * @returns {{ value: unknown; problems: Array<{ reason: string; remedy: string }> }}
+ */
+export const parseManifest = (text) => {
+  if (text === null) return { value: {}, problems: [] };
+  try {
+    return { value: JSON.parse(text), problems: [] };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      value: {},
+      problems: [
+        {
+          reason: `server.json is not valid JSON: ${detail}`,
+          remedy: "fix server.json; it must name the release version in both of its version fields",
+        },
+      ],
+    };
+  }
+};

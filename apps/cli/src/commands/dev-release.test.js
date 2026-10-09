@@ -7,7 +7,7 @@ import { runSolos, stderrJson } from "./cli-fixture.js";
 
 const env = { SOLOS_DEV: "1" };
 
-describe("solos dev release", () => {
+describe("solos dev release [integration]", () => {
   test("version derives a canary from a base without touching npm", async () => {
     const { stdout, code } = await runSolos(
       [
@@ -126,6 +126,21 @@ describe("solos dev release", () => {
       major: false,
       problems: [],
     });
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("check reports a malformed server.json as a problem, not an internal error", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "solos-check-bad-"));
+    writeFileSync(path.join(dir, "server.json"), "{ not json");
+    const { stdout, code } = await runSolos(
+      ["dev", "release", "check", "--branch", "release/0.1.0", "--base", "0.0.9"],
+      env,
+      { cwd: dir },
+    );
+    expect(code).toBe(1);
+    const report = JSON.parse(stdout);
+    expect(report.ok).toBe(false);
+    expect(report.problems[0]?.reason).toStartWith("server.json is not valid JSON");
     rmSync(dir, { recursive: true, force: true });
   });
 

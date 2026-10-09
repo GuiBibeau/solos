@@ -4,7 +4,7 @@
  * checked, notes are written from what was merged; promotion and rollback are in the pointer
  * module. Every verb prints JSON and exits non-zero when it refuses.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Args, Command, Options } from "@effect/cli";
 import { Effect, Option } from "effect";
@@ -27,6 +27,8 @@ import {
   baseVersion,
   git,
   gitShowOrEmpty,
+  parseManifest,
+  readIfPresent,
   required,
 } from "./dev-release-shared.js";
 
@@ -76,9 +78,6 @@ const branch = Options.text("branch").pipe(
   Options.withDescription("Branch to check; default: the current branch"),
 );
 
-/** @param {string} path */
-const readIfPresent = (path) => (existsSync(path) ? readFileSync(path, "utf8") : null);
-
 const check = Command.make("check", { branch, base }, (o) =>
   attempt(async () => {
     const name = Option.isSome(o.branch)
@@ -86,9 +85,14 @@ const check = Command.make("check", { branch, base }, (o) =>
       : ((await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim().split("\n", 1)[0] ?? "");
     const found = releaseBranchVersion(name);
     const notes = found === null ? null : readIfPresent(`docs/releases/${found}.md`);
-    const serverJson = JSON.parse(readIfPresent("server.json") ?? "{}");
+    const manifest = parseManifest(readIfPresent("server.json"));
     const previous = await baseVersion(o.base);
-    const report = checkReleasePr({ branch: name, serverJson, notes, previous });
+    const checked = checkReleasePr({ branch: name, serverJson: manifest.value, notes, previous });
+    const report = {
+      ...checked,
+      ok: checked.ok && manifest.problems.length === 0,
+      problems: [...manifest.problems, ...checked.problems],
+    };
     if (!report.ok) process.exitCode = 1;
     return { branch: name, ...report };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
