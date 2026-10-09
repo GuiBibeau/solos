@@ -23,7 +23,7 @@ const renderTool = (tool) => {
   return [
     `### ${tool.name}`,
     "",
-    `Tier: ${tool.tier}. ${tool.title}.`,
+    `Tier: ${tool.tier}. Stability: ${tool.stability}. ${tool.title}.`,
     "",
     tool.description,
     "",

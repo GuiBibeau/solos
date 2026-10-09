@@ -41,7 +41,10 @@ export const loadHarness = async (options = {}) => {
     EventSinkNoop,
     StoreSqlite(config.daemon.storePath),
     RouterLive(harnessEnv.ROUTER_PRESET, config.router),
-    Layer.succeed(ToolCatalogue, catalogueOf(allTools, options.toolCeiling ?? "execute")),
+    Layer.succeed(
+      ToolCatalogue,
+      catalogueOf(allTools, options.toolCeiling ?? "execute", { experimental: true }),
+    ),
   ).pipe(
     Layer.provideMerge(TracingLive(harnessEnv.OTEL_EXPORTER_OTLP_ENDPOINT, "solos-harness")),
     Layer.provideMerge(LoggerJsonStderr(harnessEnv.SOLOS_LOG_LEVEL)),

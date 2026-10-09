@@ -14,6 +14,7 @@ const TOOLS = [
     title: "Execute a Jupiter swap",
     description: "Swap tokens through Jupiter and wait for confirmation.",
     tier: /** @type {const} */ ("execute"),
+    stability: /** @type {const} */ ("beta"),
   },
   {
     name: "solana_swap_get_quote",
@@ -21,6 +22,7 @@ const TOOLS = [
     title: "Get a swap quote",
     description: "An indicative Jupiter quote; nothing is sent.",
     tier: /** @type {const} */ ("read"),
+    stability: /** @type {const} */ ("beta"),
   },
   {
     name: "solana_swap_simulate_swap",
@@ -28,6 +30,7 @@ const TOOLS = [
     title: "Simulate a Jupiter swap",
     description: "Build and simulate a swap; nothing is sent.",
     tier: /** @type {const} */ ("simulate"),
+    stability: /** @type {const} */ ("beta"),
   },
   {
     name: "solana_wallet_get_balance",
@@ -35,13 +38,30 @@ const TOOLS = [
     title: "Get wallet balance",
     description: "SOL and token balances of one wallet.",
     tier: /** @type {const} */ ("read"),
+    stability: /** @type {const} */ ("beta"),
   },
 ];
 
-/** @param {"read" | "simulate" | "execute"} ceiling */
-const env = (ceiling) =>
+/** An experimental tool, so the feature flag has something to withhold. */
+const EXPERIMENTAL = {
+  name: "solana_swap_simulate_route",
+  group: "swap",
+  title: "Simulate a routed swap",
+  description: "Preview a swap across several venues; nothing is sent.",
+  tier: /** @type {const} */ ("simulate"),
+  stability: /** @type {const} */ ("experimental"),
+};
+
+/** @typedef {{ tools?: typeof TOOLS; experimental?: boolean }} Extra */
+
+/** @param {"read" | "simulate" | "execute"} ceiling @param {Extra} [extra] */
+const env = (ceiling, extra = {}) =>
   Layer.merge(
-    Layer.succeed(ToolCatalogue, { tools: TOOLS, ceiling }),
+    Layer.succeed(ToolCatalogue, {
+      tools: extra.tools ?? TOOLS,
+      ceiling,
+      experimental: extra.experimental ?? false,
+    }),
     Layer.succeed(ToolSelector, {
       name: "local",
       select: ({ query, tools }) => Effect.succeed(localMatches(query, tools)),
@@ -51,11 +71,30 @@ const env = (ceiling) =>
 /**
  * @param {Parameters<typeof searchTools>[0]} input
  * @param {"read" | "simulate" | "execute"} [ceiling]
+ * @param {Extra} [extra]
  */
-const search = (input, ceiling = "simulate") =>
-  Effect.runPromise(searchTools({ limit: 8, ...input }).pipe(Effect.provide(env(ceiling))));
+const search = (input, ceiling = "simulate", extra = {}) =>
+  Effect.runPromise(searchTools({ limit: 8, ...input }).pipe(Effect.provide(env(ceiling, extra))));
+
+const WITH_EXPERIMENTAL = [...TOOLS, EXPERIMENTAL];
 
 describe("searchTools", () => {
+  test("an experimental tool is named, unavailable, and the note says how to enable it (ADR-0036)", async () => {
+    const withheld = await search({ names: [EXPERIMENTAL.name] }, "simulate", {
+      tools: WITH_EXPERIMENTAL,
+    });
+    expect(withheld.matches).toEqual([{ ...EXPERIMENTAL, available: false }]);
+    expect(withheld.notes).toEqual([
+      "1 matching tool is experimental and not enabled on this server. Ask the Operator to start the server with --features experimental.",
+    ]);
+    const enabled = await search({ names: [EXPERIMENTAL.name] }, "simulate", {
+      tools: WITH_EXPERIMENTAL,
+      experimental: true,
+    });
+    expect(enabled.matches[0]?.available).toBe(true);
+    expect(enabled.notes).toEqual([]);
+  });
+
   test("a group lists every tool in it and marks the ones above the ceiling unavailable", async () => {
     const result = await search({ group: "swap" });
     expect(result.mode).toBe("group");

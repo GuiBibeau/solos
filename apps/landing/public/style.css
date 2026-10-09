@@ -495,6 +495,33 @@ pre:focus-visible {
   color: var(--pink);
 }
 
+/* The stability label (ADR-0036): the compatibility promise, beside the tier. */
+.stability {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font: 600 0.72rem / 1.6 var(--mono);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.stability-stable {
+  border-style: solid;
+}
+
+.stability-beta {
+  border-color: var(--honey);
+  color: var(--honey);
+}
+
+.stability-experimental {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
 .footer {
   padding: 32px 0 48px;
   color: var(--muted);

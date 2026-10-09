@@ -7,6 +7,8 @@ export const executeSellTool = defineTool({
   name: "solana_launch_execute_sell",
   group: "launch",
   tier: "execute",
+  stability: "beta",
+  action: "swap",
   title: "Sell a pump.fun coin",
   description:
     "Sell a pump.fun coin back to its bonding curve and submit it. amount is the exact " +

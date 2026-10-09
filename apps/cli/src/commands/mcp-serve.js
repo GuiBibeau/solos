@@ -17,15 +17,26 @@ const tools = Options.choice("tools", ["discover", "all"]).pipe(
   ),
 );
 
+const features = Options.choice("features", ["experimental"]).pipe(
+  Options.optional,
+  Options.withDescription(
+    "experimental exposes the tools labelled experimental too, withheld by default (ADR-0036). Beats SOLOS_FEATURES.",
+  ),
+);
+
 /**
  * `solos mcp serve`: the MCP server over stdio, in the same binary as the CLI, so an installed
  * solos is what an MCP client config runs (ADR-0035). stdout carries JSON-RPC only; the ready
  * line and every log go to stderr. A startup failure prints the usual error envelope and exits 1.
  */
-export const serve = Command.make("serve", { tier, tools }, (o) =>
+export const serve = Command.make("serve", { tier, tools, features }, (o) =>
   Effect.tryPromise({
     try: () =>
-      serveStdio({ tier: Option.getOrUndefined(o.tier), tools: Option.getOrUndefined(o.tools) }),
+      serveStdio({
+        tier: Option.getOrUndefined(o.tier),
+        tools: Option.getOrUndefined(o.tools),
+        features: Option.getOrUndefined(o.features),
+      }),
     catch: (error) => error,
   }).pipe(exitOnFailure),
 ).pipe(

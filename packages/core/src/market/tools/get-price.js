@@ -7,6 +7,7 @@ export const getPriceTool = defineTool({
   name: "solana_market_get_price",
   group: "market",
   tier: "read",
+  stability: "beta",
   title: "Get token USD price",
   description:
     "Get the current USD price of one token mint from Jupiter's price feed. Returns the price " +

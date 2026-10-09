@@ -9,6 +9,8 @@ export const executeWithdrawTool = defineTool({
   name: "solana_liquidity_execute_withdraw",
   group: "liquidity",
   tier: "execute",
+  stability: "stable",
+  action: "remove_liquidity",
   title: "Execute position withdrawal",
   description:
     "Remove liquidity from one existing Orca, Raydium, or Meteora position to the " +

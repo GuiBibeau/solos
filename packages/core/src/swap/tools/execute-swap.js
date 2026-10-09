@@ -20,6 +20,8 @@ export const executeSwapTool = defineTool({
   name: "solana_swap_execute_swap",
   group: "swap",
   tier: "execute",
+  stability: "stable",
+  action: "swap",
   title: "Execute swap",
   description:
     "Execute a swap: sell an amount of one mint for another on Jupiter from the configured " +

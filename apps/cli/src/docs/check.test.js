@@ -5,9 +5,9 @@ import { compareRegion, describeDrift } from "./compare.js";
 
 const region = "tools";
 const body = [
-  "| Tool | Tier | Slice |",
-  "|---|---|---|",
-  "| `solana_wallet_get_balance` | read | `wallet` |",
+  "| Tool | Tier | Stability | Slice |",
+  "|---|---|---|---|",
+  "| `solana_wallet_get_balance` | read | beta | `wallet` |",
 ].join("\n");
 /** @param {string} inner */
 const docWith = (inner) =>
@@ -29,25 +29,25 @@ describe("docs gate", () => {
   });
 
   test("drift names the tools the document is missing", () => {
-    const stale = body.replace("| `solana_wallet_get_balance` | read | `wallet` |", "");
+    const stale = body.replace("| `solana_wallet_get_balance` | read | beta | `wallet` |", "");
     const result = compareRegion({ text: docWith(stale), region, body });
     expect(result.status).toBe("stale");
     expect(result.detail).toBe("undocumented: solana_wallet_get_balance");
   });
 
   test("drift also names rows the registry no longer has", () => {
-    expect(describeDrift("| `solana_gone_tool` | read | `gone` |", body)).toBe(
+    expect(describeDrift("| `solana_gone_tool` | read | beta | `gone` |", body)).toBe(
       "undocumented: solana_wallet_get_balance; no longer in the registry: solana_gone_tool",
     );
   });
 
   test("identical rows rendered differently still count as drift", () => {
-    expect(describeDrift("| `solana_wallet_get_balance` | read | `wallet` |", body)).toBe(
+    expect(describeDrift("| `solana_wallet_get_balance` | read | beta | `wallet` |", body)).toBe(
       "same rows, different rendering",
     );
   });
 
-  test("the committed tool reference, AGENTS.md and the landing page match the registry", () => {
+  test("the committed tool reference, AGENTS.md and the landing page match the registry, and every stable label is earned", () => {
     const report = checkDocs({ write: false });
     expect(report.regions.map((r) => [r.file, r.status, r.detail])).toEqual([
       ["docs/reference/tools/index.md", "current", ""],
@@ -56,6 +56,7 @@ describe("docs gate", () => {
       ["apps/landing/public/tools.html", "current", ""],
       ["apps/landing/public/llms-full.txt", "current", ""],
     ]);
+    expect(report.stability).toEqual({ ok: true, problems: [] });
     expect(report.ok).toBe(true);
   });
 });

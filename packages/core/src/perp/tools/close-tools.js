@@ -19,6 +19,8 @@ export const simulatePerpCloseTool = defineTool({
   name: "solana_perp_simulate_close",
   group: "perp",
   tier: "simulate",
+  stability: "stable",
+  action: "close_perp",
   title: "Simulate a reduce-only Phoenix IOC close",
   description:
     "Preview closing an existing Phoenix Perps position with a finite limit, without sending an order.",
@@ -30,6 +32,8 @@ export const executePerpCloseTool = defineTool({
   name: "solana_perp_execute_close",
   group: "perp",
   tier: "execute",
+  stability: "stable",
+  action: "close_perp",
   title: "Submit a reduce-only Phoenix IOC close",
   description:
     "Submit one reduce-only IOC close for the current signed position; confirmation is not proof it filled. Read residual exposure.",

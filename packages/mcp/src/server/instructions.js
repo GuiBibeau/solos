@@ -4,7 +4,10 @@ import { BOOTSTRAP_TOOLS, SEARCH_TOOL } from "./discovery.js";
 
 /** @typedef {import("@solos/core").AnyToolDefinition} Tool */
 /** @typedef {import("@solos/core").CatalogueTier} Tier */
-/** @typedef {{ readonly ceiling: Tier; readonly discovery: boolean }} Availability */
+/** @typedef {{ readonly ceiling: Tier; readonly discovery: boolean; readonly experimental: boolean }} Availability */
+
+const EXPERIMENTAL_LINE =
+  "Experimental tools are withheld here and marked unavailable below; the Operator enables them with --features experimental.";
 
 const HEADER = [
   "solOS: a thin Solana execution layer. Mainnet by default; the RPC URL is the only network switch.",
@@ -13,11 +16,11 @@ const HEADER = [
 ];
 
 /**
- * How the tools reach the Caller: withheld until searched for, or all up front; and what the
- * tier ceiling keeps out of reach.
- * @param {Availability} options
+ * How the tools reach the Caller: withheld until searched for, or all up front; what the tier
+ * ceiling keeps out of reach; and whether experimental tools are withheld (ADR-0036).
+ * @param {Availability} options @param {ReadonlyArray<Tool>} tools
  */
-const availability = ({ ceiling, discovery }) => [
+const availability = ({ ceiling, discovery, experimental }, tools) => [
   discovery
     ? `Most tools are withheld until asked for. Call ${SEARCH_TOOL} with a query in your own words, one group, or exact names; the matching tools then join the tool list with their full schema (tools/list_changed). Always available: ${BOOTSTRAP_TOOLS.join(", ")}.`
     : "Every tool the tier ceiling permits is advertised up front.",
@@ -26,19 +29,30 @@ const availability = ({ ceiling, discovery }) => [
     : [
         `Tier ceiling: ${ceiling}. Tools above it exist and are marked unavailable below; the Operator raises the ceiling with --tier.`,
       ]),
+  ...(!experimental && tools.some((tool) => tool.stability === "experimental")
+    ? [EXPERIMENTAL_LINE]
+    : []),
 ];
 
-/** @param {Tool} tool @param {Tier} ceiling */
-const row = (tool, ceiling) =>
-  `  - ${tool.name} — ${tool.title}${isWithinCeiling(tool.tier, ceiling) ? "" : ` (unavailable: above the ${ceiling} ceiling)`}`;
+/** Why a listed tool cannot be called here, or nothing. @param {Tool} tool @param {Availability} options */
+const withheld = (tool, { ceiling, experimental }) => {
+  if (!isWithinCeiling(tool.tier, ceiling)) return ` (unavailable: above the ${ceiling} ceiling)`;
+  if (!experimental && tool.stability === "experimental") {
+    return " (unavailable: experimental; the Operator enables it with --features experimental)";
+  }
+  return "";
+};
+
+/** @param {Tool} tool @param {Availability} options */
+const row = (tool, options) => `  - ${tool.name} — ${tool.title}${withheld(tool, options)}`;
 
 /**
  * Every tool's name and one-line summary, by group: names are cheap, schemas are what cost, so
  * a Caller can see the whole surface here and ask precisely (ADR-0029).
  * @param {ReadonlyArray<Tool>} tools
- * @param {Tier} ceiling
+ * @param {Availability} options
  */
-const catalogue = (tools, ceiling) => {
+const catalogue = (tools, options) => {
   /** @type {Map<string, Tool[]>} */
   const byGroup = new Map();
   for (const tool of tools) {
@@ -48,7 +62,7 @@ const catalogue = (tools, ceiling) => {
   }
   return [...byGroup]
     .toSorted(([a], [b]) => a.localeCompare(b))
-    .flatMap(([group, members]) => [`- ${group}:`, ...members.map((tool) => row(tool, ceiling))]);
+    .flatMap(([group, members]) => [`- ${group}:`, ...members.map((tool) => row(tool, options))]);
 };
 
 /**
@@ -57,10 +71,15 @@ const catalogue = (tools, ceiling) => {
  * @param {ReadonlyArray<Tool>} tools every tool, all tiers
  * @param {Partial<Availability>} [options] the harness passes none: every tool, up front
  */
-export const buildInstructions = (tools, { ceiling = "execute", discovery = false } = {}) =>
-  [
+export const buildInstructions = (
+  tools,
+  { ceiling = "execute", discovery = false, experimental = true } = {},
+) => {
+  const options = { ceiling, discovery, experimental };
+  return [
     ...HEADER,
-    ...availability({ ceiling, discovery }),
+    ...availability(options, tools),
     "Catalogue (name — what it does):",
-    ...catalogue(tools, ceiling),
+    ...catalogue(tools, options),
   ].join("\n");
+};

@@ -9,6 +9,8 @@ export const simulateWithdrawTool = defineTool({
   name: "solana_liquidity_simulate_withdraw",
   group: "liquidity",
   tier: "simulate",
+  stability: "stable",
+  action: "remove_liquidity",
   title: "Simulate position withdrawal",
   description:
     "Simulate removing liquidity from one existing Orca, Raydium, or Meteora position " +

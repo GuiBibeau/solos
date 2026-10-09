@@ -7,8 +7,8 @@
 import { argumentsOf } from "./render-schema.js";
 
 /**
- * @typedef {{ name: string, group: string, tier: string, title: string, description: string,
- *   input: import("zod").ZodObject }} ToolDoc
+ * @typedef {{ name: string, group: string, tier: string, stability: string, title: string,
+ *   description: string, input: import("zod").ZodObject }} ToolDoc
  */
 
 /** @param {unknown} value */
@@ -45,7 +45,7 @@ const renderArguments = (input, name) => {
 const renderTool = (tool) =>
   [
     `<article class="tool" id="${escapeHtml(tool.name)}">`,
-    `<h3><code>${escapeHtml(tool.name)}</code> <span class="tier tier-${escapeHtml(tool.tier)}">${escapeHtml(tool.tier)}</span></h3>`,
+    `<h3><code>${escapeHtml(tool.name)}</code> <span class="tier tier-${escapeHtml(tool.tier)}">${escapeHtml(tool.tier)}</span> <span class="stability stability-${escapeHtml(tool.stability)}">${escapeHtml(tool.stability)}</span></h3>`,
     `<p class="title">${escapeHtml(tool.title)}</p>`,
     `<p class="desc">${escapeHtml(tool.description)}</p>`,
     renderArguments(tool.input, tool.name),

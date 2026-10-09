@@ -7,6 +7,7 @@ export const getTokenTool = defineTool({
   name: "solana_market_get_token",
   group: "market",
   tier: "read",
+  stability: "beta",
   title: "Get token metadata",
   description:
     "Read verified on-chain metadata for one token mint: name, symbol, decimals, and logoUri. " +

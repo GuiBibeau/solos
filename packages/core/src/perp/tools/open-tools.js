@@ -24,6 +24,8 @@ export const simulatePerpOpenTool = defineTool({
   name: "solana_perp_simulate_open",
   group: "perp",
   tier: "simulate",
+  stability: "stable",
+  action: "open_perp",
   title: "Simulate a bounded Phoenix IOC open",
   description:
     "Preview a price- and leverage-bounded Phoenix Perps position open without sending an order or funding collateral.",
@@ -35,6 +37,8 @@ export const executePerpOpenTool = defineTool({
   name: "solana_perp_execute_open",
   group: "perp",
   tier: "execute",
+  stability: "stable",
+  action: "open_perp",
   title: "Submit a bounded Phoenix IOC open",
   description:
     "Submit a one-shot Phoenix Perps IOC open after preflight; confirmation does not guarantee a fill. Fund and verify the close path first.",

@@ -8,6 +8,7 @@ export const getPositionTool = defineTool({
   name: "solana_perp_get_position",
   group: "perp",
   tier: "read",
+  stability: "beta",
   title: "Get Phoenix perp position",
   description:
     "Read one Phoenix perp position with an explicit long/short/flat side, absolute base " +

@@ -7,6 +7,7 @@ export const getCurveTool = defineTool({
   name: "solana_launch_get_curve",
   group: "launch",
   tier: "read",
+  stability: "beta",
   title: "Get bonding curve state",
   description:
     "Read the current state of a pump.fun bonding curve for one launched token mint: whether " +

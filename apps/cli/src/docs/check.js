@@ -12,6 +12,7 @@ import { renderToolsHtml } from "./render-html.js";
 import { renderToolsMarkdown } from "./render-llms.js";
 import { renderSliceTable, renderToolTable, sliceNames } from "./render.js";
 import { DocsReportSchema } from "./schema.js";
+import { liveValidatedActions, stabilityProblems } from "./stability.js";
 
 /** @typedef {import("./schema.js").DocsReport} DocsReport */
 /** @typedef {{ file: string, region: string, body: string }} Target */
@@ -42,16 +43,28 @@ const reconcile = (target, write) => {
   return { ...at, status: "written", detail };
 };
 
+/** The feature map's rows: which execute paths a funded round has recorded. */
+const featureRows = () =>
+  /** @type {import("./stability.js").FeatureRow[]} */ (
+    JSON.parse(readFileSync(new URL("features/feature-map.json", ROOT), "utf8"))
+  );
+
 /**
- * Compare every generated region against the registry, rewriting them when asked.
+ * Compare every generated region against the registry, rewriting them when asked, and hold
+ * every stable label to the feature map (ADR-0036).
  * @param {{ write: boolean }} options
  * @returns {DocsReport}
  */
 export const checkDocs = ({ write }) => {
   const regions = targets().map((target) => reconcile(target, write));
+  const problems = stabilityProblems(allTools, liveValidatedActions(featureRows()));
+  const regionsOk = regions.every(
+    (region) => region.status === "current" || region.status === "written",
+  );
   return DocsReportSchema.parse({
-    ok: regions.every((region) => region.status === "current" || region.status === "written"),
+    ok: regionsOk && problems.length === 0,
     write,
     regions,
+    stability: { ok: problems.length === 0, problems },
   });
 };

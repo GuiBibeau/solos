@@ -3,17 +3,19 @@
 /** @typedef {import("./domain/types.js").ToolSummary} ToolSummary */
 /** @typedef {import("./domain/types.js").CatalogueTool} CatalogueTool */
 /** @typedef {import("./domain/types.js").CatalogueTier} CatalogueTier */
+/** @typedef {import("./domain/types.js").Stability} Stability */
 /** @typedef {import("./domain/types.js").SearchToolsInput} SearchToolsInput */
 /** @typedef {import("./ports/tool-selector.js").ToolSelectorShape} ToolSelectorShape */
 /** @typedef {import("./ports/tool-catalogue.js").ToolCatalogueShape} ToolCatalogueShape */
 import { searchToolsTool } from "./tools/search-tools.js";
 
-export { catalogueOf, isWithinCeiling } from "./domain/catalogue.js";
+export { catalogueOf, isExposed, isWithinCeiling } from "./domain/catalogue.js";
 export { SelectionInputInvalid, ToolSelectorUnavailable } from "./domain/errors.js";
 export { localMatches } from "./domain/local-match.js";
 export {
   CatalogueToolSchema,
   SearchToolsInputSchema,
+  StabilitySchema,
   ToolMatchSchema,
   ToolSummarySchema,
   ToolTierSchema,

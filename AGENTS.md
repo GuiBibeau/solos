@@ -163,9 +163,12 @@ everything up front for clients that ignore list changes. Adapters live in
   They never touch a signer or RPC. `DirectSignerExecutor` (local keypair) is the default; a vault
   engine is a different Layer, never a dependency (ADR-0013, ADR-0014).
 - Tools: `defineTool` in `<slice>/tools/`, named `solana_<group>_<verb>_<object>`, tier
-  `read | simulate | execute`, every argument `.describe()`d, description written the way a user
-  would ask. Every `execute` tool has a `simulate` twin. `packages/core/src/tools-registry.test.js`
-  enforces all of this.
+  `read | simulate | execute`, a `stability` label `experimental | beta | stable` (ADR-0036), every
+  argument `.describe()`d, description written the way a user would ask. Every `execute` tool has
+  a `simulate` twin. A simulate or execute tool names the Action type it builds in `action` and
+  may be `stable` only when `features/feature-map.json` holds a live-validated row for it, which
+  `solos dev docs check` enforces; `experimental` tools register only under `--features
+  experimental`. `packages/core/src/tools-registry.test.js` enforces the rest.
 - Production files are capped at 150 logical lines (comments and blanks excluded) and 225 physical
   lines; test files are capped at 300 logical and physical lines. `solos dev check` blocks changed
   files over those physical limits, requires touched legacy debt to be split, and reports untouched

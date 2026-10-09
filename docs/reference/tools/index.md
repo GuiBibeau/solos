@@ -4,57 +4,57 @@ This table is generated from the tool registry by `solos dev docs check --write`
 check` fails when it drifts. Do not edit it by hand.
 
 <!-- generated: tools -->
-| Tool | Tier | Slice |
-|---|---|---|
-| `solana_discovery_search_tools` | read | `discovery` |
-| `solana_launch_execute_buy` | execute | `launch` |
-| `solana_launch_execute_sell` | execute | `launch` |
-| `solana_launch_get_curve` | read | `launch` |
-| `solana_launch_simulate_buy` | simulate | `launch` |
-| `solana_launch_simulate_sell` | simulate | `launch` |
-| `solana_lend_execute_deposit` | execute | `lend` |
-| `solana_lend_execute_withdraw` | execute | `lend` |
-| `solana_lend_get_position` | read | `lend` |
-| `solana_lend_get_reserve` | read | `lend` |
-| `solana_lend_simulate_deposit` | simulate | `lend` |
-| `solana_lend_simulate_withdraw` | simulate | `lend` |
-| `solana_liquidity_execute_close_position` | execute | `liquidity` |
-| `solana_liquidity_execute_deposit` | execute | `liquidity` |
-| `solana_liquidity_execute_open_position` | execute | `liquidity` |
-| `solana_liquidity_execute_withdraw` | execute | `liquidity` |
-| `solana_liquidity_get_position` | read | `liquidity` |
-| `solana_liquidity_simulate_close_position` | simulate | `liquidity` |
-| `solana_liquidity_simulate_deposit` | simulate | `liquidity` |
-| `solana_liquidity_simulate_open_position` | simulate | `liquidity` |
-| `solana_liquidity_simulate_withdraw` | simulate | `liquidity` |
-| `solana_market_ask_iris` | read | `market` |
-| `solana_market_get_event_summary` | read | `market` |
-| `solana_market_get_price` | read | `market` |
-| `solana_market_get_token` | read | `market` |
-| `solana_market_get_token_news` | read | `market` |
-| `solana_market_get_trending_tokens` | read | `market` |
-| `solana_perp_execute_close` | execute | `perp` |
-| `solana_perp_execute_deposit_collateral` | execute | `perp` |
-| `solana_perp_execute_onboard_trader` | execute | `perp` |
-| `solana_perp_execute_open` | execute | `perp` |
-| `solana_perp_execute_withdraw_collateral` | execute | `perp` |
-| `solana_perp_get_onboarding_status` | read | `perp` |
-| `solana_perp_get_position` | read | `perp` |
-| `solana_perp_simulate_close` | simulate | `perp` |
-| `solana_perp_simulate_deposit_collateral` | simulate | `perp` |
-| `solana_perp_simulate_onboard_trader` | simulate | `perp` |
-| `solana_perp_simulate_open` | simulate | `perp` |
-| `solana_perp_simulate_withdraw_collateral` | simulate | `perp` |
-| `solana_portfolio_get_state` | read | `portfolio` |
-| `solana_swap_execute_swap` | execute | `swap` |
-| `solana_swap_get_quote` | read | `swap` |
-| `solana_swap_simulate_swap` | simulate | `swap` |
-| `solana_transfer_execute_sol` | execute | `transfer` |
-| `solana_transfer_simulate_sol` | simulate | `transfer` |
-| `solana_wallet_execute_close_token_account` | execute | `wallet` |
-| `solana_wallet_get_address` | read | `wallet` |
-| `solana_wallet_get_balance` | read | `wallet` |
-| `solana_wallet_simulate_close_token_account` | simulate | `wallet` |
+| Tool | Tier | Stability | Slice |
+|---|---|---|---|
+| `solana_discovery_search_tools` | read | beta | `discovery` |
+| `solana_launch_execute_buy` | execute | beta | `launch` |
+| `solana_launch_execute_sell` | execute | beta | `launch` |
+| `solana_launch_get_curve` | read | beta | `launch` |
+| `solana_launch_simulate_buy` | simulate | beta | `launch` |
+| `solana_launch_simulate_sell` | simulate | beta | `launch` |
+| `solana_lend_execute_deposit` | execute | stable | `lend` |
+| `solana_lend_execute_withdraw` | execute | stable | `lend` |
+| `solana_lend_get_position` | read | beta | `lend` |
+| `solana_lend_get_reserve` | read | beta | `lend` |
+| `solana_lend_simulate_deposit` | simulate | stable | `lend` |
+| `solana_lend_simulate_withdraw` | simulate | stable | `lend` |
+| `solana_liquidity_execute_close_position` | execute | stable | `liquidity` |
+| `solana_liquidity_execute_deposit` | execute | stable | `liquidity` |
+| `solana_liquidity_execute_open_position` | execute | stable | `liquidity` |
+| `solana_liquidity_execute_withdraw` | execute | stable | `liquidity` |
+| `solana_liquidity_get_position` | read | beta | `liquidity` |
+| `solana_liquidity_simulate_close_position` | simulate | stable | `liquidity` |
+| `solana_liquidity_simulate_deposit` | simulate | stable | `liquidity` |
+| `solana_liquidity_simulate_open_position` | simulate | stable | `liquidity` |
+| `solana_liquidity_simulate_withdraw` | simulate | stable | `liquidity` |
+| `solana_market_ask_iris` | read | beta | `market` |
+| `solana_market_get_event_summary` | read | beta | `market` |
+| `solana_market_get_price` | read | beta | `market` |
+| `solana_market_get_token` | read | beta | `market` |
+| `solana_market_get_token_news` | read | beta | `market` |
+| `solana_market_get_trending_tokens` | read | beta | `market` |
+| `solana_perp_execute_close` | execute | stable | `perp` |
+| `solana_perp_execute_deposit_collateral` | execute | stable | `perp` |
+| `solana_perp_execute_onboard_trader` | execute | beta | `perp` |
+| `solana_perp_execute_open` | execute | stable | `perp` |
+| `solana_perp_execute_withdraw_collateral` | execute | stable | `perp` |
+| `solana_perp_get_onboarding_status` | read | beta | `perp` |
+| `solana_perp_get_position` | read | beta | `perp` |
+| `solana_perp_simulate_close` | simulate | stable | `perp` |
+| `solana_perp_simulate_deposit_collateral` | simulate | stable | `perp` |
+| `solana_perp_simulate_onboard_trader` | simulate | beta | `perp` |
+| `solana_perp_simulate_open` | simulate | stable | `perp` |
+| `solana_perp_simulate_withdraw_collateral` | simulate | stable | `perp` |
+| `solana_portfolio_get_state` | read | beta | `portfolio` |
+| `solana_swap_execute_swap` | execute | stable | `swap` |
+| `solana_swap_get_quote` | read | beta | `swap` |
+| `solana_swap_simulate_swap` | simulate | stable | `swap` |
+| `solana_transfer_execute_sol` | execute | stable | `transfer` |
+| `solana_transfer_simulate_sol` | simulate | stable | `transfer` |
+| `solana_wallet_execute_close_token_account` | execute | stable | `wallet` |
+| `solana_wallet_get_address` | read | beta | `wallet` |
+| `solana_wallet_get_balance` | read | beta | `wallet` |
+| `solana_wallet_simulate_close_token_account` | simulate | stable | `wallet` |
 <!-- /generated: tools -->
 
 `market` has the Elfa Iris adapter behind `ELFA_API_KEY`, the Jupiter Price V3 adapter behind

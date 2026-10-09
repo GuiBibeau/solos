@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { revealMatches, SEARCH_TOOL, withholdAllButBootstrap } from "./discovery.js";
 import { buildInstructions } from "./instructions.js";
-import { filterByTier, registerTools } from "./register-tools.js";
+import { filterByExposure, registerTools } from "./register-tools.js";
 
 export const SERVER_NAME = "solos";
 
@@ -16,8 +16,11 @@ export const SERVER_NAME = "solos";
  *   version: string;
  *   tierCeiling?: "read" | "simulate" | "execute";
  *   discovery?: boolean;
+ *   features?: { experimental: boolean };
  * }} options `discovery` (the default) withholds every tool but the bootstrap set until a search
  *   enables it (ADR-0029); `false` is `--tools all`, for clients that ignore list changes.
+ *   `features.experimental` exposes the tools labelled experimental, withheld by default
+ *   (ADR-0036).
  */
 export const createSolosServer = ({
   tools,
@@ -28,11 +31,13 @@ export const createSolosServer = ({
   // appear only when the Operator raises the ceiling deliberately. See ADR-0029.
   tierCeiling = "simulate",
   discovery = true,
+  features = { experimental: false },
 }) => {
-  const offered = filterByTier(tools, tierCeiling);
+  const exposure = { ceiling: tierCeiling, experimental: features.experimental };
+  const offered = filterByExposure(tools, exposure);
   const server = new McpServer(
     { name: SERVER_NAME, version },
-    { instructions: buildInstructions(tools, { ceiling: tierCeiling, discovery }) },
+    { instructions: buildInstructions(tools, { ...exposure, discovery }) },
   );
   /** @type {Map<string, import("@modelcontextprotocol/server").RegisteredTool>} */
   const registered = new Map();

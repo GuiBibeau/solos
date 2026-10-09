@@ -7,6 +7,8 @@ export const simulateDepositTool = defineTool({
   name: "solana_lend_simulate_deposit",
   group: "lend",
   tier: "simulate",
+  stability: "stable",
+  action: "lend",
   title: "Simulate Kamino deposit",
   description:
     "Simulate supplying an exact underlying amount into the one configured Kamino lending " +

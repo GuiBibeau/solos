@@ -7,6 +7,8 @@ export const executeDepositTool = defineTool({
   name: "solana_lend_execute_deposit",
   group: "lend",
   tier: "execute",
+  stability: "stable",
+  action: "lend",
   title: "Execute Kamino deposit",
   description:
     "Supply an exact underlying amount into the one configured Kamino lending market from " +

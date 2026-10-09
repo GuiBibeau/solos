@@ -15,10 +15,13 @@ import { SOLOS_VERSION } from "./version.js";
 export const TierSchema = z.enum(["read", "simulate", "execute"]).default("simulate");
 /** `discover` withholds tools until searched for (ADR-0029); `all` advertises them up front. */
 export const ToolsSchema = z.enum(["discover", "all"]).default("discover");
+/** `experimental` exposes the tools labelled experimental, withheld by default (ADR-0036). */
+export const FeaturesSchema = z.enum(["experimental"]).optional();
 
 /** @typedef {ReturnType<typeof loadSolanaEnv>} SolanaEnv */
 /** @typedef {z.infer<typeof TierSchema>} Tier */
 /** @typedef {z.infer<typeof ToolsSchema>} Tools */
+/** @typedef {{ experimental: boolean }} Features Which withheld-by-default tools this server exposes. */
 
 /**
  * An env var left blank, as a copied `.env.example` leaves it, means unset: the documented
@@ -28,12 +31,12 @@ export const ToolsSchema = z.enum(["discover", "all"]).default("discover");
 const envValue = (value) => (value === "" ? undefined : value);
 
 /**
- * @param {{ solanaEnv: SolanaEnv; tierCeiling: Tier; discovery: Tools; logLevel: string | undefined }} input
+ * @param {{ solanaEnv: SolanaEnv; tierCeiling: Tier; discovery: Tools; features: Features; logLevel: string | undefined }} input
  */
-const buildServer = ({ solanaEnv, tierCeiling, discovery, logLevel }) => {
+const buildServer = ({ solanaEnv, tierCeiling, discovery, features, logLevel }) => {
   const runtime = makeToolRuntime(solanaEnv, {
     logLevel,
-    catalogue: catalogueOf(allTools, tierCeiling),
+    catalogue: catalogueOf(allTools, tierCeiling, features),
   });
   const telemetry = makePreflightTelemetry({ logLevel });
   const server = createSolosServer({
@@ -43,6 +46,7 @@ const buildServer = ({ solanaEnv, tierCeiling, discovery, logLevel }) => {
     version: SOLOS_VERSION,
     tierCeiling,
     discovery: discovery === "discover",
+    features,
   });
   const dispose = async () => {
     await runtime.dispose();
@@ -73,9 +77,9 @@ const bindSignals = (server, dispose) => {
 /**
  * Credentials can sit in an authenticated endpoint's path or query: the startup line, like every
  * token-read error, carries the origin only.
- * @param {SolanaEnv} solanaEnv @param {Tier} tier @param {Tools} discovery
+ * @param {SolanaEnv} solanaEnv @param {{ tier: Tier; discovery: Tools; features: Features }} exposure
  */
-const readyLine = (solanaEnv, tier, discovery) =>
+const readyLine = (solanaEnv, { tier, discovery, features }) =>
   JSON.stringify({
     message: "solos mcp ready",
     version: SOLOS_VERSION,
@@ -83,12 +87,14 @@ const readyLine = (solanaEnv, tier, discovery) =>
     tools: allTools.length,
     tier,
     discovery,
+    features: features.experimental ? ["experimental"] : [],
   });
 
 /**
  * @typedef {{
  *   tier?: string | undefined;
  *   tools?: string | undefined;
+ *   features?: string | undefined;
  *   env?: NodeJS.ProcessEnv;
  * }} ServeOptions An explicit value (a flag) beats the inherited env var, which stays supported
  *   for callers that already set it; `undefined` falls back to the env var, then the default.
@@ -99,14 +105,18 @@ const readyLine = (solanaEnv, tier, discovery) =>
  * errors (no RPC URL or signer, a bad flag value) reject before anything is advertised.
  * @param {ServeOptions} [options]
  */
-export const serveStdio = async ({ tier, tools, env = process.env } = {}) => {
+export const serveStdio = async ({ tier, tools, features, env = process.env } = {}) => {
   const solanaEnv = loadSolanaEnv(env);
   const tierCeiling = TierSchema.parse(tier ?? envValue(env.SOLOS_TOOL_TIER));
   const discovery = ToolsSchema.parse(tools ?? envValue(env.SOLOS_TOOLS));
+  const enabled = {
+    experimental: FeaturesSchema.parse(features ?? envValue(env.SOLOS_FEATURES)) === "experimental",
+  };
   const { server, dispose } = buildServer({
     solanaEnv,
     tierCeiling,
     discovery,
+    features: enabled,
     logLevel: env.SOLOS_LOG_LEVEL,
   });
   const closed = new Promise((resolve) => {
@@ -116,7 +126,7 @@ export const serveStdio = async ({ tier, tools, env = process.env } = {}) => {
   });
   const unbind = bindSignals(server, dispose);
   await server.connect(new StdioServerTransport());
-  console.error(readyLine(solanaEnv, tierCeiling, discovery));
+  console.error(readyLine(solanaEnv, { tier: tierCeiling, discovery, features: enabled }));
   await closed;
   unbind();
   await dispose();

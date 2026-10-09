@@ -15,6 +15,7 @@ const guarded = () => {
     name: "solana_test_do_thing",
     group: "test",
     tier: "read",
+    stability: "beta",
     title: "Test",
     description: "A test tool whose guard refuses negative amounts before anything runs.",
     input: z.object({ amount: z.number().describe("An amount") }),

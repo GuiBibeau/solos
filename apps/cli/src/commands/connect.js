@@ -31,6 +31,12 @@ const tools = Options.choice("tools", ["discover", "all"]).pipe(
     "Tool discovery written into the entry; all is for clients that ignore tools/list_changed",
   ),
 );
+const features = Options.choice("features", ["experimental"]).pipe(
+  Options.optional,
+  Options.withDescription(
+    "Feature flag written into the entry as SOLOS_FEATURES; experimental exposes the tools labelled experimental (ADR-0036)",
+  ),
+);
 const profile = Options.text("profile").pipe(
   Options.optional,
   Options.withDescription(
@@ -65,7 +71,7 @@ const checkScope = (adapter, requested) =>
  */
 export const connect = Command.make(
   "connect",
-  { client, scope, tier, tools, profile, print },
+  { client, scope, tier, tools, features, profile, print },
   (o) =>
     Effect.gen(function* () {
       const adapter = CLIENTS[o.client];
@@ -73,6 +79,7 @@ export const connect = Command.make(
       const entry = serverEntry({
         tier: Option.getOrUndefined(o.tier),
         tools: Option.getOrUndefined(o.tools),
+        features: Option.getOrUndefined(o.features),
         profile: Option.getOrUndefined(o.profile),
       });
       const file = adapter.file(o.scope, { home: homedir(), cwd: process.cwd() });

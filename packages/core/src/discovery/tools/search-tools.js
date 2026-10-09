@@ -11,6 +11,7 @@ export const searchToolsTool = defineTool({
   name: "solana_discovery_search_tools",
   group: "discovery",
   tier: "read",
+  stability: "beta",
   title: "Find the tools for a request",
   description:
     "Find which solOS tools serve a request, and make them callable. Most tools are withheld " +

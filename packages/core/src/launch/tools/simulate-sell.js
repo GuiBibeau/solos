@@ -7,6 +7,8 @@ export const simulateSellTool = defineTool({
   name: "solana_launch_simulate_sell",
   group: "launch",
   tier: "simulate",
+  stability: "beta",
+  action: "swap",
   title: "Simulate a pump.fun sell",
   description:
     "Simulate selling a pump.fun coin back to its bonding curve without submitting anything. " +

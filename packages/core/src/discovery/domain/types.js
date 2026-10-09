@@ -18,8 +18,17 @@ export const ToolMatchSchema = z.object({
 /** The tiers in rank order: a ceiling admits its own tier and every tier before it. */
 export const ToolTierSchema = z.enum(["read", "simulate", "execute"]);
 
-/** A tool as the catalogue lists it: the selector's four fields plus the tier a ceiling gates. */
-export const CatalogueToolSchema = ToolSummarySchema.extend({ tier: ToolTierSchema });
+/** The compatibility promise a tool makes (ADR-0036); experimental tools are exposed only on request. */
+export const StabilitySchema = z.enum(["experimental", "beta", "stable"]);
+
+/**
+ * A tool as the catalogue lists it: the selector's four fields, the tier a ceiling gates and the
+ * stability label a feature flag gates.
+ */
+export const CatalogueToolSchema = ToolSummarySchema.extend({
+  tier: ToolTierSchema,
+  stability: StabilitySchema,
+});
 
 /**
  * One search: exactly one of `query`, `group` or `names` (ADR-0029). Only `query` consults a
@@ -60,5 +69,6 @@ export const SearchToolsInputSchema = z.object({
 /** @typedef {z.infer<typeof ToolSummarySchema>} ToolSummary */
 /** @typedef {z.infer<typeof ToolMatchSchema>} ToolMatch */
 /** @typedef {z.infer<typeof ToolTierSchema>} CatalogueTier */
+/** @typedef {z.infer<typeof StabilitySchema>} Stability */
 /** @typedef {z.infer<typeof CatalogueToolSchema>} CatalogueTool */
 /** @typedef {z.infer<typeof SearchToolsInputSchema>} SearchToolsInput */

@@ -7,6 +7,8 @@ export const simulateWithdrawTool = defineTool({
   name: "solana_lend_simulate_withdraw",
   group: "lend",
   tier: "simulate",
+  stability: "stable",
+  action: "withdraw_lend",
   title: "Simulate Kamino withdrawal",
   description:
     "Simulate redeeming collateral for a target amount of underlying token base units from the " +

@@ -9,6 +9,8 @@ export const executeDepositTool = defineTool({
   name: "solana_liquidity_execute_deposit",
   group: "liquidity",
   tier: "execute",
+  stability: "stable",
+  action: "add_liquidity",
   title: "Execute position deposit",
   description:
     "Add liquidity to one existing Orca, Raydium, or Meteora position from the configured " +

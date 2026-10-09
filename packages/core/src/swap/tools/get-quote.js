@@ -7,6 +7,7 @@ export const getQuoteTool = defineTool({
   name: "solana_swap_get_quote",
   group: "swap",
   tier: "read",
+  stability: "beta",
   title: "Get indicative swap quote",
   description:
     "Get an indicative Jupiter swap quote for selling an amount of one mint for another: exact " +

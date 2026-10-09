@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { SUPPORTED_VENUES } from "./liquidity/index.js";
+import { mcpDescription } from "./shared/tools/define-tool.js";
 import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
@@ -74,6 +75,56 @@ describe("tool registry", () => {
     for (const tool of allTools) {
       expect(validateTool(tool), tool.name).toEqual([]);
     }
+  });
+
+  test("every tool carries a stability label; the stable ones are the live-validated execute paths (ADR-0036)", () => {
+    for (const tool of allTools) {
+      expect(["experimental", "beta", "stable"], tool.name).toContain(tool.stability);
+      if (tool.tier === "read") expect(tool.action, tool.name).toBeUndefined();
+      else expect(typeof tool.action, tool.name).toBe("string");
+    }
+    expect(allTools.filter((t) => t.stability === "stable").map((t) => t.name)).toEqual([
+      "solana_lend_execute_deposit",
+      "solana_lend_execute_withdraw",
+      "solana_lend_simulate_deposit",
+      "solana_lend_simulate_withdraw",
+      "solana_liquidity_execute_close_position",
+      "solana_liquidity_execute_deposit",
+      "solana_liquidity_execute_open_position",
+      "solana_liquidity_execute_withdraw",
+      "solana_liquidity_simulate_close_position",
+      "solana_liquidity_simulate_deposit",
+      "solana_liquidity_simulate_open_position",
+      "solana_liquidity_simulate_withdraw",
+      "solana_perp_execute_close",
+      "solana_perp_execute_deposit_collateral",
+      "solana_perp_execute_open",
+      "solana_perp_execute_withdraw_collateral",
+      "solana_perp_simulate_close",
+      "solana_perp_simulate_deposit_collateral",
+      "solana_perp_simulate_open",
+      "solana_perp_simulate_withdraw_collateral",
+      "solana_swap_execute_swap",
+      "solana_swap_simulate_swap",
+      "solana_transfer_execute_sol",
+      "solana_transfer_simulate_sol",
+      "solana_wallet_execute_close_token_account",
+      "solana_wallet_simulate_close_token_account",
+    ]);
+    expect(allTools.find((t) => t.name === "solana_market_ask_iris")?.stability).toBe("beta");
+    expect(allTools.some((t) => t.stability === "experimental")).toBe(false);
+  });
+
+  test("the MCP description carries the label as a suffix for beta and experimental tools only", () => {
+    expect(mcpDescription({ description: "Swap tokens.", stability: "stable" })).toBe(
+      "Swap tokens.",
+    );
+    expect(mcpDescription({ description: "Swap tokens.", stability: "beta" })).toBe(
+      "Swap tokens. (beta)",
+    );
+    expect(mcpDescription({ description: "Swap tokens.", stability: "experimental" })).toBe(
+      "Swap tokens. (experimental)",
+    );
   });
 
   test("names are unique and sorted", () => {

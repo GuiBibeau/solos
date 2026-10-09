@@ -7,6 +7,7 @@ export const getStateTool = defineTool({
   name: "solana_portfolio_get_state",
   group: "portfolio",
   tier: "read",
+  stability: "beta",
   title: "Get portfolio state",
   description:
     "Read one owner's supported-portfolio state: cash (native SOL and recognized stablecoins), " +
