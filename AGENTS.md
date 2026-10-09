@@ -47,6 +47,7 @@ bun run solos dev evidence check --body-file pr.md --sha $(git rev-parse HEAD)  
 bun run solos dev build                  # compile the solos binary for this machine (or --target all) and smoke-test it
 bun run solos dev pack --version 0.1.0   # assemble the npm launcher and platform packages from dist/
 bun run solos dev release version --lane canary --run 7 --sha $(git rev-parse HEAD)  # the next canary version (ADR-0036)
+bun run solos dev release prepare --bump patch --dry-run   # the next stable version and the release PR it would open
 bun run solos dev release promote 0.1.1 --dry-run   # what pointing latest at a staged version would run
 bun run solos dev surfpool down
 ```

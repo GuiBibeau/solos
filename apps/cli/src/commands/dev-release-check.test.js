@@ -1,55 +1,11 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { runSolos, stderrJson } from "./cli-fixture.js";
+import { releasedRepo } from "./release-fixture.js";
 
 const env = { SOLOS_DEV: "1" };
-const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" };
-
-/**
- * A checkout with one commit and, when given, a `solos@<version>` tag on it: the history check
- * reads. A `solos@9.0.0` on an unmerged branch sits beside it, and must not count.
- * @param {string} prefix @param {string | null} version
- */
-const releasedRepo = (prefix, version) => {
-  const dir = mkdtempSync(path.join(tmpdir(), prefix));
-  const git = (/** @type {string[]} */ args) =>
-    execFileSync("git", args, { cwd: dir, stdio: "ignore", env: GIT_ENV });
-  git(["init", "-q"]);
-  git([
-    "-c",
-    "user.name=solos",
-    "-c",
-    "user.email=solos@example.com",
-    "commit",
-    "-q",
-    "--allow-empty",
-    "-m",
-    "base",
-  ]);
-  if (version !== null) {
-    git(["tag", `solos@${version}`]);
-    git(["checkout", "-q", "-b", "elsewhere"]);
-    git([
-      "-c",
-      "user.name=solos",
-      "-c",
-      "user.email=solos@example.com",
-      "commit",
-      "-q",
-      "--allow-empty",
-      "-m",
-      "future",
-    ]);
-    git(["tag", "solos@9.0.0"]);
-    git(["checkout", "-q", "-"]);
-  }
-  return dir;
-};
-
 describe("solos dev release check [integration]", () => {
   test("check names what a release PR still lacks, from a cwd holding its own server.json", async () => {
     const dir = releasedRepo("solos-check-", "0.0.9");

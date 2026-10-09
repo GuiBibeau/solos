@@ -5,7 +5,8 @@ import { Options } from "@effect/cli";
 import { Effect, Option } from "effect";
 import { captureCommand } from "../evidence/run-steps.js";
 import { ReleaseRefused } from "../release/errors.js";
-import { newestStable, parseVersion } from "../release/version.js";
+import { diffToolRows, parseSubjects, renderNotes, toolRows } from "../release/notes.js";
+import { isMajor, newestStable, parseVersion } from "../release/version.js";
 
 /** The generated tool reference whose rows the notes diff. */
 export const TOOL_REFERENCE = "docs/reference/tools/index.md";
@@ -116,4 +117,51 @@ export const parseManifest = (text) => {
       ],
     };
   }
+};
+
+/**
+ * The release notes for `version`, from the merges since `since` and the tool reference diff
+ * against that tag.
+ * @param {string} version @param {string} since a `solos@x.y.z` tag
+ */
+export const composeNotes = async (version, since) => {
+  const entries = parseSubjects(await git(["log", `${since}..HEAD`, "--format=%s", "--no-merges"]));
+  const before = toolRows(await gitShowOrEmpty(`${since}:${TOOL_REFERENCE}`));
+  const after = toolRows(readIfPresent(TOOL_REFERENCE) ?? "");
+  const toolDiff = diffToolRows(before, after);
+  const major = isMajor(version, parseVersion(since.replace(/^solos@/u, "")));
+  const markdown = renderNotes({ version, since, entries, toolDiff, major });
+  return { since, entries: entries.length, toolDiff, major, markdown };
+};
+
+/** A release PR carries only server.json and the notes, so the tree must be clean before it starts. */
+export const assertCleanTree = async () => {
+  const status = (await git(["status", "--porcelain"])).trim();
+  if (status.length === 0) return;
+  throw new ReleaseRefused({
+    reason: "the working tree has uncommitted changes",
+    remedy: "commit or stash them first; prepare commits only server.json and the notes file",
+  });
+};
+
+/** @param {string} value @param {string} flag */
+export const semver = (value, flag) => {
+  if (parseVersion(value) === null) {
+    throw new ReleaseRefused({
+      reason: `${flag} ${value} is not a semver version`,
+      remedy: `pass ${flag} <major.minor.patch>`,
+    });
+  }
+  return value;
+};
+
+/** The stable lane's versions only: `latest` never points at a canary, and never rolls back from one. */
+export const stable = (/** @type {string} */ value, /** @type {string} */ flag) => {
+  if (parseVersion(semver(value, flag))?.prerelease !== null) {
+    throw new ReleaseRefused({
+      reason: `${flag} ${value} is a prerelease; latest only ever points at a stable version`,
+      remedy: `pass a stable ${flag}, with no prerelease suffix`,
+    });
+  }
+  return value;
 };

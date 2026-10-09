@@ -1,0 +1,63 @@
+name: tag-release
+
+# The stable lane's approval is the merge of a release PR (ADR-0036). When a push to main is that
+# merge, recognisable because it adds docs/releases/x.y.z.md, this tags solos@x.y.z at the merge
+# commit and dispatches release-cli.yml on that tag. The dispatch is explicit because a tag the
+# workflow token creates starts no workflow on its own; workflow_dispatch is the exception.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2
+          fetch-tags: true
+      - name: Is this push the merge of a release PR?
+        id: release
+        run: |
+          set -euo pipefail
+          added="$(git diff --name-only --diff-filter=A HEAD^ HEAD | grep -E '^docs/releases/[0-9]+\.[0-9]+\.[0-9]+\.md$' || true)"
+          count="$(grep -c . <<<"$added" || true)"
+          if [ "$count" = "0" ]; then
+            echo "not a release merge; nothing to tag"
+            echo "version=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$count" != "1" ]; then
+            echo "::error::this merge adds $count release notes files; a release PR adds exactly one"
+            exit 1
+          fi
+          version="$(basename "$added" .md)"
+          manifest="$(jq -r .version server.json)"
+          if [ "$manifest" != "$version" ]; then
+            echo "::error::docs/releases/$version.md was added but server.json says $manifest"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Tag solos@x.y.z at the merge commit and dispatch the release
+        if: steps.release.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="solos@${VERSION}"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+            echo "::error::${tag} already exists; a version is released once"
+            exit 1
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="$GITHUB_SHA" >/dev/null
+          echo "tagged ${tag} at ${GITHUB_SHA}"
+          gh workflow run release-cli.yml --ref "${tag}"
+          echo "dispatched release-cli.yml on ${tag}"
