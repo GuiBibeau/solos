@@ -6,6 +6,9 @@ import { AddressSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { network, signatureStatus } from "./dev-network-inspect.js";
+
+export { inspectNetwork, inspectSignature } from "./dev-network-inspect.js";
 
 /** @param {string} value */
 const checkedAddress = (value) => {
@@ -161,5 +164,5 @@ const accountData = Command.make("account-data", { account, maxBytes }, (o) =>
 
 export const inspect = Command.make("inspect").pipe(
   Command.withDescription("Read-only chain evidence for QA reconciliation"),
-  Command.withSubcommands([transaction, accountCommand, accountData]),
+  Command.withSubcommands([network, signatureStatus, transaction, accountCommand, accountData]),
 );
