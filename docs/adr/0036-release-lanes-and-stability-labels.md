@@ -47,10 +47,15 @@ published versions only. The lanes below are built from what those facts allow.
   packages, marks the GitHub Release latest, and publishes `server.json` to the MCP Registry
   with `mcp-publisher`. No human gate: the review happened on the release PR. A failed smoke
   leaves the version on `staged`, visible, installable by exact version, and not `latest`.
-- **Rollback is the same flip in reverse.** `solos dev release rollback --to x.y.z` points
-  `latest` and the GitHub Release at a previous version and deprecates the bad one on npm with
-  the reason. No rebuild. The registry is re-published from the previous release's
-  `server.json`.
+- **Rollback is the same flip in reverse, except for the registry.** `solos dev release
+  rollback --to x.y.z` points `latest` and the GitHub Release at a previous version and
+  deprecates the bad one on npm with the reason. No rebuild. The MCP Registry is left alone: its
+  versions are immutable and an existing version cannot be published again, so the registry
+  cannot point backwards. The rolled-back version stays listed until a fix-forward patch release
+  is promoted, which is the remedy the command prints. The registry's supported operation is
+  `PATCH /v0.1/servers/{name}/versions/{version}/status` to mark the bad version `deprecated`
+  with a message; it needs the publisher's token, so the stable-lane workflow runs it, not the
+  lever on a laptop.
 
 The release mechanics are lever commands under `solos dev release`, so the workflows call
 `solos` and CI arithmetic lives in tested code, not YAML.
@@ -94,7 +99,8 @@ beside the version. There is no separate channel file to drift.
 - Majors are rarer and slower by design: an ADR, a Migration section and a reviewed PR stand in
   front of them, which is the review the operator asked for.
 - A rollback takes one command and leaves evidence (the deprecation message) rather than a
-  rebuilt artifact.
+  rebuilt artifact. It does not reach the MCP Registry; a bad registry entry is outlived by the
+  next patch release.
 - npm accumulates five versions per merge. That is the price of the canary lane; the pruning
   applies to GitHub pre-releases only.
 - Agents and users can tell a promise from an experiment by reading the tool, and the project

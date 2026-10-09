@@ -173,22 +173,21 @@ describe("solos dev release", () => {
     });
   });
 
-  test("rollback --dry-run republishes the registry from the target's tag before deprecating", async () => {
+  test("rollback --dry-run deprecates after the flips and says the registry is fix-forward", async () => {
     const { stdout, code } = await runSolos(
       ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.1", "--dry-run"],
       env,
     );
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
-    expect(result.steps[6]).toMatchObject({
-      name: "MCP Registry publish from solos@0.1.0",
-      command: "mcp-publisher publish",
-      ok: null,
-    });
-    const deprecations = result.steps.filter((/** @type {{ command: string }} */ s) =>
-      s.command.startsWith("npm deprecate"),
-    );
-    expect(deprecations).toHaveLength(5);
+    expect(result.steps).toHaveLength(11);
+    expect(
+      result.steps.some((/** @type {{ command: string }} */ s) =>
+        s.command.startsWith("mcp-publisher"),
+      ),
+    ).toBe(false);
+    expect(result.registry).toMatchObject({ changed: false });
+    expect(result.registry.remedy).toContain("fix forward");
   });
 
   test("rollback refuses when latest already points at the target", async () => {

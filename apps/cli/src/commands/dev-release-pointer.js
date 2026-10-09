@@ -2,7 +2,8 @@
 /**
  * Promotion and rollback are pointer flips (ADR-0036): npm dist-tags and the GitHub Release's
  * latest flag move; nothing is rebuilt or published. Both refuse a version npm does not have,
- * accept only stable versions, and publish the MCP Registry from the target tag's own manifest.
+ * accept only stable versions; promote publishes the MCP Registry from the target tag's own manifest
+ * and rollback leaves the registry alone, because its versions are immutable.
  */
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -87,6 +88,13 @@ export const promote = Command.make(
   Command.withDescription("Point latest at a published version and publish it to the MCP Registry"),
 );
 
+/** What a rollback cannot do, stated in the result rather than attempted and failed. */
+const REGISTRY_UNCHANGED = Object.freeze({
+  changed: false,
+  reason: "MCP Registry versions are immutable; a version that exists cannot be published again",
+  remedy: "fix forward: prepare a patch release and promote it, which publishes the registry",
+});
+
 const to = Options.text("to").pipe(
   Options.withDescription("The previously published version latest should point at again"),
 );
@@ -99,7 +107,7 @@ const reason = Options.text("reason").pipe(
   Options.withDescription("The npm deprecation message on the rolled-back version"),
 );
 
-export const rollback = Command.make("rollback", { to, from, reason, skipRegistry, dryRun }, (o) =>
+export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (o) =>
   attempt(async () => {
     const target = stable(o.to, "--to");
     if (o.reason.trim().length === 0) {
@@ -121,14 +129,20 @@ export const rollback = Command.make("rollback", { to, from, reason, skipRegistr
       await assertPublished(target);
       await assertPublished(bad);
     }
-    const registryDir = await registryDirMaybe(target, { skip: o.skipRegistry, dryRun: o.dryRun });
-    const plan = rollbackPlan({ to: target, from: bad, reason: o.reason, registryDir });
+    const plan = rollbackPlan({ to: target, from: bad, reason: o.reason });
     const result = await runPlan(plan, { dryRun: o.dryRun });
     if (!result.ok) process.exitCode = 1;
-    return { action: "rollback", to: target, from: bad, dryRun: o.dryRun, ...result };
+    return {
+      action: "rollback",
+      to: target,
+      from: bad,
+      dryRun: o.dryRun,
+      registry: REGISTRY_UNCHANGED,
+      ...result,
+    };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Point latest back at a previous version, republish the registry and deprecate the rolled-back one",
+    "Point latest back at a previous version and deprecate the rolled-back one; the registry is fix-forward",
   ),
 );

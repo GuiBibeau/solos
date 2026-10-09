@@ -47,23 +47,13 @@ describe("promotion and rollback plans", () => {
     expect(promotePlan({ version: "0.1.1" }).at(-1)?.argv[0]).toBe("gh");
   });
 
-  test("rollback points back, republishes the registry from the target, then deprecates everywhere", () => {
-    const plan = rollbackPlan({
-      to: "0.1.0",
-      from: "0.1.1",
-      reason: "bad build",
-      registryDir: "/tmp/r",
-    });
+  test("rollback points back, then deprecates everywhere; the registry is never touched", () => {
+    const plan = rollbackPlan({ to: "0.1.0", from: "0.1.1", reason: "bad build" });
     const argv = plan.map((s) => s.argv.join(" "));
     expect(argv[0]).toBe("npm dist-tag add @solos-sh/cli@0.1.0 latest");
     expect(argv[5]).toBe("gh release edit solos@0.1.0 --latest --prerelease=false");
-    expect(plan[6]).toEqual({
-      name: "MCP Registry publish from solos@0.1.0",
-      argv: ["mcp-publisher", "publish"],
-      cwd: "/tmp/r",
-    });
-    expect(argv.slice(7)).toEqual(DEPRECATE("0.1.1", "bad build"));
-    expect(rollbackPlan({ to: "0.1.0", from: "0.1.1", reason: "x" })[6]?.argv[0]).toBe("npm");
+    expect(argv.slice(6)).toEqual(DEPRECATE("0.1.1", "bad build"));
+    expect(argv.some((command) => command.startsWith("mcp-publisher"))).toBe(false);
   });
 
   test("a dry run prints every step and runs nothing; a failure stops the plan", async () => {

@@ -52,15 +52,14 @@ export const promotePlan = ({ version, registryDir }) => [
 ];
 
 /**
- * Point back, republish the registry from the target's manifest, then deprecate the bad version
- * everywhere. The registry comes before the deprecations because a failed deprecation stops the
- * plan, and MCP clients must not keep discovering the rolled-back version (ADR-0036).
- * @param {{ to: string; from: string; reason: string; registryDir?: string }} input
+ * Point back, then deprecate the bad version everywhere. The registry is not touched: its
+ * versions are immutable and a version that exists cannot be published again, so a rollback
+ * cannot point it backwards (ADR-0036); the fix is a patch release through the stable lane.
+ * @param {{ to: string; from: string; reason: string }} input
  * @returns {Step[]}
  */
-export const rollbackPlan = ({ to, from, reason, registryDir }) => [
+export const rollbackPlan = ({ to, from, reason }) => [
   ...pointLatestAt(to),
-  ...registryStep(to, registryDir),
   ...releasePackages().map((pkg) => ({
     name: `deprecate ${pkg}@${from}`,
     argv: ["npm", "deprecate", `${pkg}@${from}`, reason],
