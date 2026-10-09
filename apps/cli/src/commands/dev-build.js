@@ -8,6 +8,8 @@ import { smokeTest } from "../build/smoke.js";
 import { hostTargetName, selectTargets } from "../build/targets.js";
 import { captureCommand } from "../evidence/run-steps.js";
 import { emit, exitOnFailure } from "../output.js";
+import { ReleaseRefused } from "../release/errors.js";
+import { attempt } from "./dev-release-shared.js";
 
 const target = Options.text("target").pipe(
   Options.optional,
@@ -33,12 +35,27 @@ const skipSmoke = Options.boolean("skip-smoke").pipe(
   Options.withDescription("Do not run the host binary's smoke test (version, doctor, mcp list)"),
 );
 
-/** The commit the build stamps: the one given, else HEAD of the checkout the build runs in. @param {Option.Option<string>} given */
+const SHA = /^[0-9a-f]{40}$/u;
+
+/**
+ * The commit the build stamps: the one given, which must be a full lowercase sha, else HEAD of
+ * the checkout the build runs in, else null.
+ * @param {Option.Option<string>} given
+ */
 const buildCommit = async (given) => {
-  if (Option.isSome(given)) return given.value;
+  if (Option.isSome(given)) {
+    if (!SHA.test(given.value)) {
+      throw new ReleaseRefused({
+        reason: `--commit ${given.value} is not a full lowercase commit sha`,
+        remedy:
+          "pass the 40 hex characters of git rev-parse HEAD, or omit --commit to stamp this checkout's HEAD",
+      });
+    }
+    return given.value;
+  }
   const { code, stdout, output } = await captureCommand(["git", "rev-parse", "HEAD"]);
   const sha = (stdout ?? output).trim();
-  return code === 0 && /^[0-9a-f]{40}$/u.test(sha) ? sha : null;
+  return code === 0 && SHA.test(sha) ? sha : null;
 };
 
 /**
@@ -47,7 +64,7 @@ const buildCommit = async (given) => {
  * cross-compiled binaries cannot run here and are only hashed. Exit 1 when the smoke test fails.
  */
 export const build = Command.make("build", { target, outdir, version, commit, skipSmoke }, (o) =>
-  Effect.promise(async () => {
+  attempt(async () => {
     const targets = selectTargets(Option.getOrUndefined(o.target));
     const release = { version: o.version, commit: await buildCommit(o.commit) };
     mkdirSync(o.outdir, { recursive: true });
