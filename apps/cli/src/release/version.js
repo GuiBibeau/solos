@@ -1,0 +1,132 @@
+// @ts-check
+/**
+ * Version arithmetic for the release lanes (ADR-0036). A version is derived, never typed: a
+ * canary is the newest stable tag plus one patch with a `canary.<run>.g<sha>` prerelease, a
+ * stable is that tag bumped once. Pure: tags come in as strings, nothing is read here.
+ */
+import { ReleaseRefused } from "./errors.js";
+
+/** @typedef {{ major: number; minor: number; patch: number; prerelease: string | null }} Version */
+/** @typedef {"patch" | "minor" | "major"} Bump */
+/** @typedef {"source" | "canary" | "stable"} Lane */
+
+// The semver grammar npm accepts: no leading zeros on numbers, prerelease identifiers that are
+// either numbers without leading zeros or alphanumerics, dot-separated; build metadata is not used.
+const NUMBER = String.raw`(?:0|[1-9]\d*)`;
+const IDENTIFIER = String.raw`(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)`;
+const SEMVER = new RegExp(
+  String.raw`^(${NUMBER})\.(${NUMBER})\.(${NUMBER})(?:-(${IDENTIFIER}(?:\.${IDENTIFIER})*))?$`,
+  "u",
+);
+export const TAG_PREFIX = "solos@";
+
+/**
+ * Null for anything npm could not publish, including a numeric component above what node-semver
+ * holds exactly (`Number.MAX_SAFE_INTEGER`).
+ * @param {string} text @returns {Version | null}
+ */
+export const parseVersion = (text) => {
+  const match = SEMVER.exec(text);
+  if (match === null) return null;
+  const [major, minor, patch] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  if ([major, minor, patch].some((part) => !Number.isSafeInteger(part))) return null;
+  return { major, minor, patch, prerelease: match[4] ?? null };
+};
+
+/** @param {Version} version */
+export const formatVersion = ({ major, minor, patch, prerelease }) =>
+  `${major}.${minor}.${patch}${prerelease === null ? "" : `-${prerelease}`}`;
+
+/** A bump that leaves the safe-integer range is refused, never printed. @param {Version} version */
+const bumped = (version) => {
+  const text = formatVersion(version);
+  if (parseVersion(text) === null) {
+    throw new ReleaseRefused({
+      reason: `${text} is beyond what npm can publish`,
+      remedy: "start from a version whose components fit in a safe integer",
+    });
+  }
+  return text;
+};
+
+/** @param {string} version */
+export const releaseTag = (version) => `${TAG_PREFIX}${version}`;
+
+/** Negative when `a` is older than `b`; prerelease identifiers do not take part. @param {Version} a @param {Version} b */
+export const compareVersions = (a, b) =>
+  a.major - b.major || a.minor - b.minor || a.patch - b.patch;
+
+/**
+ * The newest stable version among `solos@*` tags; prereleases and foreign tags are ignored.
+ * @param {ReadonlyArray<string>} tags
+ * @returns {Version | null}
+ */
+export const newestStable = (tags) => {
+  /** @type {Version | null} */
+  let best = null;
+  for (const tag of tags) {
+    if (!tag.startsWith(TAG_PREFIX)) continue;
+    const version = parseVersion(tag.slice(TAG_PREFIX.length));
+    if (version === null || version.prerelease !== null) continue;
+    if (best === null || compareVersions(version, best) > 0) best = version;
+  }
+  return best;
+};
+
+/**
+ * The next patch of `base` with a `canary.<run>.g<short sha>` prerelease; the run number keeps
+ * canaries ordered and the sha names the commit.
+ * @param {{ base: Version; run: number; sha: string }} input
+ */
+export const canaryVersion = ({ base, run, sha }) => {
+  if (!Number.isSafeInteger(run) || run < 0) {
+    throw new ReleaseRefused({
+      reason: `run must be a non-negative integer, got ${String(run)}`,
+      remedy: "pass the workflow run number as --run",
+    });
+  }
+  if (!/^[0-9a-f]{7,40}$/u.test(sha)) {
+    throw new ReleaseRefused({
+      reason: `sha must be 7 to 40 lowercase hex characters, got ${sha}`,
+      remedy: "pass the commit sha as --sha",
+    });
+  }
+  return bumped({
+    ...base,
+    patch: base.patch + 1,
+    prerelease: `canary.${run}.g${sha.slice(0, 7)}`,
+  });
+};
+
+/** @param {{ base: Version; bump: Bump }} input */
+export const stableVersion = ({ base, bump }) => {
+  if (bump === "major")
+    return bumped({ major: base.major + 1, minor: 0, patch: 0, prerelease: null });
+  if (bump === "minor")
+    return bumped({ ...base, minor: base.minor + 1, patch: 0, prerelease: null });
+  return bumped({ ...base, patch: base.patch + 1, prerelease: null });
+};
+
+/**
+ * The lane a running binary belongs to, read from nothing but its version: a checkout is
+ * `0.0.0`, a canary carries the `canary.` identifier, everything else is stable.
+ * @param {string} version @returns {Lane}
+ */
+export const laneOf = (version) => {
+  const parsed = parseVersion(version);
+  if (parsed === null || version === "0.0.0") return "source";
+  if (parsed.prerelease?.startsWith("canary.")) return "canary";
+  return "stable";
+};
+
+/**
+ * Whether `version` starts a new major. Against a known previous stable release that is a
+ * higher major component, whatever the minor and patch; without one, the `x.0.0` shape.
+ * @param {string} version @param {Version | null} [previous]
+ */
+export const isMajor = (version, previous = null) => {
+  const parsed = parseVersion(version);
+  if (parsed === null || parsed.prerelease !== null) return false;
+  if (previous !== null) return parsed.major > previous.major;
+  return parsed.minor === 0 && parsed.patch === 0;
+};

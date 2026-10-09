@@ -1,0 +1,191 @@
+// @ts-check
+/**
+ * Promotion and rollback are pointer flips (ADR-0036): npm dist-tags and the GitHub Release's
+ * latest flag move; nothing is rebuilt or published. Both refuse a version npm does not have,
+ * accept only stable versions; promote publishes the MCP Registry from the target tag's own manifest
+ * and rollback leaves the registry alone, because its versions are immutable.
+ */
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { Args, Command, Options } from "@effect/cli";
+import { Effect } from "effect";
+import { emit, exitOnFailure } from "../output.js";
+import { ReleaseRefused } from "../release/errors.js";
+import { promotePlan, rollbackPlan } from "../release/plans.js";
+import { registryHasVersion } from "../release/registry.js";
+import {
+  assertForward,
+  assertManifestVersion,
+  assertNotDeprecated,
+  assertPublished,
+  assertRollbackSource,
+  currentLatest,
+  runPlan,
+} from "../release/run-plan.js";
+import { compareVersions, parseVersion, releaseTag } from "../release/version.js";
+import { attempt, dryRun, git } from "./dev-release-shared.js";
+
+/** @param {string} value @param {string} flag */
+const semver = (value, flag) => {
+  if (parseVersion(value) === null) {
+    throw new ReleaseRefused({
+      reason: `${flag} ${value} is not a semver version`,
+      remedy: `pass ${flag} <major.minor.patch>`,
+    });
+  }
+  return value;
+};
+
+/** The stable lane's versions only: `latest` never points at a canary, and never rolls back from one. */
+const stable = (/** @type {string} */ value, /** @type {string} */ flag) => {
+  if (parseVersion(semver(value, flag))?.prerelease !== null) {
+    throw new ReleaseRefused({
+      reason: `${flag} ${value} is a prerelease; latest only ever points at a stable version`,
+      remedy: `pass a stable ${flag}, with no prerelease suffix`,
+    });
+  }
+  return value;
+};
+
+/**
+ * The `server.json` the target release shipped, read from its tag into a fresh directory for
+ * `mcp-publisher publish`. The checkout's own manifest is never used: a `main` that moved on
+ * would advertise the wrong release. A tag without a manifest cannot publish the registry.
+ * @param {string} version
+ */
+const registryDirFor = async (version) => {
+  const manifest = await git(["show", `${releaseTag(version)}:server.json`]);
+  assertManifestVersion(manifest, version);
+  const dir = mkdtempSync(path.join(tmpdir(), "solos-release-"));
+  writeFileSync(path.join(dir, "server.json"), manifest);
+  return dir;
+};
+
+/**
+ * @param {string} target @param {{ skip: boolean; dryRun: boolean }} mode
+ * @returns {Promise<string | undefined>} undefined when the registry is left alone
+ */
+const registryDirMaybe = async (target, { skip, dryRun: dry }) => {
+  if (skip) return undefined;
+  return dry ? `<server.json of ${releaseTag(target)}>` : registryDirFor(target);
+};
+
+/**
+ * Publish the registry only when it does not already list the version: a retry after a partial
+ * promote that had reached the registry would otherwise fail on the duplicate. A dry run does
+ * not ask the registry.
+ * @param {string} version @param {string | undefined} dir @param {boolean} dry
+ * @returns {Promise<{ dir: string | undefined; note: { publish: boolean; reason: string } }>}
+ */
+const registryPlanFor = async (version, dir, dry) => {
+  if (dir === undefined) {
+    return { dir, note: { publish: false, reason: "skipped by --skip-registry" } };
+  }
+  if (dry) return { dir, note: { publish: true, reason: "dry run; the registry was not asked" } };
+  const { name } = JSON.parse(readFileSync(path.join(dir, "server.json"), "utf8"));
+  if (await registryHasVersion({ name: String(name), version })) {
+    return {
+      dir: undefined,
+      note: { publish: false, reason: `${name}@${version} is already in the registry` },
+    };
+  }
+  return { dir, note: { publish: true, reason: `${name}@${version} is not in the registry yet` } };
+};
+
+const promoteVersion = Args.text({ name: "version" }).pipe(
+  Args.withDescription("The staged version latest should point at"),
+);
+const skipRegistry = Options.boolean("skip-registry").pipe(
+  Options.withDefault(false),
+  Options.withDescription("Do not touch the MCP Registry"),
+);
+
+export const promote = Command.make(
+  "promote",
+  { version: promoteVersion, skipRegistry, dryRun },
+  (o) =>
+    attempt(async () => {
+      const version = stable(o.version, "version");
+      if (!o.dryRun) {
+        assertForward(version, await currentLatest());
+        await assertPublished(version);
+        await assertNotDeprecated(version);
+      }
+      const staged = await registryDirMaybe(version, { skip: o.skipRegistry, dryRun: o.dryRun });
+      const registry = await registryPlanFor(version, staged, o.dryRun);
+      const result = await runPlan(promotePlan({ version, registryDir: registry.dir }), {
+        dryRun: o.dryRun,
+      });
+      if (!result.ok) process.exitCode = 1;
+      return { action: "promote", version, dryRun: o.dryRun, registry: registry.note, ...result };
+    }).pipe(Effect.flatMap(emit), exitOnFailure),
+).pipe(
+  Command.withDescription("Point latest at a published version and publish it to the MCP Registry"),
+);
+
+/** What a rollback cannot do, stated in the result rather than attempted and failed. */
+const REGISTRY_UNCHANGED = Object.freeze({
+  changed: false,
+  reason: "MCP Registry versions are immutable; a version that exists cannot be published again",
+  remedy: "fix forward: prepare a patch release and promote it, which publishes the registry",
+});
+
+const to = Options.text("to").pipe(
+  Options.withDescription("The previously published version latest should point at again"),
+);
+const from = Options.text("from").pipe(
+  Options.withDescription(
+    "The version being rolled back. Always named, so a retry after a partial run cannot mistake the target for the source",
+  ),
+);
+const reason = Options.text("reason").pipe(
+  Options.withDefault("rolled back; install the version latest points at"),
+  Options.withDescription("The npm deprecation message on the rolled-back version"),
+);
+
+export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (o) =>
+  attempt(async () => {
+    const target = stable(o.to, "--to");
+    if (o.reason.trim().length === 0) {
+      throw new ReleaseRefused({
+        reason: "--reason is empty; npm reads an empty deprecation message as un-deprecating",
+        remedy: "pass --reason <why this version is rolled back>",
+      });
+    }
+    const bad = stable(o.from, "--from");
+    // A rollback restores a previous release: --to must be older than --from, never equal or
+    // newer, or the "rollback" would move every latest pointer forward.
+    const toParsed = /** @type {import("../release/version.js").Version} */ (parseVersion(target));
+    const fromParsed = /** @type {import("../release/version.js").Version} */ (parseVersion(bad));
+    if (compareVersions(toParsed, fromParsed) >= 0) {
+      throw new ReleaseRefused({
+        reason: `--to ${target} is not older than --from ${bad}; a rollback restores a previous release`,
+        remedy: "pass --to <an earlier published version>, or promote the newer one instead",
+      });
+    }
+    // Both versions are checked before any pointer moves, so a mistyped --from cannot leave a
+    // half-done rollback behind a failed deprecation.
+    if (!o.dryRun) {
+      assertRollbackSource({ from: bad, to: target, latest: await currentLatest() });
+      await assertPublished(target);
+      await assertNotDeprecated(target);
+      await assertPublished(bad);
+    }
+    const plan = rollbackPlan({ to: target, from: bad, reason: o.reason });
+    const result = await runPlan(plan, { dryRun: o.dryRun });
+    if (!result.ok) process.exitCode = 1;
+    return {
+      action: "rollback",
+      to: target,
+      from: bad,
+      dryRun: o.dryRun,
+      registry: REGISTRY_UNCHANGED,
+      ...result,
+    };
+  }).pipe(Effect.flatMap(emit), exitOnFailure),
+).pipe(
+  Command.withDescription(
+    "Point latest back at a previous version and deprecate the rolled-back one; the registry is fix-forward",
+  ),
+);

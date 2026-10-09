@@ -7,6 +7,7 @@ import { inspect } from "./dev-chain-inspect.js";
 import { docs } from "./dev-docs.js";
 import { pack } from "./dev-pack.js";
 import { qa } from "./dev-qa.js";
+import { release } from "./dev-release.js";
 import { surfpool } from "./dev-surfpool.js";
 import { evidence, verify } from "./dev-verify.js";
 
@@ -54,5 +55,6 @@ export const dev = Command.make("dev").pipe(
     evidence,
     build,
     pack,
+    release,
   ]),
 );

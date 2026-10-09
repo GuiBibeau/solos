@@ -19,21 +19,23 @@ const DEFAULT_NODE_OPTIONS = "--max-old-space-size=6144";
 
 /**
  * Spawn a command and capture its combined output.
- * @param {string[]} argv
- * @returns {Promise<{ code: number; output: string }>}
+ * @param {string[]} argv @param {string} [cwd] where to run it; default: the current directory
+ * @returns {Promise<{ code: number; output: string; stdout: string; stderr: string }>} `output` is both
+ *   streams merged, for summaries; `stdout` alone is what a probe parses
  */
-export const captureCommand = async (argv) => {
+export const captureCommand = async (argv, cwd) => {
   try {
     const env = { ...process.env, NODE_OPTIONS: process.env.NODE_OPTIONS ?? DEFAULT_NODE_OPTIONS };
-    const proc = Bun.spawn(argv, { env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn(argv, { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
       proc.exited,
     ]);
-    return { code, output: `${out}\n${err}` };
+    return { code, output: `${out}\n${err}`, stdout: out, stderr: err };
   } catch (error) {
-    return { code: 127, output: error instanceof Error ? error.message : String(error) };
+    const message = error instanceof Error ? error.message : String(error);
+    return { code: 127, output: message, stdout: "", stderr: message };
   }
 };
 
