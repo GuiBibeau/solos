@@ -49,6 +49,16 @@ describe("release PR check", () => {
       '1.0.0 is a major and docs/releases/1.0.0.md has no filled "## Migration" section',
       "1.0.0 is a major and docs/releases/1.0.0.md names no ADR",
     ]);
+    const hidden =
+      "# solos 1.0.0\n\n<!-- docs/adr/0040-break.md -->\n\n## Migration\n\nRename x to y.\n";
+    const hiddenReport = checkReleasePr({
+      branch: "release/1.0.0",
+      serverJson: manifest("1.0.0"),
+      notes: hidden,
+    });
+    expect(hiddenReport.problems.map((p) => p.reason)).toEqual([
+      "1.0.0 is a major and docs/releases/1.0.0.md names no ADR",
+    ]);
     const filled =
       "# solos 1.0.0\n\nSee docs/adr/0040-break.md.\n\n## Migration\n\nRename x to y.\n\n## Tools\n";
     expect(

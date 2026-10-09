@@ -201,6 +201,26 @@ describe("solos dev release", () => {
     );
   });
 
+  test("rollback refuses a prerelease --from: the stable lane never rolls back from a canary", async () => {
+    const { stderr, code } = await runSolos(
+      [
+        "dev",
+        "release",
+        "rollback",
+        "--to",
+        "0.1.0",
+        "--from",
+        "0.1.1-canary.7.g1f232a4",
+        "--dry-run",
+      ],
+      env,
+    );
+    expect(code).toBe(1);
+    expect(stderrJson(stderr)?.error.reason).toContain(
+      "--from 0.1.1-canary.7.g1f232a4 is a prerelease",
+    );
+  });
+
   test("rollback refuses when latest already points at the target", async () => {
     const { stderr, code } = await runSolos(
       ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.0", "--dry-run"],
