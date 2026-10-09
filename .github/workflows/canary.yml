@@ -1,0 +1,150 @@
+name: canary
+
+# The canary lane (ADR-0036): every push to main becomes an installable version within minutes,
+# under a name that says it is a canary. The version is derived, never typed:
+# <next patch of the newest solos@ tag>-canary.<run number>.g<short sha>. The four binaries are
+# built on the ADR-0035 matrix and smoke-tested, a GitHub pre-release solos@<version> carries them
+# with SHA256SUMS, and the launcher and platform packages publish under the npm dist-tag canary,
+# never latest. A canary never touches server.json or the MCP Registry.
+on:
+  push:
+    branches: [main]
+
+# One canary at a time. Concurrency is declared per job, never on the workflow: a workflow-level
+# group would cancel a whole earlier run, publish job included, halfway through five immutable
+# npm publishes. The version and build jobs share a group a newer push cancels; the publish job
+# has its own group and is never cancelled once it starts.
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: canary-build-version
+      cancel-in-progress: true
+    outputs:
+      version: ${{ steps.derive.outputs.version }}
+      tag: ${{ steps.derive.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: ./.github/actions/setup
+      - name: Derive the canary version
+        id: derive
+        run: |
+          set -euo pipefail
+          bun run solos dev release version --lane canary --run "$GITHUB_RUN_NUMBER" --sha "$GITHUB_SHA" \
+            > "$RUNNER_TEMP/version.json"
+          cat "$RUNNER_TEMP/version.json"
+          echo "version=$(jq -r .version "$RUNNER_TEMP/version.json")" >> "$GITHUB_OUTPUT"
+          echo "tag=$(jq -r .tag "$RUNNER_TEMP/version.json")" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    concurrency:
+      group: canary-build-${{ matrix.os }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            targets: linux-x64,linux-arm64
+          - os: macos-latest
+            targets: darwin-arm64,darwin-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup
+      - name: Build and smoke-test
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          bun run solos dev build --target "${{ matrix.targets }}" --outdir dist \
+            --version "$VERSION" --commit "$GITHUB_SHA" > "$RUNNER_TEMP/build-${{ matrix.os }}.json"
+          cat "$RUNNER_TEMP/build-${{ matrix.os }}.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: binaries-${{ matrix.os }}
+          path: dist/solos-*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: canary-publish
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: dist
+      - name: Checksums
+        run: |
+          cd dist
+          chmod +x solos-*
+          sha256sum solos-* > SHA256SUMS
+          cat SHA256SUMS
+      - name: Release notes
+        run: |
+          {
+            echo "Canary build of \`${GITHUB_SHA}\` (ADR-0036): every merge to main, installable, never \`latest\`."
+            echo
+            echo "## Install"
+            echo
+            echo '```sh'
+            echo "npm i -g @solos-sh/cli@canary"
+            echo "# or: curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | SOLOS_CHANNEL=canary sh"
+            echo "# exactly this one: npm i -g @solos-sh/cli@${VERSION}"
+            echo '```'
+            echo
+            echo "\`solos doctor\` reports \`lane: canary\`. Canaries may change in any later canary; the stable lane is \`latest\`."
+            echo
+            echo "## Checksums"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+      # Idempotent, so a re-run can finish what a failed run started: an existing pre-release
+      # gets its assets replaced. Creating the release creates the tag; a tag made by the
+      # workflow token starts no other workflow, and release-cli.yml refuses prerelease tags too.
+      - name: GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/solos-* dist/SHA256SUMS --clobber
+          else
+            gh release create "$TAG" dist/solos-* dist/SHA256SUMS \
+              --target "$GITHUB_SHA" --prerelease --title "solos ${VERSION}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+      - uses: ./.github/actions/publish-npm
+        with:
+          version: ${{ env.VERSION }}
+          tag: canary
+          publish: ${{ vars.NPM_PUBLISH }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          # npm verifies a provenance statement against the source repository and accepts only
+          # public ones; a private repository publishes without provenance rather than failing.
+          provenance: ${{ github.event.repository.private && 'false' || 'true' }}
+      - name: Dist-tags after publishing
+        if: vars.NPM_PUBLISH == 'true'
+        run: npm view @solos-sh/cli dist-tags --json

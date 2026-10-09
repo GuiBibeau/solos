@@ -1,9 +1,11 @@
 name: release-cli
 
-# A tag `solos@<semver>` on a main commit releases the compiled solos binary (ADR-0035): macOS and
-# Linux binaries built and smoke-tested on their own runners, a GitHub Release with SHA256SUMS,
-# and, when vars.NPM_PUBLISH is "true", the npm launcher @solos-sh/cli plus one platform package
-# per binary. npm authenticates with secrets.NPM_TOKEN when set, else through trusted publishing.
+# A stable tag `solos@<major.minor.patch>` on a main commit releases the compiled solos binary
+# (ADR-0035): macOS and Linux binaries built and smoke-tested on their own runners, a GitHub
+# Release with SHA256SUMS, and, when vars.NPM_PUBLISH is "true", the npm launcher @solos-sh/cli
+# plus one platform package per binary. npm authenticates with secrets.NPM_TOKEN when set, else
+# through trusted publishing. A prerelease tag (a canary, ADR-0036) is not a stable release and
+# every job here refuses it: canary.yml owns those.
 on:
   push:
     tags: ["solos@*"]
@@ -13,6 +15,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ !contains(github.ref_name, '-') }}
     strategy:
       fail-fast: true
       matrix:
@@ -41,7 +44,7 @@ jobs:
         run: |
           version="${VERSION#solos@}"
           bun run solos dev build --target "${{ matrix.targets }}" --outdir dist --version "$version" \
-            > "$RUNNER_TEMP/build-${{ matrix.os }}.json"
+            --commit "$GITHUB_SHA" > "$RUNNER_TEMP/build-${{ matrix.os }}.json"
           cat "$RUNNER_TEMP/build-${{ matrix.os }}.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -52,6 +55,7 @@ jobs:
 
   release:
     needs: build
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -104,26 +108,14 @@ jobs:
             gh release create "$VERSION" dist/solos-* dist/SHA256SUMS \
               --verify-tag --title "solos ${VERSION#solos@}" --notes-file "$RUNNER_TEMP/notes.md"
           fi
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      # The dist-tag is latest until the stable lane's auto-promotion lands (ADR-0036: staged,
+      # then promote).
+      - uses: ./.github/actions/publish-npm
         with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-      - name: Pack the npm packages
-        env:
-          VERSION: ${{ github.ref_name }}
-        run: |
-          bun run solos dev pack --dist dist --outdir dist/npm --version "${VERSION#solos@}" \
-            > "$RUNNER_TEMP/pack.json"
-          cat "$RUNNER_TEMP/pack.json"
-      - name: Publish to npm
-        if: vars.NPM_PUBLISH == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          version: ${{ github.ref_name }}
+          tag: latest
+          publish: ${{ vars.NPM_PUBLISH }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
           # npm verifies a provenance statement against the source repository and accepts only
           # public ones; a private repository publishes without provenance rather than failing.
-          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
-        run: |
-          for dir in $(jq -r '.packages[].dir' "$RUNNER_TEMP/pack.json"); do
-            echo "publishing $(jq -r .name "$dir/package.json")"
-            npm publish "$dir" --access public
-          done
+          provenance: ${{ github.event.repository.private && 'false' || 'true' }}
