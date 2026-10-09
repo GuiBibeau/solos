@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import { promotePlan, releasePackages, rollbackPlan } from "./plans.js";
 import {
   assertForward,
+  assertManifestVersion,
+  assertNotDeprecated,
   assertPublished,
   assertRollbackSource,
   currentLatest,
@@ -25,6 +27,15 @@ const fakeRunner = (answers) => {
 
 const DEPRECATE = (/** @type {string} */ from, /** @type {string} */ reason) =>
   releasePackages().map((pkg) => `npm deprecate ${pkg}@${from} ${reason}`);
+
+/** An npm that reports no deprecation message for anything. */
+const clean = async () => ({ code: 0, output: "\n" });
+
+/** An npm where one platform package of 0.1.1 carries a deprecation message. */
+const deprecated = async (/** @type {string[]} */ argv) => ({
+  code: 0,
+  output: argv.includes("@solos-sh/cli-linux-x64@0.1.1") ? '"rolled back; bad build"\n' : "\n",
+});
 
 describe("promotion and rollback plans", () => {
   test("five packages: the launcher and one per build target", () => {
@@ -187,6 +198,22 @@ describe("promotion and rollback plans", () => {
       _tag: "ReleaseRefused",
       reason: "MCP Registry lookup for x@1.0.0 failed (curl exit 6); nothing was changed",
     });
+  });
+
+  test("a deprecated version is never pointed at again", async () => {
+    expect(await assertNotDeprecated("0.1.1", clean)).toBeUndefined();
+    await expect(assertNotDeprecated("0.1.1", deprecated)).rejects.toMatchObject({
+      _tag: "ReleaseRefused",
+      reason: "@solos-sh/cli-linux-x64@0.1.1 is deprecated on npm: rolled back; bad build",
+    });
+  });
+
+  test("the tagged manifest must name the promoted version twice", () => {
+    const good = JSON.stringify({ version: "0.1.1", packages: [{ version: "0.1.1" }] });
+    expect(assertManifestVersion(good, "0.1.1")).toBeUndefined();
+    const stale = JSON.stringify({ version: "0.1.0", packages: [{ version: "0.1.1" }] });
+    expect(() => assertManifestVersion(stale, "0.1.1")).toThrow();
+    expect(() => assertManifestVersion("{not json", "0.1.1")).toThrow();
   });
 
   test("published checks refuse a version npm does not have, and read the current latest", async () => {

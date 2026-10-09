@@ -5,7 +5,7 @@
  */
 import { captureCommand, lastLine } from "../evidence/run-steps.js";
 import { ReleaseRefused } from "./errors.js";
-import { latestProbe, publishedProbe, releasePackages } from "./plans.js";
+import { deprecatedProbe, latestProbe, publishedProbe, releasePackages } from "./plans.js";
 import { compareVersions, parseVersion } from "./version.js";
 
 /** @typedef {(argv: string[], cwd?: string) => Promise<{ code: number; output: string }>} Runner */
@@ -120,6 +120,49 @@ export const assertRollbackSource = ({ from, to, latest }) => {
     reason: `latest points at ${latest}, which is neither --from ${from} nor --to ${to}`,
     remedy: `pass --from ${latest} to roll back what latest points at`,
   });
+};
+
+/**
+ * `latest` never points at a version that npm marks deprecated: a rolled-back release stays
+ * published, deprecated, and a stale promote of it would reinstate the known-bad build.
+ * @param {string} version @param {Runner} [runner]
+ */
+export const assertNotDeprecated = async (version, runner = captureCommand) => {
+  for (const pkg of releasePackages()) {
+    const { code, output } = await runner(deprecatedProbe(pkg, version));
+    const message = output.trim().replaceAll(/^"|"$/gu, "");
+    if (code === 0 && message !== "undefined" && message !== "null" && message.length > 0) {
+      throw new ReleaseRefused({
+        reason: `${pkg}@${version} is deprecated on npm: ${message}`,
+        remedy: "a rolled-back version is not promoted again; promote the next patch release",
+      });
+    }
+  }
+};
+
+/**
+ * The manifest `mcp-publisher` would publish must name the version being promoted in both of
+ * its version fields, or the registry would advertise a different release than npm serves.
+ * @param {string} manifestText @param {string} version
+ */
+export const assertManifestVersion = (manifestText, version) => {
+  /** @type {{ version?: unknown; packages?: Array<{ version?: unknown }> }} */
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch {
+    throw new ReleaseRefused({
+      reason: `the server.json at solos@${version} is not valid JSON`,
+      remedy: "fix the manifest in a patch release, or pass --skip-registry",
+    });
+  }
+  const packaged = manifest.packages?.[0]?.version;
+  if (packaged !== version || manifest.version !== version) {
+    throw new ReleaseRefused({
+      reason: `the server.json at solos@${version} names version ${String(manifest.version)} and package version ${String(packaged)}, not ${version}`,
+      remedy: "fix the manifest in a patch release, or pass --skip-registry",
+    });
+  }
 };
 
 /** The version `latest` points at now. @param {Runner} [runner] */

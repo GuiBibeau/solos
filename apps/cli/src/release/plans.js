@@ -75,5 +75,14 @@ export const publishedProbe = (pkg, version) => [
   "--json",
 ];
 
+/** The argv that reads a published version's deprecation message, empty when it has none. @param {string} pkg @param {string} version */
+export const deprecatedProbe = (pkg, version) => [
+  "npm",
+  "view",
+  `${pkg}@${version}`,
+  "deprecated",
+  "--json",
+];
+
 /** The argv that reads what `latest` points at now. */
 export const latestProbe = () => ["npm", "view", `${SCOPE}/cli`, "dist-tags.latest", "--json"];

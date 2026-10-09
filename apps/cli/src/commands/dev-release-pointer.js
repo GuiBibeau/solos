@@ -15,6 +15,8 @@ import { ReleaseRefused } from "../release/errors.js";
 import { promotePlan, rollbackPlan } from "../release/plans.js";
 import {
   assertForward,
+  assertManifestVersion,
+  assertNotDeprecated,
   assertPublished,
   assertRollbackSource,
   currentLatest,
@@ -54,6 +56,7 @@ const stable = (/** @type {string} */ value, /** @type {string} */ flag) => {
  */
 const registryDirFor = async (version) => {
   const manifest = await git(["show", `${releaseTag(version)}:server.json`]);
+  assertManifestVersion(manifest, version);
   const dir = mkdtempSync(path.join(tmpdir(), "solos-release-"));
   writeFileSync(path.join(dir, "server.json"), manifest);
   return dir;
@@ -107,6 +110,7 @@ export const promote = Command.make(
       if (!o.dryRun) {
         assertForward(version, await currentLatest());
         await assertPublished(version);
+        await assertNotDeprecated(version);
       }
       const staged = await registryDirMaybe(version, { skip: o.skipRegistry, dryRun: o.dryRun });
       const registry = await registryPlanFor(version, staged, o.dryRun);
@@ -165,6 +169,7 @@ export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (
     if (!o.dryRun) {
       assertRollbackSource({ from: bad, to: target, latest: await currentLatest() });
       await assertPublished(target);
+      await assertNotDeprecated(target);
       await assertPublished(bad);
     }
     const plan = rollbackPlan({ to: target, from: bad, reason: o.reason });
