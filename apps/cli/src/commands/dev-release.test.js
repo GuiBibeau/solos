@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runSolos, stderrJson } from "./cli-fixture.js";
@@ -93,18 +93,32 @@ describe("solos dev release", () => {
     expect(stderrJson(stderr)?.error.reason).toContain("--reason is empty");
   });
 
-  test("check reads the branch and names what a release PR still lacks", async () => {
-    const { stdout, code } = await runSolos(
-      ["dev", "release", "check", "--branch", "release/0.1.0"],
-      env,
-    );
-    expect(code).toBe(1);
-    const report = JSON.parse(stdout);
+  test("check names what a release PR still lacks, from a cwd holding its own server.json", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "solos-check-"));
+    const manifest = { version: "0.1.0", packages: [{ version: "0.1.0" }] };
+    writeFileSync(path.join(dir, "server.json"), JSON.stringify(manifest));
+    const lacking = await runSolos(["dev", "release", "check", "--branch", "release/0.1.0"], env, {
+      cwd: dir,
+    });
+    expect(lacking.code).toBe(1);
+    const report = JSON.parse(lacking.stdout);
     expect(report.version).toBe("0.1.0");
-    expect(report.ok).toBe(false);
     expect(report.problems.map((/** @type {{ reason: string }} */ p) => p.reason)).toEqual([
       "docs/releases/0.1.0.md is missing",
     ]);
+    mkdirSync(path.join(dir, "docs", "releases"), { recursive: true });
+    writeFileSync(path.join(dir, "docs", "releases", "0.1.0.md"), "# solos 0.1.0\n");
+    const complete = await runSolos(["dev", "release", "check", "--branch", "release/0.1.0"], env, {
+      cwd: dir,
+    });
+    expect(complete.code).toBe(0);
+    expect(JSON.parse(complete.stdout)).toMatchObject({
+      ok: true,
+      version: "0.1.0",
+      major: false,
+      problems: [],
+    });
+    rmSync(dir, { recursive: true, force: true });
   });
 
   test("notes --out creates the parent directory", async () => {
