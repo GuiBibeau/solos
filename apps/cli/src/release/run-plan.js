@@ -130,8 +130,14 @@ export const assertRollbackSource = ({ from, to, latest }) => {
 export const assertNotDeprecated = async (version, runner = captureCommand) => {
   for (const pkg of releasePackages()) {
     const { code, output } = await runner(deprecatedProbe(pkg, version));
+    if (code !== 0) {
+      throw new ReleaseRefused({
+        reason: `could not read the deprecation status of ${pkg}@${version} from npm (exit ${code}); nothing was changed`,
+        remedy: "retry when npm answers",
+      });
+    }
     const message = output.trim().replaceAll(/^"|"$/gu, "");
-    if (code === 0 && message !== "undefined" && message !== "null" && message.length > 0) {
+    if (message !== "undefined" && message !== "null" && message.length > 0) {
       throw new ReleaseRefused({
         reason: `${pkg}@${version} is deprecated on npm: ${message}`,
         remedy: "a rolled-back version is not promoted again; promote the next patch release",

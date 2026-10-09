@@ -37,6 +37,9 @@ const deprecated = async (/** @type {string[]} */ argv) => ({
   output: argv.includes("@solos-sh/cli-linux-x64@0.1.1") ? '"rolled back; bad build"\n' : "\n",
 });
 
+/** An npm that cannot be reached. */
+const unreachable = async () => ({ code: 1, output: "ETIMEDOUT" });
+
 describe("promotion and rollback plans", () => {
   test("five packages: the launcher and one per build target", () => {
     expect(releasePackages()).toEqual([
@@ -205,6 +208,11 @@ describe("promotion and rollback plans", () => {
     await expect(assertNotDeprecated("0.1.1", deprecated)).rejects.toMatchObject({
       _tag: "ReleaseRefused",
       reason: "@solos-sh/cli-linux-x64@0.1.1 is deprecated on npm: rolled back; bad build",
+    });
+    await expect(assertNotDeprecated("0.1.1", unreachable)).rejects.toMatchObject({
+      _tag: "ReleaseRefused",
+      reason:
+        "could not read the deprecation status of @solos-sh/cli@0.1.1 from npm (exit 1); nothing was changed",
     });
   });
 
