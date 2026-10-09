@@ -48,7 +48,7 @@ published versions only. The lanes below are built from what those facts allow.
   with `mcp-publisher`. No human gate: the review happened on the release PR. A failed smoke
   leaves the version on `staged`, visible, installable by exact version, and not `latest`.
 - **Rollback is the same flip in reverse, except for the registry.** `solos dev release
-  rollback --to x.y.z` points `latest` and the GitHub Release at a previous version and
+  rollback --to x.y.z --from a.b.c` points `latest` and the GitHub Release at a previous version and
   deprecates the bad one on npm with the reason. No rebuild. The MCP Registry is left alone: its
   versions are immutable and an existing version cannot be published again, so the registry
   cannot point backwards. The rolled-back version stays listed until a fix-forward patch release

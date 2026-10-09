@@ -165,7 +165,9 @@ describe("solos dev release", () => {
       env,
     );
     expect(code).toBe(0);
-    expect(JSON.parse(stdout).steps.at(-1)?.name).toBe("MCP Registry publish from solos@9.9.9");
+    const result = JSON.parse(stdout);
+    expect(result.steps.at(-1)?.name).toBe("MCP Registry publish from solos@9.9.9");
+    expect(result.registry).toMatchObject({ publish: true });
   });
 
   test("promote refuses a canary: latest only ever points at a stable version", async () => {

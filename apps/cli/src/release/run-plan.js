@@ -12,6 +12,27 @@ import { compareVersions, parseVersion } from "./version.js";
 /** @typedef {import("./plans.js").Step} Step */
 /** @typedef {{ name: string; command: string; ok: boolean | null; summary: string }} RanStep */
 
+const PLAIN = /^[\w@%+=:,./-]+$/u;
+
+/** argv as a shell would need it typed: arguments with spaces or metacharacters are quoted. @param {ReadonlyArray<string>} argv */
+export const displayCommand = (argv) =>
+  argv
+    .map((arg) => (PLAIN.test(arg) ? arg : `'${arg.replaceAll("'", String.raw`'\''`)}'`))
+    .join(" ");
+
+export const REGISTRY_URL = "https://registry.modelcontextprotocol.io";
+
+/**
+ * Whether the MCP Registry already lists this server version: a promote retry must not publish
+ * it twice, since the registry refuses a duplicate. `curl -f` exits 0 on 200 and 22 on 404.
+ * @param {{ name: string; version: string }} server @param {Runner} [runner]
+ */
+export const registryHasVersion = async ({ name, version }, runner = captureCommand) => {
+  const url = `${REGISTRY_URL}/v0.1/servers/${encodeURIComponent(name)}/versions/${version}`;
+  const { code } = await runner(["curl", "-fsS", "-o", "/dev/null", url]);
+  return code === 0;
+};
+
 /**
  * @param {ReadonlyArray<Step>} steps
  * @param {{ runner?: Runner; dryRun: boolean }} options
@@ -20,7 +41,7 @@ export const runPlan = async (steps, { runner = captureCommand, dryRun }) => {
   /** @type {RanStep[]} */
   const ran = [];
   for (const step of steps) {
-    const command = step.argv.join(" ");
+    const command = displayCommand(step.argv);
     if (dryRun) {
       ran.push({ name: step.name, command, ok: null, summary: "dry run" });
       continue;

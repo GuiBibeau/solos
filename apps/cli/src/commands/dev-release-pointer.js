@@ -5,7 +5,7 @@
  * accept only stable versions; promote publishes the MCP Registry from the target tag's own manifest
  * and rollback leaves the registry alone, because its versions are immutable.
  */
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Args, Command, Options } from "@effect/cli";
@@ -18,6 +18,7 @@ import {
   assertPublished,
   assertRollbackSource,
   currentLatest,
+  registryHasVersion,
   runPlan,
 } from "../release/run-plan.js";
 import { compareVersions, parseVersion, releaseTag } from "../release/version.js";
@@ -67,6 +68,28 @@ const registryDirMaybe = async (target, { skip, dryRun: dry }) => {
   return dry ? `<server.json of ${releaseTag(target)}>` : registryDirFor(target);
 };
 
+/**
+ * Publish the registry only when it does not already list the version: a retry after a partial
+ * promote that had reached the registry would otherwise fail on the duplicate. A dry run does
+ * not ask the registry.
+ * @param {string} version @param {string | undefined} dir @param {boolean} dry
+ * @returns {Promise<{ dir: string | undefined; note: { publish: boolean; reason: string } }>}
+ */
+const registryPlanFor = async (version, dir, dry) => {
+  if (dir === undefined) {
+    return { dir, note: { publish: false, reason: "skipped by --skip-registry" } };
+  }
+  if (dry) return { dir, note: { publish: true, reason: "dry run; the registry was not asked" } };
+  const { name } = JSON.parse(readFileSync(path.join(dir, "server.json"), "utf8"));
+  if (await registryHasVersion({ name: String(name), version })) {
+    return {
+      dir: undefined,
+      note: { publish: false, reason: `${name}@${version} is already in the registry` },
+    };
+  }
+  return { dir, note: { publish: true, reason: `${name}@${version} is not in the registry yet` } };
+};
+
 const promoteVersion = Args.text({ name: "version" }).pipe(
   Args.withDescription("The staged version latest should point at"),
 );
@@ -85,13 +108,13 @@ export const promote = Command.make(
         assertForward(version, await currentLatest());
         await assertPublished(version);
       }
-      const registryDir = await registryDirMaybe(version, {
-        skip: o.skipRegistry,
+      const staged = await registryDirMaybe(version, { skip: o.skipRegistry, dryRun: o.dryRun });
+      const registry = await registryPlanFor(version, staged, o.dryRun);
+      const result = await runPlan(promotePlan({ version, registryDir: registry.dir }), {
         dryRun: o.dryRun,
       });
-      const result = await runPlan(promotePlan({ version, registryDir }), { dryRun: o.dryRun });
       if (!result.ok) process.exitCode = 1;
-      return { action: "promote", version, dryRun: o.dryRun, ...result };
+      return { action: "promote", version, dryRun: o.dryRun, registry: registry.note, ...result };
     }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(
   Command.withDescription("Point latest at a published version and publish it to the MCP Registry"),

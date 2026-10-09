@@ -6,6 +6,8 @@ import {
   assertPublished,
   assertRollbackSource,
   currentLatest,
+  displayCommand,
+  registryHasVersion,
   runPlan,
 } from "./run-plan.js";
 
@@ -126,6 +128,49 @@ describe("promotion and rollback plans", () => {
       reason: "latest points at 0.1.2, which is neither --from 0.1.1 nor --to 0.1.0",
       remedy: "pass --from 0.1.2 to roll back what latest points at",
     });
+  });
+
+  test("a displayed command quotes what a shell would need quoted", async () => {
+    expect(displayCommand(["npm", "deprecate", "@solos-sh/cli@0.1.1", "bad build; see #9"])).toBe(
+      "npm deprecate @solos-sh/cli@0.1.1 'bad build; see #9'",
+    );
+    expect(displayCommand(["gh", "release", "edit", "solos@0.1.1", "--latest"])).toBe(
+      "gh release edit solos@0.1.1 --latest",
+    );
+    const printed = await runPlan(
+      rollbackPlan({ to: "0.1.0", from: "0.1.1", reason: "it's bad" }),
+      {
+        dryRun: true,
+      },
+    );
+    expect(printed.steps.at(-1)?.command).toBe(
+      String.raw`npm deprecate @solos-sh/cli-linux-arm64@0.1.1 'it'\''s bad'`,
+    );
+  });
+
+  test("the registry probe reads curl's exit code", async () => {
+    /** @type {string[][]} */
+    const seen = [];
+    const found = await registryHasVersion(
+      { name: "io.github.GuiBibeau/solos", version: "0.1.1" },
+      async (argv) => {
+        seen.push(argv);
+        return { code: 0, output: "" };
+      },
+    );
+    expect(found).toBe(true);
+    expect(seen[0]).toEqual([
+      "curl",
+      "-fsS",
+      "-o",
+      "/dev/null",
+      "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.GuiBibeau%2Fsolos/versions/0.1.1",
+    ]);
+    const absent = await registryHasVersion({ name: "x", version: "1.0.0" }, async () => ({
+      code: 22,
+      output: "404",
+    }));
+    expect(absent).toBe(false);
   });
 
   test("published checks refuse a version npm does not have, and read the current latest", async () => {
