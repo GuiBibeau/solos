@@ -20,7 +20,8 @@ const DEFAULT_NODE_OPTIONS = "--max-old-space-size=6144";
 /**
  * Spawn a command and capture its combined output.
  * @param {string[]} argv @param {string} [cwd] where to run it; default: the current directory
- * @returns {Promise<{ code: number; output: string }>}
+ * @returns {Promise<{ code: number; output: string; stdout: string; stderr: string }>} `output` is both
+ *   streams merged, for summaries; `stdout` alone is what a probe parses
  */
 export const captureCommand = async (argv, cwd) => {
   try {
@@ -31,9 +32,10 @@ export const captureCommand = async (argv, cwd) => {
       new Response(proc.stderr).text(),
       proc.exited,
     ]);
-    return { code, output: `${out}\n${err}` };
+    return { code, output: `${out}\n${err}`, stdout: out, stderr: err };
   } catch (error) {
-    return { code: 127, output: error instanceof Error ? error.message : String(error) };
+    const message = error instanceof Error ? error.message : String(error);
+    return { code: 127, output: message, stdout: "", stderr: message };
   }
 };
 
