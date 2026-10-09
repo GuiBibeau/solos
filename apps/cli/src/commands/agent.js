@@ -8,13 +8,14 @@ import {
   callSettingsFor,
   createSolosAgent,
   discoverMcpTools,
+  featureFlags,
   groupIndex,
   loadHarness,
   makeHarnessRuntime,
   tierCeiling,
   toolsFromDefinitions,
 } from "@solos/harness";
-import { filterByTier } from "@solos/mcp";
+import { filterByExposure } from "@solos/mcp";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 
@@ -29,6 +30,13 @@ const tier = Options.choice("tier", TierSchema.options).pipe(
   Options.optional,
   Options.withDescription(
     "Highest tool tier the model may call: read, simulate (default) or execute",
+  ),
+);
+/** The same feature gate as the MCP server (ADR-0036): experimental tools are withheld by default. */
+const features = Options.choice("features", ["experimental"]).pipe(
+  Options.optional,
+  Options.withDescription(
+    "experimental lets the model call the tools labelled experimental too. Beats SOLOS_FEATURES.",
   ),
 );
 const groups = Options.text("groups").pipe(
@@ -46,9 +54,35 @@ const taskClass = Options.choice("class", ["fast", "default", "reasoning"]).pipe
 const resolveRouteFor = (runtime, taskClass) =>
   Effect.promise(() => runtime.runPromise(Effect.map(Router, (r) => r.resolve(taskClass))));
 
-/** @param {ReadonlyArray<{ toolCalls: ReadonlyArray<{ toolName: string; input: unknown }> }>} steps */
+/** @param {Steps} steps */
 const summarizeToolCalls = (steps) =>
   steps.flatMap((s) => s.toolCalls.map((c) => ({ tool: c.toolName, input: c.input })));
+
+/** @typedef {ReadonlyArray<{ toolCalls: ReadonlyArray<{ toolName: string; input: unknown }> }>} Steps */
+
+/**
+ * What one run reports: the route, the exposure it ran under, the external servers admitted,
+ * and what the model did.
+ * @param {{
+ *   route: unknown;
+ *   ceiling: import("@solos/harness").Tier;
+ *   enabled: { experimental: boolean };
+ *   config: { mcpServers: ReadonlyArray<unknown> };
+ *   result: { text: string; steps: Steps };
+ * }} parts
+ */
+const report = ({ route, ceiling, enabled, config, result }) => ({
+  route,
+  tier: ceiling,
+  features: enabled.experimental ? ["experimental"] : [],
+  externalServers: {
+    configured: config.mcpServers.length,
+    admitted: canAdmitExternalTools(ceiling) ? config.mcpServers.length : 0,
+  },
+  text: result.text,
+  steps: result.steps.length,
+  toolCalls: summarizeToolCalls(result.steps),
+});
 
 /** No servers are started when the ceiling withholds their tools. */
 const NO_EXTERNAL = { tools: {}, groups: {}, close: async () => {} };
@@ -64,18 +98,29 @@ const ceilingOf = (flag) =>
   });
 
 /**
+ * @param {import("effect").Option.Option<"experimental">} flag
+ * @returns {import("effect").Effect.Effect<{ experimental: boolean }, Error>}
+ */
+const featuresOf = (flag) =>
+  Effect.try({
+    try: () => featureFlags(flag._tag === "Some" ? flag.value : undefined, process.env),
+    catch: (error) => /** @type {Error} */ (error),
+  });
+
+/**
  * One agent-loop run with our tools plus any configured third-party MCP servers.
  * Needs AI_GATEWAY_API_KEY. With `--tier execute` the execute tools are live: on mainnet this
  * spends real funds.
  */
-const run = Command.make("run", { task, groups, taskClass, tier }, (o) =>
+const run = Command.make("run", { task, groups, taskClass, tier, features }, (o) =>
   Effect.gen(function* () {
     const ceiling = yield* ceilingOf(o.tier);
+    const enabled = yield* featuresOf(o.features);
     const { layer, config } = yield* Effect.tryPromise({
-      try: () => loadHarness({ toolCeiling: ceiling }),
+      try: () => loadHarness({ toolCeiling: ceiling, features: enabled }),
       catch: (error) => error,
     });
-    const offered = filterByTier(allTools, ceiling);
+    const offered = filterByExposure(allTools, { ceiling, experimental: enabled.experimental });
     const runtime = makeHarnessRuntime(layer);
     const external = canAdmitExternalTools(ceiling)
       ? yield* Effect.promise(() => discoverMcpTools(config.mcpServers))
@@ -96,17 +141,7 @@ const run = Command.make("run", { task, groups, taskClass, tier }, (o) =>
       Effect.ensuring(Effect.promise(() => external.close())),
       Effect.ensuring(Effect.promise(() => runtime.dispose())),
     );
-    yield* emit({
-      route,
-      tier: ceiling,
-      externalServers: {
-        configured: config.mcpServers.length,
-        admitted: canAdmitExternalTools(ceiling) ? config.mcpServers.length : 0,
-      },
-      text: result.text,
-      steps: result.steps.length,
-      toolCalls: summarizeToolCalls(result.steps),
-    });
+    yield* emit(report({ route, ceiling, enabled, config, result }));
   }).pipe(exitOnFailure),
 ).pipe(Command.withDescription("Run one agent-loop turn over the discovered tools"));
 

@@ -1,11 +1,13 @@
 // @ts-check
+import { mcpDescription } from "@solos/core";
 import { resultFromExit, thrownResult } from "@solos/mcp";
 import { tool } from "ai";
 import { Effect } from "effect";
 
 /**
  * Core tool definitions as AI SDK tools, executed on the shared Effect runtime. The model sees
- * the same names, descriptions, and schemas that MCP clients see, and the same pure input guard
+ * the same names, descriptions (stability suffix included, ADR-0036), and schemas that MCP
+ * clients see, and the same pure input guard
  * runs before the runtime, so a rejection is the same structured error on both surfaces.
  * @param {ReadonlyArray<import("@solos/core").AnyToolDefinition>} definitions
  * @param {import("effect").ManagedRuntime.ManagedRuntime<any, any>} runtime
@@ -16,7 +18,7 @@ export const toolsFromDefinitions = (definitions, runtime) =>
     definitions.map((definition) => [
       definition.name,
       tool({
-        description: definition.description,
+        description: mcpDescription(definition),
         inputSchema: definition.input,
         execute: async (input) => {
           if (definition.check !== undefined) {

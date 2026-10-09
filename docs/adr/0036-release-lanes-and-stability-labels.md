@@ -91,7 +91,8 @@ beside the version. There is no separate channel file to drift.
 - Exposure follows the label the way it follows the tier (ADR-0029, ADR-0033): `stable` and
   `beta` tools register as today; `experimental` tools register only when the server starts with
   `--features experimental` (or `SOLOS_FEATURES=experimental`, which `solos connect --features
-  experimental` writes into the client config). Discovery still names a withheld experimental
+  experimental` writes into the client config); `solos agent run --features experimental` is
+  the same gate on the agent loop. Discovery still names a withheld experimental
   tool, marks it unavailable and says how to turn it on, exactly as it does for a tool above the
   tier ceiling.
 - The label is rendered wherever a tool is described: the generated reference tables, the
