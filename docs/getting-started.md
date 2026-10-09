@@ -21,6 +21,13 @@ optional dependency. The script downloads the same binary from the GitHub releas
 SHA-256 against the release's `SHA256SUMS`, and puts it in `~/.solos/bin` (set `SOLOS_INSTALL` to
 change the prefix, `SOLOS_VERSION` to pin a release).
 
+**Channels.** `latest` is the stable lane: a reviewed release, promoted after a smoke test from
+the registry. `canary` is every merge to `main`, published within minutes under a version like
+`0.1.1-canary.7.g1f232a4` and never pointed at by `latest`: `npm i -g @solos-sh/cli@canary`, or
+`SOLOS_CHANNEL=canary` on the install script. `solos doctor` prints the lane you run under
+`release`. A canary may change in the next canary; pin a version with `SOLOS_VERSION` or
+`@solos-sh/cli@<version>` when you need it to stay put.
+
 Supported today: macOS (Apple silicon and Intel) and Linux (x64 and arm64).
 
 ```sh

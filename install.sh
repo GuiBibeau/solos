@@ -3,13 +3,16 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/GuiBibeau/solos/main/install.sh | sh
 #
-# SOLOS_VERSION selects a release (default: latest); SOLOS_INSTALL the prefix (default: ~/.solos).
-# The binary lands in $SOLOS_INSTALL/bin/solos after its SHA-256 is checked against the release's
-# SHA256SUMS. Then: `solos login`, `solos connect claude` (or codex, cursor).
+# SOLOS_VERSION selects a release (default: latest); SOLOS_CHANNEL selects a lane when no version
+# is given: latest (the stable lane, default) or canary (the newest merge to main, ADR-0036);
+# SOLOS_INSTALL the prefix (default: ~/.solos). The binary lands in $SOLOS_INSTALL/bin/solos after
+# its SHA-256 is checked against the release's SHA256SUMS. Then: `solos login`,
+# `solos connect claude` (or codex, cursor).
 set -eu
 
 REPO="GuiBibeau/solos"
-VERSION="${SOLOS_VERSION:-latest}"
+CHANNEL="${SOLOS_CHANNEL:-latest}"
+VERSION="${SOLOS_VERSION:-$CHANNEL}"
 PREFIX="${SOLOS_INSTALL:-$HOME/.solos}"
 BIN_DIR="$PREFIX/bin"
 
@@ -27,14 +30,22 @@ case "$arch" in
 esac
 asset="solos-$os-$arch"
 
-# "latest" means the newest solos@* release. The repository's own /releases/latest can be a
-# release of another package (the contract package publishes through the same repository), so
-# the tag is resolved from the release list instead.
-if [ "$VERSION" = "latest" ]; then
-  VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=50" \
-    | grep -o '"tag_name": *"solos@[^"]*"' | head -n 1 | cut -d'"' -f4 | sed 's/^solos@//')
+# A channel resolves to the newest release of its lane from the release list. The repository's
+# own /releases/latest can be a release of another package (the contract package publishes
+# through the same repository), so the tag is resolved from the list instead. "latest" is the
+# stable lane: a solos@<major.minor.patch> tag, never a canary. "canary" is the newest
+# solos@<version>-canary.<run>.g<sha> pre-release.
+case "$VERSION" in
+  latest) pattern='"tag_name": *"solos@[0-9]*\.[0-9]*\.[0-9]*"' ;;
+  canary) pattern='"tag_name": *"solos@[0-9]*\.[0-9]*\.[0-9]*-canary\.[^"]*"' ;;
+  *) pattern="" ;;
+esac
+if [ -n "$pattern" ]; then
+  channel="$VERSION"
+  VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=100" \
+    | grep -o "$pattern" | head -n 1 | cut -d'"' -f4 | sed 's/^solos@//')
   if [ -z "$VERSION" ]; then
-    echo "solos: no solos@* release found; set SOLOS_VERSION explicitly" >&2
+    echo "solos: no solos@* release on the $channel channel; set SOLOS_VERSION explicitly" >&2
     exit 1
   fi
 fi

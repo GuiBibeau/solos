@@ -2,6 +2,8 @@ name: nightly
 
 # Integration suite against a live mainnet fork (Surfpool online) to catch drift in Kit or
 # program layouts. Read-only: the RPC URL is the only secret. Non-blocking; failures open an issue.
+# A second job prunes canary pre-releases past the newest twenty (ADR-0036); npm keeps every
+# version.
 on:
   schedule:
     - cron: "0 6 * * *"
@@ -64,3 +66,27 @@ jobs:
       - name: Fail the job when the suite failed
         if: steps.verify.outcome == 'failure'
         run: exit 1
+
+  prune-canaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KEEP: "20"
+    steps:
+      # Canary tags carry "-canary." by construction (solos dev release version), so the tag
+      # alone says which releases are canaries; newest first by creation time.
+      - name: Delete canary pre-releases past the newest twenty
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+            --jq '.[] | select(.prerelease and (.tag_name | test("^solos@.*-canary\\."))) | "\(.created_at) \(.tag_name)"' \
+            | sort -r | awk -v keep="$KEEP" 'NR > keep { print $2 }' > "$RUNNER_TEMP/stale.txt"
+          echo "stale canaries: $(wc -l < "$RUNNER_TEMP/stale.txt" | tr -d ' ')"
+          while read -r tag; do
+            [ -n "$tag" ] || continue
+            echo "deleting $tag"
+            gh release delete "$tag" --cleanup-tag --yes
+          done < "$RUNNER_TEMP/stale.txt"
