@@ -93,6 +93,10 @@ describe("release versions", () => {
     expect(isMajor("1.0.0")).toBe(true);
     expect(isMajor("1.0.1")).toBe(false);
     expect(isMajor("1.0.0-canary.1.gabcdef0")).toBe(false);
+    expect(isMajor("2.1.0", v("1.9.0"))).toBe(true);
+    expect(isMajor("1.0.0", v("0.9.9"))).toBe(true);
+    expect(isMajor("2.1.0", v("2.0.0"))).toBe(false);
+    expect(isMajor("2.0.0", v("2.0.0"))).toBe(false);
     expect(releaseTag("1.0.0")).toBe("solos@1.0.0");
   });
 });

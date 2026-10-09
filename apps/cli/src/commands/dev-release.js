@@ -16,6 +16,7 @@ import {
   formatVersion,
   isMajor,
   laneOf,
+  parseVersion,
   releaseTag,
   stableVersion,
 } from "../release/version.js";
@@ -65,7 +66,7 @@ const version = Command.make("version", { lane, run, sha, bump, base }, (o) =>
       lane: laneOf(next),
       tag: releaseTag(next),
       base: formatVersion(from),
-      major: isMajor(next),
+      major: isMajor(next, from),
     };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(Command.withDescription("Derive the next version for a lane from the newest solos@ tag"));
@@ -78,7 +79,7 @@ const branch = Options.text("branch").pipe(
 /** @param {string} path */
 const readIfPresent = (path) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
-const check = Command.make("check", { branch }, (o) =>
+const check = Command.make("check", { branch, base }, (o) =>
   attempt(async () => {
     const name = Option.isSome(o.branch)
       ? o.branch.value
@@ -86,12 +87,15 @@ const check = Command.make("check", { branch }, (o) =>
     const found = releaseBranchVersion(name);
     const notes = found === null ? null : readIfPresent(`docs/releases/${found}.md`);
     const serverJson = JSON.parse(readIfPresent("server.json") ?? "{}");
-    const report = checkReleasePr({ branch: name, serverJson, notes });
+    const previous = await baseVersion(o.base);
+    const report = checkReleasePr({ branch: name, serverJson, notes, previous });
     if (!report.ok) process.exitCode = 1;
     return { branch: name, ...report };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(
-  Command.withDescription("Check a release PR: branch, server.json versions, notes, major rules"),
+  Command.withDescription(
+    "Check a release PR: branch, newer than the previous stable, server.json versions, notes, major rules",
+  ),
 );
 
 const since = Options.text("since").pipe(
@@ -115,7 +119,7 @@ const notes = Command.make("notes", { since, version: notesVersion, out }, (o) =
     const before = toolRows(await gitShowOrEmpty(`${tag}:${TOOL_REFERENCE}`));
     const after = toolRows(readIfPresent(TOOL_REFERENCE) ?? "");
     const toolDiff = diffToolRows(before, after);
-    const major = isMajor(o.version);
+    const major = isMajor(o.version, parseVersion(tag.replace(/^solos@/u, "")));
     const markdown = renderNotes({ version: o.version, since: tag, entries, toolDiff, major });
     if (Option.isSome(o.out)) {
       mkdirSync(path.dirname(o.out.value), { recursive: true });

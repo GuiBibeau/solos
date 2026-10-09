@@ -4,10 +4,11 @@
  * `server.json` naming that version twice, the notes file, and for a major a filled Migration
  * section and the ADR that justifies the break. Pure over the texts; the command reads the files.
  */
-import { isMajor, parseVersion } from "./version.js";
+import { compareVersions, formatVersion, isMajor, parseVersion } from "./version.js";
 
 /** @typedef {{ reason: string; remedy: string }} Problem */
-/** @typedef {{ branch: string; serverJson: unknown; notes: string | null }} CheckInput */
+/** @typedef {import("./version.js").Version} Version */
+/** @typedef {{ branch: string; serverJson: unknown; notes: string | null; previous?: Version | null }} CheckInput */
 /** @typedef {{ version?: unknown; packages?: Array<{ version?: unknown }> }} Manifest */
 
 const BRANCH = /^release\/(.+)$/u;
@@ -47,21 +48,23 @@ const manifestProblems = (serverJson, version) => {
   return problems;
 };
 
-/** @param {string} text */
-const withoutComments = (text) => text.replaceAll(/<!--[\s\S]*?-->/gu, "");
+/** Markdown the reader never sees as prose: HTML comments and fenced code blocks. @param {string} text */
+const withoutComments = (text) =>
+  text.replaceAll(/<!--[\s\S]*?-->/gu, "").replaceAll(/^```[\s\S]*?^```[ \t]*$/gmu, "");
 
 /**
  * The text under `## Migration` up to the next heading, with HTML comments removed, so the
  * generated placeholder does not count as a filled section.
- * @param {string} notes
+ * @param {string} raw
  */
-const migrationBody = (notes) => {
+const migrationBody = (raw) => {
+  const notes = withoutComments(raw);
   const start = notes.search(/^## Migration\s*$/mu);
   if (start === -1) return null;
   const rest = notes.slice(start).split("\n").slice(1);
   const end = rest.findIndex((line) => /^#{1,2} /u.test(line));
   const body = (end === -1 ? rest : rest.slice(0, end)).join("\n");
-  return withoutComments(body).trim();
+  return body.trim();
 };
 
 /** @param {string} notes @param {string} version @returns {Problem[]} */
@@ -85,8 +88,8 @@ const majorProblems = (notes, version) => {
   return problems;
 };
 
-/** @param {string | null} notes @param {string} version @returns {Problem[]} */
-const notesProblems = (notes, version) => {
+/** @param {string | null} notes @param {string} version @param {Version | null} previous @returns {Problem[]} */
+const notesProblems = (notes, version, previous) => {
   if (notes === null) {
     const file = `docs/releases/${version}.md`;
     return [
@@ -96,14 +99,27 @@ const notesProblems = (notes, version) => {
       },
     ];
   }
-  return isMajor(version) ? majorProblems(notes, version) : [];
+  return isMajor(version, previous) ? majorProblems(notes, version) : [];
+};
+
+/** A release PR moves forward from the previous stable release. @param {string} version @param {Version | null} previous @returns {Problem[]} */
+const forwardProblems = (version, previous) => {
+  const parsed = /** @type {Version} */ (parseVersion(version));
+  if (previous === null || compareVersions(parsed, previous) > 0) return [];
+  return [
+    {
+      reason: `${version} is not newer than the previous stable release ${formatVersion(previous)}`,
+      remedy:
+        "bump past the newest solos@ tag; solos dev release version --lane stable names the next one",
+    },
+  ];
 };
 
 /**
  * @param {CheckInput} input
  * @returns {{ ok: boolean; version: string | null; major: boolean; problems: Problem[] }}
  */
-export const checkReleasePr = ({ branch, serverJson, notes }) => {
+export const checkReleasePr = ({ branch, serverJson, notes, previous = null }) => {
   const version = releaseBranchVersion(branch);
   if (version === null) {
     const problem = {
@@ -113,6 +129,10 @@ export const checkReleasePr = ({ branch, serverJson, notes }) => {
     };
     return { ok: false, version: null, major: false, problems: [problem] };
   }
-  const problems = [...manifestProblems(serverJson, version), ...notesProblems(notes, version)];
-  return { ok: problems.length === 0, version, major: isMajor(version), problems };
+  const problems = [
+    ...forwardProblems(version, previous),
+    ...manifestProblems(serverJson, version),
+    ...notesProblems(notes, version, previous),
+  ];
+  return { ok: problems.length === 0, version, major: isMajor(version, previous), problems };
 };

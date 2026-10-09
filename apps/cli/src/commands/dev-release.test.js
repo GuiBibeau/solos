@@ -97,9 +97,13 @@ describe("solos dev release", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "solos-check-"));
     const manifest = { version: "0.1.0", packages: [{ version: "0.1.0" }] };
     writeFileSync(path.join(dir, "server.json"), JSON.stringify(manifest));
-    const lacking = await runSolos(["dev", "release", "check", "--branch", "release/0.1.0"], env, {
-      cwd: dir,
-    });
+    const lacking = await runSolos(
+      ["dev", "release", "check", "--branch", "release/0.1.0", "--base", "0.0.9"],
+      env,
+      {
+        cwd: dir,
+      },
+    );
     expect(lacking.code).toBe(1);
     const report = JSON.parse(lacking.stdout);
     expect(report.version).toBe("0.1.0");
@@ -108,9 +112,13 @@ describe("solos dev release", () => {
     ]);
     mkdirSync(path.join(dir, "docs", "releases"), { recursive: true });
     writeFileSync(path.join(dir, "docs", "releases", "0.1.0.md"), "# solos 0.1.0\n");
-    const complete = await runSolos(["dev", "release", "check", "--branch", "release/0.1.0"], env, {
-      cwd: dir,
-    });
+    const complete = await runSolos(
+      ["dev", "release", "check", "--branch", "release/0.1.0", "--base", "0.0.9"],
+      env,
+      {
+        cwd: dir,
+      },
+    );
     expect(complete.code).toBe(0);
     expect(JSON.parse(complete.stdout)).toMatchObject({
       ok: true,

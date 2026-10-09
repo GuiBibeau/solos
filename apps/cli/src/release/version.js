@@ -119,8 +119,14 @@ export const laneOf = (version) => {
   return "stable";
 };
 
-/** A release that starts a new major: `x.0.0` with no prerelease. @param {string} version */
-export const isMajor = (version) => {
+/**
+ * Whether `version` starts a new major. Against a known previous stable release that is a
+ * higher major component, whatever the minor and patch; without one, the `x.0.0` shape.
+ * @param {string} version @param {Version | null} [previous]
+ */
+export const isMajor = (version, previous = null) => {
   const parsed = parseVersion(version);
-  return parsed !== null && parsed.prerelease === null && parsed.minor === 0 && parsed.patch === 0;
+  if (parsed === null || parsed.prerelease !== null) return false;
+  if (previous !== null) return parsed.major > previous.major;
+  return parsed.minor === 0 && parsed.patch === 0;
 };

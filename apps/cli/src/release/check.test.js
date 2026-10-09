@@ -1,6 +1,10 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { checkReleasePr, releaseBranchVersion } from "./check.js";
+import { parseVersion } from "./version.js";
+
+/** @param {string} t */
+const prev = (t) => /** @type {NonNullable<ReturnType<typeof parseVersion>>} */ (parseVersion(t));
 
 const manifest = (version) => ({ version, packages: [{ version }] });
 
@@ -64,6 +68,43 @@ describe("release PR check", () => {
     expect(
       checkReleasePr({ branch: "release/1.0.0", serverJson: manifest("1.0.0"), notes: filled }).ok,
     ).toBe(true);
+  });
+
+  test("a major is judged against the previous stable release, and a release must move forward", () => {
+    const notes = "# solos 2.1.0\n";
+    const report = checkReleasePr({
+      branch: "release/2.1.0",
+      serverJson: manifest("2.1.0"),
+      notes,
+      previous: prev("1.9.0"),
+    });
+    expect(report.major).toBe(true);
+    expect(report.problems.map((p) => p.reason)).toEqual([
+      '2.1.0 is a major and docs/releases/2.1.0.md has no filled "## Migration" section',
+      "2.1.0 is a major and docs/releases/2.1.0.md names no ADR",
+    ]);
+    const behind = checkReleasePr({
+      branch: "release/1.8.0",
+      serverJson: manifest("1.8.0"),
+      notes,
+      previous: prev("1.9.0"),
+    });
+    expect(behind.problems[0]?.reason).toBe(
+      "1.8.0 is not newer than the previous stable release 1.9.0",
+    );
+  });
+
+  test("a Migration heading inside a fenced example does not count", () => {
+    const fenced =
+      "# solos 1.0.0\n\nSee docs/adr/0040-break.md.\n\n```md\n## Migration\n\nnot really\n```\n";
+    const report = checkReleasePr({
+      branch: "release/1.0.0",
+      serverJson: manifest("1.0.0"),
+      notes: fenced,
+    });
+    expect(report.problems.map((p) => p.reason)).toEqual([
+      '1.0.0 is a major and docs/releases/1.0.0.md has no filled "## Migration" section',
+    ]);
   });
 
   test("a branch that is not release/<semver> is refused outright", () => {
