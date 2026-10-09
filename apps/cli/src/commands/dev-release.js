@@ -29,6 +29,7 @@ import {
   gitShowOrEmpty,
   parseManifest,
   listDir,
+  newestRelease,
   readIfPresent,
   required,
 } from "./dev-release-shared.js";
@@ -79,7 +80,7 @@ const branch = Options.text("branch").pipe(
   Options.withDescription("Branch to check; default: the current branch"),
 );
 
-const check = Command.make("check", { branch, base }, (o) =>
+const check = Command.make("check", { branch }, (o) =>
   attempt(async () => {
     const name = Option.isSome(o.branch)
       ? o.branch.value
@@ -87,7 +88,7 @@ const check = Command.make("check", { branch, base }, (o) =>
     const found = releaseBranchVersion(name);
     const notes = found === null ? null : readIfPresent(`docs/releases/${found}.md`);
     const manifest = parseManifest(readIfPresent("server.json"));
-    const previous = await baseVersion(o.base);
+    const previous = await newestRelease();
     const adrs = listDir("docs/adr");
     const checked = checkReleasePr({
       branch: name,

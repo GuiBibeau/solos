@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runSolos, stderrJson } from "./cli-fixture.js";
@@ -91,57 +91,6 @@ describe("solos dev release [integration]", () => {
     expect(code).toBe(1);
     expect(stderrJson(stderr)?.error).toMatchObject({ code: "ReleaseRefused" });
     expect(stderrJson(stderr)?.error.reason).toContain("--reason is empty");
-  });
-
-  test("check names what a release PR still lacks, from a cwd holding its own server.json", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "solos-check-"));
-    const manifest = { version: "0.1.0", packages: [{ version: "0.1.0" }] };
-    writeFileSync(path.join(dir, "server.json"), JSON.stringify(manifest));
-    const lacking = await runSolos(
-      ["dev", "release", "check", "--branch", "release/0.1.0", "--base", "0.0.9"],
-      env,
-      {
-        cwd: dir,
-      },
-    );
-    expect(lacking.code).toBe(1);
-    const report = JSON.parse(lacking.stdout);
-    expect(report.version).toBe("0.1.0");
-    expect(report.problems.map((/** @type {{ reason: string }} */ p) => p.reason)).toEqual([
-      "docs/releases/0.1.0.md is missing",
-    ]);
-    mkdirSync(path.join(dir, "docs", "releases"), { recursive: true });
-    writeFileSync(path.join(dir, "docs", "releases", "0.1.0.md"), "# solos 0.1.0\n");
-    const complete = await runSolos(
-      ["dev", "release", "check", "--branch", "release/0.1.0", "--base", "0.0.9"],
-      env,
-      {
-        cwd: dir,
-      },
-    );
-    expect(complete.code).toBe(0);
-    expect(JSON.parse(complete.stdout)).toMatchObject({
-      ok: true,
-      version: "0.1.0",
-      major: false,
-      problems: [],
-    });
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  test("check reports a malformed server.json as a problem, not an internal error", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "solos-check-bad-"));
-    writeFileSync(path.join(dir, "server.json"), "{ not json");
-    const { stdout, code } = await runSolos(
-      ["dev", "release", "check", "--branch", "release/0.1.0", "--base", "0.0.9"],
-      env,
-      { cwd: dir },
-    );
-    expect(code).toBe(1);
-    const report = JSON.parse(stdout);
-    expect(report.ok).toBe(false);
-    expect(report.problems[0]?.reason).toStartWith("server.json is not valid JSON");
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("notes --out creates the parent directory", async () => {

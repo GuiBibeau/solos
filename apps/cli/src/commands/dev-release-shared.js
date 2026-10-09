@@ -36,6 +36,21 @@ export const gitShowOrEmpty = async (spec) => {
 };
 
 /**
+ * The newest stable `solos@*` tag reachable here: the release history a gate derives from, which
+ * no flag overrides.
+ */
+export const newestRelease = async () => {
+  const newest = newestStable((await git(["tag", "--list", "solos@*"])).split("\n"));
+  if (newest === null) {
+    throw new ReleaseRefused({
+      reason: "no solos@<semver> tag is reachable",
+      remedy: "git fetch --tags so the newest stable release is reachable",
+    });
+  }
+  return newest;
+};
+
+/**
  * The stable version a lane derives from: `--base` when given, else the newest `solos@*` tag.
  * @param {Option.Option<string>} base
  */
@@ -50,14 +65,7 @@ export const baseVersion = async (base) => {
     }
     return parsed;
   }
-  const newest = newestStable((await git(["tag", "--list", "solos@*"])).split("\n"));
-  if (newest === null) {
-    throw new ReleaseRefused({
-      reason: "no solos@<semver> tag is reachable",
-      remedy: "git fetch --tags, or pass --base <version>",
-    });
-  }
-  return newest;
+  return newestRelease();
 };
 
 /**
