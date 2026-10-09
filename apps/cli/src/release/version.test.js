@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   canaryVersion,
+  compareVersions,
   formatVersion,
   isMajor,
   laneOf,
@@ -20,6 +21,9 @@ const thrown = (fn) => {
   }
   return undefined;
 };
+
+/** A parsed version the tests know is valid. @param {string} t */
+const v = (t) => /** @type {NonNullable<ReturnType<typeof parseVersion>>} */ (parseVersion(t));
 
 describe("release versions", () => {
   test("parses and formats semver with an optional prerelease", () => {
@@ -77,6 +81,12 @@ describe("release versions", () => {
     expect(laneOf("0.1.1-canary.7.g1f232a4")).toBe("canary");
     expect(laneOf("0.1.1")).toBe("stable");
     expect(laneOf("garbage")).toBe("source");
+  });
+
+  test("versions compare by major, minor, patch only", () => {
+    expect(compareVersions(v("0.1.0"), v("0.1.1"))).toBeLessThan(0);
+    expect(compareVersions(v("0.2.0"), v("0.1.9"))).toBeGreaterThan(0);
+    expect(compareVersions(v("1.0.0"), v("1.0.0-canary.1.gabcdef0"))).toBe(0);
   });
 
   test("a major is x.0.0 with no prerelease", () => {

@@ -14,7 +14,7 @@ import { emit, exitOnFailure } from "../output.js";
 import { ReleaseRefused } from "../release/errors.js";
 import { promotePlan, rollbackPlan } from "../release/plans.js";
 import { assertPublished, currentLatest, runPlan } from "../release/run-plan.js";
-import { parseVersion, releaseTag } from "../release/version.js";
+import { compareVersions, parseVersion, releaseTag } from "../release/version.js";
 import { attempt, dryRun, git } from "./dev-release-shared.js";
 
 /** @param {string} value @param {string} flag */
@@ -117,10 +117,14 @@ export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (
       });
     }
     const bad = Option.isSome(o.from) ? semver(o.from.value, "--from") : await currentLatest();
-    if (bad === target) {
+    // A rollback restores a previous release: --to must be older than --from, never equal or
+    // newer, or the "rollback" would move every latest pointer forward.
+    const toParsed = /** @type {import("../release/version.js").Version} */ (parseVersion(target));
+    const fromParsed = /** @type {import("../release/version.js").Version} */ (parseVersion(bad));
+    if (compareVersions(toParsed, fromParsed) >= 0) {
       throw new ReleaseRefused({
-        reason: `latest already points at ${target}`,
-        remedy: "pass --from <the version to deprecate>",
+        reason: `--to ${target} is not older than --from ${bad}; a rollback restores a previous release`,
+        remedy: "pass --to <an earlier published version>, or promote the newer one instead",
       });
     }
     // Both versions are checked before any pointer moves, so a mistyped --from cannot leave a

@@ -52,8 +52,9 @@ const bumped = (version) => {
 /** @param {string} version */
 export const releaseTag = (version) => `${TAG_PREFIX}${version}`;
 
-/** @param {Version} a @param {Version} b */
-const compare = (a, b) => a.major - b.major || a.minor - b.minor || a.patch - b.patch;
+/** Negative when `a` is older than `b`; prerelease identifiers do not take part. @param {Version} a @param {Version} b */
+export const compareVersions = (a, b) =>
+  a.major - b.major || a.minor - b.minor || a.patch - b.patch;
 
 /**
  * The newest stable version among `solos@*` tags; prereleases and foreign tags are ignored.
@@ -67,7 +68,7 @@ export const newestStable = (tags) => {
     if (!tag.startsWith(TAG_PREFIX)) continue;
     const version = parseVersion(tag.slice(TAG_PREFIX.length));
     if (version === null || version.prerelease !== null) continue;
-    if (best === null || compare(version, best) > 0) best = version;
+    if (best === null || compareVersions(version, best) > 0) best = version;
   }
   return best;
 };

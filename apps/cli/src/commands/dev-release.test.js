@@ -190,15 +190,24 @@ describe("solos dev release", () => {
     expect(result.registry.remedy).toContain("fix forward");
   });
 
+  test("rollback refuses a target that is not older than the source", async () => {
+    const { stderr, code } = await runSolos(
+      ["dev", "release", "rollback", "--to", "0.2.0", "--from", "0.1.0", "--dry-run"],
+      env,
+    );
+    expect(code).toBe(1);
+    expect(stderrJson(stderr)?.error.reason).toBe(
+      "--to 0.2.0 is not older than --from 0.1.0; a rollback restores a previous release",
+    );
+  });
+
   test("rollback refuses when latest already points at the target", async () => {
     const { stderr, code } = await runSolos(
       ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.0", "--dry-run"],
       env,
     );
     expect(code).toBe(1);
-    expect(stderrJson(stderr)?.error).toMatchObject({
-      code: "ReleaseRefused",
-      reason: "latest already points at 0.1.0",
-    });
+    expect(stderrJson(stderr)?.error).toMatchObject({ code: "ReleaseRefused" });
+    expect(stderrJson(stderr)?.error.reason).toContain("is not older than");
   });
 });
