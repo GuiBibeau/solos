@@ -221,6 +221,15 @@ describe("solos dev release", () => {
     );
   });
 
+  test("rollback requires --from, so a retry never mistakes the target for the source", async () => {
+    const { code, stderr } = await runSolos(
+      ["dev", "release", "rollback", "--to", "0.1.0", "--dry-run"],
+      env,
+    );
+    expect(code).not.toBe(0);
+    expect(stderr).toContain("--from");
+  });
+
   test("rollback refuses when latest already points at the target", async () => {
     const { stderr, code } = await runSolos(
       ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.0", "--dry-run"],

@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Args, Command, Options } from "@effect/cli";
-import { Effect, Option } from "effect";
+import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { ReleaseRefused } from "../release/errors.js";
 import { promotePlan, rollbackPlan } from "../release/plans.js";
@@ -102,8 +102,9 @@ const to = Options.text("to").pipe(
   Options.withDescription("The previously published version latest should point at again"),
 );
 const from = Options.text("from").pipe(
-  Options.optional,
-  Options.withDescription("The version being rolled back; default: what latest points at now"),
+  Options.withDescription(
+    "The version being rolled back. Always named, so a retry after a partial run cannot mistake the target for the source",
+  ),
 );
 const reason = Options.text("reason").pipe(
   Options.withDefault("rolled back; install the version latest points at"),
@@ -119,7 +120,7 @@ export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (
         remedy: "pass --reason <why this version is rolled back>",
       });
     }
-    const bad = Option.isSome(o.from) ? stable(o.from.value, "--from") : await currentLatest();
+    const bad = stable(o.from, "--from");
     // A rollback restores a previous release: --to must be older than --from, never equal or
     // newer, or the "rollback" would move every latest pointer forward.
     const toParsed = /** @type {import("../release/version.js").Version} */ (parseVersion(target));

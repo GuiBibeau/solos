@@ -92,7 +92,7 @@ describe("promotion and rollback plans", () => {
 
   test("promotion only moves forward from the current latest", () => {
     expect(assertForward("0.1.1", "0.1.0")).toBeUndefined();
-    expect(() => assertForward("0.1.0", "0.1.0")).toThrow();
+    expect(assertForward("0.1.0", "0.1.0")).toBeUndefined();
     expect(() => assertForward("0.0.9", "0.1.0")).toThrow();
     let refusal;
     try {
@@ -102,7 +102,7 @@ describe("promotion and rollback plans", () => {
     }
     expect(refusal).toMatchObject({
       _tag: "ReleaseRefused",
-      reason: "0.0.9 is not newer than latest, 0.1.0; promote only moves forward",
+      reason: "0.0.9 is older than latest, 0.1.0; promote only moves forward",
     });
   });
 

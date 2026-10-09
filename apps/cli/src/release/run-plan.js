@@ -53,16 +53,17 @@ export const assertPublished = async (version, runner = captureCommand) => {
 };
 
 /**
- * Promotion only moves forward: a version at or behind what `latest` points at is a rollback in
- * disguise, without rollback's checks and deprecation.
+ * Promotion only moves forward: a version behind what `latest` points at is a rollback in
+ * disguise, without rollback's checks and deprecation. Equality is allowed: every step is
+ * idempotent, so re-running after a partial flip finishes the remaining pointers.
  * @param {string} version @param {string} latest
  */
 export const assertForward = (version, latest) => {
   const next = parseVersion(version);
   const current = parseVersion(latest);
-  if (next === null || current === null || compareVersions(next, current) <= 0) {
+  if (next === null || current === null || compareVersions(next, current) < 0) {
     throw new ReleaseRefused({
-      reason: `${version} is not newer than latest, ${latest}; promote only moves forward`,
+      reason: `${version} is older than latest, ${latest}; promote only moves forward`,
       remedy: "promote the staged candidate, or use rollback to go back",
     });
   }
