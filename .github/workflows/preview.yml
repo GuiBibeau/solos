@@ -36,7 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
-          if printf '%s\n' "$files" | grep -qE '^(apps/|packages/|package\.json$|bun\.lock$|\.bun-version$|\.github/actions/|\.github/workflows/preview\.yml$)'; then
+          # A here-string, not a pipe: with pipefail, grep -q closing early on a long listing
+          # would turn a matching pull request into code=false.
+          if grep -qE '^(apps/|packages/|package\.json$|bun\.lock$|\.bun-version$|\.github/actions/|\.github/workflows/preview\.yml$)' <<<"$files"; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
