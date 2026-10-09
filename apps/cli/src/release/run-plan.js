@@ -22,15 +22,34 @@ export const displayCommand = (argv) =>
 
 export const REGISTRY_URL = "https://registry.modelcontextprotocol.io";
 
+/** What the probe learned: an HTTP status, or the curl exit when no request completed. @param {number} code @param {string} output */
+const registryAnswer = (code, output) =>
+  code === 0 ? `HTTP ${/^(\d{3})/u.exec(output.trim())?.[1] ?? "?"}` : `curl exit ${code}`;
+
 /**
  * Whether the MCP Registry already lists this server version: a promote retry must not publish
- * it twice, since the registry refuses a duplicate. `curl -f` exits 0 on 200 and 22 on 404.
+ * it twice, since the registry refuses a duplicate. Only a 200 or a 404 is an answer; any other
+ * status, or a transport failure, refuses before a single pointer moves.
  * @param {{ name: string; version: string }} server @param {Runner} [runner]
  */
 export const registryHasVersion = async ({ name, version }, runner = captureCommand) => {
   const url = `${REGISTRY_URL}/v0.1/servers/${encodeURIComponent(name)}/versions/${version}`;
-  const { code } = await runner(["curl", "-fsS", "-o", "/dev/null", url]);
-  return code === 0;
+  const { code, output } = await runner([
+    "curl",
+    "-sS",
+    "-o",
+    "/dev/null",
+    "-w",
+    "%{http_code}",
+    url,
+  ]);
+  const answer = registryAnswer(code, output);
+  if (answer === "HTTP 200") return true;
+  if (answer === "HTTP 404") return false;
+  throw new ReleaseRefused({
+    reason: `MCP Registry lookup for ${name}@${version} failed (${answer}); nothing was changed`,
+    remedy: "retry when the registry answers, or pass --skip-registry to promote without it",
+  });
 };
 
 /**
