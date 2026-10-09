@@ -22,6 +22,10 @@ npm i -g @solos-sh/cli
 ```
 
 Without Node: `curl -fsSL https://raw.githubusercontent.com/GuiBibeau/solos/main/install.sh | sh`.
+
+Channels: `latest` is the stable lane. `npm i -g @solos-sh/cli@canary`, or `SOLOS_CHANNEL=canary`
+on the install script, gives you the newest merge to `main`; `solos doctor` reports which lane
+you run (`release.lane`).
 Either way you get one `solos` command, with Bun embedded; nothing else to install.
 
 **2. Connect a wallet**

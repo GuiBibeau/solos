@@ -1,0 +1,63 @@
+name: publish-npm
+description: >-
+  Pack the npm launcher and platform packages from built binaries with `solos dev pack` and publish
+  them under one dist-tag (ADR-0035, ADR-0036). Shared by the canary and the stable lanes so the
+  publish step is written once. Skips the publish when `publish` is not "true".
+
+inputs:
+  version:
+    description: The version to pack and publish, e.g. 0.1.1 or 0.1.1-canary.7.g1f232a4; a solos@ prefix is dropped
+    required: true
+  tag:
+    description: The npm dist-tag the packages are published under (canary, staged or latest)
+    required: true
+  dist:
+    description: Directory holding the four solos-* binaries
+    required: false
+    default: dist
+  publish:
+    description: '"true" publishes; anything else packs only (vars.NPM_PUBLISH)'
+    required: true
+  npm-token:
+    description: secrets.NPM_TOKEN; empty means trusted publishing through OIDC
+    required: false
+    default: ""
+  provenance:
+    description: '"true" asks npm for a provenance statement (public repositories only)'
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      with:
+        node-version: 24
+        registry-url: https://registry.npmjs.org
+    - name: Pack the npm packages
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        DIST: ${{ inputs.dist }}
+      run: |
+        set -euo pipefail
+        version="${VERSION#solos@}"
+        bun run solos dev pack --dist "$DIST" --outdir "$DIST/npm" --version "$version" > "$RUNNER_TEMP/pack.json"
+        cat "$RUNNER_TEMP/pack.json"
+    - name: Publish to npm
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        NPM_CONFIG_PROVENANCE: ${{ inputs.provenance }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        set -euo pipefail
+        case "$TAG" in
+          canary|staged|latest) ;;
+          *) echo "::error::dist-tag must be canary, staged or latest, not $TAG"; exit 1 ;;
+        esac
+        for dir in $(jq -r '.packages[].dir' "$RUNNER_TEMP/pack.json"); do
+          echo "publishing $(jq -r .name "$dir/package.json")@$(jq -r .version "$dir/package.json") under $TAG"
+          npm publish "$dir" --access public --tag "$TAG"
+        done
