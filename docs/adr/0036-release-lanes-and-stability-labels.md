@@ -22,9 +22,11 @@ published versions only. The lanes below are built from what those facts allow.
 
 ### Three lanes and a pointer
 
-- **Preview, per pull request.** The build matrix runs on every PR and uploads the binaries as
-  workflow artifacts. Nothing is published. Pull requests are maintainer-only (CONTRIBUTING.md),
-  so `gh run download` is the audience.
+- **Preview, per pull request.** The build matrix runs on every pull request that changes code
+  and uploads each binary as a workflow artifact `solos-<target>-pr<n>`, kept seven days. One
+  sticky comment lists them with the `gh run download` command; a pull request that changes no
+  code says so instead of building. Nothing is published. Pull requests are maintainer-only
+  (CONTRIBUTING.md), so `gh run download` is the audience.
 - **Canary, on every merge to `main`.** The version is derived, never typed:
   `<next patch of the newest solos@ tag>-canary.<run>.g<short sha>`, where `<run>` is the
   workflow run number so canaries order correctly. The lane publishes the launcher and the four

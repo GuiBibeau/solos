@@ -1,0 +1,142 @@
+name: preview
+
+# Previews per pull request (ADR-0036). The ADR-0035 build matrix runs on every pull request that
+# changes code, uploads each binary as a workflow artifact named solos-<target>-pr<n>, kept seven
+# days, and one sticky comment lists them with the `gh run download` command. Nothing is
+# published. A pull request that changes no code skips the build, and the comment says so.
+# Pull requests are maintainer-only (CONTRIBUTING.md); a fork's pull request gets no preview.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      # Code is anything that reaches the binary: the apps and packages, the dependency set, the
+      # Bun version, the setup action and this workflow. Docs, ADRs, issues and the landing are not.
+      - name: Does this pull request change code?
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
+          if printf '%s\n' "$files" | grep -qE '^(apps/|packages/|package\.json$|bun\.lock$|\.bun-version$|\.github/actions/|\.github/workflows/preview\.yml$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            first: linux-x64
+            second: linux-arm64
+          - os: macos-latest
+            first: darwin-arm64
+            second: darwin-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup
+      # A preview is a build of the source, so it reports version 0.0.0 (lane source) and the
+      # pull request's head commit, which is not the merge commit checked out here.
+      - name: Build and smoke-test
+        env:
+          COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          bun run solos dev build --target "${{ matrix.first }},${{ matrix.second }}" --outdir dist \
+            --version 0.0.0 --commit "$COMMIT" > "$RUNNER_TEMP/build.json"
+          cat "$RUNNER_TEMP/build.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: solos-${{ matrix.first }}-pr${{ github.event.pull_request.number }}
+          path: dist/solos-${{ matrix.first }}
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: solos-${{ matrix.second }}-pr${{ github.event.pull_request.number }}
+          path: dist/solos-${{ matrix.second }}
+          if-no-files-found: error
+          retention-days: 7
+
+  comment:
+    needs: [changes, build]
+    # Runs when the build passed, failed or was skipped for a docs-only push; not for a fork.
+    if: always() && needs.changes.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+      CODE: ${{ needs.changes.outputs.code }}
+      BUILD: ${{ needs.build.result }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Write the comment
+        run: |
+          set -euo pipefail
+          short="${SHA:0:7}"
+          {
+            echo "<!-- solos-preview -->"
+            if [ "$CODE" != "true" ]; then
+              echo "## Preview binaries: skipped for \`$short\`"
+              echo
+              echo "This push changes no code (nothing under \`apps/\` or \`packages/\`, no dependency change), so there is nothing new to build."
+            elif [ "$BUILD" != "success" ]; then
+              echo "## Preview binaries: build $BUILD for \`$short\`"
+              echo
+              echo "See the [run]($RUN_URL). No artifacts were kept for this push."
+            else
+              echo "## Preview binaries for \`$short\`"
+              echo
+              echo "Built from this pull request's head by [run ${GITHUB_RUN_ID}]($RUN_URL). Each binary reports \`doctor.release\` as version 0.0.0, lane source, commit \`$short\`. Artifacts are kept seven days. Nothing is published."
+              echo
+              echo "| Target | Artifact |"
+              echo "| --- | --- |"
+              for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
+                echo "| $target | \`solos-${target}-pr${PR}\` |"
+              done
+              echo
+              echo '```sh'
+              echo "gh run download ${GITHUB_RUN_ID} --repo ${GITHUB_REPOSITORY} --name solos-darwin-arm64-pr${PR}"
+              echo "chmod +x solos-darwin-arm64 && ./solos-darwin-arm64 doctor"
+              echo '```'
+              echo
+              echo "Swap the target for your platform."
+            fi
+          } > "$RUNNER_TEMP/comment.md"
+          cat "$RUNNER_TEMP/comment.md"
+      - name: Create or update the sticky comment
+        run: |
+          set -euo pipefail
+          existing="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- solos-preview -->")) | .id' | head -n 1)"
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
+          fi
