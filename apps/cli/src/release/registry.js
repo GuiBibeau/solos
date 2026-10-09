@@ -2,7 +2,7 @@
 /**
  * What the MCP Registry already knows about a server version. The registry never republishes a
  * version, so a promote must learn whether the version is listed before it moves a pointer, and
- * a version the registry has deleted is never promoted.
+ * only a version the registry lists as active is promoted.
  */
 import { z } from "zod";
 import { captureCommand } from "../evidence/run-steps.js";
@@ -72,8 +72,8 @@ const lookupFailed = (server, detail) =>
 
 /**
  * Whether the MCP Registry lists this server version. Deleted versions are asked for too: the
- * registry hides them by default but still refuses to publish them again, and a version taken
- * down must not become latest. Only a 200 or a 404 is an answer; any other status, a transport
+ * registry hides them by default but still refuses to publish them again. Only an active version
+ * is promoted: a deleted or deprecated one must not become latest. Only a 200 or a 404 is an answer; any other status, a transport
  * failure or a body that is not the registry's record of this version refuses before a single
  * pointer moves.
  * @param {{ name: string; version: string }} server @param {Runner} [runner]
@@ -93,10 +93,11 @@ export const registryHasVersion = async ({ name, version }, runner = captureComm
       `HTTP 200 with a body that is not the registry's record of ${server}`,
     );
   }
-  if (state === "deleted") {
+  if (state !== "active") {
     throw new ReleaseRefused({
-      reason: `${server} is deleted in the MCP Registry; a deleted version is never republished or promoted`,
-      remedy: "fix forward: prepare a patch release and promote it",
+      reason: `${server} is ${state} in the MCP Registry; only an active version is promoted`,
+      remedy:
+        "fix forward: prepare a patch release and promote it; a deprecated version can instead be set back to active in the registry first",
     });
   }
   return true;

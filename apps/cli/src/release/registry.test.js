@@ -26,7 +26,6 @@ describe("the registry probe", () => {
       String.raw`\n%{http_code}`,
       "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.GuiBibeau%2Fsolos/versions/0.1.1?include_deleted=true",
     ]);
-    expect(await registryHasVersion(SERVER, answer(0, listed("deprecated")))).toBe(true);
     expect(await registryHasVersion(SERVER, answer(0, '{"detail":"not found"}\n404\n'))).toBe(
       false,
     );
@@ -35,13 +34,22 @@ describe("the registry probe", () => {
     expect(await registryHasVersion(SERVER, answer(0, bare))).toBe(true);
   });
 
-  test("a deleted version is refused, never republished and never promoted", async () => {
+  test("a deleted or deprecated version is refused; only an active one is promoted", async () => {
+    const remedy =
+      "fix forward: prepare a patch release and promote it; a deprecated version can instead be set back to active in the registry first";
     await expect(registryHasVersion(SERVER, answer(0, listed("deleted")))).rejects.toMatchObject({
       _tag: "ReleaseRefused",
       reason:
-        "io.github.GuiBibeau/solos@0.1.1 is deleted in the MCP Registry; a deleted version is never republished or promoted",
-      remedy: "fix forward: prepare a patch release and promote it",
+        "io.github.GuiBibeau/solos@0.1.1 is deleted in the MCP Registry; only an active version is promoted",
+      remedy,
     });
+    await expect(registryHasVersion(SERVER, answer(0, listed("deprecated")))).rejects.toMatchObject(
+      {
+        reason:
+          "io.github.GuiBibeau/solos@0.1.1 is deprecated in the MCP Registry; only an active version is promoted",
+        remedy,
+      },
+    );
   });
 
   test("anything but a readable 200 or a 404 refuses before a pointer moves", async () => {

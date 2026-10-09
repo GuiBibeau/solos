@@ -54,8 +54,9 @@ published versions only. The lanes below are built from what those facts allow.
   versions are immutable and an existing version cannot be published again, so the registry
   cannot point backwards. The rolled-back version stays listed until a fix-forward patch release
   is promoted, which is the remedy the command prints. `promote` asks the registry about the
-  version first, deleted entries included, and refuses a version the registry has deleted: it
-  cannot be published again and must not become `latest`. The registry's supported operation is
+  version first, deleted entries included, and promotes only a version the registry lists as
+  active: a deleted one cannot be published again, a deprecated one carries a warning, and
+  neither may become `latest`. The registry's supported operation is
   `PATCH /v0.1/servers/{name}/versions/{version}/status` to mark the bad version `deprecated`
   with a message; it needs the publisher's token, so the stable-lane workflow runs it, not the
   lever on a laptop.
