@@ -28,34 +28,43 @@ const pointLatestAt = (version) => [
   },
 ];
 
-/** @param {{ version: string; registry: boolean }} input @returns {Step[]} */
-export const promotePlan = ({ version, registry }) => [
+/**
+ * Publish the registry from `registryDir`, where the caller has placed the target release's own
+ * `server.json` (read from its tag), never the checkout's: a `main` that moved on would advertise
+ * the wrong release.
+ * @param {string} version @param {string | undefined} registryDir @returns {Step[]}
+ */
+const registryStep = (version, registryDir) =>
+  registryDir === undefined
+    ? []
+    : [
+        {
+          name: `MCP Registry publish from ${releaseTag(version)}`,
+          argv: ["mcp-publisher", "publish"],
+          cwd: registryDir,
+        },
+      ];
+
+/** @param {{ version: string; registryDir?: string }} input @returns {Step[]} */
+export const promotePlan = ({ version, registryDir }) => [
   ...pointLatestAt(version),
-  ...(registry ? [{ name: "MCP Registry publish", argv: ["mcp-publisher", "publish"] }] : []),
+  ...registryStep(version, registryDir),
 ];
 
 /**
- * Point back, deprecate the bad version everywhere, then republish the MCP Registry from the
- * target's own `server.json`, which the caller has placed in `registryDir` (ADR-0036). Without
- * that last step MCP clients would keep discovering the rolled-back version.
+ * Point back, republish the registry from the target's manifest, then deprecate the bad version
+ * everywhere. The registry comes before the deprecations because a failed deprecation stops the
+ * plan, and MCP clients must not keep discovering the rolled-back version (ADR-0036).
  * @param {{ to: string; from: string; reason: string; registryDir?: string }} input
  * @returns {Step[]}
  */
 export const rollbackPlan = ({ to, from, reason, registryDir }) => [
   ...pointLatestAt(to),
+  ...registryStep(to, registryDir),
   ...releasePackages().map((pkg) => ({
     name: `deprecate ${pkg}@${from}`,
     argv: ["npm", "deprecate", `${pkg}@${from}`, reason],
   })),
-  ...(registryDir === undefined
-    ? []
-    : [
-        {
-          name: `MCP Registry republish from ${releaseTag(to)}`,
-          argv: ["mcp-publisher", "publish"],
-          cwd: registryDir,
-        },
-      ]),
 ];
 
 /** The argv that proves `pkg@version` exists on npm. @param {string} pkg @param {string} version */

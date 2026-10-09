@@ -4,7 +4,8 @@
  * checked, notes are written from what was merged; promotion and rollback are in the pointer
  * module. Every verb prints JSON and exits non-zero when it refuses.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { Args, Command, Options } from "@effect/cli";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
@@ -116,7 +117,10 @@ const notes = Command.make("notes", { since, version: notesVersion, out }, (o) =
     const toolDiff = diffToolRows(before, after);
     const major = isMajor(o.version);
     const markdown = renderNotes({ version: o.version, since: tag, entries, toolDiff, major });
-    if (Option.isSome(o.out)) writeFileSync(o.out.value, `${markdown}\n`);
+    if (Option.isSome(o.out)) {
+      mkdirSync(path.dirname(o.out.value), { recursive: true });
+      writeFileSync(o.out.value, `${markdown}\n`);
+    }
     return {
       version: o.version,
       since: tag,

@@ -8,6 +8,8 @@ describe("release PR check", () => {
   test("reads the version from the branch name", () => {
     expect(releaseBranchVersion("release/0.2.0")).toBe("0.2.0");
     expect(releaseBranchVersion("release/next")).toBeNull();
+    expect(releaseBranchVersion("release/1.0.0-rc.1")).toBeNull();
+    expect(releaseBranchVersion("release/0.1.1-canary.7.g1f232a4")).toBeNull();
     expect(releaseBranchVersion("main")).toBeNull();
   });
 
@@ -57,6 +59,6 @@ describe("release PR check", () => {
   test("a branch that is not release/<semver> is refused outright", () => {
     const report = checkReleasePr({ branch: "feat/x", serverJson: manifest("0.1.1"), notes: null });
     expect(report.version).toBeNull();
-    expect(report.problems[0]?.remedy).toContain("check out release/<semver>");
+    expect(report.problems[0]?.remedy).toContain("check out release/<major.minor.patch>");
   });
 });

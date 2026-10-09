@@ -13,12 +13,17 @@ import { isMajor, parseVersion } from "./version.js";
 const BRANCH = /^release\/(.+)$/u;
 const ADR_LINK = /docs\/adr\/\d{4}-|ADR-\d{4}/u;
 
-/** The version a `release/<semver>` branch names, or null. @param {string} branch */
+/**
+ * The stable version a `release/<major.minor.patch>` branch names, or null: a prerelease is not a
+ * release PR, so it never reaches the major rules below.
+ * @param {string} branch
+ */
 export const releaseBranchVersion = (branch) => {
   const match = BRANCH.exec(branch);
   if (match === null) return null;
   const version = /** @type {string} */ (match[1]);
-  return parseVersion(version) === null ? null : version;
+  const parsed = parseVersion(version);
+  return parsed === null || parsed.prerelease !== null ? null : version;
 };
 
 /** @param {unknown} serverJson @param {string} version @returns {Problem[]} */
@@ -99,9 +104,9 @@ export const checkReleasePr = ({ branch, serverJson, notes }) => {
   const version = releaseBranchVersion(branch);
   if (version === null) {
     const problem = {
-      reason: `branch ${branch} is not release/<semver>`,
+      reason: `branch ${branch} is not release/<major.minor.patch>`,
       remedy:
-        "check out release/<semver>, set both server.json versions to it and write docs/releases/<semver>.md with solos dev release notes",
+        "check out release/<major.minor.patch>, set both server.json versions to it and write docs/releases/<version>.md with solos dev release notes",
     };
     return { ok: false, version: null, major: false, problems: [problem] };
   }

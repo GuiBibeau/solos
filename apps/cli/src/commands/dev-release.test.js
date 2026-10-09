@@ -1,5 +1,8 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { runSolos, stderrJson } from "./cli-fixture.js";
 
 const env = { SOLOS_DEV: "1" };
@@ -61,6 +64,18 @@ describe("solos dev release", () => {
     ]);
   });
 
+  test("notes --out creates the parent directory", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "solos-notes-"));
+    const out = path.join(dir, "docs", "releases", "0.1.1.md");
+    const { code } = await runSolos(
+      ["dev", "release", "notes", "0.1.1", "--since", "solos@0.1.0", "--out", out],
+      env,
+    );
+    expect(code).toBe(0);
+    expect(readFileSync(out, "utf8")).toContain("# solos 0.1.1");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   test("promote --dry-run prints the exact commands and runs none", async () => {
     const { stdout, code } = await runSolos(
       ["dev", "release", "promote", "9.9.9", "--dry-run", "--skip-registry"],
@@ -79,6 +94,15 @@ describe("solos dev release", () => {
     expect(result.steps.every((/** @type {{ ok: unknown }} */ s) => s.ok === null)).toBe(true);
   });
 
+  test("promote --dry-run names the tag whose manifest the registry publish would use", async () => {
+    const { stdout, code } = await runSolos(
+      ["dev", "release", "promote", "9.9.9", "--dry-run"],
+      env,
+    );
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout).steps.at(-1)?.name).toBe("MCP Registry publish from solos@9.9.9");
+  });
+
   test("promote refuses a canary: latest only ever points at a stable version", async () => {
     const { stderr, code } = await runSolos(
       ["dev", "release", "promote", "0.1.1-canary.7.g1f232a4", "--dry-run"],
@@ -92,15 +116,15 @@ describe("solos dev release", () => {
     });
   });
 
-  test("rollback --dry-run ends with the registry republish from the target's tag", async () => {
+  test("rollback --dry-run republishes the registry from the target's tag before deprecating", async () => {
     const { stdout, code } = await runSolos(
       ["dev", "release", "rollback", "--to", "0.1.0", "--from", "0.1.1", "--dry-run"],
       env,
     );
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
-    expect(result.steps.at(-1)).toMatchObject({
-      name: "MCP Registry republish from solos@0.1.0",
+    expect(result.steps[6]).toMatchObject({
+      name: "MCP Registry publish from solos@0.1.0",
       command: "mcp-publisher publish",
       ok: null,
     });

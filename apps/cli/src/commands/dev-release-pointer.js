@@ -1,7 +1,8 @@
 // @ts-check
 /**
  * Promotion and rollback are pointer flips (ADR-0036): npm dist-tags and the GitHub Release's
- * latest flag move; nothing is rebuilt or published. Both refuse a version npm does not have.
+ * latest flag move; nothing is rebuilt or published. Both refuse a version npm does not have,
+ * accept only stable versions, and publish the MCP Registry from the target tag's own manifest.
  */
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,8 +39,9 @@ const stable = (/** @type {string} */ value, /** @type {string} */ flag) => {
 };
 
 /**
- * The `server.json` the target release shipped, from its tag, in a fresh directory for
- * `mcp-publisher publish` to read. A tag without one cannot republish the registry.
+ * The `server.json` the target release shipped, read from its tag into a fresh directory for
+ * `mcp-publisher publish`. The checkout's own manifest is never used: a `main` that moved on
+ * would advertise the wrong release. A tag without a manifest cannot publish the registry.
  * @param {string} version
  */
 const registryDirFor = async (version) => {
@@ -47,6 +49,15 @@ const registryDirFor = async (version) => {
   const dir = mkdtempSync(path.join(tmpdir(), "solos-release-"));
   writeFileSync(path.join(dir, "server.json"), manifest);
   return dir;
+};
+
+/**
+ * @param {string} target @param {{ skip: boolean; dryRun: boolean }} mode
+ * @returns {Promise<string | undefined>} undefined when the registry is left alone
+ */
+const registryDirMaybe = async (target, { skip, dryRun: dry }) => {
+  if (skip) return undefined;
+  return dry ? `<server.json of ${releaseTag(target)}>` : registryDirFor(target);
 };
 
 const promoteVersion = Args.text({ name: "version" }).pipe(
@@ -64,8 +75,11 @@ export const promote = Command.make(
     attempt(async () => {
       const version = stable(o.version, "version");
       if (!o.dryRun) await assertPublished(version);
-      const plan = promotePlan({ version, registry: !o.skipRegistry });
-      const result = await runPlan(plan, { dryRun: o.dryRun });
+      const registryDir = await registryDirMaybe(version, {
+        skip: o.skipRegistry,
+        dryRun: o.dryRun,
+      });
+      const result = await runPlan(promotePlan({ version, registryDir }), { dryRun: o.dryRun });
       if (!result.ok) process.exitCode = 1;
       return { action: "promote", version, dryRun: o.dryRun, ...result };
     }).pipe(Effect.flatMap(emit), exitOnFailure),
@@ -85,15 +99,6 @@ const reason = Options.text("reason").pipe(
   Options.withDescription("The npm deprecation message on the rolled-back version"),
 );
 
-/**
- * @param {string} target @param {{ skip: boolean; dryRun: boolean }} mode
- * @returns {Promise<string | undefined>} undefined when the registry is left alone
- */
-const rollbackRegistryDir = async (target, { skip, dryRun }) => {
-  if (skip) return undefined;
-  return dryRun ? `<server.json of ${releaseTag(target)}>` : registryDirFor(target);
-};
-
 export const rollback = Command.make("rollback", { to, from, reason, skipRegistry, dryRun }, (o) =>
   attempt(async () => {
     const target = stable(o.to, "--to");
@@ -104,11 +109,13 @@ export const rollback = Command.make("rollback", { to, from, reason, skipRegistr
         remedy: "pass --from <the version to deprecate>",
       });
     }
-    if (!o.dryRun) await assertPublished(target);
-    const registryDir = await rollbackRegistryDir(target, {
-      skip: o.skipRegistry,
-      dryRun: o.dryRun,
-    });
+    // Both versions are checked before any pointer moves, so a mistyped --from cannot leave a
+    // half-done rollback behind a failed deprecation.
+    if (!o.dryRun) {
+      await assertPublished(target);
+      await assertPublished(bad);
+    }
+    const registryDir = await registryDirMaybe(target, { skip: o.skipRegistry, dryRun: o.dryRun });
     const plan = rollbackPlan({ to: target, from: bad, reason: o.reason, registryDir });
     const result = await runPlan(plan, { dryRun: o.dryRun });
     if (!result.ok) process.exitCode = 1;
@@ -116,6 +123,6 @@ export const rollback = Command.make("rollback", { to, from, reason, skipRegistr
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Point latest back at a previous version, deprecate the rolled-back one and republish the registry",
+    "Point latest back at a previous version, republish the registry and deprecate the rolled-back one",
   ),
 );
