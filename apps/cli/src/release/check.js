@@ -2,17 +2,17 @@
 /**
  * What a release PR must carry before it may merge (ADR-0036): a `release/x.y.z` branch,
  * `server.json` naming that version twice, the notes file, and for a major a filled Migration
- * section and the ADR that justifies the break. Pure over the texts; the command reads the files.
+ * section and an ADR that exists under docs/adr/. Pure over the texts; the command reads the files.
  */
 import { compareVersions, formatVersion, isMajor, parseVersion } from "./version.js";
 
 /** @typedef {{ reason: string; remedy: string }} Problem */
 /** @typedef {import("./version.js").Version} Version */
-/** @typedef {{ branch: string; serverJson: unknown; notes: string | null; previous?: Version | null }} CheckInput */
+/** @typedef {{ branch: string; serverJson: unknown; notes: string | null; previous?: Version | null; adrs?: string[] }} CheckInput */
 /** @typedef {{ version?: unknown; packages?: Array<{ version?: unknown }> }} Manifest */
 
 const BRANCH = /^release\/(.+)$/u;
-const ADR_LINK = /docs\/adr\/\d{4}-|ADR-\d{4}/u;
+const ADR_REF = /docs\/adr\/(\d{4})-|ADR-(\d{4})/gu;
 
 /**
  * The stable version a `release/<major.minor.patch>` branch names, or null: a prerelease is not a
@@ -67,8 +67,45 @@ const migrationBody = (raw) => {
   return body.trim();
 };
 
-/** @param {string} notes @param {string} version @returns {Problem[]} */
-const majorProblems = (notes, version) => {
+/** The four-digit ADR numbers the notes refer to, as `docs/adr/NNNN-` or `ADR-NNNN`. @param {string} notes */
+const adrReferences = (notes) => {
+  /** @type {string[]} */
+  const numbers = [];
+  for (const match of notes.matchAll(ADR_REF)) {
+    numbers.push(/** @type {string} */ (match[1] ?? match[2]));
+  }
+  return numbers;
+};
+
+/**
+ * A major names the ADR that decided the break, and that ADR exists: a typo or an invented
+ * number is a missing ADR, not a link.
+ * @param {string} notes @param {string} version @param {string[]} adrs @returns {Problem[]}
+ */
+const adrProblems = (notes, version, adrs) => {
+  const file = `docs/releases/${version}.md`;
+  const referenced = adrReferences(notes);
+  if (referenced.length === 0) {
+    return [
+      {
+        reason: `${version} is a major and ${file} names no ADR`,
+        remedy: "link the ADR that decided the break, e.g. docs/adr/00NN-<slug>.md",
+      },
+    ];
+  }
+  const known = new Set(adrs.map((name) => name.slice(0, 4)));
+  const missing = [...new Set(referenced.filter((number) => !known.has(number)))];
+  if (missing.length === 0) return [];
+  return [
+    {
+      reason: `${file} refers to ADR ${missing.join(", ")}; docs/adr/ has no such decision`,
+      remedy: "link an ADR that exists under docs/adr/, checking the number and the path",
+    },
+  ];
+};
+
+/** @param {string} notes @param {string} version @param {string[]} adrs @returns {Problem[]} */
+const majorProblems = (notes, version, adrs) => {
   const file = `docs/releases/${version}.md`;
   /** @type {Problem[]} */
   const problems = [];
@@ -79,17 +116,13 @@ const majorProblems = (notes, version) => {
       remedy: "write what changes for users and how they move, under ## Migration",
     });
   }
-  if (!ADR_LINK.test(withoutComments(notes))) {
-    problems.push({
-      reason: `${version} is a major and ${file} names no ADR`,
-      remedy: "link the ADR that decided the break, e.g. docs/adr/00NN-<slug>.md",
-    });
-  }
-  return problems;
+  return [...problems, ...adrProblems(withoutComments(notes), version, adrs)];
 };
 
-/** @param {string | null} notes @param {string} version @param {Version | null} previous @returns {Problem[]} */
-const notesProblems = (notes, version, previous) => {
+/** @typedef {{ previous: Version | null; adrs: string[] }} NotesContext */
+
+/** @param {string | null} notes @param {string} version @param {NotesContext} context @returns {Problem[]} */
+const notesProblems = (notes, version, { previous, adrs }) => {
   if (notes === null) {
     const file = `docs/releases/${version}.md`;
     return [
@@ -99,7 +132,7 @@ const notesProblems = (notes, version, previous) => {
       },
     ];
   }
-  return isMajor(version, previous) ? majorProblems(notes, version) : [];
+  return isMajor(version, previous) ? majorProblems(notes, version, adrs) : [];
 };
 
 /** A release PR moves forward from the previous stable release. @param {string} version @param {Version | null} previous @returns {Problem[]} */
@@ -119,7 +152,7 @@ const forwardProblems = (version, previous) => {
  * @param {CheckInput} input
  * @returns {{ ok: boolean; version: string | null; major: boolean; problems: Problem[] }}
  */
-export const checkReleasePr = ({ branch, serverJson, notes, previous = null }) => {
+export const checkReleasePr = ({ branch, serverJson, notes, previous = null, adrs = [] }) => {
   const version = releaseBranchVersion(branch);
   if (version === null) {
     const problem = {
@@ -132,7 +165,7 @@ export const checkReleasePr = ({ branch, serverJson, notes, previous = null }) =
   const problems = [
     ...forwardProblems(version, previous),
     ...manifestProblems(serverJson, version),
-    ...notesProblems(notes, version, previous),
+    ...notesProblems(notes, version, { previous, adrs }),
   ];
   return { ok: problems.length === 0, version, major: isMajor(version, previous), problems };
 };

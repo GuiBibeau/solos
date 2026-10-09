@@ -37,8 +37,9 @@ published versions only. The lanes below are built from what those facts allow.
   `docs/releases/x.y.z.md`: the notes, generated from the merged PRs since the last tag and the
   stability-label changes, then edited by hand. That PR is where the review happens. A major
   must also carry a `## Migration` section and name the ADR that justifies it; `solos dev
-  release check` enforces both in CI and the PR cannot merge without them. Merging the release
-  PR is the approval: a workflow tags `solos@x.y.z` at the merge commit, and the tag runs the
+  release check` enforces both in CI and the PR cannot merge without them. `prepare` ships with
+  the stable lane (#223); until then the release PR is made by hand with `version`, `notes` and
+  `check`. Merging the release PR is the approval: a workflow tags `solos@x.y.z` at the merge commit, and the tag runs the
   release as ADR-0035 describes, with one change: npm publishes under the dist-tag `staged`
   and the GitHub Release is created as a pre-release.
 - **Promotion is automatic and is a pointer flip.** A job installs `@solos-sh/cli@x.y.z` from

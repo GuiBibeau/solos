@@ -28,6 +28,7 @@ import {
   git,
   gitShowOrEmpty,
   parseManifest,
+  listDir,
   readIfPresent,
   required,
 } from "./dev-release-shared.js";
@@ -87,7 +88,14 @@ const check = Command.make("check", { branch, base }, (o) =>
     const notes = found === null ? null : readIfPresent(`docs/releases/${found}.md`);
     const manifest = parseManifest(readIfPresent("server.json"));
     const previous = await baseVersion(o.base);
-    const checked = checkReleasePr({ branch: name, serverJson: manifest.value, notes, previous });
+    const adrs = listDir("docs/adr");
+    const checked = checkReleasePr({
+      branch: name,
+      serverJson: manifest.value,
+      notes,
+      previous,
+      adrs,
+    });
     const report = {
       ...checked,
       ok: checked.ok && manifest.problems.length === 0,

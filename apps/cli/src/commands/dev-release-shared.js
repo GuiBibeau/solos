@@ -1,6 +1,6 @@
 // @ts-check
 /** What the `solos dev release` verbs share: the git reads, the base version and the option shapes. */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { Options } from "@effect/cli";
 import { Effect, Option } from "effect";
 import { captureCommand } from "../evidence/run-steps.js";
@@ -81,6 +81,9 @@ export const dryRun = Options.boolean("dry-run").pipe(
 
 /** @param {string} path */
 export const readIfPresent = (path) => (existsSync(path) ? readFileSync(path, "utf8") : null);
+
+/** The entries of a directory, none when it does not exist. @param {string} dir */
+export const listDir = (dir) => (existsSync(dir) ? readdirSync(dir) : []);
 
 /**
  * A malformed manifest is a release problem with a remedy, never a parser error across the CLI

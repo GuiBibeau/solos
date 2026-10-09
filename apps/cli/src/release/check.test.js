@@ -59,6 +59,7 @@ describe("release PR check", () => {
       branch: "release/1.0.0",
       serverJson: manifest("1.0.0"),
       notes: hidden,
+      adrs: ["0040-break.md"],
     });
     expect(hiddenReport.problems.map((p) => p.reason)).toEqual([
       "1.0.0 is a major and docs/releases/1.0.0.md names no ADR",
@@ -66,8 +67,35 @@ describe("release PR check", () => {
     const filled =
       "# solos 1.0.0\n\nSee docs/adr/0040-break.md.\n\n## Migration\n\nRename x to y.\n\n## Tools\n";
     expect(
-      checkReleasePr({ branch: "release/1.0.0", serverJson: manifest("1.0.0"), notes: filled }).ok,
+      checkReleasePr({
+        branch: "release/1.0.0",
+        serverJson: manifest("1.0.0"),
+        notes: filled,
+        adrs: ["0040-break.md"],
+      }).ok,
     ).toBe(true);
+  });
+
+  test("the ADR a major names must exist under docs/adr", () => {
+    const typo = "# solos 1.0.0\n\nSee docs/adr/9999-nope.md.\n\n## Migration\n\nRename x to y.\n";
+    const report = checkReleasePr({
+      branch: "release/1.0.0",
+      serverJson: manifest("1.0.0"),
+      notes: typo,
+      adrs: ["0040-break.md"],
+    });
+    expect(report.ok).toBe(false);
+    expect(report.problems.map((p) => p.reason)).toEqual([
+      "docs/releases/1.0.0.md refers to ADR 9999; docs/adr/ has no such decision",
+    ]);
+    const short = "# solos 1.0.0\n\nADR-0040 decided this.\n\n## Migration\n\nRename x to y.\n";
+    const shortReport = checkReleasePr({
+      branch: "release/1.0.0",
+      serverJson: manifest("1.0.0"),
+      notes: short,
+      adrs: ["0040-break.md"],
+    });
+    expect(shortReport.ok).toBe(true);
   });
 
   test("a major is judged against the previous stable release, and a release must move forward", () => {
@@ -101,6 +129,7 @@ describe("release PR check", () => {
       branch: "release/1.0.0",
       serverJson: manifest("1.0.0"),
       notes: fenced,
+      adrs: ["0040-break.md"],
     });
     expect(report.problems.map((p) => p.reason)).toEqual([
       '1.0.0 is a major and docs/releases/1.0.0.md has no filled "## Migration" section',
