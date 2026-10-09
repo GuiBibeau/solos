@@ -103,6 +103,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       pull-requests: write
+      actions: read
     env:
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
@@ -111,37 +112,52 @@ jobs:
       BUILD: ${{ needs.build.result }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
+      # The table lists the artifacts this run actually kept, read back from the API, so a leg
+      # that failed after the other uploaded still shows the previews that exist.
       - name: Write the comment
         run: |
           set -euo pipefail
           short="${SHA:0:7}"
+          kept="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" --paginate \
+            --jq '.artifacts[].name' | grep -E "^solos-[a-z0-9-]+-pr${PR}$" || true)"
+          count="$(grep -c . <<<"$kept" || true)"
           {
             echo "<!-- solos-preview -->"
             if [ "$CODE" != "true" ]; then
               echo "## Preview binaries: skipped for \`$short\`"
               echo
               echo "This push changes no code (nothing under \`apps/\` but the landing page, nothing under \`packages/\`, no dependency change), so there is nothing new to build."
-            elif [ "$BUILD" != "success" ]; then
-              echo "## Preview binaries: build $BUILD for \`$short\`"
-              echo
-              echo "See the [run]($RUN_URL). No artifacts were kept for this push."
             else
-              echo "## Preview binaries for \`$short\`"
-              echo
-              echo "Built from this pull request's head by [run ${GITHUB_RUN_ID}]($RUN_URL). Each binary reports \`doctor.release\` as version 0.0.0, lane source, commit \`$short\`. Artifacts are kept seven days. Nothing is published."
+              if [ "$BUILD" = "success" ] && [ "$count" = "4" ]; then
+                echo "## Preview binaries for \`$short\`"
+                echo
+                echo "Built from this pull request's head by [run ${GITHUB_RUN_ID}]($RUN_URL). Each binary reports \`doctor.release\` as version 0.0.0, lane source, commit \`$short\`. Artifacts are kept seven days. Nothing is published."
+              else
+                echo "## Preview binaries: build $BUILD for \`$short\`"
+                echo
+                echo "See the [run]($RUN_URL). $count of 4 artifacts were kept for this push; the table says which."
+              fi
               echo
               echo "| Target | Artifact |"
               echo "| --- | --- |"
               for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
-                echo "| $target | \`solos-${target}-pr${PR}\` |"
+                if grep -qx "solos-${target}-pr${PR}" <<<"$kept"; then
+                  echo "| $target | \`solos-${target}-pr${PR}\` |"
+                else
+                  echo "| $target | not kept |"
+                fi
               done
-              echo
-              echo '```sh'
-              echo "gh run download ${GITHUB_RUN_ID} --repo ${GITHUB_REPOSITORY} --name solos-darwin-arm64-pr${PR}"
-              echo "chmod +x solos-darwin-arm64 && ./solos-darwin-arm64 doctor"
-              echo '```'
-              echo
-              echo "Swap the target for your platform."
+              if [ "$count" != "0" ]; then
+                first="$(head -n 1 <<<"$kept")"
+                binary="${first%-pr${PR}}"
+                echo
+                echo '```sh'
+                echo "gh run download ${GITHUB_RUN_ID} --repo ${GITHUB_REPOSITORY} --name ${first}"
+                echo "chmod +x ${binary} && ./${binary} doctor"
+                echo '```'
+                echo
+                echo "Swap the artifact for your platform."
+              fi
             fi
           } > "$RUNNER_TEMP/comment.md"
           cat "$RUNNER_TEMP/comment.md"
