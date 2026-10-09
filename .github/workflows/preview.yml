@@ -35,7 +35,8 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
+          # A renamed file counts under both its names: moving source out of apps/ changes the binary.
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"
           # A here-string, not a pipe: with pipefail, grep -q closing early on a long listing
           # would turn a matching pull request into code=false.
           if grep -qE '^(apps/|packages/|package\.json$|bun\.lock$|\.bun-version$|\.github/actions/|\.github/workflows/preview\.yml$)' <<<"$files"; then
@@ -81,12 +82,16 @@ jobs:
           path: dist/solos-${{ matrix.first }}
           if-no-files-found: error
           retention-days: 7
+          # A re-run after a failed leg finds the name taken; replace rather than fail.
+          overwrite: true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: solos-${{ matrix.second }}-pr${{ github.event.pull_request.number }}
           path: dist/solos-${{ matrix.second }}
           if-no-files-found: error
           retention-days: 7
+          # A re-run after a failed leg finds the name taken; replace rather than fail.
+          overwrite: true
 
   comment:
     needs: [changes, build]
