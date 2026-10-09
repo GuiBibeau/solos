@@ -9,6 +9,7 @@ import {
   assertRollbackSource,
   currentLatest,
   displayCommand,
+  npmJsonValue,
   registryHasVersion,
   runPlan,
 } from "./run-plan.js";
@@ -46,6 +47,10 @@ const noisy = async () => ({
 
 /** An npm that cannot be reached. */
 const unreachable = async () => ({ code: 1, output: "ETIMEDOUT" });
+const npm12Clean = async () => ({ code: 0, output: "[]\n" });
+const npm12Deprecated = async () => ({ code: 0, output: '["rolled back"]\n' });
+const npm12Latest = async () => ({ code: 0, output: '["0.1.0"]\n' });
+const npm12Present = async () => ({ code: 0, output: '["0.1.1"]\n' });
 
 describe("promotion and rollback plans", () => {
   test("five packages: the launcher and one per build target", () => {
@@ -234,6 +239,20 @@ describe("promotion and rollback plans", () => {
     const stale = JSON.stringify({ version: "0.1.0", packages: [{ version: "0.1.1" }] });
     expect(() => assertManifestVersion(stale, "0.1.1")).toThrow();
     expect(() => assertManifestVersion("{not json", "0.1.1")).toThrow();
+  });
+
+  test("npm --json answers are read as values on npm 11 and npm 12 alike", async () => {
+    expect(npmJsonValue('"0.1.1"\n')).toBe("0.1.1");
+    expect(npmJsonValue('["0.1.1"]')).toBe("0.1.1");
+    expect(npmJsonValue("[]")).toBeUndefined();
+    expect(npmJsonValue("")).toBeUndefined();
+    expect(npmJsonValue("not json")).toBeUndefined();
+    expect(await assertNotDeprecated("0.1.1", npm12Clean)).toBeUndefined();
+    await expect(assertNotDeprecated("0.1.1", npm12Deprecated)).rejects.toMatchObject({
+      reason: "@solos-sh/cli@0.1.1 is deprecated on npm: rolled back",
+    });
+    expect(await currentLatest(npm12Latest)).toBe("0.1.0");
+    expect(await assertPublished("0.1.1", npm12Present)).toBeUndefined();
   });
 
   test("published checks refuse a version npm does not have, and read the current latest", async () => {

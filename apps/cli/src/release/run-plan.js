@@ -12,6 +12,23 @@ import { compareVersions, parseVersion } from "./version.js";
 
 /** What a probe parses: stdout alone when the runner keeps the streams apart, else the merged output. @param {{ output: string; stdout?: string }} result */
 const parsed = ({ output, stdout }) => stdout ?? output;
+
+/**
+ * The value `npm view … --json` printed: a scalar on npm 11, a one-element array on npm 12, an
+ * empty array or nothing when the field is unset. Anything unparseable reads as no value.
+ * @param {string} text
+ * @returns {unknown}
+ */
+export const npmJsonValue = (text) => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return undefined;
+  try {
+    const value = JSON.parse(trimmed);
+    return Array.isArray(value) ? value[0] : value;
+  } catch {
+    return undefined;
+  }
+};
 /** @typedef {import("./plans.js").Step} Step */
 /** @typedef {{ name: string; command: string; ok: boolean | null; summary: string }} RanStep */
 
@@ -77,7 +94,7 @@ export const assertPublished = async (version, runner = captureCommand) => {
   const missing = [];
   for (const pkg of releasePackages()) {
     const result = await runner(publishedProbe(pkg, version));
-    if (result.code !== 0 || !parsed(result).includes(`"${version}"`)) missing.push(pkg);
+    if (result.code !== 0 || npmJsonValue(parsed(result)) !== version) missing.push(pkg);
   }
   if (missing.length > 0) {
     throw new ReleaseRefused({
@@ -132,8 +149,8 @@ export const assertNotDeprecated = async (version, runner = captureCommand) => {
         remedy: "retry when npm answers",
       });
     }
-    const message = parsed(result).trim().replaceAll(/^"|"$/gu, "");
-    if (message !== "undefined" && message !== "null" && message.length > 0) {
+    const message = npmJsonValue(parsed(result));
+    if (typeof message === "string" && message.length > 0) {
       throw new ReleaseRefused({
         reason: `${pkg}@${version} is deprecated on npm: ${message}`,
         remedy: "a rolled-back version is not promoted again; promote the next patch release",
@@ -171,12 +188,13 @@ export const assertManifestVersion = (manifestText, version) => {
 export const currentLatest = async (runner = captureCommand) => {
   const result = await runner(latestProbe());
   const { code } = result;
-  const match = /"(\d+\.\d+\.\d+[^"]*)"/u.exec(parsed(result));
-  if (code !== 0 || match === null) {
+  const value = npmJsonValue(parsed(result));
+  const latest = typeof value === "string" && parseVersion(value) !== null ? value : null;
+  if (code !== 0 || latest === null) {
     throw new ReleaseRefused({
       reason: "could not read the current latest from npm",
       remedy: "pass --from <version> explicitly",
     });
   }
-  return /** @type {string} */ (match[1]);
+  return latest;
 };
