@@ -45,7 +45,8 @@ names; they never publish.
   checkout gets from `--no-env-file`.
 - **The version is defined at build time.** `solos dev build --version <semver>` sets
   `SOLOS_VERSION` into the bundle; `--version`, the MCP `serverInfo` and the ready line report
-  it. A checkout reports `0.0.0`.
+  it. A checkout reports `0.0.0`. The build also sets `SOLOS_COMMIT`, the sha it ran at (or
+  `--commit`), and `doctor.release` reports version, lane and commit together (ADR-0036).
 - **The build is proven, not described.** The host binary is smoke-tested from a neutral
   directory with an empty config dir: `--version`, `doctor` (both issues, config names the
   binary) and `mcp list` (the server inside the binary lists its tools). The lever exits 1

@@ -4,6 +4,7 @@ import { diagnoseSolanaEnv } from "@solos/solana";
 import { Effect } from "effect";
 import { mcpServersConfig, serverEntry } from "../connect/entry.js";
 import { emit } from "../output.js";
+import { releaseIdentity } from "../release/identity.js";
 
 /**
  * The client config a Caller can paste, built from this installation's real server command
@@ -17,11 +18,11 @@ const mcpConfig = (profile) => mcpServersConfig(serverEntry({ profile: profile ?
 export const doctor = Command.make("doctor", {}, () =>
   Effect.gen(function* () {
     const report = diagnoseSolanaEnv(process.env);
-    yield* emit({ ...report, mcpConfig: mcpConfig(report.profile) });
+    yield* emit({ ...report, release: releaseIdentity(), mcpConfig: mcpConfig(report.profile) });
     if (!report.ok) process.exitCode = 1;
   }),
 ).pipe(
   Command.withDescription(
-    "Validate signer, RPC URL and profile resolution in one pass, without starting a server",
+    "Validate signer, RPC URL and profile resolution in one pass, and report the release this solos is, without starting a server",
   ),
 );

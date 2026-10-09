@@ -37,6 +37,10 @@ describe("`solos mcp` as a Caller under just-in-time discovery [integration]", (
       "solana_wallet_get_balance",
     ]);
     expect(listed.instructions).toContain("solana_swap_get_quote — ");
+    // The server's serverInfo.version is the version the CLI itself reports.
+    const printed = await runSolos(["--version"], env);
+    expect(printed.stdout.trim()).toEndWith(listed.server.version);
+    expect(listed.server.version).toBe("0.0.0");
   });
 
   test("`mcp call` on a withheld tool discovers it by name first, then calls it", async () => {

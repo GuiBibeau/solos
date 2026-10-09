@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { ROOT, runSolos } from "./cli-fixture.js";
 
-const VERSION = "0.0.0-test";
+/** A canary, so the smoke test proves the lane is read from the version (ADR-0036). */
+const VERSION = "0.1.1-canary.7.g1f232a4";
 /**
  * A relative outdir, as the documented `bun run solos dev build` leaves it: the smoke test runs
  * the binary from a neutral directory, so the build must resolve the path before handing it over.
@@ -32,6 +33,7 @@ describe("solos dev build compiles one binary and proves it runs [integration]",
     expect(result.code).toBe(0);
     const report = JSON.parse(result.stdout);
     expect(report.version).toBe(VERSION);
+    expect(report.commit).toMatch(/^[0-9a-f]{40}$/);
     expect(report.built).toHaveLength(1);
     expect(report.built[0].name).toBe(`${process.platform}-${process.arch}`);
     expect(report.built[0].sha256).toMatch(/^[0-9a-f]{64}$/);
@@ -66,6 +68,7 @@ describe("solos dev build compiles one binary and proves it runs [integration]",
         stderr: "ignore",
       });
       const doctor = JSON.parse(await new Response(proc.stdout).text());
+      expect(doctor.release).toEqual({ version: VERSION, lane: "canary", commit: report.commit });
       expect(doctor.rpcOrigin).toBeNull();
       expect(doctor.issues.map((/** @type {{ code: string }} */ i) => i.code)).toContain(
         "RpcConfigMissing",

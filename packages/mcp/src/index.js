@@ -13,7 +13,7 @@ export {
 } from "./runtime.js";
 export { SERVER_NAME, createSolosServer } from "./server/create-server.js";
 export { describeStartupFailure, serveStdio } from "./server/serve-stdio.js";
-export { SOLOS_VERSION } from "./server/version.js";
+export { SOLOS_COMMIT, SOLOS_VERSION } from "./server/version.js";
 export { BOOTSTRAP_TOOLS, SEARCH_TOOL } from "./server/discovery.js";
 export { buildInstructions } from "./server/instructions.js";
 export { filterByTier } from "./server/register-tools.js";

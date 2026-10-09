@@ -19,6 +19,8 @@ describe("solos doctor through a real child process [integration]", () => {
       expect(
         report.issues.map((issue) => issue.code).toSorted((a, b) => a.localeCompare(b)),
       ).toEqual(["RpcConfigMissing", "SignerConfigMissing"]);
+      // A checkout is the source lane: version 0.0.0 and no commit.
+      expect(report.release).toEqual({ version: "0.0.0", lane: "source", commit: null });
       // The paste-ready config names the real server command and opts out of ambient .env files.
       expect(JSON.stringify(report.mcpConfig)).toContain("--no-env-file");
       expect(JSON.stringify(report.mcpConfig)).toContain("stdio.js");
