@@ -31,6 +31,8 @@ describe("release versions", () => {
     expect(parseVersion("1.0.0-01")).toBeNull();
     expect(parseVersion("1.0.0-")).toBeNull();
     expect(parseVersion("1.0.0-rc.1")?.prerelease).toBe("rc.1");
+    expect(parseVersion("9007199254740992.0.0")).toBeNull();
+    expect(parseVersion("9007199254740991.0.0")?.major).toBe(9007199254740991);
     expect(formatVersion({ major: 1, minor: 2, patch: 3, prerelease: "rc.1" })).toBe("1.2.3-rc.1");
   });
 
@@ -64,6 +66,10 @@ describe("release versions", () => {
     expect(stableVersion({ base, bump: "patch" })).toBe("0.1.3");
     expect(stableVersion({ base, bump: "minor" })).toBe("0.2.0");
     expect(stableVersion({ base, bump: "major" })).toBe("1.0.0");
+    const edge = { major: 0, minor: 0, patch: 9007199254740991, prerelease: null };
+    expect(thrown(() => stableVersion({ base: edge, bump: "patch" }))).toMatchObject({
+      _tag: "ReleaseRefused",
+    });
   });
 
   test("the lane is read from the version alone", () => {

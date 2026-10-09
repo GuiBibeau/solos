@@ -20,21 +20,34 @@ const SEMVER = new RegExp(
 );
 export const TAG_PREFIX = "solos@";
 
-/** @param {string} text @returns {Version | null} */
+/**
+ * Null for anything npm could not publish, including a numeric component above what node-semver
+ * holds exactly (`Number.MAX_SAFE_INTEGER`).
+ * @param {string} text @returns {Version | null}
+ */
 export const parseVersion = (text) => {
   const match = SEMVER.exec(text);
   if (match === null) return null;
-  return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
-    prerelease: match[4] ?? null,
-  };
+  const [major, minor, patch] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  if (![major, minor, patch].every((part) => Number.isSafeInteger(part))) return null;
+  return { major, minor, patch, prerelease: match[4] ?? null };
 };
 
 /** @param {Version} version */
 export const formatVersion = ({ major, minor, patch, prerelease }) =>
   `${major}.${minor}.${patch}${prerelease === null ? "" : `-${prerelease}`}`;
+
+/** A bump that leaves the safe-integer range is refused, never printed. @param {Version} version */
+const bumped = (version) => {
+  const text = formatVersion(version);
+  if (parseVersion(text) === null) {
+    throw new ReleaseRefused({
+      reason: `${text} is beyond what npm can publish`,
+      remedy: "start from a version whose components fit in a safe integer",
+    });
+  }
+  return text;
+};
 
 /** @param {string} version */
 export const releaseTag = (version) => `${TAG_PREFIX}${version}`;
@@ -77,7 +90,7 @@ export const canaryVersion = ({ base, run, sha }) => {
       remedy: "pass the commit sha as --sha",
     });
   }
-  return formatVersion({
+  return bumped({
     ...base,
     patch: base.patch + 1,
     prerelease: `canary.${run}.g${sha.slice(0, 7)}`,
@@ -87,10 +100,10 @@ export const canaryVersion = ({ base, run, sha }) => {
 /** @param {{ base: Version; bump: Bump }} input */
 export const stableVersion = ({ base, bump }) => {
   if (bump === "major")
-    return formatVersion({ major: base.major + 1, minor: 0, patch: 0, prerelease: null });
+    return bumped({ major: base.major + 1, minor: 0, patch: 0, prerelease: null });
   if (bump === "minor")
-    return formatVersion({ ...base, minor: base.minor + 1, patch: 0, prerelease: null });
-  return formatVersion({ ...base, patch: base.patch + 1, prerelease: null });
+    return bumped({ ...base, minor: base.minor + 1, patch: 0, prerelease: null });
+  return bumped({ ...base, patch: base.patch + 1, prerelease: null });
 };
 
 /**
