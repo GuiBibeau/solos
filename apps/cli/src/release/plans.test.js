@@ -58,9 +58,10 @@ describe("promotion and rollback plans", () => {
     ]);
   });
 
-  test("promote moves latest everywhere, flips the release, then publishes the registry from the tag's manifest", () => {
+  test("promote validates the manifest, moves latest everywhere, flips the release, then publishes", () => {
     const plan = promotePlan({ version: "0.1.1", registryDir: "/tmp/r" });
     expect(plan.map((s) => s.argv.join(" "))).toEqual([
+      "mcp-publisher validate",
       "npm dist-tag add @solos-sh/cli@0.1.1 latest",
       "npm dist-tag add @solos-sh/cli-darwin-arm64@0.1.1 latest",
       "npm dist-tag add @solos-sh/cli-darwin-x64@0.1.1 latest",
@@ -69,11 +70,14 @@ describe("promotion and rollback plans", () => {
       "gh release edit solos@0.1.1 --latest --prerelease=false",
       "mcp-publisher publish",
     ]);
+    expect(plan[0]).toMatchObject({ cwd: "/tmp/r" });
     expect(plan.at(-1)).toMatchObject({
       name: "MCP Registry publish from solos@0.1.1",
       cwd: "/tmp/r",
     });
-    expect(promotePlan({ version: "0.1.1" }).at(-1)?.argv[0]).toBe("gh");
+    const bare = promotePlan({ version: "0.1.1" });
+    expect(bare[0]?.argv[0]).toBe("npm");
+    expect(bare.at(-1)?.argv[0]).toBe("gh");
   });
 
   test("rollback points back, then deprecates everywhere; the registry is never touched", () => {

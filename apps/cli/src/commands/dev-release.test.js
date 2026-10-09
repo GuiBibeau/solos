@@ -166,6 +166,7 @@ describe("solos dev release", () => {
     );
     expect(code).toBe(0);
     const result = JSON.parse(stdout);
+    expect(result.steps[0]?.command).toBe("mcp-publisher validate");
     expect(result.steps.at(-1)?.name).toBe("MCP Registry publish from solos@9.9.9");
     expect(result.registry).toMatchObject({ publish: true });
   });

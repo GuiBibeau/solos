@@ -45,8 +45,25 @@ const registryStep = (version, registryDir) =>
         },
       ];
 
+/**
+ * Validate the manifest first: `mcp-publisher validate` checks schema and semantics without
+ * publishing, so a manifest the registry would refuse fails before any pointer moves.
+ * @param {string} version @param {string | undefined} registryDir @returns {Step[]}
+ */
+const validateStep = (version, registryDir) =>
+  registryDir === undefined
+    ? []
+    : [
+        {
+          name: `MCP Registry manifest of ${releaseTag(version)} validates`,
+          argv: ["mcp-publisher", "validate"],
+          cwd: registryDir,
+        },
+      ];
+
 /** @param {{ version: string; registryDir?: string }} input @returns {Step[]} */
 export const promotePlan = ({ version, registryDir }) => [
+  ...validateStep(version, registryDir),
   ...pointLatestAt(version),
   ...registryStep(version, registryDir),
 ];
