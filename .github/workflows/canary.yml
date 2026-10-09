@@ -10,12 +10,10 @@ on:
   push:
     branches: [main]
 
-# One canary at a time. A newer push cancels an in-flight build, but the publish job has its own
-# group and is never cancelled once it starts.
-concurrency:
-  group: canary-build
-  cancel-in-progress: true
-
+# One canary at a time. Concurrency is declared per job, never on the workflow: a workflow-level
+# group would cancel a whole earlier run, publish job included, halfway through five immutable
+# npm publishes. The version and build jobs share a group a newer push cancels; the publish job
+# has its own group and is never cancelled once it starts.
 permissions:
   contents: read
 
@@ -23,6 +21,9 @@ jobs:
   version:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    concurrency:
+      group: canary-build-version
+      cancel-in-progress: true
     outputs:
       version: ${{ steps.derive.outputs.version }}
       tag: ${{ steps.derive.outputs.tag }}
@@ -44,6 +45,9 @@ jobs:
 
   build:
     needs: version
+    concurrency:
+      group: canary-build-${{ matrix.os }}
+      cancel-in-progress: true
     strategy:
       fail-fast: true
       matrix:
