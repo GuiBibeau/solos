@@ -36,11 +36,12 @@ export const gitShowOrEmpty = async (spec) => {
 };
 
 /**
- * The newest stable `solos@*` tag reachable here: the release history a gate derives from, which
- * no flag overrides.
+ * The newest stable `solos@*` tag reachable from HEAD: the release history a gate derives from,
+ * which no flag overrides. A tag on another branch is someone else's future, not this history.
  */
 export const newestRelease = async () => {
-  const newest = newestStable((await git(["tag", "--list", "solos@*"])).split("\n"));
+  const tags = await git(["tag", "--list", "--merged", "HEAD", "solos@*"]);
+  const newest = newestStable(tags.split("\n"));
   if (newest === null) {
     throw new ReleaseRefused({
       reason: "no solos@<semver> tag is reachable",

@@ -41,7 +41,9 @@ published versions only. The lanes below are built from what those facts allow.
   the stable lane (#223); until then the release PR is made by hand with `version`, `notes` and
   `check`. Merging the release PR is the approval: a workflow tags `solos@x.y.z` at the merge commit, and the tag runs the
   release as ADR-0035 describes, with one change: npm publishes under the dist-tag `staged`
-  and the GitHub Release is created as a pre-release.
+  and the GitHub Release is created as a pre-release. That change to `release-cli.yml` lands
+  with the lanes (#222, #223); until then a pushed `solos@x.y.z` tag still publishes straight to
+  `latest`, so no tag is pushed before they land.
 - **Promotion is automatic and is a pointer flip.** A job installs `@solos-sh/cli@x.y.z` from
   npm on each platform runner and runs `solos --version`, `solos mcp list` and `solos doctor`.
   When all four pass, `solos dev release promote x.y.z` moves `latest` on all five

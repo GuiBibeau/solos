@@ -9,7 +9,11 @@ import { runSolos, stderrJson } from "./cli-fixture.js";
 const env = { SOLOS_DEV: "1" };
 const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" };
 
-/** A checkout with one commit and, when given, a `solos@<version>` tag: the history check reads. @param {string} prefix @param {string | null} version */
+/**
+ * A checkout with one commit and, when given, a `solos@<version>` tag on it: the history check
+ * reads. A `solos@9.0.0` on an unmerged branch sits beside it, and must not count.
+ * @param {string} prefix @param {string | null} version
+ */
 const releasedRepo = (prefix, version) => {
   const dir = mkdtempSync(path.join(tmpdir(), prefix));
   const git = (/** @type {string[]} */ args) =>
@@ -26,7 +30,23 @@ const releasedRepo = (prefix, version) => {
     "-m",
     "base",
   ]);
-  if (version !== null) git(["tag", `solos@${version}`]);
+  if (version !== null) {
+    git(["tag", `solos@${version}`]);
+    git(["checkout", "-q", "-b", "elsewhere"]);
+    git([
+      "-c",
+      "user.name=solos",
+      "-c",
+      "user.email=solos@example.com",
+      "commit",
+      "-q",
+      "--allow-empty",
+      "-m",
+      "future",
+    ]);
+    git(["tag", "solos@9.0.0"]);
+    git(["checkout", "-q", "-"]);
+  }
   return dir;
 };
 
