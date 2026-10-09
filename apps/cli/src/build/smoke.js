@@ -18,7 +18,7 @@ import { identityOf } from "../release/identity.js";
 /**
  * @param {string} binary @param {string[]} args @param {Record<string, string>} env
  */
-const run = async (binary, args, env) => {
+export const run = async (binary, args, env) => {
   const proc = Bun.spawn([binary, ...args], {
     cwd: tmpdir(),
     env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },
@@ -35,7 +35,7 @@ const run = async (binary, args, env) => {
 };
 
 /** @param {string} text */
-const parseJson = (text) => {
+export const parseJson = (text) => {
   try {
     return JSON.parse(text);
   } catch {
@@ -48,7 +48,7 @@ const parseJson = (text) => {
  * @param {string} binary @param {string} version
  * @returns {Promise<Check>}
  */
-const versionCheck = async (binary, version) => {
+export const versionCheck = async (binary, version) => {
   const { stdout, code } = await run(binary, ["--version"], {});
   const isOk = code === 0 && stdout.trim().endsWith(version);
   return { name: "version", ok: isOk, detail: stdout.trim() || `exit ${code}` };
@@ -58,7 +58,7 @@ const versionCheck = async (binary, version) => {
  * Both missing pieces, and nothing else.
  * @param {DoctorReport | undefined} report
  */
-const hasColdIssues = (report) =>
+export const hasColdIssues = (report) =>
   report?.ok === false &&
   (report.issues ?? [])
     .map((issue) => issue.code)
@@ -116,7 +116,7 @@ const doctorCheck = async (binary, configDir, release) => {
  * @param {string} binary @param {string} configDir @param {string} version
  * @returns {Promise<Check>}
  */
-const mcpListCheck = async (binary, configDir, version) => {
+export const mcpListCheck = async (binary, configDir, version) => {
   const { stdout, code } = await run(binary, ["mcp", "list"], {
     SOLOS_CONFIG_DIR: configDir,
     SOLANA_RPC_URL: "http://127.0.0.1:1",

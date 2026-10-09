@@ -10,29 +10,28 @@ import { Args, Command, Options } from "@effect/cli";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { checkReleasePr, releaseBranchVersion } from "../release/check.js";
-import { diffToolRows, parseSubjects, renderNotes, toolRows } from "../release/notes.js";
 import {
   canaryVersion,
   formatVersion,
   isMajor,
   laneOf,
-  parseVersion,
   releaseTag,
   stableVersion,
 } from "../release/version.js";
 import { promote, rollback } from "./dev-release-pointer.js";
+import { prepare } from "./dev-release-prepare.js";
 import {
-  TOOL_REFERENCE,
   attempt,
   baseVersion,
+  composeNotes,
   git,
-  gitShowOrEmpty,
-  parseManifest,
   listDir,
   newestRelease,
+  parseManifest,
   readIfPresent,
   required,
 } from "./dev-release-shared.js";
+import { smoke } from "./dev-release-smoke.js";
 
 const lane = Options.choice("lane", ["canary", "stable"]).pipe(
   Options.withDescription("canary: next patch with a canary prerelease; stable: a bumped release"),
@@ -128,25 +127,12 @@ const notes = Command.make("notes", { since, version: notesVersion, out }, (o) =
     const tag = Option.isSome(o.since)
       ? o.since.value
       : releaseTag(formatVersion(await baseVersion(Option.none())));
-    const entries = parseSubjects(await git(["log", `${tag}..HEAD`, "--format=%s", "--no-merges"]));
-    const before = toolRows(await gitShowOrEmpty(`${tag}:${TOOL_REFERENCE}`));
-    const after = toolRows(readIfPresent(TOOL_REFERENCE) ?? "");
-    const toolDiff = diffToolRows(before, after);
-    const major = isMajor(o.version, parseVersion(tag.replace(/^solos@/u, "")));
-    const markdown = renderNotes({ version: o.version, since: tag, entries, toolDiff, major });
+    const composed = await composeNotes(o.version, tag);
     if (Option.isSome(o.out)) {
       mkdirSync(path.dirname(o.out.value), { recursive: true });
-      writeFileSync(o.out.value, `${markdown}\n`);
+      writeFileSync(o.out.value, `${composed.markdown}\n`);
     }
-    return {
-      version: o.version,
-      since: tag,
-      entries: entries.length,
-      toolDiff,
-      major,
-      out: Option.getOrNull(o.out),
-      markdown,
-    };
+    return { version: o.version, ...composed, out: Option.getOrNull(o.out) };
   }).pipe(Effect.flatMap(emit), exitOnFailure),
 ).pipe(
   Command.withDescription(
@@ -156,7 +142,7 @@ const notes = Command.make("notes", { since, version: notesVersion, out }, (o) =
 
 export const release = Command.make("release").pipe(
   Command.withDescription(
-    "Release lanes (ADR-0036): derive versions, check a release PR, write notes, promote and roll back by pointer",
+    "Release lanes (ADR-0036): derive versions, prepare and check a release PR, write notes, smoke a published version, promote and roll back by pointer",
   ),
-  Command.withSubcommands([version, check, notes, promote, rollback]),
+  Command.withSubcommands([version, check, notes, prepare, smoke, promote, rollback]),
 );

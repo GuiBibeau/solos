@@ -24,29 +24,7 @@ import {
   runPlan,
 } from "../release/run-plan.js";
 import { compareVersions, parseVersion, releaseTag } from "../release/version.js";
-import { attempt, dryRun, git } from "./dev-release-shared.js";
-
-/** @param {string} value @param {string} flag */
-const semver = (value, flag) => {
-  if (parseVersion(value) === null) {
-    throw new ReleaseRefused({
-      reason: `${flag} ${value} is not a semver version`,
-      remedy: `pass ${flag} <major.minor.patch>`,
-    });
-  }
-  return value;
-};
-
-/** The stable lane's versions only: `latest` never points at a canary, and never rolls back from one. */
-const stable = (/** @type {string} */ value, /** @type {string} */ flag) => {
-  if (parseVersion(semver(value, flag))?.prerelease !== null) {
-    throw new ReleaseRefused({
-      reason: `${flag} ${value} is a prerelease; latest only ever points at a stable version`,
-      remedy: `pass a stable ${flag}, with no prerelease suffix`,
-    });
-  }
-  return value;
-};
+import { attempt, dryRun, git, stable } from "./dev-release-shared.js";
 
 /**
  * The `server.json` the target release shipped, read from its tag into a fresh directory for

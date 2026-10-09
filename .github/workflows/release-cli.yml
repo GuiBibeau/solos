@@ -1,14 +1,18 @@
 name: release-cli
 
-# A stable tag `solos@<major.minor.patch>` on a main commit releases the compiled solos binary
-# (ADR-0035): macOS and Linux binaries built and smoke-tested on their own runners, a GitHub
-# Release with SHA256SUMS, and, when vars.NPM_PUBLISH is "true", the npm launcher @solos-sh/cli
-# plus one platform package per binary. npm authenticates with secrets.NPM_TOKEN when set, else
-# through trusted publishing. A prerelease tag (a canary, ADR-0036) is not a stable release and
-# every job here refuses it: canary.yml owns those.
+# The stable lane (ADR-0035, ADR-0036). A stable tag `solos@<major.minor.patch>` on a main commit,
+# normally created and dispatched by tag-release.yml when a release PR merges: macOS and Linux
+# binaries built and smoke-tested on their own runners, a GitHub pre-release with SHA256SUMS, the
+# npm launcher @solos-sh/cli plus one platform package per binary published under the dist-tag
+# `staged` (vars.NPM_PUBLISH "true"; secrets.NPM_TOKEN or trusted publishing), a smoke install
+# from npm on every platform, and then `solos dev release promote`: latest moves, the release
+# stops being a pre-release, and the MCP Registry learns the version. A prerelease tag (a canary)
+# is not a stable release and every job here refuses it: canary.yml owns those.
 on:
   push:
     tags: ["solos@*"]
+  # tag-release.yml dispatches on the tag ref it just created; github.ref_name is the tag either way.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -97,7 +101,8 @@ jobs:
             echo '```'
           } > "$RUNNER_TEMP/notes.md"
       # Idempotent, so a failed job can be re-run: an existing release gets its assets replaced.
-      - name: GitHub Release
+      # A pre-release until promote marks it latest (ADR-0036).
+      - name: GitHub pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ github.ref_name }}
@@ -105,17 +110,81 @@ jobs:
           if gh release view "$VERSION" >/dev/null 2>&1; then
             gh release upload "$VERSION" dist/solos-* dist/SHA256SUMS --clobber
           else
-            gh release create "$VERSION" dist/solos-* dist/SHA256SUMS \
+            gh release create "$VERSION" dist/solos-* dist/SHA256SUMS --prerelease \
               --verify-tag --title "solos ${VERSION#solos@}" --notes-file "$RUNNER_TEMP/notes.md"
           fi
-      # The dist-tag is latest until the stable lane's auto-promotion lands (ADR-0036: staged,
-      # then promote).
+      # Staged, never latest: promote moves the pointer after the smoke from npm (ADR-0036).
       - uses: ./.github/actions/publish-npm
         with:
           version: ${{ github.ref_name }}
-          tag: latest
+          tag: staged
           publish: ${{ vars.NPM_PUBLISH }}
           npm-token: ${{ secrets.NPM_TOKEN }}
           # npm verifies a provenance statement against the source repository and accepts only
           # public ones; a private repository publishes without provenance rather than failing.
           provenance: ${{ github.event.repository.private && 'false' || 'true' }}
+
+  # The install a user gets, on every platform: @solos-sh/cli@x.y.z from npm into an empty prefix,
+  # then --version, doctor (the release identity) and mcp list through a real stdio server.
+  smoke:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') && vars.NPM_PUBLISH == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: solos dev release smoke
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          bun run solos dev release smoke "${VERSION#solos@}" > "$RUNNER_TEMP/smoke.json"
+          cat "$RUNNER_TEMP/smoke.json"
+
+  # No human gate: the review was the release PR. promote is idempotent, so a re-run finishes
+  # what a failed run started.
+  promote:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: release-promote
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ github.ref_name }}
+      MCP_PUBLISHER_VERSION: v1.8.1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Install mcp-publisher and log in with GitHub OIDC
+        run: |
+          set -euo pipefail
+          url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/mcp-publisher.tar.gz"
+          mkdir -p "$RUNNER_TEMP/bin" && tar -xzf "$RUNNER_TEMP/mcp-publisher.tar.gz" -C "$RUNNER_TEMP/bin" mcp-publisher
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/mcp-publisher" login github-oidc
+      - name: solos dev release promote
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          bun run solos dev release promote "${VERSION#solos@}" > "$RUNNER_TEMP/promote.json"
+          cat "$RUNNER_TEMP/promote.json"
