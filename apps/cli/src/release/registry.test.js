@@ -3,8 +3,9 @@ import { describe, expect, test } from "bun:test";
 import { registryHasVersion } from "./registry.js";
 
 const SERVER = { name: "io.github.GuiBibeau/solos", version: "0.1.1" };
-const listed = (/** @type {string} */ status) =>
-  `{"name":"io.github.GuiBibeau/solos","_meta":{"io.modelcontextprotocol.registry/official":{"status":"${status}"}}}\n200`;
+const record = (/** @type {string} */ version, /** @type {string} */ status) =>
+  `{"server":{"name":"io.github.GuiBibeau/solos","version":"${version}"},"_meta":{"io.modelcontextprotocol.registry/official":{"status":"${status}"}}}\n200`;
+const listed = (/** @type {string} */ status) => record("0.1.1", status);
 
 /** @type {string[][]} */
 const seen = [];
@@ -30,6 +31,8 @@ describe("the registry probe", () => {
       false,
     );
     expect(await registryHasVersion(SERVER, answer(0, "404"))).toBe(false);
+    const bare = '{"server":{"name":"io.github.GuiBibeau/solos","version":"0.1.1"}}\n200';
+    expect(await registryHasVersion(SERVER, answer(0, bare))).toBe(true);
   });
 
   test("a deleted version is refused, never republished and never promoted", async () => {
@@ -51,11 +54,18 @@ describe("the registry probe", () => {
       reason:
         "MCP Registry lookup for io.github.GuiBibeau/solos@0.1.1 failed (curl exit 6); nothing was changed",
     });
-    await expect(
-      registryHasVersion(SERVER, answer(0, "<html>busy</html>\n200")),
-    ).rejects.toMatchObject({
-      reason:
-        "MCP Registry lookup for io.github.GuiBibeau/solos@0.1.1 failed (HTTP 200 with a body that is not JSON); nothing was changed",
-    });
+    const notRecord =
+      "MCP Registry lookup for io.github.GuiBibeau/solos@0.1.1 failed (HTTP 200 with a body that is not the registry's record of io.github.GuiBibeau/solos@0.1.1); nothing was changed";
+    for (const body of [
+      "<html>busy</html>\n200",
+      "{}\n200",
+      '{"error":"busy"}\n200',
+      record("0.1.0", "active"),
+      record("0.1.1", "archived"),
+    ]) {
+      await expect(registryHasVersion(SERVER, answer(0, body))).rejects.toMatchObject({
+        reason: notRecord,
+      });
+    }
   });
 });

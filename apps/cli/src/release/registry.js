@@ -4,6 +4,7 @@
  * version, so a promote must learn whether the version is listed before it moves a pointer, and
  * a version the registry has deleted is never promoted.
  */
+import { z } from "zod";
 import { captureCommand } from "../evidence/run-steps.js";
 import { ReleaseRefused } from "./errors.js";
 import { parsed } from "./run-plan.js";
@@ -12,6 +13,27 @@ import { parsed } from "./run-plan.js";
 
 export const REGISTRY_URL = "https://registry.modelcontextprotocol.io";
 const OFFICIAL = "io.modelcontextprotocol.registry/official";
+
+/** The registry's record of one version: the server it describes and the lifecycle status it keeps. */
+const ServerResponse = z.object({
+  server: z.object({ name: z.string(), version: z.string() }),
+  _meta: z
+    .object({
+      [OFFICIAL]: z
+        .object({ status: z.enum(["active", "deprecated", "deleted"]).default("active") })
+        .optional(),
+    })
+    .optional(),
+});
+
+/** @param {string} text */
+const jsonOrNull = (text) => {
+  try {
+    return /** @type {unknown} */ (JSON.parse(text));
+  } catch {
+    return null;
+  }
+};
 
 /** The body and the HTTP status curl appended as the last line. @param {string} text */
 const splitAnswer = (text) => {
@@ -27,21 +49,18 @@ const registryAnswer = (code, status) =>
   code === 0 ? `HTTP ${/^(\d{3})$/u.exec(status.trim())?.[1] ?? "?"}` : `curl exit ${code}`;
 
 /**
- * The lifecycle status the registry stores on the version (active, deprecated or deleted), or
- * null when the body is not the registry's JSON.
- * @param {string} body
+ * The lifecycle status the registry stores on this version (active, deprecated or deleted), or
+ * null when the body is not the registry's record of it: not JSON, not a server response, or a
+ * response about another server or version.
+ * @param {string} body @param {{ name: string; version: string }} server
  * @returns {string | null}
  */
-const registryStatus = (body) => {
-  try {
-    const value = /** @type {{ _meta?: Record<string, { status?: unknown }> }} */ (
-      JSON.parse(body)
-    );
-    const status = value?._meta?.[OFFICIAL]?.status;
-    return status === undefined ? "active" : String(status);
-  } catch {
-    return null;
-  }
+const registryStatus = (body, { name, version }) => {
+  const record = ServerResponse.safeParse(jsonOrNull(body));
+  if (!record.success) return null;
+  const { server, _meta } = record.data;
+  if (server.name !== name || server.version !== version) return null;
+  return _meta?.[OFFICIAL]?.status ?? "active";
 };
 
 /** @param {string} server @param {string} detail */
@@ -55,7 +74,8 @@ const lookupFailed = (server, detail) =>
  * Whether the MCP Registry lists this server version. Deleted versions are asked for too: the
  * registry hides them by default but still refuses to publish them again, and a version taken
  * down must not become latest. Only a 200 or a 404 is an answer; any other status, a transport
- * failure or a body that is not the registry's JSON refuses before a single pointer moves.
+ * failure or a body that is not the registry's record of this version refuses before a single
+ * pointer moves.
  * @param {{ name: string; version: string }} server @param {Runner} [runner]
  */
 export const registryHasVersion = async ({ name, version }, runner = captureCommand) => {
@@ -66,8 +86,13 @@ export const registryHasVersion = async ({ name, version }, runner = captureComm
   const answer = registryAnswer(result.code, status);
   if (answer === "HTTP 404") return false;
   if (answer !== "HTTP 200") throw lookupFailed(server, answer);
-  const state = registryStatus(body);
-  if (state === null) throw lookupFailed(server, "HTTP 200 with a body that is not JSON");
+  const state = registryStatus(body, { name, version });
+  if (state === null) {
+    throw lookupFailed(
+      server,
+      `HTTP 200 with a body that is not the registry's record of ${server}`,
+    );
+  }
   if (state === "deleted") {
     throw new ReleaseRefused({
       reason: `${server} is deleted in the MCP Registry; a deleted version is never republished or promoted`,
