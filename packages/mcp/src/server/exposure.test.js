@@ -70,6 +70,16 @@ describe("exposure by tier ceiling and feature flag (ADR-0036)", () => {
     expect(enabled).toContain("solana_swap_simulate_route — Simulate a routed swap\n");
   });
 
+  test("a tool both above the ceiling and experimental names both gates", () => {
+    const both = buildInstructions(tools, { ceiling: "read", experimental: false });
+    expect(both).toContain(
+      "solana_swap_simulate_route — Simulate a routed swap (unavailable: above the read ceiling; experimental; the Operator enables it with --features experimental)",
+    );
+    expect(both).toContain(
+      "solana_swap_execute_swap — Execute swap (unavailable: above the read ceiling)",
+    );
+  });
+
   test("a registry without experimental tools says nothing about them", () => {
     const plain = buildInstructions(tools.slice(0, 1), {
       ceiling: "simulate",

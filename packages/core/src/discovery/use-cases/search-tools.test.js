@@ -95,6 +95,15 @@ describe("searchTools", () => {
     expect(enabled.notes).toEqual([]);
   });
 
+  test("a tool both above the ceiling and experimental is counted under both gates", async () => {
+    const both = await search({ names: [EXPERIMENTAL.name] }, "read", { tools: WITH_EXPERIMENTAL });
+    expect(both.matches[0]?.available).toBe(false);
+    expect(both.notes).toEqual([
+      "1 matching tool exists above this server's tier ceiling (read) and cannot be called here. Ask the Operator to start the server with --tier simulate.",
+      "1 matching tool is experimental and not enabled on this server. Ask the Operator to start the server with --features experimental.",
+    ]);
+  });
+
   test("a group lists every tool in it and marks the ones above the ceiling unavailable", async () => {
     const result = await search({ group: "swap" });
     expect(result.mode).toBe("group");

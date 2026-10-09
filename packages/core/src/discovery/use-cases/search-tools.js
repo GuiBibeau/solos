@@ -111,6 +111,8 @@ const assemble = ({ mode, limit, catalogue, result }) => {
   const isAvailable = (/** @type {CatalogueTool} */ tool) => isExposed(tool, catalogue);
   const isAboveCeiling = (/** @type {CatalogueTool} */ tool) =>
     !isWithinCeiling(tool.tier, catalogue.ceiling);
+  const isExperimentalWithheld = (/** @type {CatalogueTool} */ tool) =>
+    tool.stability === "experimental" && !catalogue.experimental;
   // Over everything that matched, not only what the cap lists.
   const withheld = result.found.filter((tool) => !isAvailable(tool));
   const matches = result.found.slice(0, limit).map((tool) => ({
@@ -137,8 +139,10 @@ const assemble = ({ mode, limit, catalogue, result }) => {
       unknown: result.unknown.length,
       groups,
       ceiling: catalogue.ceiling,
+      // A tool both above the ceiling and experimental counts under both gates: lifting one
+      // alone would not make it callable, so the Caller hears both remedies.
       unavailable: withheld.filter((tool) => isAboveCeiling(tool)).map((tool) => tool.tier),
-      experimental: withheld.filter((tool) => !isAboveCeiling(tool)).length,
+      experimental: withheld.filter((tool) => isExperimentalWithheld(tool)).length,
     }),
   };
 };

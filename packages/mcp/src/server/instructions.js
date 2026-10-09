@@ -34,13 +34,19 @@ const availability = ({ ceiling, discovery, experimental }, tools) => [
     : []),
 ];
 
-/** Why a listed tool cannot be called here, or nothing. @param {Tool} tool @param {Availability} options */
+/**
+ * Why a listed tool cannot be called here, or nothing. A tool both above the ceiling and
+ * experimental names both gates, since lifting one would not make it callable.
+ * @param {Tool} tool @param {Availability} options
+ */
 const withheld = (tool, { ceiling, experimental }) => {
-  if (!isWithinCeiling(tool.tier, ceiling)) return ` (unavailable: above the ${ceiling} ceiling)`;
-  if (!experimental && tool.stability === "experimental") {
-    return " (unavailable: experimental; the Operator enables it with --features experimental)";
-  }
-  return "";
+  const reasons = [
+    ...(isWithinCeiling(tool.tier, ceiling) ? [] : [`above the ${ceiling} ceiling`]),
+    ...(!experimental && tool.stability === "experimental"
+      ? ["experimental; the Operator enables it with --features experimental"]
+      : []),
+  ];
+  return reasons.length === 0 ? "" : ` (unavailable: ${reasons.join("; ")})`;
 };
 
 /** @param {Tool} tool @param {Availability} options */
