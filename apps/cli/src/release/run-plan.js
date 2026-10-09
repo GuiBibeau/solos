@@ -8,7 +8,10 @@ import { ReleaseRefused } from "./errors.js";
 import { deprecatedProbe, latestProbe, publishedProbe, releasePackages } from "./plans.js";
 import { compareVersions, parseVersion } from "./version.js";
 
-/** @typedef {(argv: string[], cwd?: string) => Promise<{ code: number; output: string }>} Runner */
+/** @typedef {(argv: string[], cwd?: string) => Promise<{ code: number; output: string; stdout?: string }>} Runner */
+
+/** What a probe parses: stdout alone when the runner keeps the streams apart, else the merged output. @param {{ output: string; stdout?: string }} result */
+const parsed = ({ output, stdout }) => stdout ?? output;
 /** @typedef {import("./plans.js").Step} Step */
 /** @typedef {{ name: string; command: string; ok: boolean | null; summary: string }} RanStep */
 
@@ -34,16 +37,8 @@ const registryAnswer = (code, output) =>
  */
 export const registryHasVersion = async ({ name, version }, runner = captureCommand) => {
   const url = `${REGISTRY_URL}/v0.1/servers/${encodeURIComponent(name)}/versions/${version}`;
-  const { code, output } = await runner([
-    "curl",
-    "-sS",
-    "-o",
-    "/dev/null",
-    "-w",
-    "%{http_code}",
-    url,
-  ]);
-  const answer = registryAnswer(code, output);
+  const result = await runner(["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}", url]);
+  const answer = registryAnswer(result.code, parsed(result));
   if (answer === "HTTP 200") return true;
   if (answer === "HTTP 404") return false;
   throw new ReleaseRefused({
@@ -81,8 +76,8 @@ export const assertPublished = async (version, runner = captureCommand) => {
   /** @type {string[]} */
   const missing = [];
   for (const pkg of releasePackages()) {
-    const { code, output } = await runner(publishedProbe(pkg, version));
-    if (code !== 0 || !output.includes(`"${version}"`)) missing.push(pkg);
+    const result = await runner(publishedProbe(pkg, version));
+    if (result.code !== 0 || !parsed(result).includes(`"${version}"`)) missing.push(pkg);
   }
   if (missing.length > 0) {
     throw new ReleaseRefused({
@@ -129,14 +124,15 @@ export const assertRollbackSource = ({ from, to, latest }) => {
  */
 export const assertNotDeprecated = async (version, runner = captureCommand) => {
   for (const pkg of releasePackages()) {
-    const { code, output } = await runner(deprecatedProbe(pkg, version));
+    const result = await runner(deprecatedProbe(pkg, version));
+    const { code } = result;
     if (code !== 0) {
       throw new ReleaseRefused({
         reason: `could not read the deprecation status of ${pkg}@${version} from npm (exit ${code}); nothing was changed`,
         remedy: "retry when npm answers",
       });
     }
-    const message = output.trim().replaceAll(/^"|"$/gu, "");
+    const message = parsed(result).trim().replaceAll(/^"|"$/gu, "");
     if (message !== "undefined" && message !== "null" && message.length > 0) {
       throw new ReleaseRefused({
         reason: `${pkg}@${version} is deprecated on npm: ${message}`,
@@ -173,8 +169,9 @@ export const assertManifestVersion = (manifestText, version) => {
 
 /** The version `latest` points at now. @param {Runner} [runner] */
 export const currentLatest = async (runner = captureCommand) => {
-  const { code, output } = await runner(latestProbe());
-  const match = /"(\d+\.\d+\.\d+[^"]*)"/u.exec(output);
+  const result = await runner(latestProbe());
+  const { code } = result;
+  const match = /"(\d+\.\d+\.\d+[^"]*)"/u.exec(parsed(result));
   if (code !== 0 || match === null) {
     throw new ReleaseRefused({
       reason: "could not read the current latest from npm",

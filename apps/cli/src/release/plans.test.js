@@ -37,6 +37,13 @@ const deprecated = async (/** @type {string[]} */ argv) => ({
   output: argv.includes("@solos-sh/cli-linux-x64@0.1.1") ? '"rolled back; bad build"\n' : "\n",
 });
 
+/** An npm whose stderr carries a warning while stdout says nothing is deprecated. */
+const noisy = async () => ({
+  code: 0,
+  output: '\nnpm warn Unknown env config "http-proxy"\n',
+  stdout: "\n",
+});
+
 /** An npm that cannot be reached. */
 const unreachable = async () => ({ code: 1, output: "ETIMEDOUT" });
 
@@ -209,6 +216,7 @@ describe("promotion and rollback plans", () => {
       _tag: "ReleaseRefused",
       reason: "@solos-sh/cli-linux-x64@0.1.1 is deprecated on npm: rolled back; bad build",
     });
+    expect(await assertNotDeprecated("0.1.1", noisy)).toBeUndefined();
     await expect(assertNotDeprecated("0.1.1", unreachable)).rejects.toMatchObject({
       _tag: "ReleaseRefused",
       reason:
