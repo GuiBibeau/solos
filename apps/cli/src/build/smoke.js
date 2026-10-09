@@ -9,9 +9,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { SERVE_ARGS } from "@solos/mcp";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import { identityOf } from "../release/identity.js";
 
 /** @typedef {{ name: string; ok: boolean; detail: string }} Check */
-/** @typedef {{ ok?: boolean; issues?: { code: string }[]; mcpConfig?: any }} DoctorReport */
+/** @typedef {{ ok?: boolean; issues?: { code: string }[]; mcpConfig?: any; release?: unknown }} DoctorReport */
+/** @typedef {import("./compile.js").Release} Release */
 
 /**
  * @param {string} binary @param {string[]} args @param {Record<string, string>} env
@@ -78,19 +80,33 @@ const namesBinary = (report, binary) => {
 };
 
 /**
- * `doctor` with nothing configured reports both missing pieces and a config that runs this
- * binary.
- * @param {string} binary @param {string} configDir
+ * The release the binary reports is the one the build stamped: version, the lane that version
+ * implies, and the commit.
+ * @param {DoctorReport | undefined} report @param {Release} release
+ */
+const hasRelease = (report, release) =>
+  JSON.stringify(report?.release) === JSON.stringify(identityOf(release.version, release.commit));
+
+/**
+ * `doctor` with nothing configured reports both missing pieces, a config that runs this binary,
+ * and the release the build stamped.
+ * @param {string} binary @param {string} configDir @param {Release} release
  * @returns {Promise<Check>}
  */
-const doctorCheck = async (binary, configDir) => {
+const doctorCheck = async (binary, configDir, release) => {
   const { stdout, code } = await run(binary, ["doctor"], { SOLOS_CONFIG_DIR: configDir });
   const report = /** @type {DoctorReport | undefined} */ (parseJson(stdout));
-  const isOk = code === 1 && hasColdIssues(report) && namesBinary(report, binary);
+  const isOk =
+    code === 1 &&
+    hasColdIssues(report) &&
+    namesBinary(report, binary) &&
+    hasRelease(report, release);
   return {
     name: "doctor",
     ok: isOk,
-    detail: isOk ? "two issues, config names the binary" : stdout,
+    detail: isOk
+      ? `two issues, config names the binary, release ${identityOf(release.version, release.commit).lane}`
+      : stdout,
   };
 };
 
@@ -115,16 +131,16 @@ const mcpListCheck = async (binary, configDir, version) => {
 };
 
 /**
- * @param {string} binary @param {string} version
+ * @param {string} binary @param {Release} release
  * @returns {Promise<{ ok: boolean; checks: Check[] }>}
  */
-export const smokeTest = async (binary, version) => {
+export const smokeTest = async (binary, release) => {
   const configDir = await mkdtemp(path.join(tmpdir(), "solos-smoke-"));
   try {
     const checks = [
-      await versionCheck(binary, version),
-      await doctorCheck(binary, configDir),
-      await mcpListCheck(binary, configDir, version),
+      await versionCheck(binary, release.version),
+      await doctorCheck(binary, configDir, release),
+      await mcpListCheck(binary, configDir, release.version),
     ];
     return { ok: checks.every((check) => check.ok), checks };
   } finally {
