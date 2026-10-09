@@ -13,7 +13,13 @@ import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { ReleaseRefused } from "../release/errors.js";
 import { promotePlan, rollbackPlan } from "../release/plans.js";
-import { assertForward, assertPublished, currentLatest, runPlan } from "../release/run-plan.js";
+import {
+  assertForward,
+  assertPublished,
+  assertRollbackSource,
+  currentLatest,
+  runPlan,
+} from "../release/run-plan.js";
 import { compareVersions, parseVersion, releaseTag } from "../release/version.js";
 import { attempt, dryRun, git } from "./dev-release-shared.js";
 
@@ -134,6 +140,7 @@ export const rollback = Command.make("rollback", { to, from, reason, dryRun }, (
     // Both versions are checked before any pointer moves, so a mistyped --from cannot leave a
     // half-done rollback behind a failed deprecation.
     if (!o.dryRun) {
+      assertRollbackSource({ from: bad, to: target, latest: await currentLatest() });
       await assertPublished(target);
       await assertPublished(bad);
     }

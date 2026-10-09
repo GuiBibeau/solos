@@ -69,6 +69,19 @@ export const assertForward = (version, latest) => {
   }
 };
 
+/**
+ * A rollback must name the release that is actually behind `latest`; on a retry after a partial
+ * run, `latest` may already be the target. Anything else would deprecate the wrong version.
+ * @param {{ from: string; to: string; latest: string }} input
+ */
+export const assertRollbackSource = ({ from, to, latest }) => {
+  if (latest === from || latest === to) return;
+  throw new ReleaseRefused({
+    reason: `latest points at ${latest}, which is neither --from ${from} nor --to ${to}`,
+    remedy: `pass --from ${latest} to roll back what latest points at`,
+  });
+};
+
 /** The version `latest` points at now. @param {Runner} [runner] */
 export const currentLatest = async (runner = captureCommand) => {
   const { code, output } = await runner(latestProbe());

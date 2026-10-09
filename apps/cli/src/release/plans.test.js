@@ -1,7 +1,13 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { promotePlan, releasePackages, rollbackPlan } from "./plans.js";
-import { assertForward, assertPublished, currentLatest, runPlan } from "./run-plan.js";
+import {
+  assertForward,
+  assertPublished,
+  assertRollbackSource,
+  currentLatest,
+  runPlan,
+} from "./run-plan.js";
 
 /** @param {Record<string, { code: number; output: string }>} answers */
 const fakeRunner = (answers) => {
@@ -103,6 +109,22 @@ describe("promotion and rollback plans", () => {
     expect(refusal).toMatchObject({
       _tag: "ReleaseRefused",
       reason: "0.0.9 is older than latest, 0.1.0; promote only moves forward",
+    });
+  });
+
+  test("a rollback source must be what latest points at, or latest is already the target", () => {
+    expect(assertRollbackSource({ from: "0.1.2", to: "0.1.1", latest: "0.1.2" })).toBeUndefined();
+    expect(assertRollbackSource({ from: "0.1.2", to: "0.1.1", latest: "0.1.1" })).toBeUndefined();
+    let refusal;
+    try {
+      assertRollbackSource({ from: "0.1.1", to: "0.1.0", latest: "0.1.2" });
+    } catch (error) {
+      refusal = error;
+    }
+    expect(refusal).toMatchObject({
+      _tag: "ReleaseRefused",
+      reason: "latest points at 0.1.2, which is neither --from 0.1.1 nor --to 0.1.0",
+      remedy: "pass --from 0.1.2 to roll back what latest points at",
     });
   });
 
