@@ -41,3 +41,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0033](0033-simulation-never-carries-a-signature.md) | Simulation never carries a real signature; every surface has a tier ceiling |
 | [0034](0034-the-developer-lever-is-opt-in.md) | The developer lever is opt-in: `solos dev` exists only under `SOLOS_DEV=1` |
 | [0035](0035-one-compiled-solos-binary.md) | One compiled `solos` binary is the distribution; the CLI ships; `solos mcp serve` |
+| [0036](0036-release-lanes-and-stability-labels.md) | Release lanes: canary on every merge, stable through a reviewed release PR, promotion by pointer; every tool carries a stability label |
