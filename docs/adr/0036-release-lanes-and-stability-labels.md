@@ -43,7 +43,7 @@ published versions only. The lanes below are built from what those facts allow.
   and the GitHub Release is created as a pre-release.
 - **Promotion is automatic and is a pointer flip.** A job installs `@solos-sh/cli@x.y.z` from
   npm on each platform runner and runs `solos --version`, `solos mcp list` and `solos doctor`.
-  When all four pass, `solos dev release promote --version x.y.z` moves `latest` on all five
+  When all four pass, `solos dev release promote x.y.z` moves `latest` on all five
   packages, marks the GitHub Release latest, and publishes `server.json` to the MCP Registry
   with `mcp-publisher`. No human gate: the review happened on the release PR. A failed smoke
   leaves the version on `staged`, visible, installable by exact version, and not `latest`.

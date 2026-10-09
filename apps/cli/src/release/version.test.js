@@ -1,0 +1,78 @@
+// @ts-check
+import { describe, expect, test } from "bun:test";
+import {
+  canaryVersion,
+  formatVersion,
+  isMajor,
+  laneOf,
+  newestStable,
+  parseVersion,
+  releaseTag,
+  stableVersion,
+} from "./version.js";
+
+/** @param {() => unknown} fn */
+const thrown = (fn) => {
+  try {
+    fn();
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+};
+
+describe("release versions", () => {
+  test("parses and formats semver with an optional prerelease", () => {
+    expect(parseVersion("0.1.0")).toEqual({ major: 0, minor: 1, patch: 0, prerelease: null });
+    expect(parseVersion("1.2.3-canary.7.g1f232a4")?.prerelease).toBe("canary.7.g1f232a4");
+    expect(parseVersion("v1.2.3")).toBeNull();
+    expect(parseVersion("1.2")).toBeNull();
+    expect(formatVersion({ major: 1, minor: 2, patch: 3, prerelease: "rc.1" })).toBe("1.2.3-rc.1");
+  });
+
+  test("the newest stable tag wins; prereleases and foreign tags are ignored", () => {
+    const tags = [
+      "v9.9.9",
+      "solos@0.1.0",
+      "solos@0.2.0-canary.3.gabcdef0",
+      "solos@0.1.2",
+      "actions@1.0.0",
+    ];
+    expect(newestStable(tags)).toEqual({ major: 0, minor: 1, patch: 2, prerelease: null });
+    expect(newestStable(["actions@1.0.0"])).toBeNull();
+  });
+
+  test("a canary is the next patch with run and short sha, as the issue states", () => {
+    const base = { major: 0, minor: 1, patch: 0, prerelease: null };
+    expect(canaryVersion({ base, run: 7, sha: "1f232a4abcdef" })).toBe("0.1.1-canary.7.g1f232a4");
+    expect(thrown(() => canaryVersion({ base, run: -1, sha: "1f232a4" }))).toMatchObject({
+      _tag: "ReleaseRefused",
+      remedy: "pass the workflow run number as --run",
+    });
+    expect(thrown(() => canaryVersion({ base, run: 7, sha: "nothex" }))).toMatchObject({
+      _tag: "ReleaseRefused",
+      remedy: "pass the commit sha as --sha",
+    });
+  });
+
+  test("a stable bump moves one component and resets the lower ones", () => {
+    const base = { major: 0, minor: 1, patch: 2, prerelease: null };
+    expect(stableVersion({ base, bump: "patch" })).toBe("0.1.3");
+    expect(stableVersion({ base, bump: "minor" })).toBe("0.2.0");
+    expect(stableVersion({ base, bump: "major" })).toBe("1.0.0");
+  });
+
+  test("the lane is read from the version alone", () => {
+    expect(laneOf("0.0.0")).toBe("source");
+    expect(laneOf("0.1.1-canary.7.g1f232a4")).toBe("canary");
+    expect(laneOf("0.1.1")).toBe("stable");
+    expect(laneOf("garbage")).toBe("source");
+  });
+
+  test("a major is x.0.0 with no prerelease", () => {
+    expect(isMajor("1.0.0")).toBe(true);
+    expect(isMajor("1.0.1")).toBe(false);
+    expect(isMajor("1.0.0-canary.1.gabcdef0")).toBe(false);
+    expect(releaseTag("1.0.0")).toBe("solos@1.0.0");
+  });
+});

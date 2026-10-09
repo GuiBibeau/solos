@@ -46,6 +46,8 @@ bun run solos dev verify --scope unit    # check + unit tests, prints Evidence J
 bun run solos dev evidence check --body-file pr.md --sha $(git rev-parse HEAD)  # what CI runs on PR bodies
 bun run solos dev build                  # compile the solos binary for this machine (or --target all) and smoke-test it
 bun run solos dev pack --version 0.1.0   # assemble the npm launcher and platform packages from dist/
+bun run solos dev release version --lane canary --run 7 --sha $(git rev-parse HEAD)  # the next canary version (ADR-0036)
+bun run solos dev release promote 0.1.1 --dry-run   # what pointing latest at a staged version would run
 bun run solos dev surfpool down
 ```
 
