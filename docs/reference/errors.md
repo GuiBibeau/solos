@@ -56,7 +56,11 @@ and the remedy names `SOLOS_EXECUTOR=engine` and `SOLOS_ENGINE_URL`.
 `StrategyTransitionRefused` carries `from` and `to`: the state the Strategy is in, and the state
 the Caller asked for. `done`, `expired`, and `failed` are terminal, so a second cancel is this
 error. `BoundsExceeded` is the same refusal the Engine uses when a Strategy's `allowedMints`
-names a mint outside the Engine allowlist; `requested` is that mint.
+names a mint outside the Engine allowlist; `requested` is that mint. The cap ledger raises it
+for a per-tick notional, a UTC-day spend, a mint allowlist, or an `expiresAt` that no longer
+authorizes the reserve. `scope` is the strategy id. `KillSwitchEngaged` is reason-bearing.
+`reserve` raises it when that strategy's kill switch, or the global one, is engaged. `scope`
+is the strategy id or `global`. Settle and release do not raise it.
 
 ## Why the field is `reason`, never `cause`
 

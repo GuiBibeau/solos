@@ -33,6 +33,22 @@ export class StrategyNotFound extends /** @type {StrategyNotFoundClass} */ (
   }
 }
 
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"KillSwitchEngaged", KillSwitchEngagedProps>} KillSwitchEngagedClass */
+/** @typedef {{ readonly scope: string; readonly reason?: string }} KillSwitchEngagedProps */
+/** A kill switch is engaged for this scope, so a new reserve is refused. Settle and release still run. */
+export class KillSwitchEngaged extends /** @type {KillSwitchEngagedClass} */ (
+  taggedError("KillSwitchEngaged")
+) {
+  /** @param {KillSwitchEngagedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `kill switch is engaged for ${props.scope}`,
+      remedy: "disengage the kill switch before reserving",
+    });
+  }
+}
+
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"StrategyInvalid", StrategyInvalidProps>} StrategyInvalidClass */
 /** @typedef {{ readonly reason: string }} StrategyInvalidProps */
 /** The document is not a Strategy this Registry can store. */

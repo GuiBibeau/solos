@@ -102,6 +102,26 @@ allowlist, never widen it. `expiresAt` is when the bounds stop authorizing spend
 they do not expire on a clock. `maxConsecutiveFailures` is how many failed ticks in a row move
 the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
 
+**Cap ledger** — the account of what a Strategy has reserved and settled against its Bounds.
+`reserve` holds the notional of one Intent and returns a reservation. The same `intentId`
+returns that reservation again and does not add to the day's spend. The day's spend is every
+open hold plus every settled amount reserved on the current UTC day. A hold stays on the day
+it was reserved, including when it is still open after midnight. `maxNotionalPerTickUsd`,
+`maxDailySpendUsd`, `allowedMints`, and `expiresAt` are judged on that reserve. An exact cap
+is allowed. A breach is `BoundsExceeded`. A strategy with no bounds loaded is `StrategyNotFound`.
+The port is `CapLedger`. `memoryCapLedger` keeps the account in the process.
+
+**Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
+`intentId`. `settle` replaces an open hold with the measured USD spend, lower or higher than
+the reserved amount. `release` frees an open hold. Each applies once; a repeat leaves the hold
+as the first call left it. A settled hold stays settled. A released hold stays released.
+
+**Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
+scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and
+names that scope. A global switch blocks every Strategy. A strategy switch blocks only that
+Strategy. Settle and release still complete. Disengaging that scope allows new reserves again.
+`memoryCapLedger` keeps the switch in the process.
+
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
 (`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a
 separate repo the harness depends on (ADR-0037).
