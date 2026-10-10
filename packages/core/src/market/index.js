@@ -45,6 +45,7 @@ export { askIris } from "./use-cases/ask-iris.js";
 export { getPrice } from "./use-cases/get-price.js";
 export { getToken } from "./use-cases/get-token.js";
 export { askIrisTool } from "./tools/ask-iris.js";
+export { eventSummaryTool, tokenNewsTool, trendingTokensTool } from "./tools/discovery.js";
 export { getPriceTool } from "./tools/get-price.js";
 export { getTokenTool } from "./tools/get-token.js";
 

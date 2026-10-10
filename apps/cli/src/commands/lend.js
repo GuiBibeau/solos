@@ -2,114 +2,114 @@
 import { Command, Options } from "@effect/cli";
 import {
   executeLendDeposit,
+  executeLendDepositTool,
   executeLendWithdraw,
+  executeLendWithdrawTool,
   getLendPosition,
+  getLendPositionTool,
   getReserve,
+  getReserveTool,
   simulateLendDeposit,
+  simulateLendDepositTool,
   simulateLendWithdraw,
+  simulateLendWithdrawTool,
 } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { commandHelp, groupHelp, optionHelp } from "./tool-help.js";
 
-const mint = Options.text("mint").pipe(
-  Options.withDescription("Token mint whose reserve to read in the configured Kamino market"),
-);
+const reserveMint = Options.text("mint").pipe(optionHelp(getReserveTool.input.shape.mint));
 
+const positionMint = Options.text("mint").pipe(optionHelp(getLendPositionTool.input.shape.mint));
 const owner = Options.text("owner").pipe(
   Options.optional,
-  Options.withDescription("Supply owner. Defaults to the configured signer wallet."),
+  optionHelp(getLendPositionTool.input.shape.owner),
 );
 
-const reserve = Command.make("reserve", { mint }, (options) =>
+const reserve = Command.make("reserve", { mint: reserveMint }, (options) =>
   withSolos(getReserve({ mint: options.mint }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Read supply and borrow APY plus exact available liquidity for one Kamino reserve",
-  ),
-);
+).pipe(commandHelp(getReserveTool));
 
-const position = Command.make("position", { mint, owner }, (options) =>
+const position = Command.make("position", { mint: positionMint, owner }, (options) =>
   withSolos(
     getLendPosition({
       mint: options.mint,
       owner: Option.getOrUndefined(options.owner),
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Read one owner's exact Kamino supply in underlying base units (read-only)",
-  ),
-);
+).pipe(commandHelp(getLendPositionTool));
 
-const amount = Options.text("amount").pipe(
-  Options.withDescription(
-    "Underlying amount to deposit or request for withdrawal, in base units of the mint, as a positive integer string",
-  ),
+const depositMint = Options.text("mint").pipe(optionHelp(simulateLendDepositTool.input.shape.mint));
+const depositAmount = Options.text("amount").pipe(
+  optionHelp(simulateLendDepositTool.input.shape.amount),
 );
-
-const skipSimulation = Options.boolean("skip-simulation").pipe(
+const depositSkip = Options.boolean("skip-simulation").pipe(
   Options.withDefault(false),
-  Options.withDescription(
-    "Skip the pre-send simulation of the exact transaction. Defaults to false.",
-  ),
+  optionHelp(executeLendDepositTool.input.shape.skipSimulation),
 );
 
-const simulateDeposit = Command.make("simulate-deposit", { mint, amount }, (options) =>
-  withSolos(
-    simulateLendDeposit({
-      mint: options.mint,
-      amount: options.amount,
-    }).pipe(Effect.flatMap(emit)),
-  ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Simulate supplying the signer's own tokens into the configured Kamino market without submitting anything: shows the reserve, the exact encoded amount, the predicted collateral and the accounts the executor would initialize",
-  ),
+const simulateDeposit = Command.make(
+  "simulate-deposit",
+  { mint: depositMint, amount: depositAmount },
+  (options) =>
+    withSolos(
+      simulateLendDeposit({ mint: options.mint, amount: options.amount }).pipe(
+        Effect.flatMap(emit),
+      ),
+    ).pipe(exitOnFailure),
+).pipe(commandHelp(simulateLendDepositTool));
+
+const deposit = Command.make(
+  "deposit",
+  { mint: depositMint, amount: depositAmount, skipSimulation: depositSkip },
+  (options) =>
+    withSolos(
+      executeLendDeposit({
+        mint: options.mint,
+        amount: options.amount,
+        skipSimulation: options.skipSimulation,
+      }).pipe(Effect.flatMap(emit)),
+    ).pipe(exitOnFailure),
+).pipe(commandHelp(executeLendDepositTool));
+
+const withdrawMint = Options.text("mint").pipe(
+  optionHelp(simulateLendWithdrawTool.input.shape.mint),
+);
+const withdrawAmount = Options.text("amount").pipe(
+  optionHelp(simulateLendWithdrawTool.input.shape.amount),
+);
+const withdrawSkip = Options.boolean("skip-simulation").pipe(
+  Options.withDefault(false),
+  optionHelp(executeLendWithdrawTool.input.shape.skipSimulation),
 );
 
-const deposit = Command.make("deposit", { mint, amount, skipSimulation }, (options) =>
-  withSolos(
-    executeLendDeposit({
-      mint: options.mint,
-      amount: options.amount,
-      skipSimulation: options.skipSimulation,
-    }).pipe(Effect.flatMap(emit)),
-  ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Supply the signer's own tokens to the configured Kamino market and wait for confirmation; simulates the exact transaction first, and sends nothing when simulation or validation fails (moves funds)",
-  ),
-);
+const simulateWithdraw = Command.make(
+  "simulate-withdraw",
+  { mint: withdrawMint, amount: withdrawAmount },
+  (options) =>
+    withSolos(
+      simulateLendWithdraw({ mint: options.mint, amount: options.amount }).pipe(
+        Effect.flatMap(emit),
+      ),
+    ).pipe(exitOnFailure),
+).pipe(commandHelp(simulateLendWithdrawTool));
 
-const simulateWithdraw = Command.make("simulate-withdraw", { mint, amount }, (options) =>
-  withSolos(
-    simulateLendWithdraw({ mint: options.mint, amount: options.amount }).pipe(Effect.flatMap(emit)),
-  ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Simulate a fixed-collateral redemption selected by target underlying base units; output is estimated, not an on-chain minimum. Does not submit",
-  ),
-);
-
-const withdraw = Command.make("withdraw", { mint, amount, skipSimulation }, (options) =>
-  withSolos(
-    executeLendWithdraw({
-      mint: options.mint,
-      amount: options.amount,
-      skipSimulation: options.skipSimulation,
-    }).pipe(Effect.flatMap(emit)),
-  ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Redeem fixed collateral selected by target underlying base units; actual credit can differ. Simulates before sending by default",
-  ),
-);
+const withdraw = Command.make(
+  "withdraw",
+  { mint: withdrawMint, amount: withdrawAmount, skipSimulation: withdrawSkip },
+  (options) =>
+    withSolos(
+      executeLendWithdraw({
+        mint: options.mint,
+        amount: options.amount,
+        skipSimulation: options.skipSimulation,
+      }).pipe(Effect.flatMap(emit)),
+    ).pipe(exitOnFailure),
+).pipe(commandHelp(executeLendWithdrawTool));
 
 export const lend = Command.make("lend").pipe(
-  Command.withDescription(
-    "Kamino lending: reserve and owner-supply reads, bounded deposit and withdrawal twins",
-  ),
+  groupHelp("Kamino lending: reserve and owner-supply reads, bounded deposit and withdrawal twins"),
   Command.withSubcommands([
     reserve,
     position,

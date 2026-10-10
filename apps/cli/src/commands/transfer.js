@@ -1,18 +1,25 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { sendSol, simulateSol, transferLamports } from "@solos/core";
+import {
+  executeSolTool,
+  sendSol,
+  simulateSol,
+  simulateSolTool,
+  transferLamports,
+} from "@solos/core";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { commandHelp, groupHelp, modeHelp, optionHelp } from "./tool-help.js";
 
-const to = Options.text("to").pipe(Options.withDescription("Recipient address"));
-const amount = Options.text("amount").pipe(Options.withDescription("Amount in SOL, e.g. 0.1"));
+const to = Options.text("to").pipe(optionHelp(executeSolTool.input.shape.to));
+const amount = Options.text("amount").pipe(optionHelp(executeSolTool.input.shape.amountSol));
 const skipSimulation = Options.boolean("skip-simulation").pipe(
-  Options.withDescription("Send without simulating first"),
+  optionHelp(executeSolTool.input.shape.skipSimulation),
 );
-const simulateOnly = Options.boolean("simulate-only").pipe(
-  Options.withDescription("Build and simulate, never send"),
-);
+// One command dispatches to either tool. The flag is not a tool argument; its help is the
+// simulate tool's title.
+const simulateOnly = Options.boolean("simulate-only").pipe(modeHelp(simulateSolTool));
 
 const sol = Command.make("sol", { to, amount, skipSimulation, simulateOnly }, (options) => {
   const input = {
@@ -33,9 +40,9 @@ const sol = Command.make("sol", { to, amount, skipSimulation, simulateOnly }, (o
     Effect.andThen(() => withSolos(program)),
     exitOnFailure,
   );
-}).pipe(Command.withDescription("Send SOL from the configured signer (real funds on mainnet)"));
+}).pipe(commandHelp(executeSolTool));
 
 export const transfer = Command.make("transfer").pipe(
-  Command.withDescription("Move funds"),
+  groupHelp("Move funds"),
   Command.withSubcommands([sol]),
 );

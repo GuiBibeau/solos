@@ -1,31 +1,37 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
 import {
-  getPosition,
-  getOnboardingStatus,
-  simulateOnboardTrader,
   executeOnboardTrader,
-  simulatePerpDeposit,
+  executeOnboardTraderTool,
   executePerpDeposit,
-  simulatePerpWithdrawal,
-  executePerpWithdrawal,
-  simulatePerpOpen,
+  executePerpDepositTool,
   executePerpOpen,
+  executePerpOpenTool,
+  executePerpWithdrawal,
+  executePerpWithdrawalTool,
+  getOnboardingStatus,
+  getOnboardingStatusTool,
+  getPosition,
+  getPositionTool,
+  simulateOnboardTrader,
+  simulateOnboardTraderTool,
+  simulatePerpDeposit,
+  simulatePerpDepositTool,
+  simulatePerpOpen,
+  simulatePerpOpenTool,
+  simulatePerpWithdrawal,
+  simulatePerpWithdrawalTool,
 } from "@solos/core";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
 import { close, simulateClose } from "./perp-close-commands.js";
+import { commandHelp, groupHelp, optionHelp } from "./tool-help.js";
 
-const market = Options.text("market").pipe(
-  Options.withDescription(
-    "Perp market symbol, e.g. SOL or SOL-PERP (normalized to the exchange symbol)",
-  ),
-);
-
+const market = Options.text("market").pipe(optionHelp(getPositionTool.input.shape.market));
 const owner = Options.text("owner").pipe(
   Options.optional,
-  Options.withDescription("Trader address to read. Defaults to the configured signer."),
+  optionHelp(getPositionTool.input.shape.owner),
 );
 
 const position = Command.make("position", { market, owner }, (options) =>
@@ -35,108 +41,74 @@ const position = Command.make("position", { market, owner }, (options) =>
       owner: Option.getOrUndefined(options.owner),
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Read one Phoenix perp position with explicit side and the trader account equity",
-  ),
-);
+).pipe(commandHelp(getPositionTool));
 
 const onboardingStatus = Command.make("onboarding-status", {}, () =>
   withSolos(getOnboardingStatus().pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription("Check the current wallet's Phoenix registration and trading access"),
-);
+).pipe(commandHelp(getOnboardingStatusTool));
 
 const simulateOnboard = Command.make("simulate-onboard", {}, () =>
   withSolos(simulateOnboardTrader().pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription("Simulate onboarding the current wallet with Phoenix; never submit"),
-);
+).pipe(commandHelp(simulateOnboardTraderTool));
 
 const onboard = Command.make("onboard", {}, () =>
   withSolos(executeOnboardTrader().pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Explicitly enroll the current wallet as a Phoenix trader; does not deposit collateral",
-  ),
-);
+).pipe(commandHelp(executeOnboardTraderTool));
 
 const depositAmount = Options.text("amount").pipe(
-  Options.withDescription(
-    "Exact wallet USDC input in base units; received collateral is only estimated",
-  ),
+  optionHelp(simulatePerpDepositTool.input.shape.amount),
 );
 const withdrawalAmount = Options.text("amount").pipe(
-  Options.withDescription(
-    "Exact Phoenix collateral-token input in base units; USDC receipt is only estimated",
-  ),
+  optionHelp(simulatePerpWithdrawalTool.input.shape.amount),
 );
 
 const simulateDeposit = Command.make("simulate-deposit", { amount: depositAmount }, ({ amount }) =>
   withSolos(simulatePerpDeposit({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Preview explicit USDC deposit to your Phoenix trader; no guaranteed output",
-  ),
-);
+).pipe(commandHelp(simulatePerpDepositTool));
 
 const deposit = Command.make("deposit", { amount: depositAmount }, ({ amount }) =>
   withSolos(executePerpDeposit({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Deposit wallet USDC into your Phoenix trader, then reconcile actual balances",
-  ),
-);
+).pipe(commandHelp(executePerpDepositTool));
 
 const simulateWithdraw = Command.make(
   "simulate-withdraw-collateral",
   { amount: withdrawalAmount },
   ({ amount }) =>
     withSolos(simulatePerpWithdrawal({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Preview explicit fixed-input Phoenix collateral withdrawal to your USDC account",
-  ),
-);
+).pipe(commandHelp(simulatePerpWithdrawalTool));
 
 const withdraw = Command.make("withdraw-collateral", { amount: withdrawalAmount }, ({ amount }) =>
   withSolos(executePerpWithdrawal({ amount }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Withdraw Phoenix collateral only after all-market safety checks; output is estimated",
-  ),
-);
+).pipe(commandHelp(executePerpWithdrawalTool));
 
 const openInput = {
-  market,
+  market: Options.text("market").pipe(optionHelp(simulatePerpOpenTool.input.shape.market)),
   side: Options.choice("side", ["long", "short"]).pipe(
-    Options.withDescription("Open long (buy) or short (sell)"),
+    optionHelp(simulatePerpOpenTool.input.shape.side),
   ),
   notionalUsd: Options.text("notional-usd").pipe(
-    Options.withDescription("Maximum order notional in integer 1e6 USD units"),
+    optionHelp(simulatePerpOpenTool.input.shape.notionalUsd),
   ),
   maxLeverage: Options.float("max-leverage").pipe(
-    Options.withDescription("Maximum leverage (1 through 100)"),
+    optionHelp(simulatePerpOpenTool.input.shape.maxLeverage),
   ),
   limitPriceUsd: Options.text("limit-price-usd").pipe(
-    Options.withDescription("Maximum buy or minimum sell price, decimal USD per base token"),
+    optionHelp(simulatePerpOpenTool.input.shape.limitPriceUsd),
   ),
 };
 
 const simulateOpen = Command.make("simulate-open", openInput, (options) =>
   withSolos(simulatePerpOpen(options).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(Command.withDescription("Preview a bounded Phoenix IOC open; never send an order"));
+).pipe(commandHelp(simulatePerpOpenTool));
 
 const open = Command.make(
   "open",
   { ...openInput, skipSimulation: Options.boolean("skip-simulation") },
   (options) => withSolos(executePerpOpen(options).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(Command.withDescription("Submit a bounded Phoenix IOC open; confirmation is not a fill"));
+).pipe(commandHelp(executePerpOpenTool));
 
 export const perp = Command.make("perp").pipe(
-  Command.withDescription(
-    "Phoenix Perps: positions, enrollment, and explicit collateral management",
-  ),
+  groupHelp("Phoenix Perps: positions, enrollment, and explicit collateral management"),
   Command.withSubcommands([
     position,
     onboardingStatus,

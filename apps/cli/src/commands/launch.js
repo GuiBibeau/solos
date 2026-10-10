@@ -1,51 +1,51 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { executeBuy, executeSell, getCurve, simulateBuy, simulateSell } from "@solos/core";
+import {
+  executeBuy,
+  executeBuyTool,
+  executeSell,
+  executeSellTool,
+  getCurve,
+  getCurveTool,
+  simulateBuy,
+  simulateBuyTool,
+  simulateSell,
+  simulateSellTool,
+} from "@solos/core";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { commandHelp, groupHelp, optionHelp } from "./tool-help.js";
 
-const mint = Options.text("mint").pipe(
-  Options.withDescription("Base58 mint of the launched token whose bonding curve to read"),
-);
+const curveMint = Options.text("mint").pipe(optionHelp(getCurveTool.input.shape.mint));
 
-const curve = Command.make("curve", { mint }, ({ mint }) =>
+const curve = Command.make("curve", { mint: curveMint }, ({ mint }) =>
   withSolos(getCurve({ mint }).pipe(Effect.flatMap(emit))).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Read one pump.fun bonding curve's state: complete flag, progress in basis points (floored), virtual SOL and token reserves. Read-only; SOL-paired curves only; complete does not prove a PumpSwap pool exists",
-  ),
-);
+).pipe(commandHelp(getCurveTool));
 
-const buyMint = Options.text("mint").pipe(
-  Options.withDescription("Base58 mint of the coin to buy, whose bonding curve must be live"),
-);
-const sellMint = Options.text("mint").pipe(
-  Options.withDescription("Base58 mint of the coin to sell, whose bonding curve must be live"),
-);
-const amount = Options.text("amount").pipe(
-  Options.withDescription(
-    "Maximum SOL to spend in lamports, including Pump trading fees. Never a token amount",
-  ),
-);
-const tokensIn = Options.text("amount").pipe(
-  Options.withDescription(
-    "Exact quantity of the coin to sell, in its base units. Never a SOL amount",
-  ),
-);
-const maxSlippageBps = Options.integer("max-slippage-bps").pipe(
+const buyMint = Options.text("mint").pipe(optionHelp(simulateBuyTool.input.shape.mint));
+const sellMint = Options.text("mint").pipe(optionHelp(simulateSellTool.input.shape.mint));
+const buyAmount = Options.text("amount").pipe(optionHelp(simulateBuyTool.input.shape.amount));
+const sellAmount = Options.text("amount").pipe(optionHelp(simulateSellTool.input.shape.amount));
+const buySlippage = Options.integer("max-slippage-bps").pipe(
   Options.withDefault(50),
-  Options.withDescription("How far past the quote the enforced on-chain minimum may sit"),
+  optionHelp(simulateBuyTool.input.shape.maxSlippageBps),
 );
-const skipSimulation = Options.boolean("skip-simulation").pipe(
+const sellSlippage = Options.integer("max-slippage-bps").pipe(
+  Options.withDefault(50),
+  optionHelp(simulateSellTool.input.shape.maxSlippageBps),
+);
+const buySkip = Options.boolean("skip-simulation").pipe(
   Options.withDefault(false),
-  Options.withDescription(
-    "Send without simulating first. Bypasses only the simulation, never the validation or the on-chain minimum",
-  ),
+  optionHelp(executeBuyTool.input.shape.skipSimulation),
+);
+const sellSkip = Options.boolean("skip-simulation").pipe(
+  Options.withDefault(false),
+  optionHelp(executeSellTool.input.shape.skipSimulation),
 );
 
-const buyOptions = { mint: buyMint, amount, maxSlippageBps };
-const sellOptions = { mint: sellMint, amount: tokensIn, maxSlippageBps };
+const buyOptions = { mint: buyMint, amount: buyAmount, maxSlippageBps: buySlippage };
+const sellOptions = { mint: sellMint, amount: sellAmount, maxSlippageBps: sellSlippage };
 
 const simulateBuyCommand = Command.make("simulate-buy", buyOptions, (options) =>
   withSolos(
@@ -55,13 +55,9 @@ const simulateBuyCommand = Command.make("simulate-buy", buyOptions, (options) =>
       maxSlippageBps: options.maxSlippageBps,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Simulate a bounded-SOL pump.fun buy without submitting anything. amount is the maximum SOL spend including Pump fees, never a token amount; the minimum tokens out is derived from live curve state and enforced on chain",
-  ),
-);
+).pipe(commandHelp(simulateBuyTool));
 
-const buy = Command.make("buy", { ...buyOptions, skipSimulation }, (options) =>
+const buy = Command.make("buy", { ...buyOptions, skipSimulation: buySkip }, (options) =>
   withSolos(
     executeBuy({
       mint: options.mint,
@@ -70,11 +66,7 @@ const buy = Command.make("buy", { ...buyOptions, skipSimulation }, (options) =>
       skipSimulation: options.skipSimulation,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Buy a pump.fun coin with a bounded SOL budget and submit it. amount is the maximum SOL spend including Pump fees; the minimum tokens out is enforced on chain",
-  ),
-);
+).pipe(commandHelp(executeBuyTool));
 
 const simulateSellCommand = Command.make("simulate-sell", sellOptions, (options) =>
   withSolos(
@@ -84,13 +76,9 @@ const simulateSellCommand = Command.make("simulate-sell", sellOptions, (options)
       maxSlippageBps: options.maxSlippageBps,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Simulate selling a pump.fun coin back to its bonding curve without submitting anything. amount is the exact quantity of the coin in base units, never a SOL amount; the minimum SOL out is derived from live curve state and enforced on chain",
-  ),
-);
+).pipe(commandHelp(simulateSellTool));
 
-const sell = Command.make("sell", { ...sellOptions, skipSimulation }, (options) =>
+const sell = Command.make("sell", { ...sellOptions, skipSimulation: sellSkip }, (options) =>
   withSolos(
     executeSell({
       mint: options.mint,
@@ -99,13 +87,9 @@ const sell = Command.make("sell", { ...sellOptions, skipSimulation }, (options) 
       skipSimulation: options.skipSimulation,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Sell a pump.fun coin back to its bonding curve and submit it. amount is the exact quantity of the coin in base units; the minimum SOL out is enforced on chain",
-  ),
-);
+).pipe(commandHelp(executeSellTool));
 
 export const launch = Command.make("launch").pipe(
-  Command.withDescription("Pump bonding curve reads, bounded SOL-in buys, and curve-side sells"),
+  groupHelp("Pump bonding curve reads, bounded SOL-in buys, and curve-side sells"),
   Command.withSubcommands([curve, simulateBuyCommand, buy, simulateSellCommand, sell]),
 );
