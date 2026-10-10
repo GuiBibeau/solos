@@ -26,6 +26,7 @@ const EMPTY = Object.freeze(/** @type {readonly string[]} */ ([]));
  * @typedef {{
  *   readonly reservationId: string;
  *   readonly strategyId: string;
+ *   readonly tickId: string;
  *   readonly intentId: string;
  *   readonly notionalUsd: string;
  *   readonly actualUsd: string | null;
@@ -96,6 +97,7 @@ const facts = (state, options, input) => ({
   mint: input.request.mint,
   now: input.now,
   spentUsd: spentOn(state, input.request.strategyId, utcDay(input.now)),
+  tickUsd: tickTotal(state, input.request),
   bounds: options.boundsFor(input.request.strategyId),
   engineMints: options.engineMints?.() ?? EMPTY,
   kill: killFor(state, input.request.strategyId),
@@ -117,6 +119,7 @@ const hold = (state, request, now) => {
   state.reservations.set(reservationId, {
     reservationId,
     strategyId: request.strategyId,
+    tickId: request.tickId,
     intentId: request.intentId,
     notionalUsd: request.notionalUsd,
     actualUsd: null,
@@ -135,6 +138,21 @@ const isCounted = (row, strategyId, day) =>
 /** @param {Hold} row */
 const countedAmount = (row) =>
   row.status === "settled" ? (row.actualUsd ?? "0") : row.notionalUsd;
+
+/** @param {Hold} row @param {ReserveRequest} request */
+const isOnTick = (row, request) =>
+  row.strategyId === request.strategyId &&
+  row.tickId === request.tickId &&
+  row.status !== "released";
+
+/** @param {LedgerState} state @param {ReserveRequest} request */
+const tickTotal = (state, request) => {
+  let total = "0";
+  for (const row of state.reservations.values()) {
+    if (isOnTick(row, request)) total = addDecimal(total, countedAmount(row));
+  }
+  return total;
+};
 
 /** @param {LedgerState} state @param {string} strategyId @param {string} day */
 const spentOn = (state, strategyId, day) => {

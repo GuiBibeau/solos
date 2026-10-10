@@ -95,8 +95,8 @@ the one Registry. Callers reach it through the strategy tools or `solos strategy
 whose allowlist widens the Engine's is refused at registration with `BoundsExceeded`.
 
 **Bounds** — the limits one Strategy may spend, carried as `StrategyBoundsSchema`.
-`maxNotionalPerTickUsd` caps the notional of one tick. `maxDailySpendUsd` caps what the Strategy
-may reserve during the current UTC day. `allowedMints` lists the mints it may spend: empty means
+`maxNotionalPerTickUsd` caps the sum of all reserves sharing a `tickId`. `maxDailySpendUsd` caps
+what the Strategy may reserve during the current UTC day. `allowedMints` lists the mints it may spend: empty means
 any mint the Engine allowlist already permits, and a non-empty list can only narrow that
 allowlist, never widen it. `expiresAt` is when the bounds stop authorizing spends, or null when
 they do not expire on a clock. `maxConsecutiveFailures` is how many failed ticks in a row move
@@ -106,10 +106,10 @@ the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
 `reserve` holds the notional of one Intent and returns a reservation. The same `intentId`
 returns that reservation again and does not add to the day's spend. The day's spend is every
 open hold plus every settled amount reserved on the current UTC day. A hold stays on the day
-it was reserved, including when it is still open after midnight. `maxNotionalPerTickUsd`,
-`maxDailySpendUsd`, `allowedMints`, and `expiresAt` are judged on that reserve. A tick that
-emits several Actions reserves their combined notional once. An exact cap is allowed. A breach
-is `BoundsExceeded`. A Strategy with no bounds loaded is `StrategyNotFound`. The port is
+it was reserved, including when it is still open after midnight. `maxDailySpendUsd`,
+`allowedMints`, and `expiresAt` are judged on that reserve. `maxNotionalPerTickUsd` caps the
+sum of all reserves sharing a `tickId`. An exact cap is allowed. A breach is `BoundsExceeded`.
+A Strategy with no bounds loaded is `StrategyNotFound`. The port is
 `CapLedger`. `memoryCapLedger` keeps the account in the process.
 
 **Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by

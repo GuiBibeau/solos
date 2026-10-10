@@ -7,14 +7,16 @@ import { KillSwitchEngaged, StrategyNotFound } from "./errors.js";
 
 /**
  * Facts a reserve is judged against. `spentUsd` is open holds plus settled amounts for this
- * Strategy on the UTC day of `now`. `kill` is set when the global switch or the per-Strategy
- * switch is engaged; global wins.
+ * Strategy on the UTC day of `now`. `tickUsd` is the same kind of sum for reserves that share
+ * this reserve's `tickId`. `kill` is set when the global switch or the per-Strategy switch
+ * is engaged; global wins.
  * @typedef {{
  *   readonly strategyId: string;
  *   readonly notionalUsd: string;
  *   readonly mint: string;
  *   readonly now: number;
  *   readonly spentUsd: string;
+ *   readonly tickUsd: string;
  *   readonly bounds: StrategyBounds | undefined;
  *   readonly engineMints: readonly string[];
  *   readonly kill: { readonly scope: string; readonly reason: string } | undefined;
@@ -110,13 +112,14 @@ const mintRefusal = (facts) =>
 /** @param {KnownBounds} facts @returns {BoundsExceeded | undefined} */
 const perTick = (facts) => {
   const limit = facts.bounds.maxNotionalPerTickUsd;
-  const over = facts.notionalUsd.startsWith("-") || compareDecimal(facts.notionalUsd, limit) > 0;
-  if (!over) return undefined;
+  const negative = facts.notionalUsd.startsWith("-");
+  const requested = negative ? facts.notionalUsd : addDecimal(facts.tickUsd, facts.notionalUsd);
+  if (!negative && compareDecimal(requested, limit) <= 0) return undefined;
   return exceeded(facts, {
     bound: "maxNotionalPerTickUsd",
     limit,
-    requested: facts.notionalUsd,
-    reason: `notional ${facts.notionalUsd} USD is above the per-tick cap of ${limit} USD`,
+    requested,
+    reason: `tick total ${requested} USD is above the per-tick cap of ${limit} USD`,
     remedy: "lower the notional or raise maxNotionalPerTickUsd",
   });
 };

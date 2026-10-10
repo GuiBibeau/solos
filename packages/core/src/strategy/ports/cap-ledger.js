@@ -7,6 +7,7 @@ export const GLOBAL_KILL_SCOPE = "global";
 /**
  * @typedef {{
  *   readonly strategyId: string;
+ *   readonly tickId: string;
  *   readonly intentId: string;
  *   readonly notionalUsd: string;
  *   readonly mint: string;
@@ -29,9 +30,9 @@ export const GLOBAL_KILL_SCOPE = "global";
  * is higher: the overshoot is stored on the reservation and the per-Strategy switch engages.
  * `release` frees an open hold. Each of those applies once; a later call leaves the hold as
  * the first one left it. An unknown reservation id is a defect. USD amounts are decimal
- * strings compared exactly. An engaged switch blocks new reserves only. A tick that emits
- * several Actions reserves their combined notional once. Daily spend is open holds plus
- * settled amounts on the UTC day the hold was reserved.
+ * strings compared exactly. An engaged switch blocks new reserves only.
+ * `maxNotionalPerTickUsd` caps the sum of all reserves sharing a `tickId`. Daily spend is
+ * open holds plus settled amounts on the UTC day the hold was reserved.
  * @typedef {{
  *   readonly reserve: (
  *     request: ReserveRequest,

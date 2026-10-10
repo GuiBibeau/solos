@@ -22,6 +22,7 @@ const bounds = (patch = {}) =>
 /** @param {string} strategyId @param {string} intentId @param {string} notionalUsd */
 const req = (strategyId, intentId, notionalUsd) => ({
   strategyId,
+  tickId: intentId,
   intentId,
   notionalUsd,
   mint: USDC,
