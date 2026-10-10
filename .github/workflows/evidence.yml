@@ -1,33 +1,67 @@
 name: evidence
 
-# The PR body must carry the author's Evidence for the head sha (agent or human). Runs on its own
-# so a body edit re-checks without re-running the suite, and reads the live body from the API
-# rather than the event payload (a push event carries the body as it was before the author
-# pasted the new Evidence). Renovate and the changesets bot cannot run `verify`; their PRs are
-# proven by the CI re-run alone.
+# The head SHA does not exist until the push, so the synchronize run reads a body that
+# cannot name it yet and fails. Editing the pull request body runs this check again;
+# the live body comes from the API, not the event payload. Title-only and base-only
+# edits do not run the check.
+#
+# A skipped job still publishes a check, and GitHub treats skipped as success for a
+# required check. This job therefore always runs, so its name is evaluated: evidence
+# for a real check (and for Renovate and the changesets bot, whose proof is CI), and
+# evidence-ignored for a title or base edit. Those edits use their own concurrency
+# group, so they cannot cancel the run that counts.
+#
+# Branch protection follows the latest check named evidence for the head SHA.
+# Concurrency cancels an in-progress run for that same pull request and SHA when a
+# newer one starts: the body edit supersedes the push that fetched the stale body.
+# A different SHA is a different required check and is not cancelled.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
 concurrency:
-  group: evidence-${{ github.event.pull_request.number }}
+  group: "${{ (github.event.action == 'edited' && github.event.changes.body == null) && format('evidence-ignored-{0}-{1}', github.event.pull_request.number, github.run_id) || format('evidence-{0}-{1}', github.event.pull_request.number, github.event.pull_request.head.sha) }}"
   cancel-in-progress: true
 
 jobs:
   evidence:
-    if: >-
-      !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)
+    name: ${{ (github.event.action == 'edited' && github.event.changes.body == null && !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)) && 'evidence-ignored' || 'evidence' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
     steps:
+      - name: Record the triggering activity
+        id: gate
+        env:
+          ACTOR: ${{ github.event.pull_request.user.login }}
+          ACTION: ${{ github.event.action }}
+          BODY_EDIT: ${{ github.event.action == 'edited' && github.event.changes.body != null }}
+        run: |
+          echo "action=${ACTION} actor=${ACTOR} body_edit=${BODY_EDIT}"
+          bot=false
+          case "$ACTOR" in
+            "renovate[bot]" | "github-actions[bot]") bot=true ;;
+          esac
+          if [ "$bot" = true ]; then
+            echo "bot pull request; the CI re-run is the proof"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = edited ] && [ "$BODY_EDIT" != true ]; then
+            echo "title or base edit; the evidence check is unchanged"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.gate.outputs.run == 'true'
       - uses: ./.github/actions/setup
+        if: steps.gate.outputs.run == 'true'
       - name: Fetch the live PR body
+        if: steps.gate.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body > pr-body.md
       - name: solos dev evidence check
+        if: steps.gate.outputs.run == 'true'
         run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"
