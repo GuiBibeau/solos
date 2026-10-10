@@ -2,19 +2,24 @@ name: evidence
 
 # The head SHA does not exist until the push, so the synchronize run reads a body that
 # cannot name it yet and fails. Editing the pull request body runs this check again;
-# the live body comes from the API, not the event payload (a push payload is the body
-# from before that paste). Title-only and base-only edits do not run the check.
+# the live body comes from the API, not the event payload. Title-only and base-only
+# edits do not run the check.
 #
 # A skipped job still publishes a check, and GitHub treats skipped as success for a
-# required check. Ignoring an edit under the name "evidence" would clear a real
-# failure, so those runs are named evidence-ignored and use a concurrency group of
-# their own. They cannot cancel the run that counts.
+# required check. The name expression is only evaluated when the job runs, so a skip
+# cannot be given a different name than a real run. Title and base edits therefore
+# run the job, under the name evidence-ignored, and stop before the check. They also
+# use their own concurrency group, so they cannot cancel the run that counts.
 #
-# Branch protection follows the latest evidence check for the head SHA. Concurrency
-# cancels an in-progress run for that same pull request and SHA when a newer one
-# starts, so a body edit supersedes the push that is about to fail on the stale body.
-# A different SHA is a different required check and is not cancelled. Renovate and
-# the changesets bot cannot run verify; their pull requests are proven by CI alone.
+# Branch protection follows the latest check named evidence for the head SHA.
+# Concurrency cancels an in-progress run for that same pull request and SHA when a
+# newer one starts: the body edit supersedes the push that fetched the stale body.
+# A different SHA is a different required check and is not cancelled.
+#
+# Renovate and the changesets bot cannot run verify. Skipping the job above would
+# not report the name evidence (a skipped job does not evaluate its name), so the
+# bot job reports that name itself. Humans skip it; the unevaluated name is not
+# evidence, and it does not clear a failure.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -26,22 +31,41 @@ concurrency:
 jobs:
   evidence:
     name: "${{ (github.event.action == 'edited' && github.event.changes.body == null) && 'evidence-ignored' || 'evidence' }}"
-    if: >-
-      !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) &&
-      (github.event.action != 'edited' || github.event.changes.body != null)
+    if: ${{ !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: ./.github/actions/setup
       - name: Record the triggering activity
-        run: echo "action=${{ github.event.action }} body_changed=${{ github.event.action == 'edited' && github.event.changes.body != null }}"
+        id: gate
+        run: |
+          echo "action=${{ github.event.action }} run_check=${{ github.event.action != 'edited' || github.event.changes.body != null }}"
+          echo "run=${{ github.event.action != 'edited' || github.event.changes.body != null }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.gate.outputs.run == 'true'
+      - uses: ./.github/actions/setup
+        if: steps.gate.outputs.run == 'true'
       - name: Fetch the live PR body
+        if: steps.gate.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body > pr-body.md
       - name: solos dev evidence check
+        if: steps.gate.outputs.run == 'true'
         run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"
+
+  bots:
+    # Evaluates to evidence when this job runs (bots only). A skipped job does not
+    # evaluate the expression, so on a human pull request the check name is the
+    # raw text and is not the required check.
+    name: "${{ 'evidence' }}"
+    if: ${{ contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Bot pull requests are proven by CI
+        run: echo "Renovate and the changesets bot cannot run verify; the CI re-run is the proof"
