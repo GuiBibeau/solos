@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   evidence:
-    name: "${{ (github.event.action == 'edited' && github.event.changes.body == null && !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)) && 'evidence-ignored' || 'evidence' }}"
+    name: ${{ (github.event.action == 'edited' && github.event.changes.body == null && !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)) && 'evidence-ignored' || 'evidence' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
