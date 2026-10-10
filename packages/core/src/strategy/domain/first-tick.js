@@ -3,7 +3,7 @@
 /** Digits after the decimal point. No dot means a whole number. @param {string} value */
 const fractionLength = (value) => {
   const dot = value.indexOf(".");
-  if (dot < 0) return 0;
+  if (dot === -1) return 0;
   return value.length - dot - 1;
 };
 
