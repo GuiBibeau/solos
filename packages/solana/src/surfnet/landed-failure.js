@@ -2,17 +2,17 @@
 import { createMemorySignerFromBytes } from "@solana/keychain-memory";
 import {
   address,
-  appendTransactionMessageInstruction,
-  createTransactionMessage,
+  appendTransactionMessageInstructions,
   getBase64EncodedWireTransaction,
   getSignatureFromTransaction,
   lamports,
   pipe,
-  setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
+import { beginV1Message } from "../executor/transaction-v1.js";
+import { TRANSFER_V1_CONFIG } from "../executor/transfer-sol.js";
 import { jsonRpc } from "./surfnet-cli.js";
 
 const SPEND = 2_000_000_000n;
@@ -31,6 +31,7 @@ export const broadcastFailingTransfer = async (rpcUrl, seed, to) => {
     signed.wire,
     { encoding: "base64", skipPreflight: true },
   ]);
+  await waitUntilFailed(rpcUrl, signature);
   return { signature, fee: await waitForFee(rpcUrl, signature) };
 };
 
@@ -52,21 +53,46 @@ const lifetimeOf = async (rpcUrl) => {
 const signOverspend = async (seed, to, lifetime) => {
   const signer = await createMemorySignerFromBytes(seed);
   const message = pipe(
-    createTransactionMessage({ version: "legacy" }),
-    (current) => setTransactionMessageFeePayerSigner(signer, current),
+    beginV1Message({ feePayerSigner: signer, config: TRANSFER_V1_CONFIG }),
     (current) => setTransactionMessageLifetimeUsingBlockhash(lifetime, current),
     (current) =>
-      appendTransactionMessageInstruction(
-        getTransferSolInstruction({
-          source: signer,
-          destination: address(to),
-          amount: lamports(SPEND),
-        }),
+      appendTransactionMessageInstructions(
+        [
+          getTransferSolInstruction({
+            source: signer,
+            destination: address(to),
+            amount: lamports(SPEND),
+          }),
+        ],
         current,
       ),
   );
   const transaction = await signTransactionMessageWithSigners(message);
   return { transaction, wire: getBase64EncodedWireTransaction(transaction) };
+};
+
+/** @param {string} rpcUrl @param {string} signature */
+const waitUntilFailed = async (rpcUrl, signature) => {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    if (isFailed(await readStatus(rpcUrl, signature))) return;
+    await Bun.sleep(200);
+  }
+  throw new Error("landed execution error was not visible");
+};
+
+/** @param {string} rpcUrl @param {string} signature */
+const readStatus = (rpcUrl, signature) =>
+  jsonRpc(rpcUrl, "getSignatureStatuses", [[signature], { searchTransactionHistory: true }]);
+
+/** @param {unknown} response */
+const isFailed = (response) => {
+  const row = /** @type {{ value?: unknown[] } | null} */ (response)?.value?.[0];
+  if (row === null || typeof row !== "object") return false;
+  const status = /** @type {{ confirmationStatus?: unknown; err?: unknown }} */ (row);
+  const isConfirmed =
+    status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized";
+  return isConfirmed && status.err !== null && status.err !== undefined;
 };
 
 /** @param {string} rpcUrl @param {string} signature */

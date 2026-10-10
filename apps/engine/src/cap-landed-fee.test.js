@@ -84,6 +84,17 @@ const plant = (dataDir, strategyId, landed) => {
   db.close();
 };
 
+/** @param {TestEngine} engine */
+const waitSettled = async (engine) => {
+  const deadline = Date.now() + 15_000;
+  let looked = await engineFetch(engine, `/v1/intents/${INTENT}`);
+  while (looked.body.state === "in_flight" && Date.now() < deadline) {
+    await Bun.sleep(250);
+    looked = await engineFetch(engine, `/v1/intents/${INTENT}`);
+  }
+  return looked;
+};
+
 /** @param {string} dataDir */
 const holdOf = (dataDir) => {
   const db = openIntents(path.join(dataDir, "intents.sqlite"));
@@ -110,7 +121,7 @@ describe("a landed execution error settles the paid fee [integration]", () => {
     plant(dataDir, strategyId, { signature: landed.signature, to });
     const second = await boot(feed, dataDir, false);
     try {
-      const looked = await engineFetch(second, `/v1/intents/${INTENT}`);
+      const looked = await waitSettled(second);
       expect(looked.body).toMatchObject({
         state: "settled",
         result: { status: "failed", signature: landed.signature },
