@@ -28,9 +28,14 @@ const lookupRow = (db, intentId) => {
  * @param {IntentSql} row
  */
 const shaped = (row) => {
-  if (row.state === "settled") return { state: /** @type {const} */ ("settled"), signature: row.signature };
+  if (row.state === "settled")
+    return { state: /** @type {const} */ ("settled"), signature: row.signature };
   if (row.state === "failed") {
-    return { state: /** @type {const} */ ("failed"), signature: row.signature, reason: reasonOf(row.payload) };
+    return {
+      state: /** @type {const} */ ("failed"),
+      signature: row.signature,
+      reason: reasonOf(row.payload),
+    };
   }
   return { state: /** @type {const} */ ("in_flight"), signature: row.signature };
 };

@@ -25,7 +25,7 @@ export const SqliteTickRepository = (db, window = 50) => {
 
 /**
  * @param {import("bun:sqlite").Database} db
- * @param {import("@solos/core/strategy").TickSchema extends infer _ ? import("zod").infer<typeof TickSchema> : never} tick
+ * @param {import("@solos/core/strategy").Tick} tick
  */
 const writeTick = (db, tick) => {
   db.query(
@@ -45,7 +45,10 @@ const writeTick = (db, tick) => {
  */
 const readTicks = (db, query, limit) => {
   const outcome = query.outcome === undefined ? "" : "AND outcome = ?";
-  const params = query.outcome === undefined ? [query.strategyId, limit] : [query.strategyId, query.outcome, limit];
+  const params =
+    query.outcome === undefined
+      ? [query.strategyId, limit]
+      : [query.strategyId, query.outcome, limit];
   return db
     .query(
       `SELECT body FROM ticks WHERE strategy_id = ? ${outcome} ORDER BY started_at DESC, rowid DESC LIMIT ?`,

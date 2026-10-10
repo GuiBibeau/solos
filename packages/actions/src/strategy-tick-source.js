@@ -12,14 +12,16 @@ export const DurationSchema = z
 const EVERY_MESSAGE = "every must be milliseconds, 30s, 5m, 1h, or an ISO-8601 duration";
 
 /** Milliseconds, a plain duration, or an ISO-8601 duration. Stored as milliseconds. */
-const EverySchema = z.union([z.number().int().positive(), z.string().min(1)]).transform((value, ctx) => {
-  const ms = durationMs(value);
-  if (ms === undefined) {
-    ctx.addIssue({ code: "custom", message: EVERY_MESSAGE });
-    return z.NEVER;
-  }
-  return ms;
-});
+const EverySchema = z
+  .union([z.number().int().positive(), z.string().min(1)])
+  .transform((value, ctx) => {
+    const ms = durationMs(value);
+    if (ms === undefined) {
+      ctx.addIssue({ code: "custom", message: EVERY_MESSAGE });
+      return z.NEVER;
+    }
+    return ms;
+  });
 
 const clock = z
   .object({

@@ -13,7 +13,7 @@ import { Context } from "effect";
  * @typedef {{
  *   readonly read: (
  *     request: ObservationRequest,
- *   ) => import("effect").Effect.Effect<Readonly<Record<string, string | number>>>;
+ *   ) => import("effect").Effect.Effect<Readonly<Record<string, string | number>>, unknown>;
  * }} ObservationReaderShape
  */
 

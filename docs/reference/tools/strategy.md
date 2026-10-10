@@ -3,12 +3,13 @@
 Part of the [tool reference](index.md).
 
 A Strategy is a registered description of later work: a kind, that kind's parameters, a tick
-source, Bounds, and a lifecycle state. Registering one stores it. Nothing ticks in this slice,
-and no transaction is signed. `schedule` and `trigger` are the kinds the contract accepts.
+source, Bounds, and a lifecycle state. Registering one stores it. A `schedule` Strategy ticks
+on its clock: the Engine observes, evaluates, reserves each Action, and sends. `schedule` and
+`trigger` are the kinds the contract accepts.
 `rebalance`, `range`, and `carry` are names that fail until their issues ship.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
-`solos strategy`, both of which talk to the Engine over HTTP. Core registers the eleven MCP
+`solos strategy`, both of which talk to the Engine over HTTP. Core registers the twelve MCP
 tools unconditionally, so they always exist. `STRATEGIES` is a `feature()` flag fixed when
 Bun loads the code (`bun --feature=STRATEGIES`); release builds leave it off. `bun run solos`
 starts a second Bun and drops `--feature`, so both the Engine and the CLI group are started
@@ -30,12 +31,12 @@ there's no Engine to hold a Registry.
 
 ## Bounds
 
-Each Strategy carries `StrategyBoundsSchema`. `maxNotionalPerTickUsd` caps one tick.
-`maxDailySpendUsd` caps the UTC day. `allowedMints` empty means any mint the Engine allowlist
-already permits; a non-empty list can only narrow that allowlist, never widen it. Widening is
-refused at registration with `BoundsExceeded`, and `requested` names the mint. `expiresAt` is
-the clock expiry, or null. `maxConsecutiveFailures` is how many failed ticks in a row fail the
-Strategy. A breach is refused with `BoundsExceeded`.
+Each Strategy carries `StrategyBoundsSchema`. `maxNotionalPerTickUsd` caps the sum of reserves
+that share one Tick. `maxDailySpendUsd` caps the UTC day. `allowedMints` empty means any mint
+the Engine allowlist already permits; a non-empty list can only narrow that allowlist, never
+widen it. Widening is refused at registration with `BoundsExceeded`, and `requested` names the
+mint. `expiresAt` is the clock expiry, or null. `maxConsecutiveFailures` is how many failed
+ticks in a row pause the Strategy. A breach is refused with `BoundsExceeded`.
 
 ## Lifecycle
 
@@ -45,7 +46,9 @@ move is refused with `StrategyTransitionRefused`, which carries `from` and `to`.
 
 ## Tools
 
-`solana_strategy_list_strategies` and `solana_strategy_get_status` read the Registry.
+`solana_strategy_list_strategies` and `solana_strategy_get_status` read the Registry. Status
+includes `lastTick` and `nextDueAt`. `solana_strategy_get_ticks` reads that Strategy's Ticks,
+newest first, with an optional limit and outcome.
 
 `solana_strategy_simulate_register` validates a draft and returns the Actions a first tick would
 emit. A schedule returns its configured Actions. A trigger also returns the observed price.
@@ -63,8 +66,8 @@ change and write nothing. `solana_strategy_execute_engage_kill` and
 `solana_strategy_execute_disengage_kill` apply it. A scope of `global` covers every Strategy.
 Any other scope is one Strategy id.
 
-`solos strategy register --file <path>`, `list`, `status <id>`, `pause <id>`, `resume <id>`, and
-`cancel <id>` are the same operations. `solos strategy kill --scope <scope> --reason <text>`,
+`solos strategy register --file <path>`, `list`, `status <id>`, `ticks <id>`, `pause <id>`,
+`resume <id>`, and `cancel <id>` are the same operations. `solos strategy kill --scope <scope> --reason <text>`,
 `kill-status --scope <scope>`, and `disengage --scope <scope>` are the kill switch. They need
 `SOLOS_ENGINE_URL` and `SOLOS_ENGINE_TOKEN`, and the CLI process needs `--feature=STRATEGIES`.
 

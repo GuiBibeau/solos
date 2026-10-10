@@ -54,4 +54,7 @@ const stored = (draft, id, createdAt) => {
  * @param {import("@solos-sh/actions").Strategy} strategy
  * @param {number} now
  */
-const scheduled = (strategy, now) => ({ ...strategy, nextDueAt: nextInstant(strategy, now) ?? null });
+const scheduled = (strategy, now) => ({
+  ...strategy,
+  nextDueAt: nextInstant(strategy, now) ?? null,
+});

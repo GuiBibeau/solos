@@ -85,7 +85,7 @@ that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner l
 Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
 or swarm uses to tell its registrations apart. It is never authorization.
 `schedule` and `trigger` are defined in `@solos-sh/actions`. `rebalance`, `range`, and `carry`
-are names until their issues ship. Nothing in this slice ticks. States are `active`,
+are names until their issues ship. A `schedule` Strategy ticks on its clock. States are `active`,
 `paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
 `StrategyTransitionRefused`.
@@ -100,7 +100,18 @@ what the Strategy may reserve during the current UTC day. `allowedMints` lists t
 any mint the Engine allowlist already permits, and a non-empty list can only narrow that
 allowlist, never widen it. `expiresAt` is when the bounds stop authorizing spends, or null when
 they do not expire on a clock. `maxConsecutiveFailures` is how many failed ticks in a row move
-the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
+the Strategy to `paused`. A breach is refused with `BoundsExceeded`.
+
+**Tick** — one evaluation of one Strategy at one instant. It records when it was due, the
+Observations the kind declared, the Actions evaluate returned, and one Intent per Action that
+was sent. Outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped_bounds`,
+`skipped_observation`, and `in_flight`. A missed Tick is an occurrence the Engine was down for.
+It is recorded once and never replayed. An in-flight Tick keeps its reservation until the Intent
+settles. Ticks are appended. A read returns the newest first.
+
+**Observation** — one named fact a kind declares and the Engine reads before evaluate. A schedule
+Tick reads the signer's lamport balance and the Tick instant. The kind never reads them itself.
+A missing Observation records `skipped_observation`.
 
 **Cap ledger** — the account of what a Strategy has reserved and settled against its Bounds.
 `reserve` holds the notional of one Intent and returns a reservation. The same `intentId`

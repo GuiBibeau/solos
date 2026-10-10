@@ -1,7 +1,7 @@
 // @ts-check
-import { ActionExecutor, errorEnvelope, toJsonSafe } from "@solos/core";
+import { ActionExecutor, PriceFeed, errorEnvelope, toJsonSafe } from "@solos/core";
 import { TickSubmit } from "@solos/core/strategy";
-import { signedIntentNote } from "@solos/solana";
+import { SolanaRpc, signedIntentNote } from "@solos/solana";
 import { Effect, Layer } from "effect";
 import { claimIntent, failIntent, readIntent, recordSigned, settleIntent } from "./intents.js";
 import { paidFeeUsd } from "./paid-fee.js";
@@ -16,8 +16,14 @@ export const engineTickSubmit = (db) =>
     TickSubmit,
     Effect.gen(function* () {
       const executor = yield* ActionExecutor;
+      const prices = yield* PriceFeed;
+      const rpc = yield* SolanaRpc;
       return {
-        submit: (input) => submitOne(db, executor, input),
+        submit: (input) =>
+          submitOne(db, executor, input).pipe(
+            Effect.provideService(PriceFeed, prices),
+            Effect.provideService(SolanaRpc, rpc),
+          ),
       };
     }),
   );
@@ -39,22 +45,21 @@ const submitOne = (db, executor, input) => {
  * @param {{ intentId: string; action: import("@solos-sh/actions").Action }} input
  */
 const send = (db, executor, input) =>
-  executor
-    .execute(input.action, { skipSimulation: false, intentId: input.intentId })
-    .pipe(
-      Effect.locally(signedIntentNote, (sealed) => {
-        recordSigned(db, input.intentId, sealed);
+  executor.execute(input.action, { skipSimulation: false, intentId: input.intentId }).pipe(
+    Effect.locally(signedIntentNote, (sealed) => {
+      recordSigned(db, input.intentId, sealed);
+    }),
+    Effect.match({
+      onFailure: (error) => ({ failed: /** @type {const} */ (true), error }),
+      onSuccess: (result) => ({ failed: /** @type {const} */ (false), result }),
+    }),
+    Effect.flatMap((step) =>
+      Effect.gen(function* () {
+        if (step.failed) return failedSend(db, input.intentId, step.error);
+        return yield* landed(db, input.intentId, step.result);
       }),
-      Effect.match({
-        onFailure: (error) => ({ failed: /** @type {const} */ (true), error }),
-        onSuccess: (result) => ({ failed: /** @type {const} */ (false), result }),
-      }),
-      Effect.flatMap((step) =>
-        step.failed
-          ? Effect.succeed(failedSend(db, input.intentId, step.error))
-          : landed(db, input.intentId, step.result),
-      ),
-    );
+    ),
+  );
 
 /** @param {Exclude<ReturnType<typeof claimIntent>, { state: "claimed" }>} claim */
 const stored = (claim) => {
@@ -69,21 +74,19 @@ const stored = (claim) => {
  * @param {string} intentId
  * @param {import("@solos-sh/actions").ExecutionResult} result
  */
-const landed = (db, intentId, result) => {
-  const signature = result.signature;
-  if (result.status !== "confirmed" && (signature === null || signature.length === 0)) {
-    return Effect.succeed(failedResult(db, intentId, result));
-  }
-  settleIntent(db, intentId, toJsonSafe(result));
-  if (result.status === "confirmed" || signature === null || signature.length === 0) {
-    return Effect.succeed({
-      intentId,
-      state: /** @type {const} */ ("settled"),
-      signature,
-    });
-  }
-  return paidFeeUsd(signature).pipe(Effect.map((feeUsd) => feeRow(intentId, result, feeUsd)));
-};
+const landed = (db, intentId, result) =>
+  Effect.gen(function* () {
+    const signature = result.signature;
+    if (result.status !== "confirmed" && (signature === null || signature.length === 0)) {
+      return failedResult(db, intentId, result);
+    }
+    settleIntent(db, intentId, toJsonSafe(result));
+    if (signature === null || signature.length === 0 || result.status === "confirmed") {
+      return { intentId, state: /** @type {const} */ ("settled"), signature };
+    }
+    const feeUsd = yield* paidFeeUsd(signature);
+    return feeRow(intentId, result, feeUsd);
+  });
 
 /**
  * A known fee settles the hold. An unknown fee stays in flight so recovery can price it.
@@ -137,21 +140,22 @@ const openRow = (intentId, signature) => ({
  * @param {string} reason
  * @param {string | null} [signature]
  */
-const failedRow = (intentId, reason, signature = null, feeUsd = undefined) => ({
+const failedRow = (intentId, reason, signature = null) => ({
   intentId,
   state: /** @type {const} */ ("failed"),
-  ...(signature != null ? { signature } : {}),
-  ...(feeUsd !== undefined && { feeUsd }),
+  ...(signature !== undefined && signature !== null && { signature }),
   reason,
   remedy: "inspect the signature",
 });
 
 /** @param {string} intentId @param {unknown} result */
 const settledRow = (intentId, result) => {
-  const body = /** @type {{ status?: string; signature?: string | null; error?: string | null }} */ (
-    result ?? {}
-  );
-  if (body.status === "confirmed") return { intentId, state: /** @type {const} */ ("settled"), signature: body.signature ?? null };
+  const body =
+    /** @type {{ status?: string; signature?: string | null; error?: string | null }} */ (
+      result ?? {}
+    );
+  if (body.status === "confirmed")
+    return { intentId, state: /** @type {const} */ ("settled"), signature: body.signature ?? null };
   return failedRow(intentId, body.error ?? "execution failed", body.signature ?? null);
 };
 
@@ -164,4 +168,5 @@ const reasonOf = (error) => {
 };
 
 /** @param {unknown} value @param {string} fallback */
-const text = (value, fallback) => (typeof value === "string" && value.length > 0 ? value : fallback);
+const text = (value, fallback) =>
+  typeof value === "string" && value.length > 0 ? value : fallback;

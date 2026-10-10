@@ -49,9 +49,10 @@ const requiredLamports = (actions) => {
 /** @param {import("@solos-sh/actions").Action} action */
 const actionLamports = (action) => {
   if (action.type === "transfer_sol") return BigInt(action.lamports);
-  if (action.type === "swap" && spendsSol(action)) return BigInt(action.amount) + ATA_RENT_LAMPORTS;
+  if (action.type === "swap" && requiresSol(action))
+    return BigInt(action.amount) + ATA_RENT_LAMPORTS;
   return 0n;
 };
 
 /** @param {import("@solos-sh/actions").SwapAction} action */
-const spendsSol = (action) => action.inputMint === WSOL_MINT;
+const requiresSol = (action) => action.inputMint === WSOL_MINT;

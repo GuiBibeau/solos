@@ -11,8 +11,6 @@ import {
 import { ENGINE_TOKEN, forwardStart, hostEnv, stopEngine } from "./engine-test-env.js";
 import { startEngine } from "./start.js";
 
-export { ENGINE_TOKEN };
-
 /** @type {Promise<void>} */
 let turn = Promise.resolve();
 
@@ -178,3 +176,4 @@ const presented = (handle, parts) => ({
     }),
 });
 
+export { ENGINE_TOKEN } from "./engine-test-env.js";

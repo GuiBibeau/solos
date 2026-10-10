@@ -11,7 +11,8 @@ export const runDueTicks = () =>
   Effect.gen(function* () {
     const now = yield* (yield* StrategyIds).now();
     const due = [];
-    for (const strategy of yield* (yield* StrategyRepository).byState("active")) {
+    const active = yield* (yield* StrategyRepository).byState("active");
+    for (const strategy of active) {
       if (!(yield* isDue(strategy, now))) continue;
       due.push(strategy);
     }
@@ -32,10 +33,19 @@ const isDue = (strategy, now) =>
     });
     if (open.length > 0) return false;
     const dueAt = strategy.nextDueAt;
-    if (dueAt == null || now < dueAt) return false;
-    if (strategy.expiresAt != null && dueAt >= strategy.expiresAt) {
-      yield* performEngineTransition(strategy.id, "expired", "expiresAt has passed");
-      return false;
-    }
+    if (dueAt === undefined || dueAt === null || now < dueAt) return false;
+    if (yield* expireIfDue(strategy, dueAt)) return false;
+    return true;
+  });
+
+/**
+ * @param {import("@solos-sh/actions").Strategy} strategy
+ * @param {number} dueAt
+ */
+const expireIfDue = (strategy, dueAt) =>
+  Effect.gen(function* () {
+    const expiresAt = strategy.expiresAt;
+    if (expiresAt === undefined || expiresAt === null || dueAt < expiresAt) return false;
+    yield* performEngineTransition(strategy.id, "expired", "expiresAt has passed");
     return true;
   });

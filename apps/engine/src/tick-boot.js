@@ -14,7 +14,8 @@ export const bootTicks = async (runtime, enabled, start) => {
   if (!enabled) return { runDue: async () => undefined, stop: async () => undefined };
   await runtime.runPromise(recoverTicks());
   const runDue = () => runtime.runPromise(runDueTicks());
-  const stop = start.tickDrive === "auto" ? armed(runDue, start.minIntervalMs) : async () => undefined;
+  const stop =
+    start.tickDrive === "auto" ? armed(runDue, start.minIntervalMs) : async () => undefined;
   return { runDue, stop };
 };
 

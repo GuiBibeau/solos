@@ -20,7 +20,6 @@ import { TickSubmit } from "../ports/tick-submit.js";
  * Reserve, send, and settle one Action. A settle above the hold is recorded here. The ledger
  * engages the kill switch itself.
  * @param {{ strategyId: string; tickId: string; intentId: string; action: import("@solos-sh/actions").Action }} input
- * @returns {import("effect").Effect.Effect<StepResult, unknown, SpendMeter | CapLedger | TickSubmit>}
  */
 export const runStep = (input) =>
   Effect.gen(function* () {
@@ -28,7 +27,10 @@ export const runStep = (input) =>
     if (quoted._tag === "Left") return observationSkip(quoted.left);
     const reserved = yield* reserve(input, quoted.right);
     if (!reserved.ok) return reserved.outcome;
-    const sent = yield* (yield* TickSubmit).submit({ intentId: input.intentId, action: input.action });
+    const sent = yield* (yield* TickSubmit).submit({
+      intentId: input.intentId,
+      action: input.action,
+    });
     return yield* finish(reserved.reservationId, quoted.right, sent);
   });
 
@@ -47,7 +49,8 @@ const reserve = (input, quote) =>
         mint: quote.mint,
       })
       .pipe(Effect.either);
-    if (held._tag === "Left") return { ok: /** @type {const} */ (false), outcome: boundsSkip(held.left) };
+    if (held._tag === "Left")
+      return { ok: /** @type {const} */ (false), outcome: boundsSkip(held.left) };
     return { ok: /** @type {const} */ (true), reservationId: held.right.reservationId };
   });
 
@@ -77,9 +80,8 @@ const finish = (reservationId, quote, sent) =>
  */
 const failed = (input) =>
   Effect.gen(function* () {
-    if (input.sent.feeUsd !== undefined) {
-      yield* input.ledger.settle(input.reservationId, input.sent.feeUsd);
-    } else yield* input.ledger.release(input.reservationId);
+    if (input.sent.feeUsd === undefined) yield* input.ledger.release(input.reservationId);
+    else yield* input.ledger.settle(input.reservationId, input.sent.feeUsd);
     return {
       outcome: /** @type {const} */ ("failed"),
       intent: input.intent,
@@ -127,15 +129,25 @@ const observationSkip = (error) => ({
 const intentOf = (sent, quote) => ({
   intentId: sent.intentId,
   state: sent.state,
-  ...(sent.signature != null ? { signature: sent.signature } : {}),
+  ...(sent.signature !== undefined && sent.signature !== null && { signature: sent.signature }),
   notionalUsd: quote.reserveUsd,
   mint: quote.mint,
 });
 
 /** @param {unknown} error */
 const reasonOf = (error) => {
-  if (error instanceof BoundsExceeded || error instanceof KillSwitchEngaged) return error.reason ?? "";
-  if (error instanceof StrategyNotFound) return error.reason ?? "";
+  if (isTaggedReason(error)) return error.reason ?? "";
+  return reasonField(error);
+};
+
+/** @param {unknown} error @returns {error is { reason?: string }} */
+const isTaggedReason = (error) =>
+  error instanceof BoundsExceeded ||
+  error instanceof KillSwitchEngaged ||
+  error instanceof StrategyNotFound;
+
+/** @param {unknown} error */
+const reasonField = (error) => {
   if (typeof error === "object" && error !== null && "reason" in error) {
     return String(/** @type {{ reason?: unknown }} */ (error).reason ?? "");
   }

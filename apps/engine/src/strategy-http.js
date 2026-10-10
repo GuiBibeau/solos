@@ -47,12 +47,30 @@ const collectionRoute = (method, pathname) => {
 const idRoute = (method, pathname) => {
   const id = strategyId(pathname);
   if (id === undefined) return undefined;
-  if (method === "GET" && pathname === `/v1/strategies/${id}`) return get(id);
-  if (method === "GET" && pathname === `/v1/strategies/${id}/ticks`) return listStrategyTicks(id);
-  if (method === "POST" && pathname === `/v1/strategies/${id}/state`) return update(id);
-  if (method === "POST" && pathname === `/v1/strategies/${id}/state/simulate`) {
-    return simulateUpdate(id);
-  }
+  return readRoute(method, pathname, id) ?? writeRoute(method, pathname, id);
+};
+
+/**
+ * @param {string} method
+ * @param {string} pathname
+ * @param {string} id
+ */
+const readRoute = (method, pathname, id) => {
+  if (method !== "GET") return undefined;
+  if (pathname === `/v1/strategies/${id}`) return get(id);
+  if (pathname === `/v1/strategies/${id}/ticks`) return listStrategyTicks(id);
+  return undefined;
+};
+
+/**
+ * @param {string} method
+ * @param {string} pathname
+ * @param {string} id
+ */
+const writeRoute = (method, pathname, id) => {
+  if (method !== "POST") return undefined;
+  if (pathname === `/v1/strategies/${id}/state`) return update(id);
+  if (pathname === `/v1/strategies/${id}/state/simulate`) return simulateUpdate(id);
   return undefined;
 };
 

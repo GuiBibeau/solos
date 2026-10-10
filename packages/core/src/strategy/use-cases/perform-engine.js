@@ -17,6 +17,11 @@ export const performEngineTransition = (id, state, reason = null) =>
     if (current === undefined) return yield* new StrategyNotFound({ id });
     const refusal = refusalFor({ id, from: current.state, to: state, actor: "engine" });
     if (refusal !== undefined) return yield* refusal;
-    yield* repository.save({ ...current, state: /** @type {typeof current.state} */ (state), nextDueAt: null, reason });
+    yield* repository.save({
+      ...current,
+      state: /** @type {typeof current.state} */ (state),
+      nextDueAt: null,
+      reason,
+    });
     return { id, state };
   }).pipe(Effect.withSpan("strategy.engineTransition"));

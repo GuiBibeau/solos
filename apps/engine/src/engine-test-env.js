@@ -24,15 +24,18 @@ export const ENGINE_TOKEN = "engine-integration-token";
 
 /** @param {TestEngineOptions} options */
 export const forwardStart = (options) => ({
-  ...(options.strategies !== undefined && { strategies: options.strategies }),
-  ...(options.allowedMints !== undefined && { allowedMints: options.allowedMints }),
-  ...(options.now !== undefined && { now: options.now }),
-  ...(options.tickDrive !== undefined && { tickDrive: options.tickDrive }),
-  ...(options.minIntervalMs !== undefined && { minIntervalMs: options.minIntervalMs }),
-  ...(options.tickWindow !== undefined && { tickWindow: options.tickWindow }),
-  ...(options.observations !== undefined && { observations: options.observations }),
-  ...(options.quote !== undefined && { quote: options.quote }),
+  ...whenSet("strategies", options.strategies),
+  ...whenSet("allowedMints", options.allowedMints),
+  ...whenSet("now", options.now),
+  ...whenSet("tickDrive", options.tickDrive),
+  ...whenSet("minIntervalMs", options.minIntervalMs),
+  ...whenSet("tickWindow", options.tickWindow),
+  ...whenSet("observations", options.observations),
+  ...whenSet("quote", options.quote),
 });
+
+/** @param {string} key @param {unknown} value */
+const whenSet = (key, value) => (value === undefined ? {} : { [key]: value });
 
 /**
  * @param {{ privateKey: string; dataDir: string; rpcUrl: string; wsUrl: string; extra?: Record<string, string> }} input

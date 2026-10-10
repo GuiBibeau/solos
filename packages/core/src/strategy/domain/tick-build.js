@@ -28,8 +28,8 @@ export const buildTick = (input) => ({
   observations: { ...input.observations },
   actions: [...input.actions],
   intents: [...input.intents],
-  ...(input.note !== undefined ? { note: input.note } : {}),
-  ...(input.reason !== undefined ? { reason: input.reason } : {}),
-  ...(input.remedy !== undefined ? { remedy: input.remedy } : {}),
-  ...(input.step !== undefined ? { step: input.step } : {}),
+  ...(input.note !== undefined && { note: input.note }),
+  ...(input.reason !== undefined && { reason: input.reason }),
+  ...(input.remedy !== undefined && { remedy: input.remedy }),
+  ...(input.step !== undefined && { step: input.step }),
 });

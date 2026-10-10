@@ -16,6 +16,7 @@ export {
 export { firstTickActions } from "./domain/first-tick.js";
 export { actualUsdFor, mintOf, reserveUsdFor } from "./domain/notional.js";
 export { TickSchema } from "./domain/tick.js";
+/** @typedef {import("./domain/tick.js").Tick} Tick */
 export { refusalFor } from "./domain/transitions.js";
 export { ulidFrom } from "./domain/ulid.js";
 export { CadenceFloor } from "./ports/cadence-floor.js";

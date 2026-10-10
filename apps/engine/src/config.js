@@ -2,9 +2,8 @@
 import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { durationMs } from "@solos-sh/actions";
 import { EngineConfigMissing, ValidationError } from "@solos/core";
-import { AddressSchema } from "@solos-sh/actions";
+import { AddressSchema, durationMs } from "@solos-sh/actions";
 
 /** @typedef {"read" | "simulate" | "execute"} Tier */
 /** @typedef {"dry" | "paper" | "live"} Mode */
@@ -163,7 +162,7 @@ const windowFromEnv = (env) => {
   const value = env.SOLOS_TICK_WINDOW;
   if (value === undefined || value === "") return 50;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) {
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
     throw new ValidationError({
       field: "SOLOS_TICK_WINDOW",
       value,

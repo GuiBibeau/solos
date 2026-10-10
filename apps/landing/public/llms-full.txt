@@ -488,9 +488,19 @@ Read whether the kill switch is engaged for every Strategy, or for one Strategy,
 
 Tier: read. Stability: beta. Get strategy status.
 
-Read one registered Strategy, including its kind, bounds, tick source, and lifecycle state. Use after register to confirm what the Engine stored.
+Read one registered Strategy, including its kind, bounds, tick source, lifecycle state, last Tick, and when the next Tick is due.
 
 - `id` (string, required): Strategy id returned by register
+
+### solana_strategy_get_ticks
+
+Tier: read. Stability: beta. Get strategy ticks.
+
+Read the Ticks one Strategy has recorded, newest first. Use this to see what each interval did, including misses, failures, and the Intents that landed.
+
+- `id` (string, required): Strategy id returned by register
+- `limit` (integer, optional): How many Ticks to return, newest first. Defaults to 20 and cannot exceed 200; 1 to 200
+- `outcome` (missed | evaluated | executed | failed | skipped_bounds | skipped_observation | in_flight, optional): Only Ticks with this outcome
 
 ### solana_strategy_list_strategies
 

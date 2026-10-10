@@ -28,7 +28,8 @@ const inputUsd = (action, priceUsd) =>
   divDecimalUp(mulDecimal(baseUnits(action), priceUsd), String(10n ** BigInt(decimalsOf(action))));
 
 /** @param {string} notional @param {number} bps */
-const slippageUsd = (notional, bps) => divDecimalUp(mulDecimal(notional, String(10_000 + bps)), "10000");
+const slippageUsd = (notional, bps) =>
+  divDecimalUp(mulDecimal(notional, String(10_000 + bps)), "10000");
 
 /** @param {import("@solos-sh/actions").Action} action */
 const baseUnits = (action) => (action.type === "swap" ? action.amount : lamportsOf(action));

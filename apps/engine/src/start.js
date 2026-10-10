@@ -76,15 +76,19 @@ const strategyStart = (input, mode) => ({
 });
 
 /**
- * @param {Record<string, string | undefined>} env
- * @param {ReturnType<typeof resolveStart> & {
+ * @typedef {ReturnType<typeof resolveStart> & {
  *   strategies?: boolean;
- *   allowedMints: ReadonlyArray<string>;
+ *   allowedMints?: ReadonlyArray<string>;
  *   tickDrive?: "manual" | "auto";
  *   now?: () => number;
  *   observations?: () => Readonly<Record<string, string | number>>;
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
- * }} start
+ * }} StrategyStart
+ */
+
+/**
+ * @param {Record<string, string | undefined>} env
+ * @param {StrategyStart} start
  * @param {Awaited<ReturnType<typeof bootPaper>> | undefined} paper
  */
 const listen = async (env, start, paper) => {
@@ -124,7 +128,7 @@ const listen = async (env, start, paper) => {
 
 /**
  * @param {import("bun:sqlite").Database} db
- * @param {Parameters<typeof layerOptions>[0]} input
+ * @param {StrategyStart} input
  */
 const strategyMount = async (db, input) => {
   const options = layerOptions(input);
@@ -134,7 +138,7 @@ const strategyMount = async (db, input) => {
 };
 
 /**
- * @param {ReturnType<typeof resolveStart> & StartInput} input
+ * @param {StrategyStart} input
  */
 const layerOptions = (input) => ({
   allowedMints: input.allowedMints ?? [],

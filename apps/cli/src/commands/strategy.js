@@ -97,7 +97,10 @@ const status = Command.make("status", { id: idArg() }, (options) =>
   run(getStrategyStatus(options.id)),
 ).pipe(commandHelp(getStatusTool));
 
-const limit = Options.integer("limit").pipe(Options.optional, optionHelp(getTicksTool.input.shape.limit));
+const limit = Options.integer("limit").pipe(
+  Options.optional,
+  optionHelp(getTicksTool.input.shape.limit),
+);
 const outcome = Options.text("outcome").pipe(
   Options.optional,
   optionHelp(getTicksTool.input.shape.outcome),

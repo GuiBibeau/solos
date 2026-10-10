@@ -36,7 +36,7 @@ export const performGetTicks = (input) =>
     const strategy = yield* (yield* StrategyRepository).load(input.id);
     if (strategy === undefined) return yield* new StrategyNotFound({ id: input.id });
     const limit = input.limit ?? 20;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
       return yield* new StrategyInvalid({ reason: "limit must be an integer from 1 to 200" });
     }
     if (input.outcome !== undefined && !TICK_OUTCOMES.includes(input.outcome)) {

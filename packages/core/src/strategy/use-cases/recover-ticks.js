@@ -16,9 +16,8 @@ import { performEngineTransition } from "./perform-engine.js";
 export const recoverTicks = () =>
   Effect.gen(function* () {
     const now = yield* (yield* StrategyIds).now();
-    for (const strategy of yield* (yield* StrategyRepository).byState("active")) {
-      yield* recoverStrategy(strategy, now);
-    }
+    const active = yield* (yield* StrategyRepository).byState("active");
+    for (const strategy of active) yield* recoverStrategy(strategy, now);
   }).pipe(Effect.withSpan("strategy.recoverTicks"));
 
 /**
@@ -42,8 +41,10 @@ const recoverStrategy = (strategy, now) =>
  */
 const recoverMissed = (strategy, now) =>
   Effect.gen(function* () {
-    if (strategy.nextDueAt == null || strategy.nextDueAt >= now) return;
-    if (strategy.expiresAt != null && strategy.nextDueAt >= strategy.expiresAt) {
+    const dueAt = strategy.nextDueAt;
+    if (dueAt === undefined || dueAt === null || dueAt >= now) return;
+    const expiresAt = strategy.expiresAt;
+    if (expiresAt !== undefined && expiresAt !== null && dueAt >= expiresAt) {
       return yield* performEngineTransition(strategy.id, "expired", "expiresAt has passed");
     }
     const tickId = yield* (yield* StrategyIds).ulid();
@@ -64,7 +65,7 @@ const recoverOpen = (strategy, tick, now) =>
     for (let step = 0; step < steps; step += 1) {
       const view = yield* (yield* IntentLookup).lookup(intentIdFor(strategy.id, tick.tickId, step));
       if (view.state === "missing") break;
-      intents.push(yield* reconcile(strategy.id, tick, step, view));
+      intents.push(yield* reconcile({ strategyId: strategy.id, tick, step, view }));
       if (view.state !== "settled") break;
     }
     const outcome = folded(intents, tick.actions.length);
@@ -73,17 +74,23 @@ const recoverOpen = (strategy, tick, now) =>
   });
 
 /**
- * @param {string} strategyId
- * @param {import("../domain/tick.js").Tick} tick
- * @param {number} step
- * @param {import("../ports/intent-lookup.js").IntentView} view
+ * @param {{
+ *   strategyId: string;
+ *   tick: import("../domain/tick.js").Tick;
+ *   step: number;
+ *   view: import("../ports/intent-lookup.js").IntentView;
+ * }} input
  */
-const reconcile = (strategyId, tick, step, view) =>
+const reconcile = (input) =>
   Effect.gen(function* () {
-    const priced = yield* notionalOf(tick, step);
-    const row = intentRow({ strategyId, tick, step, view, priced });
-    if (view.state === "settled" || view.state === "in_flight") {
-      yield* restoreHold(strategyId, { ...row, tickId: tick.tickId }, view.state === "settled");
+    const priced = yield* notionalOf(input.tick, input.step);
+    const row = intentRow({ ...input, priced });
+    if (input.view.state === "settled" || input.view.state === "in_flight") {
+      yield* restoreHold(
+        input.strategyId,
+        { ...row, tickId: input.tick.tickId },
+        input.view.state === "settled",
+      );
     }
     return row;
   });
@@ -119,7 +126,8 @@ const restoreHold = (strategyId, row, settle) =>
 const intentRow = (input) => ({
   intentId: intentIdFor(input.strategyId, input.tick.tickId, input.step),
   state: storedState(input.view.state),
-  ...(input.view.signature != null ? { signature: input.view.signature } : {}),
+  ...(input.view.signature !== undefined &&
+    input.view.signature !== null && { signature: input.view.signature }),
   notionalUsd: input.priced.notionalUsd,
   mint: input.priced.mint,
 });
@@ -169,11 +177,12 @@ const folded = (intents, steps) => {
 const closedTick = (input) => ({
   ...input.tick,
   outcome: input.outcome,
-  intents: input.intents,
+  intents: [...input.intents],
   finishedAt: input.outcome === "in_flight" ? null : input.now,
-  ...(input.outcome === "failed"
-    ? { step: input.intents.length, reason: input.tick.reason ?? "the in-flight tick did not settle" }
-    : {}),
+  ...(input.outcome === "failed" && {
+    step: input.intents.length,
+    reason: input.tick.reason ?? "the in-flight tick did not settle",
+  }),
 });
 
 /** @param {import("@solos-sh/actions").Strategy} strategy @param {number} now */
@@ -183,11 +192,7 @@ const reschedule = (strategy, now) =>
     yield* (yield* StrategyRepository).save({ ...strategy, nextDueAt });
   });
 
-/**
- * @param {import("@solos-sh/actions").Strategy} strategy
- * @param {string} tickId
- * @param {number} now
- */
+/** @param {import("@solos-sh/actions").Strategy} strategy @param {string} tickId @param {number} now */
 const missedTick = (strategy, tickId, now) =>
   buildTick({
     tickId,

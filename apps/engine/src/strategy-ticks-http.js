@@ -15,7 +15,11 @@ export const listStrategyTicks = (id) => async (request, deps) => {
   try {
     const value = await deps.runtime.runPromise(
       Effect.flatMap(StrategyRegistry, (registry) =>
-        registry.ticks({ id: decoded, ...(limit !== undefined && { limit }), ...(outcome !== undefined && { outcome }) }),
+        registry.ticks({
+          id: decoded,
+          ...(limit !== undefined && { limit }),
+          ...(outcome !== undefined && { outcome }),
+        }),
       ),
     );
     return json(200, value);

@@ -14,24 +14,28 @@ export const memoryTickRepository = (window = DEFAULT_WINDOW) => {
   /** @type {Map<string, import("../domain/tick.js").Tick[]>} */
   const recent = new Map();
   return Layer.sync(TickRepository, () => ({
-    save: (tick) => Effect.sync(() => store(rows, recent, tick, window)),
+    save: (tick) => Effect.sync(() => store({ rows, recent, window }, tick)),
     list: (query) => Effect.sync(() => listed(rows, query)),
     recent: (strategyId) => Effect.sync(() => recent.get(strategyId) ?? []),
   }));
 };
 
 /**
- * @param {import("../domain/tick.js").Tick[]} rows
- * @param {Map<string, import("../domain/tick.js").Tick[]>} recent
+ * @param {{
+ *   rows: import("../domain/tick.js").Tick[];
+ *   recent: Map<string, import("../domain/tick.js").Tick[]>;
+ *   window: number;
+ * }} book
  * @param {import("../domain/tick.js").Tick} tick
- * @param {number} window
  */
-const store = (rows, recent, tick, window) => {
-  const index = rows.findIndex((row) => row.tickId === tick.tickId);
-  if (index === -1) rows.push(tick);
-  else rows[index] = tick;
-  const prior = (recent.get(tick.strategyId) ?? []).filter((row) => row.tickId !== tick.tickId);
-  recent.set(tick.strategyId, [tick, ...prior].slice(0, window));
+const store = (book, tick) => {
+  const index = book.rows.findIndex((row) => row.tickId === tick.tickId);
+  if (index === -1) book.rows.push(tick);
+  else book.rows[index] = tick;
+  const prior = (book.recent.get(tick.strategyId) ?? []).filter(
+    (row) => row.tickId !== tick.tickId,
+  );
+  book.recent.set(tick.strategyId, [tick, ...prior].slice(0, book.window));
 };
 
 /**

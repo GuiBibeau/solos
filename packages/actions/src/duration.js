@@ -13,7 +13,8 @@ const ISO = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
  * @returns {number | undefined}
  */
 export const durationMs = (value) => {
-  if (typeof value === "number") return Number.isInteger(value) && value > 0 ? value : undefined;
+  if (typeof value === "number")
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
   const plain = PLAIN.exec(value);
   if (plain) return scaled(plain[1], UNIT[plain[2] ?? ""]);
   return isoMs(value);
@@ -33,7 +34,7 @@ export const formatDuration = (ms) => {
 /** @param {string | undefined} amount @param {number | undefined} unit */
 const scaled = (amount, unit) => {
   const count = Number(amount);
-  if (unit === undefined || !Number.isInteger(count) || count <= 0) return undefined;
+  if (unit === undefined || !Number.isSafeInteger(count) || count <= 0) return undefined;
   return count * unit;
 };
 

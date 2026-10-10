@@ -1,8 +1,8 @@
 // @ts-check
 import { Effect } from "effect";
-import { buildTick } from "../domain/tick-build.js";
 import { evaluateKind, observationNames } from "../domain/evaluator.js";
 import { intentIdFor } from "../domain/intent-id.js";
+import { buildTick } from "../domain/tick-build.js";
 import { ObservationReader } from "../ports/observation-reader.js";
 import { RunMode } from "../ports/run-mode.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
@@ -25,8 +25,13 @@ export const runTick = (strategy) =>
       .pipe(Effect.either);
     if (read._tag === "Left") return yield* storeSkip(strategy, { tickId, dueAt, now, names });
     const observations = pick(names, read.right);
-    if (observations === undefined) return yield* storeSkip(strategy, { tickId, dueAt, now, names });
-    const decision = evaluateKind(strategy, observations, yield* (yield* TickRepository).recent(strategy.id));
+    if (observations === undefined)
+      return yield* storeSkip(strategy, { tickId, dueAt, now, names });
+    const decision = evaluateKind(
+      strategy,
+      observations,
+      yield* (yield* TickRepository).recent(strategy.id),
+    );
     return yield* recordDecision(strategy, { tickId, dueAt, now, observations, decision });
   }).pipe(Effect.withSpan("strategy.tick"));
 
@@ -68,20 +73,40 @@ const recordDecision = (strategy, input) =>
  */
 const executeAll = (strategy, input) =>
   Effect.gen(function* () {
-    yield* (yield* TickRepository).save(
-      buildTick({
-        tickId: input.tickId,
-        strategyId: strategy.id,
-        dueAt: input.dueAt,
-        startedAt: input.now,
-        finishedAt: null,
-        outcome: "in_flight",
-        observations: input.observations,
-        actions: input.decision.actions,
-        intents: [],
-        ...(input.decision.note !== undefined ? { note: input.decision.note } : {}),
-      }),
-    );
+    yield* (yield* TickRepository).save(inFlight(strategy, input));
+    return yield* store(strategy, input, yield* runActions(strategy, input));
+  });
+
+/**
+ * @param {import("@solos-sh/actions").Strategy} strategy
+ * @param {{
+ *   tickId: string;
+ *   dueAt: number;
+ *   now: number;
+ *   observations: Readonly<Record<string, string | number>>;
+ *   decision: ReturnType<typeof evaluateKind>;
+ * }} input
+ */
+const inFlight = (strategy, input) =>
+  buildTick({
+    tickId: input.tickId,
+    strategyId: strategy.id,
+    dueAt: input.dueAt,
+    startedAt: input.now,
+    finishedAt: null,
+    outcome: "in_flight",
+    observations: input.observations,
+    actions: input.decision.actions,
+    intents: [],
+    ...(input.decision.note !== undefined && { note: input.decision.note }),
+  });
+
+/**
+ * @param {import("@solos-sh/actions").Strategy} strategy
+ * @param {{ tickId: string; decision: ReturnType<typeof evaluateKind> }} input
+ */
+const runActions = (strategy, input) =>
+  Effect.gen(function* () {
     /** @type {import("../domain/tick.js").TickIntent[]} */
     const intents = [];
     /** @type {import("../domain/tick.js").TickOutcome} */
@@ -93,10 +118,10 @@ const executeAll = (strategy, input) =>
     /** @type {number | undefined} */
     let step;
     for (const [index, action] of input.decision.actions.entries()) {
-      const result = yield* runStep({
+      const result = yield* stepResult({
         strategyId: strategy.id,
         tickId: input.tickId,
-        intentId: intentIdFor(strategy.id, input.tickId, index),
+        index,
         action,
       });
       if (result.intent) intents.push(result.intent);
@@ -104,13 +129,28 @@ const executeAll = (strategy, input) =>
         reason = result.reason;
         remedy = result.remedy;
       }
-      if (result.outcome !== "executed") {
-        outcome = result.outcome;
-        step = index;
-        break;
-      }
+      if (result.outcome === "executed") continue;
+      outcome = result.outcome;
+      step = index;
+      break;
     }
-    return yield* store(strategy, input, { outcome, intents, reason, remedy, step });
+    return { outcome, intents, reason, remedy, step };
+  });
+
+/**
+ * @param {{
+ *   strategyId: string;
+ *   tickId: string;
+ *   index: number;
+ *   action: import("@solos-sh/actions").Action;
+ * }} input
+ */
+const stepResult = (input) =>
+  runStep({
+    strategyId: input.strategyId,
+    tickId: input.tickId,
+    intentId: intentIdFor(input.strategyId, input.tickId, input.index),
+    action: input.action,
   });
 
 /**
@@ -133,11 +173,15 @@ const pick = (names, values) => {
  * @param {{ tickId: string; dueAt: number; now: number; names: readonly string[] }} input
  */
 const storeSkip = (strategy, input) =>
-  store(strategy, { ...input, observations: {}, decision: { actions: [], state: undefined, note: undefined } }, {
-    outcome: "skipped_observation",
-    reason: "a declared observation was missing",
-    remedy: "retry when the observation reader can supply every declared read",
-  });
+  store(
+    strategy,
+    { ...input, observations: {}, decision: { actions: [], note: undefined } },
+    {
+      outcome: "skipped_observation",
+      reason: "a declared observation was missing",
+      remedy: "retry when the observation reader can supply every declared read",
+    },
+  );
 
 /**
  * @param {import("@solos-sh/actions").Strategy} strategy
@@ -168,10 +212,10 @@ const store = (strategy, input, result) =>
       observations: input.observations,
       actions: input.decision.actions,
       intents: result.intents ?? [],
-      ...(input.decision.note !== undefined ? { note: input.decision.note } : {}),
-      ...(result.reason !== undefined ? { reason: result.reason } : {}),
-      ...(result.remedy !== undefined ? { remedy: result.remedy } : {}),
-      ...(result.step !== undefined ? { step: result.step } : {}),
+      ...(input.decision.note !== undefined && { note: input.decision.note }),
+      ...(result.reason !== undefined && { reason: result.reason }),
+      ...(result.remedy !== undefined && { remedy: result.remedy }),
+      ...(result.step !== undefined && { step: result.step }),
     });
     yield* (yield* TickRepository).save(tick);
     yield* applyLifecycle(strategy, result.outcome, input.now);
