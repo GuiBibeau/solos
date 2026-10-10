@@ -21,8 +21,20 @@ import { Context } from "effect";
  *     never
  *   >;
  *   readonly get: (id: string) => import("effect").Effect.Effect<
- *     import("@solos-sh/actions").Strategy,
+ *     import("@solos-sh/actions").Strategy & {
+ *       readonly lastTick: import("../domain/tick.js").Tick | null;
+ *       readonly nextDueAt: number | null;
+ *     },
  *     import("../domain/errors.js").StrategyNotFound,
+ *     never
+ *   >;
+ *   readonly ticks: (input: {
+ *     readonly id: string;
+ *     readonly limit?: number;
+ *     readonly outcome?: string;
+ *   }) => import("effect").Effect.Effect<
+ *     { readonly ticks: ReadonlyArray<import("../domain/tick.js").Tick> },
+ *     import("../domain/errors.js").StrategyNotFound | import("../domain/errors.js").StrategyInvalid,
  *     never
  *   >;
  *   readonly simulateRegister: (draft: unknown) => import("effect").Effect.Effect<

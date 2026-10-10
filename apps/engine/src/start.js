@@ -11,11 +11,16 @@ import { bootPaper } from "./paper.js";
 import { recoverIntents } from "./recover.js";
 import { installRedaction } from "./redact.js";
 import { serveEngine } from "./serve.js";
+import { bootTicks } from "./tick-boot.js";
 
 /**
  * @typedef {Parameters<typeof resolveStart>[0] & {
  *   strategies?: boolean;
  *   allowedMints?: ReadonlyArray<string>;
+ *   tickDrive?: "manual" | "auto";
+ *   now?: () => number;
+ *   observations?: () => Readonly<Record<string, string | number>>;
+ *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
  * }} StartInput
  */
 
@@ -23,16 +28,11 @@ import { serveEngine } from "./serve.js";
  * Start the engine in this process. Paper boots Surfpool first and funds the signer before the
  * socket opens, so the first request already has lamports. The returned `stop` closes the
  * socket, the database, the runtime and, in paper mode, Surfpool.
- * `strategies: true` mounts the registry for in-process tests. A release process mounts it
- * only when the STRATEGIES compile flag is on.
+ * `strategies: true` mounts the registry for in-process tests. A release process mounts it too.
  * @param {StartInput} input
  */
 export const startEngine = async (input) => {
   const start = resolveStart(input);
-  const allowedMints = resolveAllowedMints({
-    mode: start.mode,
-    allowedMints: input.allowedMints,
-  });
   const paper = start.paper ? await bootPaper() : undefined;
   const restore = installRedaction({
     token: start.token,
@@ -41,7 +41,7 @@ export const startEngine = async (input) => {
   try {
     const served = await listen(
       input.env,
-      { ...start, strategies: input.strategies, allowedMints },
+      { ...start, ...strategyStart(input, start.mode) },
       paper,
     );
     return {
@@ -49,6 +49,7 @@ export const startEngine = async (input) => {
       signer: served.signer,
       tier: start.tier,
       mode: start.mode,
+      runDue: served.runDue,
       stop: () => shutdown(served, paper, restore),
     };
   } catch (error) {
@@ -59,11 +60,34 @@ export const startEngine = async (input) => {
 };
 
 /**
- * @param {Record<string, string | undefined>} env
- * @param {ReturnType<typeof resolveStart> & {
+ * The resolved start plus the strategy clock. `allowedMints` is resolved here so a live
+ * Engine still refuses to start without an allowlist.
+ * @param {StartInput} input
+ * @param {ReturnType<typeof resolveStart>["mode"]} mode
+ */
+const strategyStart = (input, mode) => ({
+  strategies: input.strategies,
+  allowedMints: resolveAllowedMints({ mode, allowedMints: input.allowedMints }),
+  tickDrive: input.tickDrive ?? "manual",
+  ...(input.now !== undefined && { now: input.now }),
+  ...(input.observations !== undefined && { observations: input.observations }),
+  ...(input.quote !== undefined && { quote: input.quote }),
+});
+
+/**
+ * @typedef {ReturnType<typeof resolveStart> & {
  *   strategies?: boolean;
- *   allowedMints: ReadonlyArray<string>;
- * }} start
+ *   allowedMints?: ReadonlyArray<string>;
+ *   tickDrive?: "manual" | "auto";
+ *   now?: () => number;
+ *   observations?: () => Readonly<Record<string, string | number>>;
+ *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
+ * }} StrategyStart
+ */
+
+/**
+ * @param {Record<string, string | undefined>} env
+ * @param {StrategyStart} start
  * @param {Awaited<ReturnType<typeof bootPaper>> | undefined} paper
  */
 const listen = async (env, start, paper) => {
@@ -71,12 +95,15 @@ const listen = async (env, start, paper) => {
   const db = openIntents(path.join(start.dataDir, "intents.sqlite"));
   const mount = await strategyMount(db, start);
   const runtime = ManagedRuntime.make(runtimeLayer(solanaEnv, env, mount));
+  /** @type {{ runDue: () => Promise<unknown>; stop: () => Promise<void> }} */
+  let ticks = { runDue: async () => undefined, stop: async () => undefined };
   try {
     const signer = await runtime.runPromise(Effect.flatMap(Signer, addressOf));
     if (paper !== undefined) await paper.fund(signer);
     await recoverIntents({ db, runtime });
     await syncHolds({ db, runtime, caps: mount !== undefined });
-    return await serveEngine({
+    ticks = await bootTicks(runtime, mount !== undefined, start);
+    const served = await serveEngine({
       runtime,
       db,
       signer,
@@ -89,7 +116,9 @@ const listen = async (env, start, paper) => {
       dataDir: start.dataDir,
       ...(mount !== undefined && { strategyHandle: mount.handle }),
     });
+    return { ...served, runDue: ticks.runDue, stopTicks: ticks.stop };
   } catch (error) {
+    await ticks.stop();
     db.close();
     await runtime.dispose();
     throw error;
@@ -98,25 +127,39 @@ const listen = async (env, start, paper) => {
 
 /**
  * @param {import("bun:sqlite").Database} db
- * @param {{ strategies?: boolean; allowedMints: ReadonlyArray<string> }} input
+ * @param {StrategyStart} input
  */
 const strategyMount = async (db, input) => {
-  if (input.strategies === true) return explicitMount(db, input.allowedMints);
+  const options = layerOptions(input);
+  if (input.strategies === true) return explicitMount(db, options);
   if (input.strategies === false) return undefined;
-  return compiledStrategyMount(db, input.allowedMints);
+  return compiledStrategyMount(db, options);
 };
 
 /**
- * In-process tests mount the same modules a STRATEGIES build serves.
- * @param {import("bun:sqlite").Database} db
- * @param {ReadonlyArray<string>} allowedMints
+ * @param {StrategyStart} input
  */
-const explicitMount = async (db, allowedMints) => {
+const layerOptions = (input) => ({
+  allowedMints: input.allowedMints ?? [],
+  minIntervalMs: input.minIntervalMs,
+  tickWindow: input.tickWindow,
+  dry: input.mode === "dry",
+  now: input.now ?? (() => Date.now()),
+  ...(input.observations !== undefined && { observations: input.observations }),
+  ...(input.quote !== undefined && { quote: input.quote }),
+});
+
+/**
+ * In-process tests mount the same modules a release build serves.
+ * @param {import("bun:sqlite").Database} db
+ * @param {import("./strategy-layer.js").StrategyLayerOptions} options
+ */
+const explicitMount = async (db, options) => {
   const [{ strategyLayer }, { handleStrategy }] = await Promise.all([
     import("./strategy-layer.js"),
     import("./strategy-http.js"),
   ]);
-  return { layer: strategyLayer(db, allowedMints), handle: handleStrategy };
+  return { layer: strategyLayer(db, options), handle: handleStrategy };
 };
 
 /**
@@ -146,11 +189,12 @@ const hostEnv = (env, paper) => ({
 });
 
 /**
- * @param {{ stop: () => Promise<void> }} served
+ * @param {{ stop: () => Promise<void>; stopTicks: () => Promise<void> }} served
  * @param {Awaited<ReturnType<typeof bootPaper>> | undefined} paper
  * @param {() => void} restore
  */
 const shutdown = async (served, paper, restore) => {
+  await served.stopTicks();
   await served.stop();
   if (paper !== undefined) await paper.stop();
   restore();

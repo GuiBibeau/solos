@@ -88,6 +88,11 @@ describe("Strategy contract", () => {
     expect(messages({ ...schedule(), kind: "carry", params: {} })).toContain("#202");
   });
 
+  test("stores a plain duration and an ISO-8601 duration as milliseconds", () => {
+    expect(TickSourceSchema.parse({ type: "clock", every: "1m" }).every).toBe(60_000);
+    expect(TickSourceSchema.parse({ type: "clock", every: "PT1M" }).every).toBe(60_000);
+  });
+
   test("a stream tick source fails, and a clock needs exactly one of every or cron", () => {
     expect(messages({ ...schedule(), tickSource: { type: "stream", signal: "price" } })).toContain(
       "streams are not available yet",

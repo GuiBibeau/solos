@@ -52,6 +52,7 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_strategy_execute_update` | execute | beta | `strategy` |
 | `solana_strategy_get_kill_switch` | read | beta | `strategy` |
 | `solana_strategy_get_status` | read | beta | `strategy` |
+| `solana_strategy_get_ticks` | read | beta | `strategy` |
 | `solana_strategy_list_strategies` | read | beta | `strategy` |
 | `solana_strategy_simulate_disengage_kill` | simulate | beta | `strategy` |
 | `solana_strategy_simulate_engage_kill` | simulate | beta | `strategy` |
@@ -81,11 +82,10 @@ over the configured Solana RPC (no provider key at all); `lend` has the Kamino r
 readers plus bounded deposits and withdrawals over the configured Solana RPC through the official
 Kamino klend-sdk (no provider key; one explicitly configured market); `strategy` registers a
 data-only Strategy with the Engine (ADR-0037) and can pause, resume, or cancel it — `allowedMints`
-can only narrow the Engine allowlist, and nothing ticks. Core registers the eleven MCP tools
-unconditionally, so they always exist. `STRATEGIES` is a `feature()` flag fixed when Bun loads
-the code (`bun --feature=STRATEGIES`); release builds leave it off. Start both with
-`bun --feature=STRATEGIES run apps/cli/src/main.js`, because `bun run solos` drops the flag. Against an Engine built without the flag, a tool call returns
-`EngineUnavailable` with a remedy naming the flag; `portfolio`
+can only narrow the Engine allowlist, and a `schedule` ticks on its clock. Core registers the twelve MCP tools
+unconditionally, so they always exist. The Engine serves the registry and the CLI includes
+`solos strategy`. In direct mode a strategy tool returns `EngineConfigMissing` because there's
+no Engine to hold a Registry; `portfolio`
 composes the wallet, price feed and venue reads into the supported-portfolio state
 (ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero
 holding is priced — a supported-assets view, never full net worth; `wallet` has the balance and

@@ -33,7 +33,7 @@ export const StrategyBoundsSchema = z
       .number()
       .int()
       .min(1)
-      .describe("Failed ticks in a row after which the Strategy is failed; at least 1"),
+      .describe("Failed ticks in a row after which the Engine pauses the Strategy; at least 1"),
   })
   .describe("Limits on what one Strategy may spend");
 
