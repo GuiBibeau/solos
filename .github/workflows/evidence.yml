@@ -57,10 +57,11 @@ jobs:
         run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"
 
   bots:
-    # Evaluates to evidence when this job runs (bots only). A skipped job does not
-    # evaluate the expression, so on a human pull request the check name is the
-    # raw text and is not the required check.
-    name: "${{ 'evidence' }}"
+    # A constant name expression is evaluated even when the job is skipped, which
+    # would publish evidence as success on every human pull request. A comparison
+    # is left raw on skip (not the required check) and evaluates to evidence when
+    # a bot actually runs this job.
+    name: "${{ (github.event.pull_request.user.login == 'renovate[bot]' || github.event.pull_request.user.login == 'github-actions[bot]') && 'evidence' || 'bot-evidence-not-reported' }}"
     if: ${{ contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
