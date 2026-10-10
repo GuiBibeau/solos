@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.js",
+    "./executor/transfer-fee": "./src/executor/transfer-fee.js",
     "./market/test-seeds": "./src/market/test-seeds.js",
     "./surfnet": "./src/surfnet/index.js",
     "./surfnet/rpc-recorder": "./src/surfnet/rpc-recorder.js",

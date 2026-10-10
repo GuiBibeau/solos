@@ -71,7 +71,7 @@ export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signe
 export { SignerLive } from "./signer/signer-live.js";
 export { HttpCapLedger, HttpStrategyRegistry } from "./strategy/caller-http.js";
 export { SLOW, SubmissionModeSchema } from "./submission/mode.js";
-export { signatureOutlook } from "./submission/signature-outlook.js";
+export { landedFeeLamports, signatureOutlook } from "./submission/signature-outlook.js";
 export { signedIntentNote } from "./submission/signed-note.js";
 export { RpcSubmitterLive, Submitter } from "./submission/submitter.js";
 export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";

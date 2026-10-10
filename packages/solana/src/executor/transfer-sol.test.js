@@ -11,6 +11,7 @@ import { SolanaTestLive } from "../index.js";
 import { KitSigner } from "../signer/kit-signer.js";
 import { jsonRpc } from "../surfnet/surfnet-cli.js";
 import { ensureSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.js";
+import { transferFeeReserveLamports } from "./transfer-fee.js";
 import { TRANSFER_V1_CONFIG } from "./transfer-sol.js";
 
 describe("transfer through DirectSignerExecutor against Surfnet [integration]", () => {
@@ -81,6 +82,7 @@ describe("transfer through DirectSignerExecutor against Surfnet [integration]", 
     expect(compiled.version).toBe(1);
     expect("addressTableLookups" in compiled).toBe(false);
     expect(decompileTransactionMessage(compiled).config).toEqual(TRANSFER_V1_CONFIG);
+    expect(BigInt(confirmed.meta.fee) <= transferFeeReserveLamports()).toBe(true);
   });
 
   test("refuses to send more than the wallet holds, before any RPC send", async () => {

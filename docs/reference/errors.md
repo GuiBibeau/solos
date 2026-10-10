@@ -63,6 +63,7 @@ UTC-day spend, a mint allowlist, or an `expiresAt` that no longer authorizes the
 `scope` is the Strategy id or `global`. Settle and release do not raise it. A settle above the
 hold records the overshoot and engages the per-Strategy switch; the next reserve then raises
 `KillSwitchEngaged`. The Engine's SQLite adapter keeps an engaged switch across a restart.
+`PriceUnavailable` (HTTP 503): The cap ledger raises it when the SOL price is missing or zero, and reserves nothing.
 
 ## Why the field is `reason`, never `cause`
 

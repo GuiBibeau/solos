@@ -122,9 +122,9 @@ per-Strategy kill switch. `release` frees an open hold. Each applies once; a rep
 hold as the first call left it. A settled hold stays settled. A released hold stays released.
 An in-flight Intent keeps its hold. A restart does not release that hold and does not count it
 a second time. When recovery finds the signature landed, `settle` records the reserved notional
-once for a confirmed transfer, or `0` when the transaction landed with an execution error. The
-hold is released only when the Intent is marked failed: the blockhash expired and the signature
-is still absent, or the Engine stopped before anything was signed.
+once for a confirmed transfer, or the fee the transaction paid when it landed with an execution
+error. The hold is released only when the Intent is marked failed: the blockhash expired and the
+signature is still absent, or the Engine stopped before anything was signed.
 
 **Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
 scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and

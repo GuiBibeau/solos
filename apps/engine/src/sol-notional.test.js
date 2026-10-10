@@ -1,5 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
+import { transferFeeReserveLamports } from "@solos/solana/executor/transfer-fee";
 import { lamportsToUsd, transferNotionalUsd } from "./sol-notional.js";
 
 describe("SOL notional", () => {
@@ -22,10 +23,15 @@ describe("SOL notional", () => {
     expect(lamportsToUsd("1", "-1")).toBeUndefined();
   });
 
-  test("the hold adds the 6000 lamport fee reserve, including a zero transfer", () => {
-    expect(transferNotionalUsd("10000000", "100")).toBe("1.0006");
-    expect(transferNotionalUsd("20000000", "100")).toBe("2.0006");
-    expect(transferNotionalUsd("0", "100")).toBe("0.0006");
+  test("the hold adds the builder fee reserve, including a zero transfer", () => {
+    const reserve = transferFeeReserveLamports();
+    expect(transferNotionalUsd("0", "100")).toBe(lamportsToUsd(reserve.toString(), "100"));
+    expect(transferNotionalUsd("10000000", "100")).toBe(
+      lamportsToUsd((10_000_000n + reserve).toString(), "100"),
+    );
+    expect(transferNotionalUsd("20000000", "100")).toBe(
+      lamportsToUsd((20_000_000n + reserve).toString(), "100"),
+    );
     expect(transferNotionalUsd("nope", "100")).toBeUndefined();
   });
 });

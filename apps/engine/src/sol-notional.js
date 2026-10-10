@@ -1,5 +1,5 @@
 // @ts-check
-import { TRANSFER_FEE_RESERVE_LAMPORTS } from "@solos/core";
+import { transferFeeReserveLamports } from "@solos/solana/executor/transfer-fee";
 
 /** Digits after the decimal point. No dot means a whole number. @param {string} value */
 const fractionWidth = (value) => {
@@ -24,7 +24,8 @@ export const lamportsToUsd = (lamports, priceUsd) => {
 };
 
 /**
- * Principal plus the transfer fee reserve (base signature fee and priority fee).
+ * Principal plus the fee reserve the transfer builder sets (base signature fee plus the
+ * priority fee from its compute-unit price times its compute-unit limit).
  * A zero-lamport transfer still holds the fee.
  * @param {string} lamports
  * @param {string} priceUsd
@@ -32,7 +33,7 @@ export const lamportsToUsd = (lamports, priceUsd) => {
  */
 export const transferNotionalUsd = (lamports, priceUsd) => {
   if (!/^\d+$/.test(lamports)) return undefined;
-  const held = (BigInt(lamports) + TRANSFER_FEE_RESERVE_LAMPORTS).toString();
+  const held = (BigInt(lamports) + transferFeeReserveLamports()).toString();
   return lamportsToUsd(held, priceUsd);
 };
 

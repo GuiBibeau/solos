@@ -24,6 +24,39 @@ export const signatureOutlook = (signature) =>
     return { confirmation: confirmationState(status), height: asBigint(height) };
   });
 
+/**
+ * Lamports a landed transaction paid (`meta.fee`). Missing or not yet visible is `undefined`.
+ * @param {string} signature
+ * @returns {Effect.Effect<
+ *   bigint | undefined,
+ *   import("@solos/core").RpcError,
+ *   import("../rpc/solana-rpc.js").SolanaRpcShape
+ * >}
+ */
+export const landedFeeLamports = (signature) =>
+  Effect.gen(function* () {
+    const ctx = yield* SolanaRpc;
+    const found = yield* rpcCall("getTransaction", ctx.url, (abortSignal) =>
+      ctx.rpc
+        .getTransaction(asSignature(signature), {
+          commitment: "confirmed",
+          encoding: "base64",
+          maxSupportedTransactionVersion: 1,
+        })
+        .send({ abortSignal }),
+    );
+    return feeLamports(found);
+  });
+
+/** @param {unknown} found */
+const feeLamports = (found) => {
+  const fee = /** @type {{ meta?: { fee?: unknown } | null } | null | undefined} */ (found)?.meta
+    ?.fee;
+  if (typeof fee === "bigint" && fee >= 0n) return fee;
+  if (typeof fee === "number" && Number.isSafeInteger(fee) && fee >= 0) return BigInt(fee);
+  return undefined;
+};
+
 /** @param {string} signature */
 const asSignature = (signature) => /** @type {import("@solana/kit").Signature} */ (signature);
 
