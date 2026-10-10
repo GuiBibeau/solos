@@ -7,7 +7,7 @@ import { KillSwitchEngaged, StrategyNotFound } from "./errors.js";
 
 /**
  * Facts a reserve is judged against. `spentUsd` is open holds plus settled amounts for this
- * strategy on the UTC day of `now`. `kill` is set when the global switch or this strategy's
+ * Strategy on the UTC day of `now`. `kill` is set when the global switch or the per-Strategy
  * switch is engaged; global wins.
  * @typedef {{
  *   readonly strategyId: string;
@@ -103,8 +103,8 @@ const mintRefusal = (facts) =>
     remedy: "reserve a mint the Engine allowlist permits",
   }) ??
   listRefusal(facts, facts.bounds.allowedMints, {
-    reason: (mint) => `mint ${mint} is outside the strategy allowlist`,
-    remedy: "reserve a mint on the strategy allowlist",
+    reason: (mint) => `mint ${mint} is outside the Strategy allowlist`,
+    remedy: "reserve a mint on the Strategy allowlist",
   });
 
 /** @param {KnownBounds} facts @returns {BoundsExceeded | undefined} */

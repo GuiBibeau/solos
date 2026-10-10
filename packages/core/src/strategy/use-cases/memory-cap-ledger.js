@@ -1,7 +1,7 @@
 // @ts-check
 import { Effect, Layer } from "effect";
 import { reserveRefusal, utcDay } from "../domain/cap-check.js";
-import { addDecimal } from "../domain/decimal.js";
+import { addDecimal, compareDecimal, subtractDecimal } from "../domain/decimal.js";
 import { CapLedger, GLOBAL_KILL_SCOPE } from "../ports/cap-ledger.js";
 
 const EMPTY = Object.freeze(/** @type {readonly string[]} */ ([]));
@@ -12,7 +12,7 @@ const EMPTY = Object.freeze(/** @type {readonly string[]} */ ([]));
 
 /**
  * Bounds and the clock are injected. They are not part of the port.
- * `boundsFor` returns undefined when the strategy has no bounds loaded.
+ * `boundsFor` returns undefined when the Strategy has no bounds loaded.
  * `engineMints` empty means any mint; a non-empty list is the Engine allowlist.
  * @typedef {{
  *   readonly boundsFor: (strategyId: string) => StrategyBounds | undefined;
@@ -29,6 +29,7 @@ const EMPTY = Object.freeze(/** @type {readonly string[]} */ ([]));
  *   readonly intentId: string;
  *   readonly notionalUsd: string;
  *   readonly actualUsd: string | null;
+ *   readonly overshootUsd: string | null;
  *   readonly day: string;
  *   readonly status: HoldStatus;
  * }} Hold
@@ -119,6 +120,7 @@ const hold = (state, request, now) => {
     intentId: request.intentId,
     notionalUsd: request.notionalUsd,
     actualUsd: null,
+    overshootUsd: null,
     day: utcDay(now),
     status: "open",
   });
@@ -149,12 +151,29 @@ const spentOn = (state, strategyId, day) => {
  * @param {string} actualUsd
  */
 const settle = (state, reservationId, actualUsd) =>
-  Effect.sync(() => {
-    const row = known(state, reservationId);
+  Effect.gen(function* () {
+    const row = state.reservations.get(reservationId);
+    if (!row) return yield* Effect.die(new Error(`unknown reservation ${reservationId}`));
     if (row.status !== "open") return;
-    if (actualUsd.startsWith("-")) throw new Error("settled USD must be non-negative");
-    state.reservations.set(reservationId, { ...row, status: "settled", actualUsd });
+    if (actualUsd.startsWith("-")) {
+      return yield* Effect.die(new Error("settled USD must be non-negative"));
+    }
+    const overshootUsd = overshoot(row.notionalUsd, actualUsd);
+    state.reservations.set(reservationId, { ...row, status: "settled", actualUsd, overshootUsd });
+    if (overshootUsd === null) return;
+    state.kills.set(row.strategyId, exceededReason(overshootUsd));
+    yield* Effect.logInfo("cap-ledger.settle-exceeded").pipe(
+      Effect.annotateLogs({ reservationId, strategyId: row.strategyId, overshootUsd }),
+    );
   });
+
+/** @param {string} reserved @param {string} actual */
+const overshoot = (reserved, actual) =>
+  compareDecimal(actual, reserved) > 0 ? subtractDecimal(actual, reserved) : null;
+
+/** @param {string} overshootUsd */
+const exceededReason = (overshootUsd) =>
+  `settle exceeded reservation: overshoot ${overshootUsd} USD`;
 
 /** @param {LedgerState} state @param {string} reservationId */
 const release = (state, reservationId) =>

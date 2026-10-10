@@ -123,31 +123,19 @@ describe("memory cap ledger", () => {
     );
   });
 
-  test("settle replaces the reserved amount and a second settle sticks", async () => {
+  test("settle below the hold frees headroom and a second settle sticks", async () => {
     const caps = bounds({ maxDailySpendUsd: "5", maxNotionalPerTickUsd: "5" });
-    const { run } = open({ low: caps, high: caps });
+    const { run } = open({ low: caps });
     await run(
       Effect.gen(function* () {
         const ledger = yield* CapLedger;
         const lower = yield* ledger.reserve(req("low", "low-a", "4"));
         yield* ledger.settle(lower.reservationId, "1");
         yield* ledger.settle(lower.reservationId, "4");
+        expect(yield* ledger.status("low")).toEqual({ engaged: false, reason: null });
         yield* ledger.reserve(req("low", "low-b", "4"));
         asBound(
           yield* ledger.reserve(req("low", "low-c", "0.01")).pipe(Effect.flip),
-          "maxDailySpendUsd",
-        );
-
-        const higher = yield* ledger.reserve(req("high", "high-a", "2"));
-        yield* ledger.settle(higher.reservationId, "4");
-        yield* ledger.reserve(req("high", "high-b", "1"));
-        asBound(
-          yield* ledger.reserve(req("high", "high-c", "0.01")).pipe(Effect.flip),
-          "maxDailySpendUsd",
-        );
-        yield* ledger.release(higher.reservationId);
-        asBound(
-          yield* ledger.reserve(req("high", "high-d", "0.01")).pipe(Effect.flip),
           "maxDailySpendUsd",
         );
       }),
@@ -194,7 +182,7 @@ describe("memory cap ledger", () => {
     );
   });
 
-  test("the mint allowlist refuses a mint outside the strategy list or the engine list", async () => {
+  test("the mint allowlist refuses a mint outside the Strategy list or the Engine list", async () => {
     const listed = bounds({ allowedMints: [USDC] });
     const any = bounds({ allowedMints: [] });
     const strategyOnly = open({ listed });
@@ -206,7 +194,7 @@ describe("memory cap ledger", () => {
           "allowedMints",
         );
         expect(strategy).toMatchObject({ requested: WSOL, limit: USDC, scope: "listed" });
-        expect(strategy.reason).toContain("strategy allowlist");
+        expect(strategy.reason).toContain("Strategy allowlist");
         yield* ledger.reserve({ ...req("listed", "ok", "1"), mint: USDC });
       }),
     );
@@ -225,7 +213,7 @@ describe("memory cap ledger", () => {
     );
   });
 
-  test("a strategy kill switch blocks that strategy and a global switch blocks the rest", async () => {
+  test("a per-Strategy switch blocks that Strategy and a global switch blocks the rest", async () => {
     const { run } = open({ a: bounds(), b: bounds() });
     await run(
       Effect.gen(function* () {
@@ -286,7 +274,7 @@ describe("memory cap ledger", () => {
     );
   });
 
-  test("a strategy with no bounds loaded is StrategyNotFound", async () => {
+  test("a Strategy with no bounds loaded is StrategyNotFound", async () => {
     const { run } = open({});
     await run(
       Effect.gen(function* () {

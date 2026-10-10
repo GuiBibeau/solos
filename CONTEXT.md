@@ -107,20 +107,24 @@ the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
 returns that reservation again and does not add to the day's spend. The day's spend is every
 open hold plus every settled amount reserved on the current UTC day. A hold stays on the day
 it was reserved, including when it is still open after midnight. `maxNotionalPerTickUsd`,
-`maxDailySpendUsd`, `allowedMints`, and `expiresAt` are judged on that reserve. An exact cap
-is allowed. A breach is `BoundsExceeded`. A strategy with no bounds loaded is `StrategyNotFound`.
-The port is `CapLedger`. `memoryCapLedger` keeps the account in the process.
+`maxDailySpendUsd`, `allowedMints`, and `expiresAt` are judged on that reserve. A tick that
+emits several Actions reserves their combined notional once. An exact cap is allowed. A breach
+is `BoundsExceeded`. A Strategy with no bounds loaded is `StrategyNotFound`. The port is
+`CapLedger`. `memoryCapLedger` keeps the account in the process.
 
 **Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
-`intentId`. `settle` replaces an open hold with the measured USD spend, lower or higher than
-the reserved amount. `release` frees an open hold. Each applies once; a repeat leaves the hold
-as the first call left it. A settled hold stays settled. A released hold stays released.
+`intentId`. The hold is the worst case: the notional at max slippage plus fees, so a correct
+execution never settles above it. `settle` replaces an open hold with the measured USD spend.
+A higher settle is a bug: the overshoot is recorded on the reservation and that engages the
+per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
+hold as the first call left it. A settled hold stays settled. A released hold stays released.
 
 **Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
 scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and
-names that scope. A global switch blocks every Strategy. A strategy switch blocks only that
+names that scope. A global switch blocks every Strategy. A per-Strategy switch blocks only that
 Strategy. Settle and release still complete. Disengaging that scope allows new reserves again.
-`memoryCapLedger` keeps the switch in the process.
+The durable adapter must keep an engaged switch across restarts. `memoryCapLedger` keeps the
+switch in the process.
 
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
 (`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a

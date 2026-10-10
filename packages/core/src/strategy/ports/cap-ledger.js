@@ -1,7 +1,7 @@
 // @ts-check
 import { Context } from "effect";
 
-/** Scope that blocks reserves for every strategy. A strategy id blocks only that strategy. */
+/** Scope that blocks reserves for every Strategy. A Strategy id blocks only that Strategy. */
 export const GLOBAL_KILL_SCOPE = "global";
 
 /**
@@ -24,11 +24,14 @@ export const GLOBAL_KILL_SCOPE = "global";
 /**
  * Holds a Strategy's notional against its Bounds, and the kill switch beside it.
  * `intentId` is the idempotency key for the whole ledger: a repeat reserve returns the same
- * `reservationId` and does not count twice. `settle` replaces an open hold with the measured
- * spend. `release` frees an open hold. Each of those applies once; a later call leaves the
- * hold as the first one left it. An unknown reservation id is a defect. USD amounts are
- * decimal strings compared exactly. An engaged switch blocks new reserves only.
- * Daily spend is open holds plus settled amounts on the UTC day the hold was reserved.
+ * `reservationId` and does not count twice. The hold is the worst case for that Intent.
+ * `settle` replaces an open hold with the measured spend and is not refused when that spend
+ * is higher: the overshoot is stored on the reservation and the per-Strategy switch engages.
+ * `release` frees an open hold. Each of those applies once; a later call leaves the hold as
+ * the first one left it. An unknown reservation id is a defect. USD amounts are decimal
+ * strings compared exactly. An engaged switch blocks new reserves only. A tick that emits
+ * several Actions reserves their combined notional once. Daily spend is open holds plus
+ * settled amounts on the UTC day the hold was reserved.
  * @typedef {{
  *   readonly reserve: (
  *     request: ReserveRequest,

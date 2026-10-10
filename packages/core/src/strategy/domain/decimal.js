@@ -48,3 +48,14 @@ export const addDecimal = (left, right) => {
   const width = Math.max(fractionLength(left), fractionLength(right));
   return fromUnits(scaledUnits(left, width) + scaledUnits(right, width), width);
 };
+
+/**
+ * Subtract two non-negative decimal strings exactly. `left` must be greater than `right`.
+ * The result keeps the wider fractional length.
+ * @param {string} left
+ * @param {string} right
+ */
+export const subtractDecimal = (left, right) => {
+  const width = Math.max(fractionLength(left), fractionLength(right));
+  return fromUnits(scaledUnits(left, width) - scaledUnits(right, width), width);
+};
