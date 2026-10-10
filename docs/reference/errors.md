@@ -48,6 +48,19 @@ Where a cause is genuinely data-dependent (the funding shortfall names the amoun
 deposit that buys no liquidity names the budgets) the raise site supplies the remedy, and omits it
 when no action exists rather than padding the field.
 
+## BoundsExceeded
+
+Reason-bearing. An Action asked for more than Bounds allow. Beside `code` and `reason`:
+
+- `bound` — the limit that refused, such as `maxDailySpendUsd` or `allowedMints`.
+- `limit` — the configured ceiling, as a string (a decimal cap, or the allowlist).
+- `requested` — what the Action asked for, as a string (an amount, a mint or a venue).
+- `scope` — `engine` for the engine-wide ceiling, or the strategy id when a strategy ceiling refused.
+- `remedy` — the next action, when one exists. Omitted when none does.
+
+The class writes `reason` from those fields when the raise site does not pass one:
+`maxDailySpendUsd limit is 5 on scope engine; requested 3`.
+
 ## Why the field is `reason`, never `cause`
 
 `Error.cause` is non-enumerable and vanishes from serialised output (ADR-0003). `reason` is a plain

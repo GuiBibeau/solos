@@ -7,6 +7,13 @@ The contract between an agent that decides and an executor that acts on Solana.
 `VaultState` is for vault consumers only. These Zod 4 schemas have no adapter or SDK dependencies.
 Integer quantities are decimal strings; never convert them through JavaScript Number.
 
+`EngineBoundsSchema` and `StrategyBoundsSchema` are the limits an Operator sets before any
+transaction is built. Engine bounds are a UTC-day USD spend cap plus mint and venue allowlists.
+Strategy bounds add a per-tick notional cap, an expiry and a consecutive-failure limit. An empty
+allowlist means any mint or venue the wider scope already allows. A strategy allowlist narrows
+the Engine allowlist and never widens it. Caps are non-negative decimal strings: zero is a cap,
+and a JSON number is rejected.
+
 ## Trading contract migration (0.2)
 
 The minor changeset moves this pre-1.0 package from 0.1 to 0.2 through the release workflow.

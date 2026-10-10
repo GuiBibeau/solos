@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { errorEnvelope } from "./error-envelope.js";
-import { BuildRejected, TransactionFailed } from "./errors.js";
+import { BoundsExceeded, BuildRejected, TransactionFailed } from "./errors.js";
 
 const REMEDY = "pass wrapSol: true to wrap native SOL for this side";
 
@@ -35,6 +35,28 @@ describe("domain error envelope", () => {
       reason: "confirmation was not established",
     });
     expect("remedy" in (envelope ?? {})).toBe(false);
+  });
+
+  test("BoundsExceeded names the bound, its limit, the request and the scope", () => {
+    expect(
+      errorEnvelope(
+        new BoundsExceeded({
+          bound: "maxDailySpendUsd",
+          limit: "5",
+          requested: "3",
+          scope: "engine",
+          remedy: "raise maxDailySpendUsd or wait until the next UTC day",
+        }),
+      ),
+    ).toEqual({
+      code: "BoundsExceeded",
+      bound: "maxDailySpendUsd",
+      limit: "5",
+      requested: "3",
+      scope: "engine",
+      reason: "maxDailySpendUsd limit is 5 on scope engine; requested 3",
+      remedy: "raise maxDailySpendUsd or wait until the next UTC day",
+    });
   });
 
   test("returns undefined for anything that is not a tagged domain error", () => {

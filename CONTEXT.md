@@ -164,6 +164,16 @@ liquidity, preserving account/NFT. Underlying principal is separate from shares 
 **Venue selector** — swap Action.venue; omission means Jupiter. Launch buys explicitly choose
 pump. No mint-based route inference, fallback, or public swap-tool venue argument.
 
+**Bounds** — the limits the Operator sets on what the Engine may do, checked before any transaction
+is built. Engine-wide Bounds are a UTC-day USD spend cap (`maxDailySpendUsd`) and allowlists of
+mints and venues; an empty allowlist means any. Per-strategy Bounds add a per-tick notional cap,
+an expiry and a consecutive-failure limit, and their allowlists narrow the Engine allowlists.
+The schemas live in `@solos-sh/actions`. Crossing one raises `BoundsExceeded`, which names the
+bound, its limit, the amount requested, the scope (`engine`, or a strategy id) and a remedy.
+
+**Notional** — the USD value, read when an Action is checked, of what leaves the wallet if the
+Action executes. `maxNotionalPerTickUsd` caps that value for one strategy tick.
+
 **Complete enumeration** — a bounded owner read that returns all supported positions and the
 receipt mints they represent, or fails explicitly. Missing optional coverage is distinct from a
 configured provider failure. Supported-assets valuation is not full net worth or debt accounting.

@@ -65,6 +65,40 @@ export class UnsupportedAction extends /** @type {UnsupportedActionClass} */ (
   }
 }
 
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"BoundsExceeded", BoundsExceededProps>} BoundsExceededClass */
+/**
+ * `bound` is the limit that refused (`maxDailySpendUsd`, `allowedMints`, ...). `limit` and
+ * `requested` are strings: a decimal cap and the amount asked, or the allowlist and the mint or
+ * venue that fell outside it. `scope` is `engine`, or the strategy id when a strategy ceiling refused.
+ * @typedef {{ readonly bound: string; readonly limit: string; readonly requested: string; readonly scope: string; readonly reason?: string }} BoundsExceededProps
+ */
+/**
+ * An Action asked for more than Bounds allow. The sentence names the bound, its limit, what was
+ * requested and which scope refused. The raise site supplies `remedy` when a next action exists.
+ */
+export class BoundsExceeded extends /** @type {BoundsExceededClass} */ (
+  taggedError("BoundsExceeded")
+) {
+  /** @param {BoundsExceededProps & { readonly remedy?: string }} props */
+  constructor(props) {
+    super({ ...props, reason: props.reason ?? boundsExceededReason(props) });
+  }
+}
+
+/** @param {BoundsExceededProps} props */
+const boundsExceededReason = (props) => {
+  const { bound, limit, requested, scope } = props;
+  if (
+    bound === undefined ||
+    limit === undefined ||
+    requested === undefined ||
+    scope === undefined
+  ) {
+    return "the action exceeds a configured bound";
+  }
+  return `${bound} limit is ${limit} on scope ${scope}; requested ${requested}`;
+};
+
 /** @typedef {import("./tagged-error.js").TaggedErrorClass<"BuildRejected", BuildRejectedProps>} BuildRejectedClass */
 /** @typedef {{ readonly reason: string }} BuildRejectedProps */
 /** A transaction failed policy before signing; validation may include read-only RPC preflight. */

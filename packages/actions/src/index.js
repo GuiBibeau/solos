@@ -11,6 +11,9 @@
 /** @typedef {import("./action.js").Action & { type: "deposit_perp_collateral" | "withdraw_perp_collateral" }} PerpCollateralAction */
 /** @typedef {import("./venue-actions.js").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {import("./venue-actions.js").WithdrawLendAction} WithdrawLendAction */
+/** @typedef {import("./bounds.js").BoundsVenue} BoundsVenue */
+/** @typedef {import("./bounds.js").EngineBounds} EngineBounds */
+/** @typedef {import("./bounds.js").StrategyBounds} StrategyBounds */
 /** @typedef {import("./mandate.js").Mandate} Mandate */
 /** @typedef {import("./portfolio.js").PortfolioState} PortfolioState */
 /** @typedef {import("./portfolio.js").Position} Position */
@@ -51,6 +54,12 @@ export {
   WSOL_MINT,
   WithdrawPerpCollateralActionSchema,
 } from "./action.js";
+export {
+  BOUNDS_VENUES,
+  BoundsVenueSchema,
+  EngineBoundsSchema,
+  StrategyBoundsSchema,
+} from "./bounds.js";
 export { MandateSchema } from "./mandate.js";
 export { PortfolioStateSchema, PositionSchema } from "./portfolio.js";
 export {
