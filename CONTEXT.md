@@ -19,8 +19,8 @@ not in the loop of any individual call. Policy above that boundary lives upstrea
 **Port** — an interface the core needs from the outside world, declared as an Effect
 `Context.GenericTag` in `ports/`. Examples: `Signer`, `BalanceReader`, `SolTransfer`, `EventBus`.
 
-**Adapter** — a `Layer` that provides a port with real I/O. Lives in `packages/solana` (Kit,
-keychain) or the harness (OTel). Never in core.
+**Adapter** — a `Layer` that provides a port with real I/O. Adapters live in `packages/solana`
+(Kit, keychain), the harness (OTel), or the Engine (SQLite Intent store). Never in core.
 
 **Use case** — an `Effect` in `use-cases/` that composes ports into one operation with a span.
 Called by tools, the CLI, and the harness alike.
