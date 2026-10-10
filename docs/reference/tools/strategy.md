@@ -9,18 +9,20 @@ and no transaction is signed. `schedule` and `trigger` are the kinds the contrac
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
 `solos strategy`, both of which talk to the Engine over HTTP. Core registers the eleven MCP
-tools unconditionally, so they always exist. `STRATEGIES` is a build-time `feature()` flag.
-The flag only compiles in the Engine strategy routes and the CLI `solos strategy` group, and
-it is off in release builds. `bun run solos` starts a second Bun and drops `--feature`, so
-both the Engine and the CLI group are started with the flag on the same process:
+tools unconditionally, so they always exist. `STRATEGIES` is a `feature()` flag fixed when
+Bun loads the code (`bun --feature=STRATEGIES`); release builds leave it off. `bun run solos`
+starts a second Bun and drops `--feature`, so both the Engine and the CLI group are started
+with the flag on the same process:
 
 ```sh
 bun --feature=STRATEGIES run apps/cli/src/main.js engine start --tier execute \
-  --allowed-mints So11111111111111111111111111111111111111112
+  --allowed-mints So11111111111111111111111111111111111111112,EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 bun --feature=STRATEGIES run apps/cli/src/main.js strategy register --file strategy.json
 ```
 
-`--allowed-mints` is the Engine allowlist. Omit it to allow any mint. Native SOL is priced
+`--allowed-mints` is the Engine allowlist. An execute-tier Engine refuses to start without
+it. `--allowed-mints any` allows every mint. A comma-separated list allows only those mints.
+Paper and dry-run Engines default to any mint when the flag is omitted. Native SOL is priced
 through the wrapped SOL mint `So11111111111111111111111111111111111111112`. Against an Engine
 built without the flag, a tool call returns `EngineUnavailable` with a remedy naming the flag.
 In direct mode (`SOLOS_EXECUTOR=direct`) a strategy tool returns `EngineConfigMissing` because

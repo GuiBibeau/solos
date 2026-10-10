@@ -82,10 +82,9 @@ readers plus bounded deposits and withdrawals over the configured Solana RPC thr
 Kamino klend-sdk (no provider key; one explicitly configured market); `strategy` registers a
 data-only Strategy with the Engine (ADR-0037) and can pause, resume, or cancel it — `allowedMints`
 can only narrow the Engine allowlist, and nothing ticks. Core registers the eleven MCP tools
-unconditionally, so they always exist. `STRATEGIES` is a build-time `feature()` flag. The flag
-only compiles in the Engine strategy routes and the CLI `solos strategy` group, and it is off
-in release builds. Start both with `bun --feature=STRATEGIES run apps/cli/src/main.js`, because
-`bun run solos` drops the flag. Against an Engine built without the flag, a tool call returns
+unconditionally, so they always exist. `STRATEGIES` is a `feature()` flag fixed when Bun loads
+the code (`bun --feature=STRATEGIES`); release builds leave it off. Start both with
+`bun --feature=STRATEGIES run apps/cli/src/main.js`, because `bun run solos` drops the flag. Against an Engine built without the flag, a tool call returns
 `EngineUnavailable` with a remedy naming the flag; `portfolio`
 composes the wallet, price feed and venue reads into the supported-portfolio state
 (ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero

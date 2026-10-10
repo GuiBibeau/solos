@@ -117,6 +117,29 @@ describe("strategy rows survive an engine restart [integration]", () => {
   });
 });
 
+describe("a dry engine allowlist [integration]", () => {
+  test("omitting --allowed-mints allows any mint", async () => {
+    const feed = prices();
+    const engine = await startTestEngine({
+      strategies: true,
+      env: { JUPITER_API_KEY: "test-key", JUPITER_BASE_URL: feed.url },
+    });
+    try {
+      const posted = await engineFetch(engine, "/v1/strategies", {
+        method: "POST",
+        body: {
+          ...draft(),
+          bounds: { ...draft().bounds, allowedMints: [USDC] },
+        },
+      });
+      expect(posted.status).toBe(200);
+    } finally {
+      await engine.stop();
+      feed.stop();
+    }
+  });
+});
+
 describe("strategy routes without the STRATEGIES flag [integration]", () => {
   test("a strategy path is EngineUnavailable and the remedy names the flag", async () => {
     const engine = await startTestEngine();

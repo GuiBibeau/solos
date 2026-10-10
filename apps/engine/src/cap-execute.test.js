@@ -153,7 +153,7 @@ describe("execute under a Strategy cap [integration]", () => {
   }, 180_000);
 });
 
-describe("the Engine allowlist refuses a SOL transfer [integration]", () => {
+describe("the Engine allowlist [integration]", () => {
   test("a mint outside the Engine list is BoundsExceeded and sends nothing", async () => {
     const feed = prices("100");
     const engine = await boot(feed, { allowedMints: [USDC] });
@@ -171,6 +171,30 @@ describe("the Engine allowlist refuses a SOL transfer [integration]", () => {
       expect(refused.status).toBe(422);
       expect(refused.body.error.reason).toContain("Engine allowlist");
       expect(await signaturesOf(engine.surfnet.rpcUrl, engine.signer)).toEqual(before);
+    } finally {
+      await engine.stop();
+      feed.stop();
+    }
+  }, 120_000);
+
+  test("--allowed-mints any starts and a SOL transfer is allowed", async () => {
+    const feed = prices("100");
+    const engine = await boot(feed, { allowedMints: [] });
+    try {
+      const strategyId = await register(engine, {
+        maxNotionalPerTickUsd: "5",
+        maxDailySpendUsd: "5",
+        allowedMints: [],
+        expiresAt: null,
+        maxConsecutiveFailures: 2,
+      });
+      const to = await seedAddress(randomSeed());
+      const before = await signaturesOf(engine.surfnet.rpcUrl, engine.signer);
+      const sent = await execute(engine, { to, lamports: ONE, strategyId, tickId: "tick-any" });
+      expect(sent.status).toBe(200);
+      expect(sent.body.status).toBe("confirmed");
+      const after = await signaturesOf(engine.surfnet.rpcUrl, engine.signer);
+      expect(after.length).toBe(before.length + 1);
     } finally {
       await engine.stop();
       feed.stop();

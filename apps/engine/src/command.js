@@ -1,8 +1,7 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { ValidationError } from "@solos/core";
-import { AddressSchema } from "@solos-sh/actions";
 import { Effect, Option } from "effect";
+import { parseAllowedMintsFlag } from "./config.js";
 import { asStartupError, exitOnFailure } from "./output.js";
 import { startEngine } from "./start.js";
 
@@ -38,25 +37,9 @@ const dataDir = Options.text("data-dir").pipe(
 const allowedMints = Options.text("allowed-mints").pipe(
   Options.optional,
   Options.withDescription(
-    "Comma-separated mint addresses the Engine allowlist permits. Omit to allow any mint",
+    "Mint allowlist. Required for --tier execute: addresses, or any. Paper and dry-run default to any",
   ),
 );
-
-/** @param {string | undefined} raw */
-const parseMints = (raw) => {
-  if (raw === undefined || raw.trim().length === 0) return [];
-  const mints = raw
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-  if (mints.every((mint) => AddressSchema.safeParse(mint).success)) return mints;
-  throw new ValidationError({
-    field: "allowed-mints",
-    value: null,
-    reason: "allowed-mints entries must be mint addresses",
-    remedy: "pass comma-separated base58 mint addresses, or omit the flag",
-  });
-};
 
 /**
  * @template T
@@ -103,7 +86,7 @@ const runUntilSignal = async (options) => {
     port: options.port,
     dataDir: defined(options.dataDir),
     ...(Option.isSome(options.allowedMints) && {
-      allowedMints: parseMints(options.allowedMints.value),
+      allowedMints: parseAllowedMintsFlag(options.allowedMints.value),
     }),
   });
   await new Promise((resolve) => {
