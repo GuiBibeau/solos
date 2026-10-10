@@ -96,8 +96,8 @@ describe("execute under a Strategy cap [integration]", () => {
     feed = prices("100");
     const dataDir = mkdtempSync(path.join(tmpdir(), "cap-execute-"));
     const bounds = {
-      maxNotionalPerTickUsd: "1",
-      maxDailySpendUsd: "2",
+      maxNotionalPerTickUsd: "1.01",
+      maxDailySpendUsd: "2.01",
       allowedMints: [WSOL],
       expiresAt: null,
       maxConsecutiveFailures: 2,
@@ -195,6 +195,31 @@ describe("the Engine allowlist [integration]", () => {
       expect(sent.body.status).toBe("confirmed");
       const after = await signaturesOf(engine.surfnet.rpcUrl, engine.signer);
       expect(after.length).toBe(before.length + 1);
+    } finally {
+      await engine.stop();
+      feed.stop();
+    }
+  }, 120_000);
+});
+
+describe("a nonpositive SOL price [integration]", () => {
+  test("a zero price is PriceUnavailable and sends nothing", async () => {
+    const feed = prices("0");
+    const engine = await boot(feed, { allowedMints: [WSOL] });
+    try {
+      const strategyId = await register(engine, {
+        maxNotionalPerTickUsd: "5",
+        maxDailySpendUsd: "5",
+        allowedMints: [],
+        expiresAt: null,
+        maxConsecutiveFailures: 2,
+      });
+      const to = await seedAddress(randomSeed());
+      const before = await signaturesOf(engine.surfnet.rpcUrl, engine.signer);
+      const refused = await execute(engine, { to, lamports: "0", strategyId, tickId: "tick-zero" });
+      expect(refused.status).toBe(503);
+      expect(refused.body.error.code).toBe("PriceUnavailable");
+      expect(await signaturesOf(engine.surfnet.rpcUrl, engine.signer)).toEqual(before);
     } finally {
       await engine.stop();
       feed.stop();

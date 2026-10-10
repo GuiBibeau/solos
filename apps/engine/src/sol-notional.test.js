@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { lamportsToUsd } from "./sol-notional.js";
+import { lamportsToUsd, transferNotionalUsd } from "./sol-notional.js";
 
 describe("SOL notional", () => {
   test("0.01 SOL at 100 USD is exactly 1", () => {
@@ -20,5 +20,12 @@ describe("SOL notional", () => {
   test("a malformed price or lamport amount is refused", () => {
     expect(lamportsToUsd("1.5", "100")).toBeUndefined();
     expect(lamportsToUsd("1", "-1")).toBeUndefined();
+  });
+
+  test("the hold adds the 6000 lamport fee reserve, including a zero transfer", () => {
+    expect(transferNotionalUsd("10000000", "100")).toBe("1.0006");
+    expect(transferNotionalUsd("20000000", "100")).toBe("2.0006");
+    expect(transferNotionalUsd("0", "100")).toBe("0.0006");
+    expect(transferNotionalUsd("nope", "100")).toBeUndefined();
   });
 });

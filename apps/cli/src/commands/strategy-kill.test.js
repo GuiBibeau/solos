@@ -19,7 +19,11 @@ const callerEnv = (engine) => ({
 
 describe("`solos strategy` kill switch [integration]", () => {
   test("engage, status, and disengage round-trip through the Engine", async () => {
-    const engine = await startTestEngine({ strategies: true });
+    const engine = await startTestEngine({
+      strategies: true,
+      tier: "execute",
+      allowedMints: [],
+    });
     try {
       const env = callerEnv(engine);
       const engaged = await runSolos(

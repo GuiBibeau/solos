@@ -3,6 +3,7 @@ import { CapLedger } from "@solos/core";
 import { Effect } from "effect";
 import { z } from "zod";
 import { errorResponse, invalid, json, readJson } from "./http.js";
+import { tierRefusal } from "./tier.js";
 
 const EngageSchema = z.object({
   scope: z.string().min(1),
@@ -43,8 +44,13 @@ const run = (deps, effect) =>
     .then((value) => json(200, value))
     .catch((error) => errorResponse(error));
 
+/** @param {import("./http.js").EngineDeps} deps */
+const withheld = (deps) => tierRefusal(deps.tier, "execute");
+
 /** @param {Request} request @param {import("./http.js").EngineDeps} deps */
 const engage = async (request, deps) => {
+  const refusal = withheld(deps);
+  if (refusal !== undefined) return errorResponse(refusal);
   const parsed = await body(request, EngageSchema, "scope and reason are required");
   if (parsed.ok === false) return parsed.response;
   const { scope, reason } = parsed.value;
@@ -58,6 +64,8 @@ const engage = async (request, deps) => {
 
 /** @param {Request} request @param {import("./http.js").EngineDeps} deps */
 const disengage = async (request, deps) => {
+  const refusal = withheld(deps);
+  if (refusal !== undefined) return errorResponse(refusal);
   const parsed = await body(request, ScopeSchema, "scope is required");
   if (parsed.ok === false) return parsed.response;
   const { scope } = parsed.value;

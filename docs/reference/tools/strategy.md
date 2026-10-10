@@ -71,8 +71,10 @@ Any other scope is one Strategy id.
 ## Caps on an execute
 
 `POST /v1/actions/execute` takes optional `strategyId` and `tickId`, together. The Engine
-reserves the transfer's SOL notional before anything is signed. A confirmed transfer settles
-that reserved notional once. A transaction that lands with an execution error settles `0`.
+reserves the transfer's SOL notional before anything is signed. The hold is the lamports
+plus the transfer fee reserve (5000 base plus 1000 priority). A nonpositive wrapped-SOL
+price is `PriceUnavailable` and nothing is reserved. A confirmed transfer settles that
+reserved notional once. A transaction that lands with an execution error settles `0`.
 Nothing signed, or a blockhash that expires with the signature still absent, releases the hold.
 If the Engine stops after broadcast and before confirm, the hold stays open and keeps counting
 against the per-tick and daily caps while the Intent is `in_flight`. Restart does not release

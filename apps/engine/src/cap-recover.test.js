@@ -166,8 +166,8 @@ const register = async (engine) => {
       params: { actions: [transfer(WSOL, "1")] },
       tickSource: { type: "clock", every: 60_000 },
       bounds: {
-        maxNotionalPerTickUsd: "2",
-        maxDailySpendUsd: "3",
+        maxNotionalPerTickUsd: "2.01",
+        maxDailySpendUsd: "3.01",
         allowedMints: [WSOL],
         expiresAt: null,
         maxConsecutiveFailures: 2,
@@ -237,7 +237,7 @@ describe("cap holds follow intent recovery [integration]", () => {
       expect(looked.body.state).toBe("settled");
       expect(looked.body.result.status).toBe("confirmed");
       expect(looked.body.result.signature).toBe(stored.signature);
-      expect(holdOf(copyDir, intentId)).toEqual({ status: "settled", actual: "2", n: 1 });
+      expect(holdOf(copyDir, intentId)).toEqual({ status: "settled", actual: "2.0006", n: 1 });
       const replay = await engineFetch(second, `/v1/intents/${intentId}`);
       expect(replay.body.result.signature).toBe(stored.signature);
       expect(holdOf(copyDir, intentId).n).toBe(1);

@@ -43,6 +43,7 @@ const STATUS = /** @type {Record<string, number>} */ ({
   RpcConfigMissing: 503,
   SurfpoolUnavailable: 503,
   EngineUnavailable: 503,
+  PriceUnavailable: 503,
 });
 
 /**

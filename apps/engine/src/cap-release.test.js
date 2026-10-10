@@ -51,8 +51,8 @@ const register = async (engine) => {
       params: { actions: [transfer(WSOL, "1")] },
       tickSource: { type: "clock", every: 60_000 },
       bounds: {
-        maxNotionalPerTickUsd: "2",
-        maxDailySpendUsd: "3",
+        maxNotionalPerTickUsd: "2.01",
+        maxDailySpendUsd: "3.01",
         allowedMints: [WSOL],
         expiresAt: null,
         maxConsecutiveFailures: 2,

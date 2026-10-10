@@ -1,8 +1,14 @@
 // @ts-check
-import { CapLedger, ValidationError, getPrice } from "@solos/core";
+import {
+  CapLedger,
+  PriceUnavailable,
+  ValidationError,
+  compareDecimal,
+  getPrice,
+} from "@solos/core";
 import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect } from "effect";
-import { lamportsToUsd } from "./sol-notional.js";
+import { transferNotionalUsd } from "./sol-notional.js";
 
 /** @typedef {import("@solos-sh/actions").Action} Action */
 
@@ -65,14 +71,31 @@ const hold = (body, intentId) =>
     });
   });
 
-/** Native SOL is priced through the wrapped SOL mint. @param {Action} action */
+/**
+ * Native SOL is priced through the wrapped SOL mint. The hold includes the fee reserve.
+ * @param {Action} action
+ */
 const transferNotional = (action) =>
   Effect.gen(function* () {
     if (action.type !== "transfer_sol") return yield* unsupported(action.type);
     const price = yield* getPrice({ mint: WSOL_MINT });
-    const notionalUsd = lamportsToUsd(action.lamports, price.priceUsd);
+    if (!isPositiveUsd(price.priceUsd)) return yield* missingPrice(price.source);
+    const notionalUsd = transferNotionalUsd(action.lamports, price.priceUsd);
     if (notionalUsd === undefined) return yield* unsupported(action.type);
     return notionalUsd;
+  });
+
+/** @param {string} priceUsd */
+const isPositiveUsd = (priceUsd) =>
+  /^\d+(\.\d+)?$/.test(priceUsd) && compareDecimal(priceUsd, "0") > 0;
+
+/** @param {string} source */
+const missingPrice = (source) =>
+  new PriceUnavailable({
+    mint: WSOL_MINT,
+    source,
+    reason: "wrapped SOL price must be positive before a Strategy cap reserves",
+    remedy: "retry when the price feed reports a positive SOL price",
   });
 
 /** @param {string} type */

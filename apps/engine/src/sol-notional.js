@@ -1,4 +1,5 @@
 // @ts-check
+import { TRANSFER_FEE_RESERVE_LAMPORTS } from "@solos/core";
 
 /** Digits after the decimal point. No dot means a whole number. @param {string} value */
 const fractionWidth = (value) => {
@@ -20,6 +21,19 @@ export const lamportsToUsd = (lamports, priceUsd) => {
   const [whole, frac = ""] = priceUsd.split(".", 2);
   const units = BigInt(lamports) * BigInt(`${whole}${frac}`);
   return trimZeros(fromUnits(units, width + 9));
+};
+
+/**
+ * Principal plus the transfer fee reserve (base signature fee and priority fee).
+ * A zero-lamport transfer still holds the fee.
+ * @param {string} lamports
+ * @param {string} priceUsd
+ * @returns {string | undefined}
+ */
+export const transferNotionalUsd = (lamports, priceUsd) => {
+  if (!/^\d+$/.test(lamports)) return undefined;
+  const held = (BigInt(lamports) + TRANSFER_FEE_RESERVE_LAMPORTS).toString();
+  return lamportsToUsd(held, priceUsd);
 };
 
 /** @param {bigint} units @param {number} width */
