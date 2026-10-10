@@ -1,22 +1,23 @@
 {
-  "name": "@solos/cli",
+  "name": "@solos/engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "solos": "./src/main.js"
+    "solos-engine": "./src/main.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
   },
   "dependencies": {
     "@effect/cli": "latest",
-    "@effect/platform": "0.97.2",
+    "@effect/opentelemetry": "latest",
     "@effect/platform-bun": "0.91.2",
+    "@opentelemetry/exporter-trace-otlp-http": "latest",
+    "@opentelemetry/sdk-trace-base": "latest",
     "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
-    "@solos/engine": "workspace:*",
-    "@solos/harness": "workspace:*",
-    "@solos/mcp": "workspace:*",
     "@solos/solana": "workspace:*",
-    "ai": "7.0.99",
     "effect": "3.22.2",
     "zod": "4.6.5"
   }

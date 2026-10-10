@@ -41,6 +41,22 @@ By default the server advertises three tools and enables the rest on demand thro
 `solana_discovery_search_tools` and `tools/list_changed`. If Cursor does not pick up the changed
 list, connect with `--tools all` to advertise every permitted tool up front.
 
+## Remote engine
+
+Put the three variables in the entry's `env`. The caller needs no `SOLOS_SIGNER_*`; the Engine
+holds the key:
+
+```json
+"env": {
+  "SOLOS_EXECUTOR": "engine",
+  "SOLOS_ENGINE_URL": "http://127.0.0.1:8787",
+  "SOLOS_ENGINE_TOKEN": "<the token the engine was started with>"
+}
+```
+
+`SOLOS_ENGINE_URL` is the origin only. Start the engine with `solos engine start` (dry run),
+`solos engine start --paper` (Surfpool), or `solos engine start --tier execute` (live).
+
 ## From a checkout
 
 `bun run solos connect cursor` writes the source server instead: `"command": "bun"`,

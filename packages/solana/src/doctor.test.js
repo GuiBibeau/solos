@@ -80,6 +80,29 @@ describe("solos doctor diagnosis [integration]", () => {
     expect(codes(report)).toEqual(["InvalidConfig", "RpcConfigMissing", "SignerConfigMissing"]);
   });
 
+  test("engine mode needs no local signer and names a missing engine variable", () => {
+    const ready = diagnoseSolanaEnv({
+      SOLOS_CONFIG_DIR: emptyDir,
+      SOLANA_RPC_URL: RPC,
+      SOLOS_EXECUTOR: "engine",
+      SOLOS_ENGINE_URL: "http://127.0.0.1:8787",
+      SOLOS_ENGINE_TOKEN: "engine-token",
+    });
+    expect(ready.ok).toBe(true);
+    expect(ready.signer).toBe("engine");
+    expect(JSON.stringify(ready)).not.toContain("engine-token");
+
+    const missing = diagnoseSolanaEnv({
+      SOLOS_CONFIG_DIR: emptyDir,
+      SOLANA_RPC_URL: RPC,
+      SOLOS_EXECUTOR: "engine",
+    });
+    expect(codes(missing)).toEqual(["EngineConfigMissing", "EngineConfigMissing"]);
+    expect(missing.issues.map((issue) => issue.reason).join(" ")).toContain("SOLOS_ENGINE_URL");
+    expect(missing.issues.map((issue) => issue.reason).join(" ")).toContain("SOLOS_ENGINE_TOKEN");
+    expect(codes(missing)).not.toContain("SignerConfigMissing");
+  });
+
   test("flags a local profile that names no signer source", () => {
     const report = diagnoseSolanaEnv({
       SOLOS_CONFIG_DIR: dir,

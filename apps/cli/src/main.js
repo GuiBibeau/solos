@@ -8,6 +8,7 @@
  */
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
+import { engine } from "@solos/engine";
 import { SOLOS_VERSION } from "@solos/mcp";
 import { Effect } from "effect";
 import { agent } from "./commands/agent.js";
@@ -40,6 +41,7 @@ const operatorCommands = /** @type {const} */ ([
   login,
   profiles,
   doctor,
+  engine,
   connect,
   wallet,
   transfer,

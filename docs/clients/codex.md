@@ -46,6 +46,21 @@ By default the server advertises three tools and enables the rest on demand thro
 changes needs everything up front: `solos connect codex --tools all`, and `enabled_tools` still
 filters on top.
 
+## Remote engine
+
+Add the three variables to the table's `env` so Codex's server signs through an Engine. The
+caller needs no `SOLOS_SIGNER_*`:
+
+```toml
+[mcp_servers.solos.env]
+SOLOS_EXECUTOR = "engine"
+SOLOS_ENGINE_URL = "http://127.0.0.1:8787"
+SOLOS_ENGINE_TOKEN = "<the token the engine was started with>"
+```
+
+`SOLOS_ENGINE_URL` is the origin only. Start the engine with `solos engine start` (dry run),
+`solos engine start --paper` (Surfpool), or `solos engine start --tier execute` (live).
+
 ## From a checkout
 
 `bun run solos connect codex` writes the source server instead:

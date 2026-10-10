@@ -57,10 +57,26 @@ per-step activation in the agent loop.
 (`transfer_sol`, `swap`, ...). Who executes it is not part of the action.
 
 **Executor** — the `ActionExecutor` port: `simulate(action)` and `execute(action)`. The default
-adapter is `DirectSignerExecutor` (local keypair). A vault engine is another adapter, optional.
+adapter is `DirectSignerExecutor` (local keypair). `SOLOS_EXECUTOR=engine` selects
+`EngineExecutor`, which forwards to the Engine (ADR-0037).
 
-**Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product;
-vault mode plugs the same tools into pooled custody through `vault-engine`.
+**Engine** — the process in `apps/engine` that holds the hot key and executes one-off Actions over
+HTTP. A Caller reaches it with `SOLOS_EXECUTOR=engine`, `SOLOS_ENGINE_URL` and
+`SOLOS_ENGINE_TOKEN`. It is a Caller inside this repo: the same tools, aimed at a remote signer.
+Dry run (no flags) simulates and refuses execute. `--paper` runs the execute tier on Surfpool.
+`--tier execute` is live.
+
+**Hot key** — the keypair that lives only on the Engine host. Callers configured with
+`SOLOS_EXECUTOR=engine` send Actions; they never see the key.
+
+**Intent** — one Caller request to execute one Action, identified by a Caller-chosen `intentId`.
+The Engine executes an Intent at most once. States: `in_flight`, `settled` (with the
+`ExecutionResult`), `failed` (with the error envelope). A repeat returns the stored outcome; a
+repeat while in flight is `IntentInFlight`.
+
+**Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
+(`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a
+separate repo the harness depends on (ADR-0037).
 
 **Signer** — the identity that pays and signs. Core sees only its address (`Signer` port). The
 adapter holds the `KitSigner` produced by `@solana/keychain`. Backend is a config value.

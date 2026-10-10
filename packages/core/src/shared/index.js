@@ -5,6 +5,15 @@ export { AddressSchema, SignatureSchema } from "./domain/address.js";
 export { base58ByteLength } from "./domain/base58.js";
 export { errorEnvelope } from "./domain/error-envelope.js";
 export {
+  EngineConfigMissing,
+  EngineUnauthorized,
+  EngineUnavailable,
+  IntentInFlight,
+  IntentNotFound,
+  SurfpoolUnavailable,
+  TierWithheld,
+} from "./domain/engine-errors.js";
+export {
   BuildRejected,
   BuildUnavailable,
   InternalError,

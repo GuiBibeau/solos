@@ -4,6 +4,7 @@
 /** @typedef {import("./credentials/profile.js").Profile} Profile */
 /** @typedef {import("./credentials/profile.js").ProviderName} ProviderName */
 /** @typedef {import("./credentials/discover.js").DiscoveredWallet} DiscoveredWallet */
+import { SignerConfigMissing } from "@solos/core";
 import { Layer } from "effect";
 import { JevToolSelectorLive } from "./discovery/jev-tool-selector.js";
 import { LocalToolSelectorLive } from "./discovery/local-tool-selector.js";
@@ -14,6 +15,7 @@ import {
   DEFAULT_PHOENIX_BASE_URL,
 } from "./env.js";
 import { DirectSignerExecutor } from "./executor/direct-signer-executor.js";
+import { EngineSolanaLive } from "./executor/engine-live.js";
 import { LaunchVenueLive } from "./launch/launch-venue-live.js";
 import { KAMINO_MAIN_MARKET } from "./lend/kamino-addresses.js";
 import { KaminoVenueLive } from "./lend/kamino-venue-live.js";
@@ -50,6 +52,7 @@ export {
 } from "./env.js";
 export { diagnoseSolanaEnv } from "./doctor.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
+export { EngineExecutor } from "./executor/engine-executor.js";
 export { LaunchVenueLive } from "./launch/launch-venue-live.js";
 export { KAMINO_MAIN_MARKET, KLEND_PROGRAM_ID } from "./lend/kamino-addresses.js";
 export { KaminoVenueLive } from "./lend/kamino-venue-live.js";
@@ -148,10 +151,18 @@ const withPortfolio = (base) => Layer.merge(base, PortfolioReaderLive().pipe(Lay
 /**
  * Production wiring from validated env: RPC + keychain signer + all adapters.
  * `provideMerge` keeps the internal tags visible for the CLI and tests.
+ * `SOLOS_EXECUTOR=engine` swaps in the remote executor and does not build a local signer.
  * @param {SolanaEnv} env
  */
-export const SolanaLive = (env) =>
-  withPortfolio(
+const directSolanaLive = (env) => {
+  if (env.signer === undefined) {
+    throw new SignerConfigMissing({
+      reason:
+        "no signer: set SOLOS_SIGNER_KEYPAIR_PATH / SOLOS_SIGNER_PRIVATE_KEY, or run `solos login`",
+      remedy: "run `solos login` to save a profile, or export SOLOS_SIGNER_KEYPAIR_PATH",
+    });
+  }
+  return withPortfolio(
     adapters({ market: env.kamino.market, phoenix: env.phoenix }).pipe(
       Layer.merge(lending(env.kamino)),
       Layer.provideMerge(KitSignerLive(env.signer)),
@@ -165,6 +176,11 @@ export const SolanaLive = (env) =>
       Layer.merge(selector(env.gateway)),
     ),
   );
+};
+
+/** @param {SolanaEnv} env */
+export const SolanaLive = (env) =>
+  env.executor === "engine" ? EngineSolanaLive(env) : directSolanaLive(env);
 
 /**
  * Test wiring: same adapters, signer from raw bytes, RPC by URL. `elfa`, `jupiter` and

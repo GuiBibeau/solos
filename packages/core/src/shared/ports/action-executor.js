@@ -18,14 +18,18 @@ import { Context } from "effect";
  */
 
 /**
- * The seam between deciding and acting (ADR-0013). The agent side builds an `Action`; whoever is
- * configured here turns it into a transaction: the local wallet by default, a vault engine later.
+ * The seam between deciding and acting (ADR-0013, ADR-0037). The agent side builds an `Action`;
+ * whoever is configured here turns it into a transaction: the local wallet by default, the
+ * Engine in this repo when `SOLOS_EXECUTOR=engine`. `intentId` is optional and only the engine
+ * adapter reads it; a missing id is a new Intent.
  * @typedef {{
  *   readonly name: string;
  *   readonly simulate: (action: import("@solos-sh/actions").Action) =>
  *     import("effect").Effect.Effect<import("@solos-sh/actions").SimulationResult, ExecutorError>;
- *   readonly execute: (action: import("@solos-sh/actions").Action, options: { readonly skipSimulation: boolean }) =>
- *     import("effect").Effect.Effect<import("@solos-sh/actions").ExecutionResult, ExecutorError>;
+ *   readonly execute: (
+ *     action: import("@solos-sh/actions").Action,
+ *     options: { readonly skipSimulation: boolean; readonly intentId?: string },
+ *   ) => import("effect").Effect.Effect<import("@solos-sh/actions").ExecutionResult, ExecutorError>;
  * }} ActionExecutorShape
  */
 
