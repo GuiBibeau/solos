@@ -3,15 +3,20 @@ import { readFileSync } from "node:fs";
 import { Args, Command, Options } from "@effect/cli";
 import {
   EngineConfigMissing,
-  StrategyInvalid,
+  executeRegisterTool,
+  executeUpdateTool,
+  getStatusTool,
   getStrategyStatus,
   listStrategies,
+  listStrategiesTool,
   registerStrategy,
+  StrategyInvalid,
   updateStrategy,
 } from "@solos/core";
 import { HttpStrategyRegistry } from "@solos/solana";
 import { Effect, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
+import { commandHelp, groupHelp, optionHelp } from "./tool-help.js";
 
 /** @returns {import("effect").Effect.Effect<{ url: string; token: string }, EngineConfigMissing>} */
 const endpoint = () => {
@@ -53,20 +58,20 @@ const readDraft = (file) => {
   }
 };
 
-const file = Options.text("file").pipe(Options.withDescription("Path to a JSON strategy document"));
+const file = Options.text("file");
 const state = Options.choice("state", ["active", "paused", "done", "expired", "failed"]).pipe(
   Options.optional,
-  Options.withDescription("Only strategies in this state"),
+  optionHelp(listStrategiesTool.input.shape.state),
 );
 const owner = Options.text("owner").pipe(
   Options.optional,
-  Options.withDescription("Only strategies with this owner label"),
+  optionHelp(listStrategiesTool.input.shape.owner),
 );
-const idArg = () => Args.text({ name: "id" }).pipe(Args.withDescription("Strategy id"));
+const idArg = () => Args.text({ name: "id" });
 
 const register = Command.make("register", { file }, (options) =>
   run(readDraft(options.file).pipe(Effect.flatMap(registerStrategy))),
-).pipe(Command.withDescription("Register a strategy from a JSON file"));
+).pipe(commandHelp(executeRegisterTool));
 
 const list = Command.make("list", { state, owner }, (options) =>
   run(
@@ -75,30 +80,30 @@ const list = Command.make("list", { state, owner }, (options) =>
       owner: Option.getOrUndefined(options.owner),
     }),
   ),
-).pipe(Command.withDescription("List registered strategies"));
+).pipe(commandHelp(listStrategiesTool));
 
 const status = Command.make("status", { id: idArg() }, (options) =>
   run(getStrategyStatus(options.id)),
-).pipe(Command.withDescription("Read one strategy"));
+).pipe(commandHelp(getStatusTool));
 
 /**
+ * Pause, resume, and cancel are three verbs over the one update tool.
  * @param {string} name
  * @param {"active" | "paused" | "done"} next
- * @param {string} description
  */
-const move = (name, next, description) =>
+const move = (name, next) =>
   Command.make(name, { id: idArg() }, (options) => run(updateStrategy(options.id, next))).pipe(
-    Command.withDescription(description),
+    commandHelp(executeUpdateTool),
   );
 
 export const strategy = Command.make("strategy").pipe(
-  Command.withDescription("Register and manage strategies on the Engine"),
+  groupHelp("Register and manage strategies on the Engine"),
   Command.withSubcommands([
     register,
     list,
     status,
-    move("pause", "paused", "Pause a strategy"),
-    move("resume", "active", "Resume a paused strategy"),
-    move("cancel", "done", "Cancel a strategy"),
+    move("pause", "paused"),
+    move("resume", "active"),
+    move("cancel", "done"),
   ]),
 );
