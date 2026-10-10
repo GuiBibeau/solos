@@ -26,6 +26,7 @@ const REASONFUL = new Set([
   "InsufficientFunds",
   "IntentInFlight",
   "IntentNotFound",
+  "KillSwitchEngaged",
   "InternalError",
   "IrisAuthFailed",
   "IrisConfigMissing",

@@ -1,35 +1,5 @@
 // @ts-check
-
-/** Digits after the decimal point. No dot means a whole number. @param {string} value */
-const fractionLength = (value) => {
-  const dot = value.indexOf(".");
-  if (dot === -1) return 0;
-  return value.length - dot - 1;
-};
-
-/**
- * Scale a decimal string to an integer of `width` fractional digits. No digit is dropped
- * and no digit is rounded.
- * @param {string} value
- * @param {number} width
- */
-const scaledUnits = (value, width) => {
-  const [whole, frac = ""] = value.split(".", 2);
-  return BigInt(`${whole}${frac.padEnd(width, "0")}`);
-};
-
-/**
- * Compare two decimal strings exactly. Positive when `left` is greater. Both sides are
- * scaled to the wider fractional length, so a difference past any fixed width still counts.
- * @param {string} left
- * @param {string} right
- */
-const compareDecimal = (left, right) => {
-  const width = Math.max(fractionLength(left), fractionLength(right));
-  const delta = scaledUnits(left, width) - scaledUnits(right, width);
-  if (delta === 0n) return 0;
-  return delta > 0n ? 1 : -1;
-};
+import { compareDecimal } from "./decimal.js";
 
 /**
  * Actions a first tick would emit. A trailing trigger has no anchor yet, so it emits nothing.

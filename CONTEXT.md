@@ -95,12 +95,36 @@ the one Registry. Callers reach it through the strategy tools or `solos strategy
 whose allowlist widens the Engine's is refused at registration with `BoundsExceeded`.
 
 **Bounds** — the limits one Strategy may spend, carried as `StrategyBoundsSchema`.
-`maxNotionalPerTickUsd` caps the notional of one tick. `maxDailySpendUsd` caps what the Strategy
-may reserve during the current UTC day. `allowedMints` lists the mints it may spend: empty means
+`maxNotionalPerTickUsd` caps the sum of all reserves sharing a `tickId`. `maxDailySpendUsd` caps
+what the Strategy may reserve during the current UTC day. `allowedMints` lists the mints it may spend: empty means
 any mint the Engine allowlist already permits, and a non-empty list can only narrow that
 allowlist, never widen it. `expiresAt` is when the bounds stop authorizing spends, or null when
 they do not expire on a clock. `maxConsecutiveFailures` is how many failed ticks in a row move
 the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
+
+**Cap ledger** — the account of what a Strategy has reserved and settled against its Bounds.
+`reserve` holds the notional of one Intent and returns a reservation. The same `intentId`
+returns that reservation again and does not add to the day's spend. The day's spend is every
+open hold plus every settled amount reserved on the current UTC day. A hold stays on the day
+it was reserved, including when it is still open after midnight. `maxDailySpendUsd`,
+`allowedMints`, and `expiresAt` are judged on that reserve. `maxNotionalPerTickUsd` caps the
+sum of all reserves sharing a `tickId`. An exact cap is allowed. A breach is `BoundsExceeded`.
+A Strategy with no bounds loaded is `StrategyNotFound`. The port is
+`CapLedger`. `memoryCapLedger` keeps the account in the process.
+
+**Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
+`intentId`. The hold is the worst case: the notional at max slippage plus fees, so a correct
+execution never settles above it. `settle` replaces an open hold with the measured USD spend.
+A higher settle is a bug: the overshoot is recorded on the reservation and that engages the
+per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
+hold as the first call left it. A settled hold stays settled. A released hold stays released.
+
+**Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
+scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and
+names that scope. A global switch blocks every Strategy. A per-Strategy switch blocks only that
+Strategy. Settle and release still complete. Disengaging that scope allows new reserves again.
+The durable adapter must keep an engaged switch across restarts. `memoryCapLedger` keeps the
+switch in the process.
 
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
 (`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a
