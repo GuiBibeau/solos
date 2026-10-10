@@ -23,7 +23,7 @@ export const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
  */
 export const runSolos = async (args, env, options = {}) => {
   const { cwd = ROOT, shouldLoadEnvFile = false, features = [] } = options;
-  const featureArgs = features.flatMap((name) => ["--feature", name]);
+  const featureArgs = features.map((name) => `--feature=${name}`);
   const proc = Bun.spawn(
     [
       process.execPath,

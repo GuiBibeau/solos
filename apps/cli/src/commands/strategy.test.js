@@ -204,13 +204,17 @@ describe("`solos strategy` after an engine restart [integration]", () => {
       keepData: true,
       env: { JUPITER_API_KEY: "test-key", JUPITER_BASE_URL: feed.url },
     });
-    const registered = await runSolos(
-      ["strategy", "register", "--file", file],
-      callerEnv(first, feed.url),
-      FEATURES,
-    );
-    const id = JSON.parse(registered.stdout).id;
-    await first.stop();
+    let id;
+    try {
+      const registered = await runSolos(
+        ["strategy", "register", "--file", file],
+        callerEnv(first, feed.url),
+        FEATURES,
+      );
+      id = JSON.parse(registered.stdout).id;
+    } finally {
+      await first.stop();
+    }
     const second = await startTestEngine({
       strategies: true,
       allowedMints: [USDC],
