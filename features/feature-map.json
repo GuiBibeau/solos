@@ -3198,5 +3198,54 @@
       "The 8247-lamport trade loss was measured; its spread and venue-fee split was not.",
       "No GitHub issue was opened for this operator-requested local QA round."
     ]
+  },
+  {
+    "status": "live-validated",
+    "action": "transfer_sol",
+    "issue": 194,
+    "codeSha": "359a3254f98aab3c4b2418e7c40236219f2dc77c",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/engine-qa.md#engine-transfer-sol-194",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000018"
+    },
+    "sends": [
+      {
+        "signature": "ebBhZZQFhBAMY9N4qHXFENumgWKWgTvJdG8f8844fM1BpGMBfUEzhipvpQJzUcupLhmzqBJgfnLkpm6bPciZCM8",
+        "simulation": {
+          "computeUnits": 150
+        },
+        "wallet": {
+          "sol": {
+            "delta": "-0.001006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "MgKzW5PJwUqBGCc4rszSVsFJJHXJMDabsLKh4qh9MKwMxBMoxnpAN7qFNRwfgCvKifrXD5jx1M2gJWQDqd5Mh7r",
+        "wallet": {
+          "sol": {
+            "delta": "-0.001006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "kqGn4T6k38u29HYLhJ7WTnoViGrjoRbP5EERZziAoEAUzn3vKDN9f1qymBJG89nYnoraVKQVVeGDECUGvhuouj2",
+        "wallet": {
+          "sol": {
+            "delta": "-0.001006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Simulation compute units were recorded for the first send only. Chain compute units consumed were 150 on each send.",
+      "The intent id was recorded for qa234-restart-2 only.",
+      "Surfpool coverage is not claimed."
+    ]
   }
 ]
