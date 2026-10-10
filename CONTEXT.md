@@ -76,7 +76,8 @@ States: `in_flight`, `settled` (with the `ExecutionResult`), `failed` (with the 
 Before broadcast it stores the signature and last valid block height. On startup, or when a
 request touches an in-flight Intent that has a signature, a landed signature becomes `settled`
 and is not resent; `failed` waits until the blockhash has expired and the signature is still
-absent; until then it stays `in_flight` and answers `IntentInFlight`. A repeat of a settled or
+absent; until then it stays `in_flight` and answers `IntentInFlight`. An in-flight Intent with
+no signature at startup becomes `failed`, because nothing was sent. A repeat of a settled or
 failed Intent returns the stored outcome.
 
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product

@@ -92,5 +92,4 @@ recorded home so later children do not invent a second executor.
 - The hot key is a process boundary. A caller configured for the Engine and a caller configured
   `direct` are different deployments, not a fallback.
 - 423 is reserved and unused until the bounds child adds `EngineKilled`.
-- ADR-0013 and ADR-0014 are amended by this record. Their files were left as accepted; the
-  amendment text is here.
+- ADR-0013 and ADR-0014 each carry an "Amended by ADR-0037" line. The amendment text is here.
