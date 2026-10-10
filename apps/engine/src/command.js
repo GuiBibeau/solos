@@ -1,6 +1,7 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
 import { Effect, Option } from "effect";
+import { parseAllowedMintsFlag } from "./config.js";
 import { asStartupError, exitOnFailure } from "./output.js";
 import { startEngine } from "./start.js";
 
@@ -33,6 +34,13 @@ const dataDir = Options.text("data-dir").pipe(
   Options.withDescription("Directory for the engine database. Default ~/.config/solos/engine"),
 );
 
+const allowedMints = Options.text("allowed-mints").pipe(
+  Options.optional,
+  Options.withDescription(
+    "Mint allowlist. Required for --tier execute: addresses, or any. Paper and dry-run default to any",
+  ),
+);
+
 /**
  * @template T
  * @param {import("effect/Option").Option<T>} value
@@ -50,6 +58,7 @@ const startupFailure = (error) => asStartupError(error);
  *   host: string;
  *   port: number;
  *   dataDir: import("effect/Option").Option<string>;
+ *   allowedMints: import("effect/Option").Option<string>;
  * }} options
  */
 const run = (options) =>
@@ -65,6 +74,7 @@ const run = (options) =>
  *   host: string;
  *   port: number;
  *   dataDir: import("effect/Option").Option<string>;
+ *   allowedMints: import("effect/Option").Option<string>;
  * }} options
  */
 const runUntilSignal = async (options) => {
@@ -75,6 +85,9 @@ const runUntilSignal = async (options) => {
     host: options.host,
     port: options.port,
     dataDir: defined(options.dataDir),
+    ...(Option.isSome(options.allowedMints) && {
+      allowedMints: parseAllowedMintsFlag(options.allowedMints.value),
+    }),
   });
   await new Promise((resolve) => {
     process.once("SIGINT", () => resolve(undefined));
@@ -85,7 +98,7 @@ const runUntilSignal = async (options) => {
 
 /** @param {string} name */
 export const engineStartCommand = (name) =>
-  Command.make(name, { tier, paper, host, port, dataDir }, run).pipe(
+  Command.make(name, { tier, paper, host, port, dataDir, allowedMints }, run).pipe(
     Command.withDescription(
       "Start the engine. No flags: dry run, simulate works and execute is refused. --paper runs on Surfpool. --tier execute is live.",
     ),

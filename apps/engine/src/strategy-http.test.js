@@ -117,6 +117,55 @@ describe("strategy rows survive an engine restart [integration]", () => {
   });
 });
 
+describe("a dry engine allowlist [integration]", () => {
+  test("omitting --allowed-mints allows any mint", async () => {
+    const feed = prices();
+    const engine = await startTestEngine({
+      strategies: true,
+      env: { JUPITER_API_KEY: "test-key", JUPITER_BASE_URL: feed.url },
+    });
+    try {
+      const posted = await engineFetch(engine, "/v1/strategies", {
+        method: "POST",
+        body: {
+          ...draft(),
+          bounds: { ...draft().bounds, allowedMints: [USDC] },
+        },
+      });
+      expect(posted.status).toBe(200);
+    } finally {
+      await engine.stop();
+      feed.stop();
+    }
+  });
+});
+
+describe("kill switch tier [integration]", () => {
+  test("simulate can read the switch and cannot engage or disengage it", async () => {
+    const engine = await startTestEngine({ strategies: true });
+    try {
+      const status = await engineFetch(engine, "/v1/strategies/kill?scope=global");
+      expect(status.status).toBe(200);
+      expect(status.body).toEqual({ scope: "global", engaged: false, reason: null });
+      const engaged = await engineFetch(engine, "/v1/strategies/kill", {
+        method: "POST",
+        body: { scope: "global", reason: "operator stop" },
+      });
+      expect(engaged.status).toBe(403);
+      expect(engaged.body.error.code).toBe("TierWithheld");
+      expect(engaged.body.error.remedy).toContain("--tier execute");
+      const lifted = await engineFetch(engine, "/v1/strategies/kill/disengage", {
+        method: "POST",
+        body: { scope: "global" },
+      });
+      expect(lifted.status).toBe(403);
+      expect(lifted.body.error.code).toBe("TierWithheld");
+    } finally {
+      await engine.stop();
+    }
+  });
+});
+
 describe("strategy routes without the STRATEGIES flag [integration]", () => {
   test("a strategy path is EngineUnavailable and the remedy names the flag", async () => {
     const engine = await startTestEngine();

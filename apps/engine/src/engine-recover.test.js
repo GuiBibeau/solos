@@ -167,7 +167,7 @@ const plant = (planted) => {
  * @param {{ signature: string; height: bigint }} signed
  */
 const restartPlanted = async (signed) => {
-  const first = await startTestEngine({ tier: "execute", keepData: true });
+  const first = await startTestEngine({ tier: "execute", allowedMints: [], keepData: true });
   const { dataDir } = first;
   const to = await seedAddress(randomSeed());
   await first.stop();
@@ -179,7 +179,7 @@ const restartPlanted = async (signed) => {
     signature: signed.signature,
     height: signed.height,
   });
-  const engine = await startTestEngine({ tier: "execute", dataDir });
+  const engine = await startTestEngine({ tier: "execute", allowedMints: [], dataDir });
   return { engine, intentId, to };
 };
 
@@ -192,7 +192,7 @@ describe("in-flight intent recovery [integration]", () => {
     /** @type {TestEngine | undefined} */
     let restarted;
     try {
-      running = await startTestEngine({ tier: "execute", rpcUrl: held.url });
+      running = await startTestEngine({ tier: "execute", allowedMints: [], rpcUrl: held.url });
       const signer = running.signer;
       const before = await signaturesOf(surfnet.rpcUrl, signer);
       const to = await seedAddress(randomSeed());
@@ -211,7 +211,7 @@ describe("in-flight intent recovery [integration]", () => {
       expect(first.status).toBe(200);
       await running.stop();
       running = undefined;
-      restarted = await startTestEngine({ tier: "execute", dataDir: copyDir });
+      restarted = await startTestEngine({ tier: "execute", allowedMints: [], dataDir: copyDir });
       const looked = await engineFetch(restarted, `/v1/intents/${intentId}`);
       expect(looked.body.state).toBe("settled");
       expect(looked.body.result.signature).toBe(stored.signature);

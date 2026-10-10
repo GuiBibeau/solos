@@ -114,7 +114,7 @@ describe("caller retries reuse one intent [integration]", () => {
   let recipient;
 
   beforeAll(async () => {
-    engine = await startTestEngine({ tier: "execute" });
+    engine = await startTestEngine({ tier: "execute", allowedMints: [] });
     callerDir = mkdtempSync(path.join(tmpdir(), "solos-caller-intent-"));
     recipient = await seedAddress(randomSeed());
   });

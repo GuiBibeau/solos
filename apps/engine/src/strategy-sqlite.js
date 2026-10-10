@@ -65,5 +65,12 @@ const readMany = (db, filter) => {
     .map((row) => parseBody(/** @type {{ body: string }} */ (row).body));
 };
 
+/**
+ * Bounds for a stored Strategy, or undefined when that id is not loaded.
+ * @param {import("bun:sqlite").Database} db
+ * @param {string} id
+ */
+export const strategyBounds = (db, id) => readOne(db, id)?.bounds;
+
 /** @param {string} body */
 const parseBody = (body) => StrategySchema.parse(JSON.parse(body));

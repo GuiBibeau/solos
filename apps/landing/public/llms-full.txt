@@ -438,6 +438,23 @@ Read one owner's supported-portfolio state: cash (native SOL and recognized stab
 
 ## strategy
 
+### solana_strategy_execute_disengage_kill
+
+Tier: execute. Stability: beta. Disengage the kill switch.
+
+Lift a kill switch for every Strategy, or for one Strategy, so new reserves are allowed again. The other scope is left as it was.
+
+- `scope` (string, required): Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one
+
+### solana_strategy_execute_engage_kill
+
+Tier: execute. Stability: beta. Engage the kill switch.
+
+Pause new reserves for every Strategy, or for one Strategy. Settle and release still finish. The pause stays until it is disengaged, including across a restart.
+
+- `scope` (string, required): Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one
+- `reason` (string, required): Why the switch is engaged. The next refused reserve repeats this reason
+
 ### solana_strategy_execute_register
 
 Tier: execute. Stability: beta. Register a strategy.
@@ -459,6 +476,14 @@ Pause, resume, or cancel a registered Strategy. Cancel is the done state. A move
 - `id` (string, required): Strategy id returned by register
 - `state` (active | paused | done, required): Requested state: active to resume, paused to pause, or done to cancel
 
+### solana_strategy_get_kill_switch
+
+Tier: read. Stability: beta. Read the kill switch.
+
+Read whether the kill switch is engaged for every Strategy, or for one Strategy, and the reason if it is. An engaged switch blocks new reserves only.
+
+- `scope` (string, required): Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one
+
 ### solana_strategy_get_status
 
 Tier: read. Stability: beta. Get strategy status.
@@ -475,6 +500,23 @@ List Strategies registered with the Engine, optionally filtered by lifecycle sta
 
 - `state` (active | paused | done | expired | failed, optional): Only Strategies in this lifecycle state
 - `owner` (string, optional): Only Strategies with this owner label
+
+### solana_strategy_simulate_disengage_kill
+
+Tier: simulate. Stability: beta. Preview disengaging the kill switch.
+
+Show whether a kill switch scope is engaged, without lifting it. Use this before disengage when a Caller needs to see the reason first.
+
+- `scope` (string, required): Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one
+
+### solana_strategy_simulate_engage_kill
+
+Tier: simulate. Stability: beta. Preview engaging the kill switch.
+
+Show whether the kill switch is already engaged for a scope, and the reason a real engage would store. Nothing is written.
+
+- `scope` (string, required): Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one
+- `reason` (string, required): Why the switch is engaged. The next refused reserve repeats this reason
 
 ### solana_strategy_simulate_register
 

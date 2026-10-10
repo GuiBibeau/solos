@@ -3,6 +3,7 @@ import { StrategyRegistry } from "@solos/core";
 import { StrategyRequestStateSchema, StrategyStateSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { errorResponse, invalid, json, readJson } from "./http.js";
+import { handleKill } from "./strategy-kill-http.js";
 
 /**
  * @param {Request} request
@@ -19,7 +20,13 @@ export const handleStrategy = (request, deps, pathname) => {
  * @param {string} method
  * @param {string} pathname
  */
-const match = (method, pathname) => collectionRoute(method, pathname) ?? idRoute(method, pathname);
+const match = (method, pathname) => {
+  if (pathname === "/v1/strategies/kill" || pathname.startsWith("/v1/strategies/kill/")) {
+    return (/** @type {Request} */ request, /** @type {import("./http.js").EngineDeps} */ deps) =>
+      handleKill(request, deps, pathname);
+  }
+  return collectionRoute(method, pathname) ?? idRoute(method, pathname);
+};
 
 /**
  * @param {string} method
@@ -51,7 +58,7 @@ const idRoute = (method, pathname) => {
 const strategyId = (pathname) => {
   const rest = pathname.slice("/v1/strategies/".length);
   const id = rest.split("/", 1)[0];
-  if (id === "simulate" || id === undefined || id.length === 0) return undefined;
+  if (id === "simulate" || id === "kill" || id === undefined || id.length === 0) return undefined;
   return id;
 };
 

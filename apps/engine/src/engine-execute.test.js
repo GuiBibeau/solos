@@ -68,7 +68,7 @@ describe("engine execute through the ActionExecutor port [integration]", () => {
   let recipient;
 
   beforeAll(async () => {
-    engine = await startTestEngine({ tier: "execute" });
+    engine = await startTestEngine({ tier: "execute", allowedMints: [] });
     recipient = await seedAddress(randomSeed());
   });
 

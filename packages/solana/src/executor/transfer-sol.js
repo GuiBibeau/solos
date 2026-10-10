@@ -1,7 +1,7 @@
 // @ts-check
 import { address, lamports } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { TRANSFER_PRIORITY_FEE_LAMPORTS } from "@solos/core";
+import { TRANSFER_COMPUTE_UNIT_LIMIT, transferPriorityFeeLamports } from "./transfer-fee.js";
 
 /**
  * @typedef {import("../signer/kit-signer.js").KitSignerShape} Kit
@@ -9,9 +9,9 @@ import { TRANSFER_PRIORITY_FEE_LAMPORTS } from "@solos/core";
  */
 
 export const TRANSFER_V1_CONFIG = Object.freeze({
-  computeUnitLimit: 50_000,
+  computeUnitLimit: TRANSFER_COMPUTE_UNIT_LIMIT,
   loadedAccountsDataSizeLimit: 8_388_608,
-  priorityFeeLamports: TRANSFER_PRIORITY_FEE_LAMPORTS,
+  priorityFeeLamports: transferPriorityFeeLamports(),
 });
 
 /**

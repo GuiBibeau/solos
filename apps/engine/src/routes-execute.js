@@ -4,6 +4,8 @@ import { signedIntentNote } from "@solos/solana";
 import { ActionSchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { z } from "zod";
+import { reserveExecute, strategyInputError } from "./cap-reserve.js";
+import { applyHoldOutcome, syncHold } from "./cap-sync.js";
 import { errorResponse, envelopeOf, invalid, json, readJson, statusFor } from "./http.js";
 import { claimIntent, failIntent, readIntent, recordSigned, settleIntent } from "./intents.js";
 import { observed } from "./observe.js";
@@ -14,6 +16,8 @@ const ExecuteSchema = z.object({
   action: ActionSchema,
   intentId: z.string().min(1).max(256).optional(),
   skipSimulation: z.boolean().optional(),
+  strategyId: z.string().min(1).max(128).optional(),
+  tickId: z.string().min(1).max(128).optional(),
 });
 
 /**
@@ -26,6 +30,8 @@ export const executeRequest = async (request, deps) => {
   const parsed = ExecuteSchema.safeParse(body.value);
   if (!parsed.success)
     return errorResponse(invalid("action", "execute body did not match the schema"));
+  const pair = strategyInputError(parsed.data);
+  if (pair !== undefined) return errorResponse(pair);
   const refusal = tierRefusal(deps.tier, "execute");
   if (refusal !== undefined) return errorResponse(refusal);
   return runExecute(deps, parsed.data);
@@ -42,8 +48,12 @@ const runExecute = async (deps, body) => {
     simulated: body.skipSimulation !== true,
   });
   if (claim.state === "claimed") return perform(deps, body, intentId);
-  const current = claim.state === "in_flight" ? await reconcileIntent(deps, intentId) : claim;
-  return replay(current) ?? errorResponse(notFound(intentId));
+  if (claim.state === "in_flight") {
+    const current = await reconcileIntent(deps, intentId);
+    await syncHold(deps, intentId);
+    return replay(current) ?? errorResponse(notFound(intentId));
+  }
+  return replay(claim) ?? errorResponse(notFound(intentId));
 };
 
 /**
@@ -64,9 +74,12 @@ const replay = (claim) => {
  * @param {string} intentId
  */
 const perform = async (deps, body, intentId) => {
+  const reserved = await reserveExecute(deps, body, intentId);
+  if (!reserved.ok) return refuse(deps, intentId, reserved.error);
   try {
     const result = await deps.runtime.runPromise(tracked(deps, body, intentId));
     const safe = toJsonSafe(result);
+    await applyHoldOutcome(deps, intentId, { kind: "settled", status: result.status });
     settleIntent(deps.db, intentId, safe);
     return json(200, safe);
   } catch (error) {
@@ -98,8 +111,20 @@ const tracked = (deps, body, intentId) =>
 const finishFailure = async (deps, intentId, error) => {
   const row = readIntent(deps.db, intentId);
   if (row.state === "in_flight" && row.signature !== null) {
-    return replay(await reconcileIntent(deps, intentId)) ?? errorResponse(inFlight(intentId));
+    const current = await reconcileIntent(deps, intentId);
+    await syncHold(deps, intentId);
+    return replay(current) ?? errorResponse(inFlight(intentId));
   }
+  await applyHoldOutcome(deps, intentId, { kind: "release" });
+  return refuse(deps, intentId, error);
+};
+
+/**
+ * @param {import("./http.js").EngineDeps} deps
+ * @param {string} intentId
+ * @param {unknown} error
+ */
+const refuse = (deps, intentId, error) => {
   const envelope = envelopeOf(error);
   failIntent(deps.db, intentId, envelope);
   return json(statusFor(String(envelope.code)), { error: envelope });

@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineConfigMissing, ValidationError } from "@solos/core";
+import { AddressSchema } from "@solos-sh/actions";
 
 /** @typedef {"read" | "simulate" | "execute"} Tier */
 /** @typedef {"dry" | "paper" | "live"} Mode */
@@ -51,6 +52,55 @@ export const modeOf = (paper, tier) => {
   if (paper) return "paper";
   if (tier === "execute") return "live";
   return "dry";
+};
+
+/**
+ * Live requires an explicit allowlist. `[]` is every mint (`--allowed-mints any`).
+ * Paper and dry default to every mint when the flag was omitted.
+ * @param {{ mode: Mode; allowedMints?: ReadonlyArray<string> }} input
+ * @returns {ReadonlyArray<string>}
+ */
+export const resolveAllowedMints = (input) => {
+  if (input.allowedMints !== undefined) return input.allowedMints;
+  if (input.mode === "live") refusedAllowlist();
+  return [];
+};
+
+const refusedAllowlist = () => {
+  throw new EngineConfigMissing({
+    reason: "--allowed-mints is required when the engine tier is execute",
+    remedy: "pass --allowed-mints with mint addresses, or --allowed-mints any to allow every mint",
+  });
+};
+
+/**
+ * `--allowed-mints any` is every mint. Anything else is a comma-separated address list.
+ * @param {string} raw
+ * @returns {ReadonlyArray<string>}
+ */
+export const parseAllowedMintsFlag = (raw) => {
+  const trimmed = raw.trim();
+  if (trimmed === "any") return [];
+  const mints = listedMints(trimmed);
+  if (mints !== undefined) return mints;
+  throw new ValidationError({
+    field: "allowed-mints",
+    value: null,
+    reason: "allowed-mints entries must be mint addresses, or the word any",
+    remedy: "pass comma-separated base58 mint addresses, or --allowed-mints any",
+  });
+};
+
+/** @param {string} raw @returns {ReadonlyArray<string> | undefined} */
+const listedMints = (raw) => {
+  const mints = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (mints.length === 0 || mints.some((mint) => !AddressSchema.safeParse(mint).success)) {
+    return undefined;
+  }
+  return mints;
 };
 
 /** @param {Record<string, string | undefined>} env */

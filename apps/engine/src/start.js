@@ -3,7 +3,8 @@ import path from "node:path";
 import { Signer } from "@solos/core";
 import { loadSolanaEnv } from "@solos/solana";
 import { Effect, Layer, ManagedRuntime } from "effect";
-import { resolveStart } from "./config.js";
+import { syncHolds } from "./cap-sync.js";
+import { resolveAllowedMints, resolveStart } from "./config.js";
 import { compiledStrategyMount, engineHostLayer } from "./host.js";
 import { openIntents } from "./intents.js";
 import { bootPaper } from "./paper.js";
@@ -28,13 +29,21 @@ import { serveEngine } from "./serve.js";
  */
 export const startEngine = async (input) => {
   const start = resolveStart(input);
+  const allowedMints = resolveAllowedMints({
+    mode: start.mode,
+    allowedMints: input.allowedMints,
+  });
   const paper = start.paper ? await bootPaper() : undefined;
   const restore = installRedaction({
     token: start.token,
     rpcUrl: paper?.rpcUrl ?? input.env.SOLANA_RPC_URL ?? "",
   });
   try {
-    const served = await listen(input.env, { ...start, ...strategyStart(input) }, paper);
+    const served = await listen(
+      input.env,
+      { ...start, strategies: input.strategies, allowedMints },
+      paper,
+    );
     return {
       url: served.url,
       signer: served.signer,
@@ -49,15 +58,12 @@ export const startEngine = async (input) => {
   }
 };
 
-/** @param {StartInput} input */
-const strategyStart = (input) => ({
-  strategies: input.strategies,
-  allowedMints: input.allowedMints,
-});
-
 /**
  * @param {Record<string, string | undefined>} env
- * @param {ReturnType<typeof resolveStart> & Pick<StartInput, "strategies" | "allowedMints">} start
+ * @param {ReturnType<typeof resolveStart> & {
+ *   strategies?: boolean;
+ *   allowedMints: ReadonlyArray<string>;
+ * }} start
  * @param {Awaited<ReturnType<typeof bootPaper>> | undefined} paper
  */
 const listen = async (env, start, paper) => {
@@ -69,6 +75,7 @@ const listen = async (env, start, paper) => {
     const signer = await runtime.runPromise(Effect.flatMap(Signer, addressOf));
     if (paper !== undefined) await paper.fund(signer);
     await recoverIntents({ db, runtime });
+    await syncHolds({ db, runtime, caps: mount !== undefined });
     return await serveEngine({
       runtime,
       db,
@@ -91,13 +98,12 @@ const listen = async (env, start, paper) => {
 
 /**
  * @param {import("bun:sqlite").Database} db
- * @param {Pick<StartInput, "strategies" | "allowedMints">} input
+ * @param {{ strategies?: boolean; allowedMints: ReadonlyArray<string> }} input
  */
 const strategyMount = async (db, input) => {
-  const allowedMints = input.allowedMints ?? [];
-  if (input.strategies === true) return explicitMount(db, allowedMints);
+  if (input.strategies === true) return explicitMount(db, input.allowedMints);
   if (input.strategies === false) return undefined;
-  return compiledStrategyMount(db, allowedMints);
+  return compiledStrategyMount(db, input.allowedMints);
 };
 
 /**
