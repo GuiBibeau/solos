@@ -6,20 +6,15 @@ name: evidence
 # edits do not run the check.
 #
 # A skipped job still publishes a check, and GitHub treats skipped as success for a
-# required check. The name expression is only evaluated when the job runs, so a skip
-# cannot be given a different name than a real run. Title and base edits therefore
-# run the job, under the name evidence-ignored, and stop before the check. They also
-# use their own concurrency group, so they cannot cancel the run that counts.
+# required check. This job therefore always runs, so its name is evaluated: evidence
+# for a real check (and for Renovate and the changesets bot, whose proof is CI), and
+# evidence-ignored for a title or base edit. Those edits use their own concurrency
+# group, so they cannot cancel the run that counts.
 #
 # Branch protection follows the latest check named evidence for the head SHA.
 # Concurrency cancels an in-progress run for that same pull request and SHA when a
 # newer one starts: the body edit supersedes the push that fetched the stale body.
 # A different SHA is a different required check and is not cancelled.
-#
-# Renovate and the changesets bot cannot run verify. Skipping the job above would
-# not report the name evidence (a skipped job does not evaluate its name), so the
-# bot job reports that name itself. Humans skip it; the unevaluated name is not
-# evidence, and it does not clear a failure.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -30,8 +25,7 @@ concurrency:
 
 jobs:
   evidence:
-    name: "${{ (github.event.action == 'edited' && github.event.changes.body == null) && 'evidence-ignored' || 'evidence' }}"
-    if: ${{ !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) }}
+    name: "${{ (github.event.action == 'edited' && github.event.changes.body == null && !contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)) && 'evidence-ignored' || 'evidence' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -40,9 +34,25 @@ jobs:
     steps:
       - name: Record the triggering activity
         id: gate
+        env:
+          ACTOR: ${{ github.event.pull_request.user.login }}
+          ACTION: ${{ github.event.action }}
+          BODY_EDIT: ${{ github.event.action == 'edited' && github.event.changes.body != null }}
         run: |
-          echo "action=${{ github.event.action }} run_check=${{ github.event.action != 'edited' || github.event.changes.body != null }}"
-          echo "run=${{ github.event.action != 'edited' || github.event.changes.body != null }}" >> "$GITHUB_OUTPUT"
+          echo "action=${ACTION} actor=${ACTOR} body_edit=${BODY_EDIT}"
+          bot=false
+          case "$ACTOR" in
+            "renovate[bot]" | "github-actions[bot]") bot=true ;;
+          esac
+          if [ "$bot" = true ]; then
+            echo "bot pull request; the CI re-run is the proof"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = edited ] && [ "$BODY_EDIT" != true ]; then
+            echo "title or base edit; the evidence check is unchanged"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: steps.gate.outputs.run == 'true'
       - uses: ./.github/actions/setup
@@ -55,18 +65,3 @@ jobs:
       - name: solos dev evidence check
         if: steps.gate.outputs.run == 'true'
         run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"
-
-  bots:
-    # A constant name expression is evaluated even when the job is skipped, which
-    # would publish evidence as success on every human pull request. A comparison
-    # is left raw on skip (not the required check) and evaluates to evidence when
-    # a bot actually runs this job.
-    name: "${{ (github.event.pull_request.user.login == 'renovate[bot]' || github.event.pull_request.user.login == 'github-actions[bot]') && 'evidence' || 'bot-evidence-not-reported' }}"
-    if: ${{ contains(fromJSON('["renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - name: Bot pull requests are proven by CI
-        run: echo "Renovate and the changesets bot cannot run verify; the CI re-run is the proof"
