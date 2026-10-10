@@ -56,8 +56,8 @@ export const serveEngine = async (input) => {
  * @param {string} url
  */
 const writeReady = (input, url) => {
-  console.error(
-    JSON.stringify({
+  process.stderr.write(
+    `${JSON.stringify({
       message: "solos engine ready",
       signer: input.signer,
       tier: input.tier,
@@ -65,6 +65,6 @@ const writeReady = (input, url) => {
       dataDir: input.dataDir,
       mode: input.mode,
       url,
-    }),
+    })}\n`,
   );
 };

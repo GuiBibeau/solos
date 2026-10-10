@@ -1,5 +1,11 @@
 // @ts-check
 
+/** Bun's `console.error` does not call `stderr.write`, so route it through the redacted writer. */
+const report = (/** @type {unknown[]} */ ...args) => {
+  const line = args.map((arg) => (typeof arg === "string" ? arg : String(arg))).join(" ");
+  process.stderr.write(`${line}\n`);
+};
+
 /**
  * Drop the bearer token and any RPC path, query, user or password from stderr. The origin
  * stays. Installed once, restored by the returned function.
@@ -16,8 +22,11 @@ export const installRedaction = ({ token, rpcUrl }) => {
   process.stderr.write = /** @type {typeof process.stderr.write} */ (
     /** @type {unknown} */ (wrapped)
   );
+  const error = console.error;
+  console.error = report;
   return () => {
     if (process.stderr.write === wrapped) process.stderr.write = write;
+    if (console.error === report) console.error = error;
   };
 };
 

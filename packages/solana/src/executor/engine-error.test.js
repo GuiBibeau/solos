@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
-import { EngineUnavailable, SimulationFailed } from "@solos/core";
+import { EngineUnavailable, SimulationFailed, domainErrors } from "@solos/core";
 import { engineErrorFromBody, engineTransportError } from "./engine-error.js";
 
 const SECRET_URL = "http://127.0.0.1:9/secret-path?q=secret-query";
@@ -11,9 +11,11 @@ describe("engine error translation", () => {
       { error: { code: "SimulationFailed", reason: "the transaction would fail", logs: ["a"] } },
       SECRET_URL,
     );
-    expect(error).toBeInstanceOf(SimulationFailed);
+    const registered = domainErrors().find((entry) => entry.tag === "SimulationFailed");
+    expect(error).toBeInstanceOf(registered?.ErrorClass);
+    expect(error._tag).toBe("SimulationFailed");
     expect(error.reason).toBe("the transaction would fail");
-    expect(/** @type {SimulationFailed} */ (error).logs).toEqual(["a"]);
+    expect(/** @type {{ logs: string[] }} */ (error).logs).toEqual(["a"]);
   });
 
   test("an unknown code becomes EngineUnavailable and the url is the origin only", () => {

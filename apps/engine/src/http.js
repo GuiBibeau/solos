@@ -92,9 +92,24 @@ export const envelopeOf = (error) => {
 /** @param {string} reason */
 const invalidBody = (reason) => invalid("body", reason);
 
-/** @param {unknown} error */
+const FIBER_FAILURE = Symbol.for("effect/Runtime/FiberFailure/Cause");
+
+/**
+ * `runPromise` rejects with a FiberFailure whose cause is a non-enumerable symbol.
+ * The tagged error inside is what the wire should carry.
+ * @param {unknown} error
+ */
 const unwrap = (error) => {
-  if (!Cause.isCause(error)) return error;
-  const failure = Cause.failureOption(error);
+  const cause = causeOf(error);
+  if (cause === undefined) return error;
+  const failure = Cause.failureOption(cause);
   return Option.isSome(failure) ? failure.value : error;
+};
+
+/** @param {unknown} error */
+const causeOf = (error) => {
+  if (Cause.isCause(error)) return error;
+  if (typeof error !== "object" || error === null) return undefined;
+  const cause = /** @type {{ [key: symbol]: unknown }} */ (error)[FIBER_FAILURE];
+  return Cause.isCause(cause) ? cause : undefined;
 };

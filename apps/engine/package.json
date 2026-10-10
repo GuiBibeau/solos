@@ -10,11 +10,11 @@
     ".": "./src/index.js"
   },
   "dependencies": {
-    "@effect/cli": "latest",
-    "@effect/opentelemetry": "latest",
+    "@effect/cli": "0.77.2",
+    "@effect/opentelemetry": "0.64.1",
     "@effect/platform-bun": "0.91.2",
-    "@opentelemetry/exporter-trace-otlp-http": "latest",
-    "@opentelemetry/sdk-trace-base": "latest",
+    "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+    "@opentelemetry/sdk-trace-base": "2.11.0",
     "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
     "@solos/solana": "workspace:*",
