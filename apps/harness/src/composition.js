@@ -3,6 +3,7 @@ import {
   EventBusInMemory,
   EventSinkNoop,
   LoggerJsonStderr,
+  StoreInMemory,
   ToolCatalogue,
   allTools,
   catalogueOf,
@@ -12,7 +13,6 @@ import { Layer, ManagedRuntime } from "effect";
 import { loadHarnessConfig, loadHarnessEnv } from "./config.js";
 import { TracingLive } from "./observability/tracing.js";
 import { RouterLive } from "./router/router.js";
-import { StoreSqlite } from "./store/sqlite-store.js";
 
 const DEFAULT_CONFIG_PATH = "harness.config.js";
 /** Experimental tools are withheld unless the Operator enables them. */
@@ -20,10 +20,10 @@ const NO_FEATURES = Object.freeze({ experimental: false });
 
 /**
  * The harness composition root. Reads env and config, returns the full Layer plus the parsed
- * inputs so entry points (daemon, CLI) share one wiring. `toolCeiling` is the tier ceiling the
- * surface runs under (ADR-0033); the search tool reads it from the catalogue, so what it reports
- * as available is what the surface actually offers. The daemon, which runs no model, keeps the
- * default.
+ * inputs so every entry point shares one wiring. `toolCeiling` is the tier ceiling the surface
+ * runs under (ADR-0033); the search tool reads it from the catalogue, so what it reports as
+ * available is what the surface actually offers. `Store` is in memory: nothing in the harness
+ * persists through it.
  * @param {{
  *   env?: Record<string, string | undefined>;
  *   configPath?: string;
@@ -43,7 +43,7 @@ export const loadHarness = async (options = {}) => {
     SolanaLive(solanaEnv),
     EventBusInMemory,
     EventSinkNoop,
-    StoreSqlite(config.daemon.storePath),
+    StoreInMemory,
     RouterLive(harnessEnv.ROUTER_PRESET, config.router),
     Layer.succeed(
       ToolCatalogue,

@@ -12,7 +12,6 @@ import { SOLOS_VERSION } from "@solos/mcp";
 import { Effect } from "effect";
 import { agent } from "./commands/agent.js";
 import { connect } from "./commands/connect.js";
-import { daemon } from "./commands/daemon.js";
 import { dev } from "./commands/dev.js";
 import { discovery } from "./commands/discovery.js";
 import { doctor } from "./commands/doctor.js";
@@ -55,7 +54,6 @@ const operatorCommands = /** @type {const} */ ([
   mcp,
   router,
   agent,
-  daemon,
 ]);
 
 const root = Command.make("solos").pipe(

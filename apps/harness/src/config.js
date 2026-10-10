@@ -27,21 +27,21 @@ const McpServerEntrySchema = z.object({
   env: z.record(z.string(), z.string()).default({}),
 });
 
-export const HarnessConfigSchema = z.object({
-  router: z
-    .object({
-      overrides: z.partialRecord(TaskClassSchema, RouteOverrideSchema).default({}),
-      crossProviderFallback: z.boolean().default(true),
-    })
-    .default({ overrides: {}, crossProviderFallback: true }),
-  agent: z
-    .object({ maxSteps: z.number().int().min(1).max(200).default(20) })
-    .default({ maxSteps: 20 }),
-  daemon: z
-    .object({ storePath: z.string().default(".solos/harness.sqlite") })
-    .default({ storePath: ".solos/harness.sqlite" }),
-  mcpServers: z.array(McpServerEntrySchema).default([]),
-});
+export const HarnessConfigSchema = z
+  .object({
+    router: z
+      .object({
+        overrides: z.partialRecord(TaskClassSchema, RouteOverrideSchema).default({}),
+        crossProviderFallback: z.boolean().default(true),
+      })
+      .default({ overrides: {}, crossProviderFallback: true }),
+    agent: z
+      .object({ maxSteps: z.number().int().min(1).max(200).default(20) })
+      .default({ maxSteps: 20 }),
+    mcpServers: z.array(McpServerEntrySchema).default([]),
+  })
+  // A retired block such as `daemon` fails by name instead of being dropped silently.
+  .strict();
 
 /** @typedef {z.input<typeof HarnessConfigSchema>} HarnessConfigInput */
 /** @typedef {z.output<typeof HarnessConfigSchema>} HarnessConfig */
