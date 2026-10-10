@@ -12,6 +12,7 @@ const REASONLESS = new Set();
 
 /** The reason-bearing types, so the registry is exhaustively classified. */
 const REASONFUL = new Set([
+  "BoundsExceeded",
   "BuildRejected",
   "BuildUnavailable",
   "EngineConfigMissing",

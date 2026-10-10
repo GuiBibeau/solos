@@ -5,6 +5,7 @@ export { AddressSchema, SignatureSchema } from "./domain/address.js";
 export { base58ByteLength } from "./domain/base58.js";
 export { errorEnvelope } from "./domain/error-envelope.js";
 export {
+  BoundsExceeded,
   EngineConfigMissing,
   EngineUnauthorized,
   EngineUnavailable,

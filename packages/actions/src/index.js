@@ -12,6 +12,7 @@
 /** @typedef {import("./venue-actions.js").RemoveLiquidityAction} RemoveLiquidityAction */
 /** @typedef {import("./venue-actions.js").WithdrawLendAction} WithdrawLendAction */
 /** @typedef {import("./mandate.js").Mandate} Mandate */
+/** @typedef {import("./strategy-bounds.js").StrategyBounds} StrategyBounds */
 /** @typedef {import("./portfolio.js").PortfolioState} PortfolioState */
 /** @typedef {import("./portfolio.js").Position} Position */
 /** @typedef {import("./primitives.js").Address} Address */
@@ -52,6 +53,7 @@ export {
   WithdrawPerpCollateralActionSchema,
 } from "./action.js";
 export { MandateSchema } from "./mandate.js";
+export { StrategyBoundsSchema } from "./strategy-bounds.js";
 export { PortfolioStateSchema, PositionSchema } from "./portfolio.js";
 export {
   LendPositionSchema,
