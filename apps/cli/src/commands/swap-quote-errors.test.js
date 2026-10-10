@@ -83,6 +83,7 @@ describe("`solos swap quote` error and discovery scenarios [integration]", () =>
       "solana_strategy_execute_update",
       "solana_strategy_get_kill_switch",
       "solana_strategy_get_status",
+      "solana_strategy_get_ticks",
       "solana_strategy_list_strategies",
       "solana_strategy_simulate_disengage_kill",
       "solana_strategy_simulate_engage_kill",

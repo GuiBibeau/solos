@@ -59,3 +59,28 @@ export const subtractDecimal = (left, right) => {
   const width = Math.max(fractionLength(left), fractionLength(right));
   return fromUnits(scaledUnits(left, width) - scaledUnits(right, width), width);
 };
+
+/**
+ * Multiply two non-negative decimal strings exactly. The result keeps both fractional lengths.
+ * @param {string} left
+ * @param {string} right
+ */
+export const mulDecimal = (left, right) => {
+  const leftWidth = fractionLength(left);
+  const rightWidth = fractionLength(right);
+  const units = scaledUnits(left, leftWidth) * scaledUnits(right, rightWidth);
+  return fromUnits(units, leftWidth + rightWidth);
+};
+
+/**
+ * Divide a non-negative decimal by a positive integer, rounding away from zero.
+ * The result keeps at least eight fractional digits.
+ * @param {string} left
+ * @param {string} denominator
+ */
+export const divDecimalUp = (left, denominator) => {
+  const width = Math.max(fractionLength(left), 8);
+  const den = BigInt(denominator);
+  const units = scaledUnits(left, width);
+  return fromUnits((units + den - 1n) / den, width);
+};

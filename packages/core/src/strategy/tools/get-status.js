@@ -10,8 +10,8 @@ export const getStatusTool = defineTool({
   stability: "beta",
   title: "Get strategy status",
   description:
-    "Read one registered Strategy, including its kind, bounds, tick source, and lifecycle state. " +
-    "Use after register to confirm what the Engine stored.",
+    "Read one registered Strategy, including its kind, bounds, tick source, lifecycle state, " +
+    "last Tick, and when the next Tick is due.",
   input: statusInput,
   run: ({ id }) => getStrategyStatus(id),
 });

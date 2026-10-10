@@ -4,6 +4,7 @@ import { StrategyRequestStateSchema, StrategyStateSchema } from "@solos-sh/actio
 import { Effect } from "effect";
 import { errorResponse, invalid, json, readJson } from "./http.js";
 import { handleKill } from "./strategy-kill-http.js";
+import { listStrategyTicks } from "./strategy-ticks-http.js";
 
 /**
  * @param {Request} request
@@ -47,6 +48,7 @@ const idRoute = (method, pathname) => {
   const id = strategyId(pathname);
   if (id === undefined) return undefined;
   if (method === "GET" && pathname === `/v1/strategies/${id}`) return get(id);
+  if (method === "GET" && pathname === `/v1/strategies/${id}/ticks`) return listStrategyTicks(id);
   if (method === "POST" && pathname === `/v1/strategies/${id}/state`) return update(id);
   if (method === "POST" && pathname === `/v1/strategies/${id}/state/simulate`) {
     return simulateUpdate(id);

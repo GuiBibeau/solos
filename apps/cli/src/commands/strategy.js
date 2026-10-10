@@ -12,6 +12,8 @@ import {
   getKillSwitchTool,
   getStatusTool,
   getStrategyStatus,
+  getStrategyTicks,
+  getTicksTool,
   killSwitchStatus,
   listStrategies,
   listStrategiesTool,
@@ -95,6 +97,22 @@ const status = Command.make("status", { id: idArg() }, (options) =>
   run(getStrategyStatus(options.id)),
 ).pipe(commandHelp(getStatusTool));
 
+const limit = Options.integer("limit").pipe(Options.optional, optionHelp(getTicksTool.input.shape.limit));
+const outcome = Options.text("outcome").pipe(
+  Options.optional,
+  optionHelp(getTicksTool.input.shape.outcome),
+);
+
+const ticks = Command.make("ticks", { id: idArg(), limit, outcome }, (options) =>
+  run(
+    getStrategyTicks({
+      id: options.id,
+      limit: Option.getOrUndefined(options.limit),
+      outcome: Option.getOrUndefined(options.outcome),
+    }),
+  ),
+).pipe(commandHelp(getTicksTool));
+
 /**
  * Pause, resume, and cancel are three verbs over the one update tool.
  * @param {string} name
@@ -128,6 +146,7 @@ export const strategy = Command.make("strategy").pipe(
     register,
     list,
     status,
+    ticks,
     move("pause", "paused"),
     move("resume", "active"),
     move("cancel", "done"),

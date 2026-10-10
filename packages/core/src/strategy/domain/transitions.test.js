@@ -32,6 +32,7 @@ describe("strategy state table", () => {
       ["caller", "active", "done"],
       ["caller", "paused", "active"],
       ["caller", "paused", "done"],
+      ["engine", "active", "paused"],
       ["engine", "active", "done"],
       ["engine", "active", "expired"],
       ["engine", "active", "failed"],
