@@ -8,10 +8,11 @@ and no transaction is signed. `schedule` and `trigger` are the kinds the contrac
 `rebalance`, `range`, and `carry` are names that fail until their issues ship.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
-`solos strategy`, both of which talk to the Engine over HTTP. The CLI group and the Engine
-routes are compiled in only when the process is started with the STRATEGIES flag. A process
-without that flag has no `solos strategy` group, serves no `/v1/strategies` routes, and a tool
-call against it returns `EngineUnavailable` naming the flag.
+`solos strategy`, both of which talk to the Engine over HTTP. Core registers the six MCP
+tools unconditionally, so they always exist. `STRATEGIES` is a build-time `feature()` flag.
+The flag only compiles in the Engine strategy routes and the CLI `solos strategy` group, and
+it is off in release builds. Against an Engine built without the flag, a tool call returns
+`EngineUnavailable` with a remedy naming the flag.
 
 ## Bounds
 

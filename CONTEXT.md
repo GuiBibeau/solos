@@ -82,16 +82,17 @@ failed Intent returns the stored outcome.
 
 **Strategy** — a registered, data-only description of work the Engine may later perform: a kind,
 that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
-Actions. It is not an Action, a Mandate, or a Signal. `schedule` and `trigger` are defined in
-`@solos-sh/actions`. `rebalance`, `range`, and `carry` are names until their issues ship. Nothing
-in this slice ticks. States are `active`, `paused`, `done`, `expired`, and `failed`. `done`,
+Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
+or swarm uses to tell its registrations apart. It is never authorization.
+`schedule` and `trigger` are defined in `@solos-sh/actions`. `rebalance`, `range`, and `carry`
+are names until their issues ship. Nothing in this slice ticks. States are `active`,
+`paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
 `StrategyTransitionRefused`.
 
 **Registry** — where Strategies are registered and where their state is changed. The Engine owns
-the one Registry. Callers reach it through the strategy tools or `solos strategy`. A Strategy's
-`allowedMints` can only narrow the Engine allowlist; widening is refused at registration with
-`BoundsExceeded` naming the mint. An empty list means any mint the Engine allows.
+the one Registry. Callers reach it through the strategy tools or `solos strategy`. A Strategy
+whose allowlist widens the Engine's is refused at registration with `BoundsExceeded`.
 
 **Bounds** — the limits one Strategy may spend, carried as `StrategyBoundsSchema`.
 `maxNotionalPerTickUsd` caps the notional of one tick. `maxDailySpendUsd` caps what the Strategy
