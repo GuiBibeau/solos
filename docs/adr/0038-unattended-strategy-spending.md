@@ -11,8 +11,8 @@ person registers a Strategy with its Bounds, and later ticks spend inside those 
 Registration is on main (#238). `StrategyBoundsSchema` is on main (#235). The `CapLedger` port
 and `memoryCapLedger` are on main (#240, `6175ab4`). Nothing ticks. `STRATEGIES` is a build-time
 `feature()` flag. It only compiles in the Engine strategy routes and the CLI `solos strategy`
-group, and it is off in release builds. The durable SQLite ledger and the Engine kill-switch
-wiring are the rest of #195, in progress. Of the owner, CONTEXT.md says "It is never authorization."
+group, and it is off in release builds. The durable ledger and the kill switch land with #243.
+Of the owner, CONTEXT.md says "It is never authorization."
 
 ## Decision
 
@@ -38,21 +38,33 @@ wiring are the rest of #195, in progress. Of the owner, CONTEXT.md says "It is n
   switch engages," so any overshoot is limited to one transaction.
 - **Kill switch.** It pauses new reserves "for one Strategy, or for every Strategy when the
   scope is `global`." "An engaged switch blocks new reserves only." `reserve` fails with
-  `KillSwitchEngaged`. "Settle and release still complete." "The durable adapter must keep an
-  engaged switch across restarts." "`memoryCapLedger` keeps the switch in the process." The
-  durable SQLite ledger and the Engine kill-switch wiring land with the rest of #195, in
-  progress.
-- **The cap ledger follows the Engine's Intent recovery** (ADR-0037). While an Intent is
-  `in_flight`, its hold keeps counting against the caps, including across an Engine restart.
-  It settles once, to the actual amount, when the signature lands. It is released only when the
-  blockhash has expired and the Intent is `failed`. An in-flight Intent with no signature at
-  startup "becomes `failed`, because nothing was sent," and that hold is released. Surviving a
-  restart is the durable ledger in the rest of #195. "`memoryCapLedger` keeps the account in
-  the process."
-- **Removing `STRATEGIES` is what turns on live spending.** That removal waits until #195 is
-  fully merged (the durable cap ledger and the kill switch), a funded mainnet QA round is
-  recorded in `features/feature-map.json`, and Gui has signed off. The removal is its own final
-  commit on #198.
+  `KillSwitchEngaged`. "Settle and release still complete." "`memoryCapLedger` keeps the switch
+  in the process."
+- **Durable ledger.** It lands with #243 as `sqliteCapLedger` on the Engine database. #243's
+  record, kept here: "The cap ledger that shipped is a transactional SQLite adapter on the
+  Engine database (`cap_reservations`, `cap_kills`, `cap_seq`), not the write-behind append-only
+  log recorded above." That log is the one ADR-0037 described. "Each reserve, settle, release,
+  and kill-switch write commits in one transaction, so a crash cannot leave a half-recorded
+  reservation." On that branch, "reservations, settled amounts, per-tick sums, and an engaged
+  kill switch survive closing and reopening it." "`KillSwitchEngaged` is HTTP 423, the status"
+  ADR-0037 reserved. "The Engine's SQLite adapter keeps an engaged switch across restarts."
+- **The cap ledger follows the Engine's Intent recovery** (ADR-0037), as #243 words it. "An
+  in-flight Intent keeps its hold." "A restart does not release that hold and does not count it
+  a second time." "When recovery finds the signature landed, `settle` records the reserved
+  notional once for a confirmed transfer, or `0` when the transaction landed with an execution
+  error." "The hold is released only when the Intent is marked failed: the blockhash expired
+  and the signature is still absent, or the Engine stopped before anything was signed." That
+  recovery lands with #243. "`memoryCapLedger` keeps the account in the process."
+- **Engine allowlist.** An execute-tier Engine refuses to start without `--allowed-mints`.
+  Allowing every mint requires passing `--allowed-mints any`. Paper and dry-run Engines keep
+  `any` by default. A Strategy's `allowedMints` "can only narrow that allowlist, never widen
+  it," so a default of `any` leaves that safeguard with nothing to narrow. #243's flag says
+  "Omit to allow any mint." The refusal is this decision.
+- **Removing `STRATEGIES` is what turns on live spending.** That removal waits until #243 has
+  landed (the durable cap ledger and the kill switch), the funded mainnet rounds are recorded
+  in `features/feature-map.json`, and Gui has signed off. The funded gate covers the #243 round
+  and #198's schedule-Strategy swap: 0.01 SOL to USDC through the Engine as a `count: 1` Tick,
+  then back to SOL. The removal is its own final commit on #198.
 
 ## Consequences
 
@@ -60,8 +72,10 @@ wiring are the rest of #195, in progress. Of the owner, CONTEXT.md says "It is n
   kill switch are the limit.
 - Core, the tools, and the MCP server still hold no policy (ADR-0006). This policy is the
   Engine's, as a Caller (ADR-0037).
-- ADR-0037 recorded the cap ledger and did not build it. The port and the in-memory adapter are
-  built. The SQLite ledger and the Engine kill-switch wiring are the rest of #195.
-- An Intent that may have landed stays `in_flight`, and its hold keeps counting, until the
-  signature lands or the blockhash expires and the Intent fails.
+- ADR-0037 recorded a write-behind append-only cap ledger and did not build it. The port and
+  `memoryCapLedger` are on main. `sqliteCapLedger`, the Engine kill switch, and HTTP 423 land
+  with #243, and they replace that log.
+- An execute-tier Engine starts with an explicit allowlist. Paper and dry-run keep `any`.
+- An Intent that may have landed stays `in_flight`, and its hold keeps counting, until recovery
+  settles the reserved notional once or releases the hold when the Intent is marked failed.
 - This record leaves `STRATEGIES` in place and sends no transaction.
