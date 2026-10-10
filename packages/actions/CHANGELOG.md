@@ -1,5 +1,12 @@
 # @solos-sh/actions
 
+## 0.5.0
+
+### Minor Changes
+
+- 615f701: Add `StrategyBoundsSchema`, the per-Strategy spend limits a Strategy carries: `maxNotionalPerTickUsd`, `maxDailySpendUsd`, `allowedMints`, `expiresAt`, and `maxConsecutiveFailures`.
+- 35cde80: Add the Strategy contract: `StrategySchema`, `StrategyDraftSchema`, `TickSourceSchema`, `StrategyStateSchema`, and the `schedule` and `trigger` parameter schemas. `rebalance`, `range`, and `carry` stay named in the union and fail validation until their issues ship. Stream tick sources fail until streams exist.
+
 ## 0.4.0
 
 ### Minor Changes
