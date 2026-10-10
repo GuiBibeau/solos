@@ -82,7 +82,15 @@ const captureStderr = (logs) => {
 
 /**
  * An engine on the shared Surfpool, with a funded signer that exists only in this process.
- * @param {{ tier?: "read" | "simulate" | "execute" }} [options]
+ * `dataDir` reopens an existing store. `keepData` leaves that directory after stop.
+ * `rpcUrl` replaces the fork URL the engine dials (a proxy in front of Surfpool).
+ * @param {{
+ *   tier?: "read" | "simulate" | "execute";
+ *   dataDir?: string;
+ *   keepData?: boolean;
+ *   rpcUrl?: string;
+ *   wsUrl?: string;
+ * }} [options]
  */
 export const startTestEngine = async (options = {}) => {
   const release = await acquire();
@@ -95,7 +103,13 @@ export const startTestEngine = async (options = {}) => {
 };
 
 /**
- * @param {{ tier?: "read" | "simulate" | "execute" }} options
+ * @param {{
+ *   tier?: "read" | "simulate" | "execute";
+ *   dataDir?: string;
+ *   keepData?: boolean;
+ *   rpcUrl?: string;
+ *   wsUrl?: string;
+ * }} options
  * @param {() => void} release
  */
 const boot = async (options, release) => {
@@ -103,20 +117,24 @@ const boot = async (options, release) => {
   const seed = randomSeed();
   const privateKey = await seedToPrivateKeyString(seed);
   const signer = await seedAddress(seed);
-  const dataDir = mkdtempSync(path.join(tmpdir(), "solos-engine-"));
+  const didCreateDir = options.dataDir === undefined;
+  const dataDir = options.dataDir ?? mkdtempSync(path.join(tmpdir(), "solos-engine-"));
   await surfnet.cheats.fundSol(signer, 2);
   /** @type {string[]} */
   const logs = [];
   const restore = captureStderr(logs);
   const handle = await startEngine({
-    env: hostEnv(privateKey, dataDir, surfnet),
+    env: hostEnv(privateKey, dataDir, {
+      rpcUrl: options.rpcUrl ?? surfnet.rpcUrl,
+      wsUrl: options.wsUrl ?? surfnet.wsUrl,
+    }),
     tier: options.tier,
     host: "127.0.0.1",
     port: freePort(),
     dataDir,
   }).catch((error) => {
     restore();
-    rmSync(dataDir, { recursive: true, force: true });
+    if (didCreateDir) rmSync(dataDir, { recursive: true, force: true });
     throw error;
   });
   return {
@@ -127,22 +145,23 @@ const boot = async (options, release) => {
     dataDir,
     surfnet,
     logs: () => logs.join(""),
-    stop: () => stopEngine({ handle, restore, dataDir, release }),
+    stop: () =>
+      stopEngine({ handle, restore, dataDir, release, removeDir: options.keepData !== true }),
   };
 };
 
 /**
  * @param {string} privateKey
  * @param {string} dataDir
- * @param {{ rpcUrl: string; wsUrl: string }} surfnet
+ * @param {{ readonly rpcUrl: string; readonly wsUrl: string }} endpoints
  */
-const hostEnv = (privateKey, dataDir, surfnet) => ({
+const hostEnv = (privateKey, dataDir, endpoints) => ({
   SOLOS_ENGINE_TOKEN: ENGINE_TOKEN,
   SOLOS_SIGNER_PRIVATE_KEY: privateKey,
   SOLOS_CONFIG_DIR: dataDir,
   SOLOS_LOG_LEVEL: "info",
-  SOLANA_RPC_URL: surfnet.rpcUrl,
-  SOLANA_WS_URL: surfnet.wsUrl,
+  SOLANA_RPC_URL: endpoints.rpcUrl,
+  SOLANA_WS_URL: endpoints.wsUrl,
 });
 
 /**
@@ -151,13 +170,14 @@ const hostEnv = (privateKey, dataDir, surfnet) => ({
  *   restore: () => void;
  *   dataDir: string;
  *   release: () => void;
+ *   removeDir: boolean;
  * }} input
  */
 const stopEngine = async (input) => {
   try {
     await input.handle.stop();
     input.restore();
-    rmSync(input.dataDir, { recursive: true, force: true });
+    if (input.removeDir) rmSync(input.dataDir, { recursive: true, force: true });
   } finally {
     input.release();
   }

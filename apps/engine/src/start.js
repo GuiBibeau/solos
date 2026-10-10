@@ -7,6 +7,7 @@ import { resolveStart } from "./config.js";
 import { engineHostLayer } from "./host.js";
 import { openIntents } from "./intents.js";
 import { bootPaper } from "./paper.js";
+import { recoverIntents } from "./recover.js";
 import { installRedaction } from "./redact.js";
 import { serveEngine } from "./serve.js";
 
@@ -53,6 +54,7 @@ const listen = async (env, start, paper) => {
     const signer = await runtime.runPromise(Effect.flatMap(Signer, addressOf));
     if (paper !== undefined) await paper.fund(signer);
     const db = openIntents(path.join(start.dataDir, "intents.sqlite"));
+    await recoverIntents({ db, runtime });
     return await serveEngine({
       runtime,
       db,

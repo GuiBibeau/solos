@@ -21,7 +21,8 @@ import { Context } from "effect";
  * The seam between deciding and acting (ADR-0013, ADR-0037). The agent side builds an `Action`;
  * whoever is configured here turns it into a transaction: the local wallet by default, the
  * Engine in this repo when `SOLOS_EXECUTOR=engine`. `intentId` is optional and only the engine
- * adapter reads it; a missing id is a new Intent.
+ * adapter reads it. CLI and MCP retries leave it unset so that adapter can reuse the id it
+ * stored for the action; a missing id on the wire is a new Intent.
  * @typedef {{
  *   readonly name: string;
  *   readonly simulate: (action: import("@solos-sh/actions").Action) =>

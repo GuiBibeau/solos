@@ -69,10 +69,15 @@ Dry run (no flags) simulates and refuses execute. `--paper` runs the execute tie
 **Hot key** — the keypair that lives only on the Engine host. Callers configured with
 `SOLOS_EXECUTOR=engine` send Actions; they never see the key.
 
-**Intent** — one Caller request to execute one Action, identified by a Caller-chosen `intentId`.
-The Engine executes an Intent at most once. States: `in_flight`, `settled` (with the
-`ExecutionResult`), `failed` (with the error envelope). A repeat returns the stored outcome; a
-repeat while in flight is `IntentInFlight`.
+**Intent** — one Caller request to execute one Action, identified by `intentId`. CLI and MCP
+retries reuse the id `EngineExecutor` saved for that action in the caller's config directory
+(`engine-intents.sqlite`) before the first request. The Engine executes an Intent at most once.
+States: `in_flight`, `settled` (with the `ExecutionResult`), `failed` (with the error envelope).
+Before broadcast it stores the signature and last valid block height. On startup, or when a
+request touches an in-flight Intent that has a signature, a landed signature becomes `settled`
+and is not resent; `failed` waits until the blockhash has expired and the signature is still
+absent; until then it stays `in_flight` and answers `IntentInFlight`. A repeat of a settled or
+failed Intent returns the stored outcome.
 
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
 (`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a

@@ -3,7 +3,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { claimIntent, failIntent, openIntents, readIntent, settleIntent } from "./intents.js";
+import {
+  claimIntent,
+  failIntent,
+  openIntents,
+  readIntent,
+  recordSigned,
+  settleIntent,
+} from "./intents.js";
 
 /** @type {string | undefined} */
 let dir;
@@ -43,5 +50,21 @@ describe("intent store [integration]", () => {
     if (failed.state === "failed")
       expect(failed.error).toEqual({ code: "SimulationFailed", reason: "nope" });
     db.close();
+  });
+
+  test("a signature recorded before broadcast is still there after the file is reopened", () => {
+    const db = database();
+    claimIntent(db, "signed", { action: { type: "transfer_sol" }, simulated: true });
+    recordSigned(db, "signed", { signature: "sig", lastValidBlockHeight: 12n });
+    db.close();
+    const reopened = openIntents(path.join(dir ?? "", "intents.sqlite"));
+    const row = readIntent(reopened, "signed");
+    expect(row.state).toBe("in_flight");
+    if (row.state === "in_flight") {
+      expect(row.signature).toBe("sig");
+      expect(row.lastValidBlockHeight).toBe("12");
+      expect(row.simulated).toBe(true);
+    }
+    reopened.close();
   });
 });

@@ -35,12 +35,22 @@ recorded home so later children do not invent a second executor.
   checks the bearer token, enforces the tier ceiling, stores Intents, and maps errors to HTTP
   statuses. It does not build transactions. Submission does, unchanged, in `slow` mode through
   the RPC Submitter (ADR-0031, ADR-0032).
-- **Intent.** One Caller request to execute one Action, identified by `intentId`. The Engine
-  executes an Intent at most once. States: `in_flight`, `settled` (with the `ExecutionResult`),
-  `failed` (with the error envelope). A repeat of a settled or failed Intent returns the stored
-  outcome. A repeat while in flight is `IntentInFlight` (409). The store is SQLite (`bun:sqlite`,
-  WAL) owned by the Engine. It is the first table. The cap ledger and the strategy repository
-  will join it later.
+- **Intent.** One Caller request to execute one Action, identified by `intentId`. CLI and MCP
+  retries reuse the id `EngineExecutor` saved for that action in the caller's config directory
+  (`engine-intents.sqlite`) before the first request; a lost response leaves the row, so the next
+  execute of the same action sends the same id. The Engine executes an Intent at most once.
+  States: `in_flight`, `settled` (with the `ExecutionResult`), `failed` (with the error
+  envelope). A repeat of a settled or failed Intent returns the stored outcome. A repeat while
+  in flight is `IntentInFlight` (409). At sign time, before broadcast, the Engine stores the
+  transaction signature and its last valid block height on the Intent. On startup, and whenever
+  a request touches an in-flight Intent that already has a signature, it looks the signature up.
+  If it has landed, the Intent becomes `settled` with that result and is not resent. It becomes
+  `failed` only once the blockhash has expired and the signature is still absent; only then is a
+  resend with a new intent safe. Otherwise it stays `in_flight`, answers 409, and counts as
+  possibly spent. An in-flight Intent with no signature at startup died before broadcast and is
+  marked `failed`, because nothing was sent. The store is SQLite (`bun:sqlite`, WAL) owned by
+  the Engine. It is the first table. The cap ledger and the strategy repository will join it
+  later.
 - **Wire.** Plain JSON, versioned prefix. Failures are
   `{ "error": { code, reason, remedy?, ...props } }`, the same envelope the CLI prints.
 
