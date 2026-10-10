@@ -18,11 +18,18 @@ describe("harness config", () => {
     });
     expect(result.success).toBe(false);
     if (result.success) return;
-    // A stray top-level key is one `unrecognized_keys` issue; `keys` and the message name it.
+    // Only the retired key is reported; the issue and the message name it.
     expect(result.error.issues).toEqual([
       expect.objectContaining({ code: "unrecognized_keys", keys: ["daemon"] }),
     ]);
     expect(result.error.message).toContain('"daemon"');
+  });
+
+  test("another unknown key is stripped, as this object did before", () => {
+    const config = HarnessConfigSchema.parse({ notAField: true, agent: { maxSteps: 7 } });
+    expect(config).not.toHaveProperty("notAField");
+    expect(config.agent.maxSteps).toBe(7);
+    expect(Object.keys(config)).toEqual(["router", "agent", "mcpServers"]);
   });
 
   test("the repo's harness.config.js carries no daemon block and validates", async () => {
