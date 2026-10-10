@@ -32,7 +32,9 @@ Of the owner, CONTEXT.md says "It is never authorization."
   UTC day the hold was reserved." `settle` and `release` each apply once, on the reservation
   keyed by that `intentId`. The port and `memoryCapLedger` are what #240 merged. The call from
   a tick is #198, still ahead of this record.
-- **The hold is the worst case:** "the notional at max slippage plus fees." `settle` "replaces
+- **The hold is the worst case:** "the notional at max slippage plus fees." The fee in the hold
+  comes from the compute-unit price and limit the Engine sets on the transaction, and a test
+  asserts the built transaction can't cost more than the hold. `settle` "replaces
   an open hold with the measured spend and is not refused when that spend is higher," because
   the transaction has landed: "the overshoot is stored on the reservation and the per-Strategy
   switch engages," so any overshoot is limited to one transaction.
@@ -48,13 +50,14 @@ Of the owner, CONTEXT.md says "It is never authorization."
   reservation." On that branch, "reservations, settled amounts, per-tick sums, and an engaged
   kill switch survive closing and reopening it." "`KillSwitchEngaged` is HTTP 423, the status"
   ADR-0037 reserved. "The Engine's SQLite adapter keeps an engaged switch across restarts."
-- **The cap ledger follows the Engine's Intent recovery** (ADR-0037), as #243 words it. "An
-  in-flight Intent keeps its hold." "A restart does not release that hold and does not count it
-  a second time." "When recovery finds the signature landed, `settle` records the reserved
-  notional once for a confirmed transfer, or `0` when the transaction landed with an execution
-  error." "The hold is released only when the Intent is marked failed: the blockhash expired
-  and the signature is still absent, or the Engine stopped before anything was signed." That
-  recovery lands with #243. "`memoryCapLedger` keeps the account in the process."
+- **The cap ledger follows the Engine's Intent recovery** (ADR-0037). "An in-flight Intent
+  keeps its hold." "A restart does not release that hold and does not count it a second time."
+  "When recovery finds the signature landed, `settle` records the reserved notional once for a
+  confirmed transfer." A transaction that lands with an execution error settles the fee it
+  actually paid, from `meta.fee`, priced like the hold. "The hold is released only when the
+  Intent is marked failed: the blockhash expired and the signature is still absent, or the
+  Engine stopped before anything was signed." That recovery lands with #243.
+  "`memoryCapLedger` keeps the account in the process."
 - **Engine allowlist.** An execute-tier Engine refuses to start without `--allowed-mints`.
   Allowing every mint requires passing `--allowed-mints any`. Paper and dry-run Engines keep
   `any` by default. A Strategy's `allowedMints` "can only narrow that allowlist, never widen
@@ -77,5 +80,6 @@ Of the owner, CONTEXT.md says "It is never authorization."
   with #243, and they replace that log.
 - An execute-tier Engine starts with an explicit allowlist. Paper and dry-run keep `any`.
 - An Intent that may have landed stays `in_flight`, and its hold keeps counting, until recovery
-  settles the reserved notional once or releases the hold when the Intent is marked failed.
+  settles the reserved notional or the fee actually paid, or releases the hold when the Intent
+  is marked failed.
 - This record leaves `STRATEGIES` in place and sends no transaction.
