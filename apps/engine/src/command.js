@@ -1,5 +1,7 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
+import { ValidationError } from "@solos/core";
+import { AddressSchema } from "@solos-sh/actions";
 import { Effect, Option } from "effect";
 import { asStartupError, exitOnFailure } from "./output.js";
 import { startEngine } from "./start.js";
@@ -33,6 +35,29 @@ const dataDir = Options.text("data-dir").pipe(
   Options.withDescription("Directory for the engine database. Default ~/.config/solos/engine"),
 );
 
+const allowedMints = Options.text("allowed-mints").pipe(
+  Options.optional,
+  Options.withDescription(
+    "Comma-separated mint addresses the Engine allowlist permits. Omit to allow any mint",
+  ),
+);
+
+/** @param {string | undefined} raw */
+const parseMints = (raw) => {
+  if (raw === undefined || raw.trim().length === 0) return [];
+  const mints = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (mints.every((mint) => AddressSchema.safeParse(mint).success)) return mints;
+  throw new ValidationError({
+    field: "allowed-mints",
+    value: null,
+    reason: "allowed-mints entries must be mint addresses",
+    remedy: "pass comma-separated base58 mint addresses, or omit the flag",
+  });
+};
+
 /**
  * @template T
  * @param {import("effect/Option").Option<T>} value
@@ -50,6 +75,7 @@ const startupFailure = (error) => asStartupError(error);
  *   host: string;
  *   port: number;
  *   dataDir: import("effect/Option").Option<string>;
+ *   allowedMints: import("effect/Option").Option<string>;
  * }} options
  */
 const run = (options) =>
@@ -65,6 +91,7 @@ const run = (options) =>
  *   host: string;
  *   port: number;
  *   dataDir: import("effect/Option").Option<string>;
+ *   allowedMints: import("effect/Option").Option<string>;
  * }} options
  */
 const runUntilSignal = async (options) => {
@@ -75,6 +102,9 @@ const runUntilSignal = async (options) => {
     host: options.host,
     port: options.port,
     dataDir: defined(options.dataDir),
+    ...(Option.isSome(options.allowedMints) && {
+      allowedMints: parseMints(options.allowedMints.value),
+    }),
   });
   await new Promise((resolve) => {
     process.once("SIGINT", () => resolve(undefined));
@@ -85,7 +115,7 @@ const runUntilSignal = async (options) => {
 
 /** @param {string} name */
 export const engineStartCommand = (name) =>
-  Command.make(name, { tier, paper, host, port, dataDir }, run).pipe(
+  Command.make(name, { tier, paper, host, port, dataDir, allowedMints }, run).pipe(
     Command.withDescription(
       "Start the engine. No flags: dry run, simulate works and execute is refused. --paper runs on Surfpool. --tier execute is live.",
     ),

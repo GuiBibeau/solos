@@ -93,3 +93,13 @@ recorded home so later children do not invent a second executor.
   `direct` are different deployments, not a fallback.
 - 423 is reserved and unused until the bounds child adds `EngineKilled`.
 - ADR-0013 and ADR-0014 each carry an "Amended by ADR-0037" line. The amendment text is here.
+
+## Amendment (2026-10-10) — durable cap ledger
+
+The cap ledger that shipped is a transactional SQLite adapter on the Engine database
+(`cap_reservations`, `cap_kills`, `cap_seq`), not the write-behind append-only log recorded
+above. Each reserve, settle, release, and kill-switch write commits in one transaction, so a
+crash cannot leave a half-recorded reservation. `KillSwitchEngaged` is HTTP 423, the status
+this decision reserved. An in-flight Intent keeps its hold across a restart. Recovery settles
+that hold once when the signature has landed, and releases it only when the Intent is marked
+failed: the blockhash expired and the signature is still absent, or nothing was signed.

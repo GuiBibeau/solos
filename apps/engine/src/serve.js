@@ -37,6 +37,7 @@ export const serveEngine = async (input) => {
         db: input.db,
         runtime: input.runtime,
         executor,
+        caps: input.strategyHandle !== undefined,
         ...(input.strategyHandle !== undefined && { strategyHandle: input.strategyHandle }),
       }),
   });

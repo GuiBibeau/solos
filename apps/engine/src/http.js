@@ -22,6 +22,7 @@ const MAX_BODY_BYTES = 1_000_000;
  *     deps: EngineDeps,
  *     pathname: string,
  *   ) => Promise<Response>;
+ *   readonly caps?: boolean;
  * }} EngineDeps
  */
 
@@ -36,6 +37,7 @@ const STATUS = /** @type {Record<string, number>} */ ({
   StrategyInvalid: 400,
   StrategyTransitionRefused: 409,
   BoundsExceeded: 422,
+  KillSwitchEngaged: 423,
   SignerUnavailable: 503,
   RpcError: 503,
   RpcConfigMissing: 503,

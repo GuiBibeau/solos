@@ -6,6 +6,7 @@
 /** @typedef {import("./use-cases/memory-cap-ledger.js").MemoryCapLedgerOptions} MemoryCapLedgerOptions */
 export { allowlistRefusal, widenedMint } from "./domain/allowlist.js";
 export { reserveRefusal, utcDay } from "./domain/cap-check.js";
+export { addDecimal, compareDecimal, subtractDecimal } from "./domain/decimal.js";
 export {
   KillSwitchEngaged,
   StrategyInvalid,
@@ -20,13 +21,23 @@ export { EngineAllowlist } from "./ports/engine-allowlist.js";
 export { StrategyIds } from "./ports/strategy-ids.js";
 export { StrategyRegistry } from "./ports/strategy-registry.js";
 export { StrategyRepository } from "./ports/strategy-repository.js";
+export { executeDisengageKillTool } from "./tools/execute-disengage-kill.js";
+export { executeEngageKillTool } from "./tools/execute-engage-kill.js";
 export { executeRegisterTool } from "./tools/execute-register.js";
 export { executeUpdateTool } from "./tools/execute-update.js";
+export { getKillSwitchTool } from "./tools/get-kill-switch.js";
 export { getStatusTool } from "./tools/get-status.js";
 export { listStrategiesTool } from "./tools/list-strategies.js";
 export { simulateRegisterTool } from "./tools/simulate-register.js";
 export { simulateUpdateTool } from "./tools/simulate-update.js";
 export { registryConformance, repositoryConformance } from "./use-cases/conformance.js";
+export {
+  disengageKillSwitch,
+  engageKillSwitch,
+  killSwitchStatus,
+  previewDisengageKill,
+  previewEngageKill,
+} from "./use-cases/kill-switch.js";
 export { memoryCapLedger } from "./use-cases/memory-cap-ledger.js";
 export { memoryStrategyRepository } from "./use-cases/memory-repository.js";
 export {
@@ -39,10 +50,15 @@ export {
   InProcessStrategyRegistry,
 } from "./use-cases/registry-live.js";
 
+import { executeDisengageKillTool } from "./tools/execute-disengage-kill.js";
+import { executeEngageKillTool } from "./tools/execute-engage-kill.js";
 import { executeRegisterTool } from "./tools/execute-register.js";
 import { executeUpdateTool } from "./tools/execute-update.js";
+import { getKillSwitchTool } from "./tools/get-kill-switch.js";
 import { getStatusTool } from "./tools/get-status.js";
 import { listStrategiesTool } from "./tools/list-strategies.js";
+import { simulateDisengageKillTool } from "./tools/simulate-disengage-kill.js";
+import { simulateEngageKillTool } from "./tools/simulate-engage-kill.js";
 import { simulateRegisterTool } from "./tools/simulate-register.js";
 import { simulateUpdateTool } from "./tools/simulate-update.js";
 
@@ -50,8 +66,13 @@ import { simulateUpdateTool } from "./tools/simulate-update.js";
 export const strategyTools = [
   listStrategiesTool,
   getStatusTool,
+  getKillSwitchTool,
   simulateRegisterTool,
   executeRegisterTool,
   simulateUpdateTool,
   executeUpdateTool,
+  simulateEngageKillTool,
+  executeEngageKillTool,
+  simulateDisengageKillTool,
+  executeDisengageKillTool,
 ];

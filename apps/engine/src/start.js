@@ -3,6 +3,7 @@ import path from "node:path";
 import { Signer } from "@solos/core";
 import { loadSolanaEnv } from "@solos/solana";
 import { Effect, Layer, ManagedRuntime } from "effect";
+import { syncHolds } from "./cap-sync.js";
 import { resolveStart } from "./config.js";
 import { compiledStrategyMount, engineHostLayer } from "./host.js";
 import { openIntents } from "./intents.js";
@@ -69,6 +70,7 @@ const listen = async (env, start, paper) => {
     const signer = await runtime.runPromise(Effect.flatMap(Signer, addressOf));
     if (paper !== undefined) await paper.fund(signer);
     await recoverIntents({ db, runtime });
+    await syncHolds({ db, runtime, caps: mount !== undefined });
     return await serveEngine({
       runtime,
       db,

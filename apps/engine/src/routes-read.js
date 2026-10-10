@@ -1,5 +1,6 @@
 // @ts-check
 import { IntentNotFound } from "@solos/core";
+import { syncHold } from "./cap-sync.js";
 import { errorResponse, json } from "./http.js";
 import { readIntent } from "./intents.js";
 import { reconcileIntent } from "./recover.js";
@@ -29,6 +30,7 @@ export const intentResponse = async (pathname, deps) => {
   const row = readIntent(deps.db, intentId);
   if (row.state === "missing") return missing(intentId);
   const current = row.state === "in_flight" ? await reconcileIntent(deps, intentId) : row;
+  await syncHold(deps, intentId);
   if (current.state === "missing") return missing(intentId);
   return intentBody(current);
 };

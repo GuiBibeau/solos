@@ -2,19 +2,25 @@
 import { readFileSync } from "node:fs";
 import { Args, Command, Options } from "@effect/cli";
 import {
+  disengageKillSwitch,
+  engageKillSwitch,
   EngineConfigMissing,
+  executeDisengageKillTool,
+  executeEngageKillTool,
   executeRegisterTool,
   executeUpdateTool,
+  getKillSwitchTool,
   getStatusTool,
   getStrategyStatus,
+  killSwitchStatus,
   listStrategies,
   listStrategiesTool,
   registerStrategy,
   StrategyInvalid,
   updateStrategy,
 } from "@solos/core";
-import { HttpStrategyRegistry } from "@solos/solana";
-import { Effect, Option } from "effect";
+import { HttpCapLedger, HttpStrategyRegistry } from "@solos/solana";
+import { Effect, Layer, Option } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { commandHelp, groupHelp, optionHelp } from "./tool-help.js";
 
@@ -41,13 +47,16 @@ const endpoint = () => {
   return Effect.succeed({ url, token });
 };
 
-/** @param {import("effect").Effect.Effect<unknown, unknown, import("@solos/core/strategy").StrategyRegistryShape>} effect */
+/** @param {import("effect").Effect.Effect<unknown, unknown, unknown>} effect */
 const run = (effect) =>
   endpoint().pipe(
-    Effect.flatMap((engine) => effect.pipe(Effect.provide(HttpStrategyRegistry(engine)))),
+    Effect.flatMap((engine) => effect.pipe(Effect.provide(caller(engine)))),
     Effect.flatMap(emit),
     exitOnFailure,
   );
+
+/** @param {{ url: string; token: string }} engine */
+const caller = (engine) => Layer.mergeAll(HttpStrategyRegistry(engine), HttpCapLedger(engine));
 
 /** @param {string} file */
 const readDraft = (file) => {
@@ -96,6 +105,23 @@ const move = (name, next) =>
     commandHelp(executeUpdateTool),
   );
 
+const scopeOpt = () => Options.text("scope").pipe(optionHelp(getKillSwitchTool.input.shape.scope));
+
+const reasonOpt = () =>
+  Options.text("reason").pipe(optionHelp(executeEngageKillTool.input.shape.reason));
+
+const kill = Command.make("kill", { scope: scopeOpt(), reason: reasonOpt() }, (options) =>
+  run(engageKillSwitch(options.scope, options.reason)),
+).pipe(commandHelp(executeEngageKillTool));
+
+const disengage = Command.make("disengage", { scope: scopeOpt() }, (options) =>
+  run(disengageKillSwitch(options.scope)),
+).pipe(commandHelp(executeDisengageKillTool));
+
+const killStatus = Command.make("kill-status", { scope: scopeOpt() }, (options) =>
+  run(killSwitchStatus(options.scope)),
+).pipe(commandHelp(getKillSwitchTool));
+
 export const strategy = Command.make("strategy").pipe(
   groupHelp("Register and manage strategies on the Engine"),
   Command.withSubcommands([
@@ -105,5 +131,8 @@ export const strategy = Command.make("strategy").pipe(
     move("pause", "paused"),
     move("resume", "active"),
     move("cancel", "done"),
+    kill,
+    disengage,
+    killStatus,
   ]),
 );

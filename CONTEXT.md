@@ -110,7 +110,9 @@ it was reserved, including when it is still open after midnight. `maxDailySpendU
 `allowedMints`, and `expiresAt` are judged on that reserve. `maxNotionalPerTickUsd` caps the
 sum of all reserves sharing a `tickId`. An exact cap is allowed. A breach is `BoundsExceeded`.
 A Strategy with no bounds loaded is `StrategyNotFound`. The port is
-`CapLedger`. `memoryCapLedger` keeps the account in the process.
+`CapLedger`. The Engine's `sqliteCapLedger` is the durable adapter on the Engine database:
+reservations, settled amounts, per-tick sums, and an engaged kill switch survive closing and
+reopening it. `memoryCapLedger` keeps the account in the process for tests.
 
 **Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
 `intentId`. The hold is the worst case: the notional at max slippage plus fees, so a correct
@@ -118,12 +120,17 @@ execution never settles above it. `settle` replaces an open hold with the measur
 A higher settle is a bug: the overshoot is recorded on the reservation and that engages the
 per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
 hold as the first call left it. A settled hold stays settled. A released hold stays released.
+An in-flight Intent keeps its hold. A restart does not release that hold and does not count it
+a second time. When recovery finds the signature landed, `settle` records the reserved notional
+once for a confirmed transfer, or `0` when the transaction landed with an execution error. The
+hold is released only when the Intent is marked failed: the blockhash expired and the signature
+is still absent, or the Engine stopped before anything was signed.
 
 **Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
 scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and
 names that scope. A global switch blocks every Strategy. A per-Strategy switch blocks only that
 Strategy. Settle and release still complete. Disengaging that scope allows new reserves again.
-The durable adapter must keep an engaged switch across restarts. `memoryCapLedger` keeps the
+The Engine's SQLite adapter keeps an engaged switch across restarts. `memoryCapLedger` keeps the
 switch in the process.
 
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product

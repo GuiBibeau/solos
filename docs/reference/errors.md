@@ -58,11 +58,11 @@ the Caller asked for. `done`, `expired`, and `failed` are terminal, so a second 
 error. `BoundsExceeded` is the same refusal the Engine uses when a Strategy's `allowedMints`
 names a mint outside the Engine allowlist; `requested` is that mint. The cap ledger raises it
 for a tick total (`maxNotionalPerTickUsd` sums every live reserve sharing a `tickId`), a
-UTC-day spend, a mint allowlist, or an `expiresAt` that no longer authorizes the reserve. `scope` is the Strategy id. `KillSwitchEngaged` is reason-bearing.
+UTC-day spend, a mint allowlist, or an `expiresAt` that no longer authorizes the reserve. `scope` is the Strategy id. `KillSwitchEngaged` is reason-bearing and is HTTP 423 on the Engine.
 `reserve` raises it when that Strategy's per-Strategy switch, or the global one, is engaged.
 `scope` is the Strategy id or `global`. Settle and release do not raise it. A settle above the
 hold records the overshoot and engages the per-Strategy switch; the next reserve then raises
-`KillSwitchEngaged`.
+`KillSwitchEngaged`. The Engine's SQLite adapter keeps an engaged switch across a restart.
 
 ## Why the field is `reason`, never `cause`
 

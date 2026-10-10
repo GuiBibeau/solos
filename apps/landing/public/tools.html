@@ -399,7 +399,19 @@
 </article>
 </section>
 <section class="group" id="strategy">
-<h2><code>strategy</code> <span class="count">6 tools</span></h2>
+<h2><code>strategy</code> <span class="count">11 tools</span></h2>
+<article class="tool" id="solana_strategy_execute_disengage_kill">
+<h3><code>solana_strategy_execute_disengage_kill</code> <span class="tier tier-execute">execute</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Disengage the kill switch</p>
+<p class="desc">Lift a kill switch for every Strategy, or for one Strategy, so new reserves are allowed again. The other scope is left as it was.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_execute_disengage_kill"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>scope</code></td><td>string</td><td>yes</td><td>Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_execute_engage_kill">
+<h3><code>solana_strategy_execute_engage_kill</code> <span class="tier tier-execute">execute</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Engage the kill switch</p>
+<p class="desc">Pause new reserves for every Strategy, or for one Strategy. Settle and release still finish. The pause stays until it is disengaged, including across a restart.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_execute_engage_kill"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>scope</code></td><td>string</td><td>yes</td><td>Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one</td></tr><tr><td><code>reason</code></td><td>string</td><td>yes</td><td>Why the switch is engaged. The next refused reserve repeats this reason</td></tr></tbody></table></div>
+</article>
 <article class="tool" id="solana_strategy_execute_register">
 <h3><code>solana_strategy_execute_register</code> <span class="tier tier-execute">execute</span> <span class="stability stability-beta">beta</span></h3>
 <p class="title">Register a strategy</p>
@@ -412,6 +424,12 @@
 <p class="desc">Pause, resume, or cancel a registered Strategy. Cancel is the done state. A move the state table does not allow is refused and the stored state stays as it was.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_execute_update"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td>yes</td><td>Strategy id returned by register</td></tr><tr><td><code>state</code></td><td>active | paused | done</td><td>yes</td><td>Requested state: active to resume, paused to pause, or done to cancel</td></tr></tbody></table></div>
 </article>
+<article class="tool" id="solana_strategy_get_kill_switch">
+<h3><code>solana_strategy_get_kill_switch</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Read the kill switch</p>
+<p class="desc">Read whether the kill switch is engaged for every Strategy, or for one Strategy, and the reason if it is. An engaged switch blocks new reserves only.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_get_kill_switch"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>scope</code></td><td>string</td><td>yes</td><td>Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one</td></tr></tbody></table></div>
+</article>
 <article class="tool" id="solana_strategy_get_status">
 <h3><code>solana_strategy_get_status</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
 <p class="title">Get strategy status</p>
@@ -423,6 +441,18 @@
 <p class="title">List strategies</p>
 <p class="desc">List Strategies registered with the Engine, optionally filtered by lifecycle state and owner label. Use to see what is active, paused, done, expired, or failed.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_list_strategies"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>state</code></td><td>active | paused | done | expired | failed</td><td>no</td><td>Only Strategies in this lifecycle state</td></tr><tr><td><code>owner</code></td><td>string</td><td>no</td><td>Only Strategies with this owner label</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_simulate_disengage_kill">
+<h3><code>solana_strategy_simulate_disengage_kill</code> <span class="tier tier-simulate">simulate</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Preview disengaging the kill switch</p>
+<p class="desc">Show whether a kill switch scope is engaged, without lifting it. Use this before disengage when a Caller needs to see the reason first.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_simulate_disengage_kill"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>scope</code></td><td>string</td><td>yes</td><td>Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_simulate_engage_kill">
+<h3><code>solana_strategy_simulate_engage_kill</code> <span class="tier tier-simulate">simulate</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Preview engaging the kill switch</p>
+<p class="desc">Show whether the kill switch is already engaged for a scope, and the reason a real engage would store. Nothing is written.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_simulate_engage_kill"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>scope</code></td><td>string</td><td>yes</td><td>Kill switch scope: global pauses every Strategy, or a Strategy id pauses only that one</td></tr><tr><td><code>reason</code></td><td>string</td><td>yes</td><td>Why the switch is engaged. The next refused reserve repeats this reason</td></tr></tbody></table></div>
 </article>
 <article class="tool" id="solana_strategy_simulate_register">
 <h3><code>solana_strategy_simulate_register</code> <span class="tier tier-simulate">simulate</span> <span class="stability stability-beta">beta</span></h3>

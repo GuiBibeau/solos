@@ -15,6 +15,9 @@
     "./perp": "./src/perp/index.js",
     "./signals": "./src/signals/index.js",
     "./strategy": "./src/strategy/index.js",
+    "./strategy/cap-ledger-cases": "./src/strategy/use-cases/cap-ledger-cases.test.js",
+    "./strategy/cap-ledger-settle-cases": "./src/strategy/use-cases/cap-ledger-settle-cases.test.js",
+    "./strategy/cap-ledger-tick-cases": "./src/strategy/use-cases/cap-ledger-tick-cases.test.js",
     "./shared": "./src/shared/index.js"
   },
   "dependencies": {

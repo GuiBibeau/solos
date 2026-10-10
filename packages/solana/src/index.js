@@ -29,7 +29,7 @@ import { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
-import { MissingStrategyRegistry } from "./strategy/missing-registry.js";
+import { MissingCallerPorts } from "./strategy/missing-registry.js";
 import { RpcSubmitterLive } from "./submission/submitter.js";
 import { JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
@@ -69,7 +69,7 @@ export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
-export { HttpStrategyRegistry } from "./strategy/http-registry.js";
+export { HttpCapLedger, HttpStrategyRegistry } from "./strategy/caller-http.js";
 export { SLOW, SubmissionModeSchema } from "./submission/mode.js";
 export { signatureOutlook } from "./submission/signature-outlook.js";
 export { signedIntentNote } from "./submission/signed-note.js";
@@ -94,7 +94,7 @@ const adapters = (executorConfig) =>
     KaminoVenueLive(),
     LiquidityVenueLive,
     DirectSignerExecutor(executorConfig),
-    MissingStrategyRegistry,
+    MissingCallerPorts,
   );
 
 /**

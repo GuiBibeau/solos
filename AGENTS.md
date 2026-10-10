@@ -132,7 +132,7 @@ dev check` — do not edit the table by hand:
 | `perp` | 12 | read, simulate, execute |
 | `portfolio` | 1 | read |
 | `signals` | 0 | ports only |
-| `strategy` | 6 | read, simulate, execute |
+| `strategy` | 11 | read, simulate, execute |
 | `swap` | 3 | read, simulate, execute |
 | `transfer` | 2 | simulate, execute |
 | `wallet` | 4 | read, simulate, execute |

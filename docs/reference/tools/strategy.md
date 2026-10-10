@@ -8,12 +8,23 @@ and no transaction is signed. `schedule` and `trigger` are the kinds the contrac
 `rebalance`, `range`, and `carry` are names that fail until their issues ship.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
-`solos strategy`, both of which talk to the Engine over HTTP. Core registers the six MCP
+`solos strategy`, both of which talk to the Engine over HTTP. Core registers the eleven MCP
 tools unconditionally, so they always exist. `STRATEGIES` is a build-time `feature()` flag.
 The flag only compiles in the Engine strategy routes and the CLI `solos strategy` group, and
-it is off in release builds. Against an Engine built without the flag, a tool call returns
-`EngineUnavailable` with a remedy naming the flag. In direct mode (`SOLOS_EXECUTOR=direct`) a
-strategy tool returns `EngineConfigMissing` because there's no Engine to hold a Registry.
+it is off in release builds. `bun run solos` starts a second Bun and drops `--feature`, so
+both the Engine and the CLI group are started with the flag on the same process:
+
+```sh
+bun --feature=STRATEGIES run apps/cli/src/main.js engine start --tier execute \
+  --allowed-mints So11111111111111111111111111111111111111112
+bun --feature=STRATEGIES run apps/cli/src/main.js strategy register --file strategy.json
+```
+
+`--allowed-mints` is the Engine allowlist. Omit it to allow any mint. Native SOL is priced
+through the wrapped SOL mint `So11111111111111111111111111111111111111112`. Against an Engine
+built without the flag, a tool call returns `EngineUnavailable` with a remedy naming the flag.
+In direct mode (`SOLOS_EXECUTOR=direct`) a strategy tool returns `EngineConfigMissing` because
+there's no Engine to hold a Registry.
 
 ## Bounds
 
@@ -44,5 +55,23 @@ The id survives an Engine restart.
 allowed, including `allowed: false` and the refusal when the Strategy is already `done`. It
 applies nothing. `solana_strategy_execute_update` applies a move the state table allows.
 
+`solana_strategy_get_kill_switch` reads whether a scope is engaged.
+`solana_strategy_simulate_engage_kill` and `solana_strategy_simulate_disengage_kill` preview a
+change and write nothing. `solana_strategy_execute_engage_kill` and
+`solana_strategy_execute_disengage_kill` apply it. A scope of `global` covers every Strategy.
+Any other scope is one Strategy id.
+
 `solos strategy register --file <path>`, `list`, `status <id>`, `pause <id>`, `resume <id>`, and
-`cancel <id>` are the same operations. They need `SOLOS_ENGINE_URL` and `SOLOS_ENGINE_TOKEN`.
+`cancel <id>` are the same operations. `solos strategy kill --scope <scope> --reason <text>`,
+`kill-status --scope <scope>`, and `disengage --scope <scope>` are the kill switch. They need
+`SOLOS_ENGINE_URL` and `SOLOS_ENGINE_TOKEN`, and the CLI process needs `--feature=STRATEGIES`.
+
+## Caps on an execute
+
+`POST /v1/actions/execute` takes optional `strategyId` and `tickId`, together. The Engine
+reserves the transfer's SOL notional before anything is signed. A confirmed transfer settles
+that reserved notional once. A transaction that lands with an execution error settles `0`.
+Nothing signed, or a blockhash that expires with the signature still absent, releases the hold.
+If the Engine stops after broadcast and before confirm, the hold stays open and keeps counting
+against the per-tick and daily caps while the Intent is `in_flight`. Restart does not release
+it and does not reserve it again. Recovery settles it once when the signature has landed.
