@@ -2,9 +2,9 @@
 import path from "node:path";
 import { Signer } from "@solos/core";
 import { loadSolanaEnv } from "@solos/solana";
-import { Effect, ManagedRuntime } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import { resolveStart } from "./config.js";
-import { engineHostLayer } from "./host.js";
+import { compiledStrategyMount, engineHostLayer } from "./host.js";
 import { openIntents } from "./intents.js";
 import { bootPaper } from "./paper.js";
 import { recoverIntents } from "./recover.js";
@@ -12,10 +12,19 @@ import { installRedaction } from "./redact.js";
 import { serveEngine } from "./serve.js";
 
 /**
+ * @typedef {Parameters<typeof resolveStart>[0] & {
+ *   strategies?: boolean;
+ *   allowedMints?: ReadonlyArray<string>;
+ * }} StartInput
+ */
+
+/**
  * Start the engine in this process. Paper boots Surfpool first and funds the signer before the
  * socket opens, so the first request already has lamports. The returned `stop` closes the
  * socket, the database, the runtime and, in paper mode, Surfpool.
- * @param {Parameters<typeof resolveStart>[0]} input
+ * `strategies: true` mounts the registry for in-process tests. A release process mounts it
+ * only when the STRATEGIES compile flag is on.
+ * @param {StartInput} input
  */
 export const startEngine = async (input) => {
   const start = resolveStart(input);
@@ -25,7 +34,7 @@ export const startEngine = async (input) => {
     rpcUrl: paper?.rpcUrl ?? input.env.SOLANA_RPC_URL ?? "",
   });
   try {
-    const served = await listen(input.env, start, paper);
+    const served = await listen(input.env, { ...start, ...strategyStart(input) }, paper);
     return {
       url: served.url,
       signer: served.signer,
@@ -40,20 +49,25 @@ export const startEngine = async (input) => {
   }
 };
 
+/** @param {StartInput} input */
+const strategyStart = (input) => ({
+  strategies: input.strategies,
+  allowedMints: input.allowedMints,
+});
+
 /**
  * @param {Record<string, string | undefined>} env
- * @param {ReturnType<typeof resolveStart>} start
+ * @param {ReturnType<typeof resolveStart> & Pick<StartInput, "strategies" | "allowedMints">} start
  * @param {Awaited<ReturnType<typeof bootPaper>> | undefined} paper
  */
 const listen = async (env, start, paper) => {
   const solanaEnv = loadSolanaEnv(hostEnv(env, paper));
-  const runtime = ManagedRuntime.make(
-    engineHostLayer(solanaEnv, env.SOLOS_LOG_LEVEL, env.OTEL_EXPORTER_OTLP_ENDPOINT),
-  );
+  const db = openIntents(path.join(start.dataDir, "intents.sqlite"));
+  const mount = await strategyMount(db, start);
+  const runtime = ManagedRuntime.make(runtimeLayer(solanaEnv, env, mount));
   try {
     const signer = await runtime.runPromise(Effect.flatMap(Signer, addressOf));
     if (paper !== undefined) await paper.fund(signer);
-    const db = openIntents(path.join(start.dataDir, "intents.sqlite"));
     await recoverIntents({ db, runtime });
     return await serveEngine({
       runtime,
@@ -66,11 +80,48 @@ const listen = async (env, start, paper) => {
       mode: start.mode,
       token: start.token,
       dataDir: start.dataDir,
+      ...(mount !== undefined && { strategyHandle: mount.handle }),
     });
   } catch (error) {
+    db.close();
     await runtime.dispose();
     throw error;
   }
+};
+
+/**
+ * @param {import("bun:sqlite").Database} db
+ * @param {Pick<StartInput, "strategies" | "allowedMints">} input
+ */
+const strategyMount = async (db, input) => {
+  const allowedMints = input.allowedMints ?? [];
+  if (input.strategies === true) return explicitMount(db, allowedMints);
+  if (input.strategies === false) return undefined;
+  return compiledStrategyMount(db, allowedMints);
+};
+
+/**
+ * In-process tests mount the same modules a STRATEGIES build serves.
+ * @param {import("bun:sqlite").Database} db
+ * @param {ReadonlyArray<string>} allowedMints
+ */
+const explicitMount = async (db, allowedMints) => {
+  const [{ strategyLayer }, { handleStrategy }] = await Promise.all([
+    import("./strategy-layer.js"),
+    import("./strategy-http.js"),
+  ]);
+  return { layer: strategyLayer(db, allowedMints), handle: handleStrategy };
+};
+
+/**
+ * @param {import("@solos/solana").SolanaEnv} solanaEnv
+ * @param {Record<string, string | undefined>} env
+ * @param {Awaited<ReturnType<typeof strategyMount>>} mount
+ */
+const runtimeLayer = (solanaEnv, env, mount) => {
+  const host = engineHostLayer(solanaEnv, env.SOLOS_LOG_LEVEL, env.OTEL_EXPORTER_OTLP_ENDPOINT);
+  if (mount === undefined) return host;
+  return mount.layer.pipe(Layer.provideMerge(host));
 };
 
 /** @param {import("@solos/core/wallet").SignerShape} service */

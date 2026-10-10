@@ -436,6 +436,67 @@ Read one owner's supported-portfolio state: cash (native SOL and recognized stab
 
 - `owner` (string, optional): Owner to read. Omit to use the configured signer's address.
 
+## strategy
+
+### solana_strategy_execute_register
+
+Tier: execute. Stability: beta. Register a strategy.
+
+Register a Strategy with the Engine. Returns its id and active state. The Strategy survives Engine restarts. Nothing ticks until a later release.
+
+- `owner` (string, required): Label a swarm uses to tell its registrations apart. Never authorization
+- `kind` (schedule | trigger | rebalance | range | carry, required): Strategy kind: schedule, trigger, rebalance, range, or carry
+- `params` (any, required): Parameters for that kind. schedule and trigger are accepted; rebalance, range, and carry fail until their issues ship
+- `tickSource` (any, required): Clock tick source with exactly one of every or cron. Stream sources are not available yet
+- `bounds` (object, required): Limits on what one Strategy may spend
+
+### solana_strategy_execute_update
+
+Tier: execute. Stability: beta. Change strategy state.
+
+Pause, resume, or cancel a registered Strategy. Cancel is the done state. A move the state table does not allow is refused and the stored state stays as it was.
+
+- `id` (string, required): Strategy id returned by register
+- `state` (active | paused | done, required): Requested state: active to resume, paused to pause, or done to cancel
+
+### solana_strategy_get_status
+
+Tier: read. Stability: beta. Get strategy status.
+
+Read one registered Strategy, including its kind, bounds, tick source, and lifecycle state. Use after register to confirm what the Engine stored.
+
+- `id` (string, required): Strategy id returned by register
+
+### solana_strategy_list_strategies
+
+Tier: read. Stability: beta. List strategies.
+
+List Strategies registered with the Engine, optionally filtered by lifecycle state and owner label. Use to see what is active, paused, done, expired, or failed.
+
+- `state` (active | paused | done | expired | failed, optional): Only Strategies in this lifecycle state
+- `owner` (string, optional): Only Strategies with this owner label
+
+### solana_strategy_simulate_register
+
+Tier: simulate. Stability: beta. Preview a strategy.
+
+Validate a Strategy and resolve the observation a first tick would read, then return the Actions that tick would emit. Registers nothing and does not change the Engine registry.
+
+- `owner` (string, required): Label a swarm uses to tell its registrations apart. Never authorization
+- `kind` (schedule | trigger | rebalance | range | carry, required): Strategy kind: schedule, trigger, rebalance, range, or carry
+- `params` (any, required): Parameters for that kind. schedule and trigger are accepted; rebalance, range, and carry fail until their issues ship
+- `tickSource` (any, required): Clock tick source with exactly one of every or cron. Stream sources are not available yet
+- `bounds` (object, required): Limits on what one Strategy may spend
+
+### solana_strategy_simulate_update
+
+Tier: simulate. Stability: beta. Preview a strategy state change.
+
+Check whether a Strategy can move to active, paused, or done, and return the refusal when it cannot. Applies nothing, including when the Strategy is already done, expired, or failed.
+
+- `id` (string, required): Strategy id returned by register
+- `state` (active | paused | done, required): Requested state: active to resume, paused to pause, or done to cancel
+
 ## swap
 
 ### solana_swap_execute_swap

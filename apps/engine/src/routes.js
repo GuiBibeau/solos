@@ -1,7 +1,7 @@
 // @ts-check
-import { ValidationError } from "@solos/core";
+import { EngineUnavailable, ValidationError, errorEnvelope } from "@solos/core";
 import { authorized, unauthorizedError } from "./auth.js";
-import { errorResponse } from "./http.js";
+import { errorResponse, json } from "./http.js";
 import { executeRequest } from "./routes-execute.js";
 import { healthResponse, intentResponse } from "./routes-read.js";
 import { simulateRequest } from "./routes-simulate.js";
@@ -33,10 +33,33 @@ const postRoute = (request, deps, pathname) => {
  * @param {string} pathname
  */
 const route = (request, deps, pathname) => {
+  if (pathname.startsWith("/v1/strategies")) return strategyRoute(request, deps, pathname);
   const found = matched(request, deps, pathname);
   if (found === undefined) return Promise.resolve(errorResponse(unknownRoute(pathname)));
   return found;
 };
+
+/**
+ * @param {Request} request
+ * @param {import("./http.js").EngineDeps} deps
+ * @param {string} pathname
+ */
+const strategyRoute = (request, deps, pathname) => {
+  if (deps.strategyHandle === undefined) return Promise.resolve(strategiesDisabled(request));
+  return deps.strategyHandle(request, deps, pathname);
+};
+
+/** Flag-off engines answer 404. Callers surface that as EngineUnavailable. @param {Request} request */
+const strategiesDisabled = (request) =>
+  json(404, {
+    error: errorEnvelope(
+      new EngineUnavailable({
+        url: new URL(request.url).origin,
+        reason: "strategy routes are not served by this engine",
+        remedy: "start the engine with the STRATEGIES flag",
+      }),
+    ),
+  });
 
 /**
  * @param {Request} request

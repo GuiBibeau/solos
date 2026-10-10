@@ -80,6 +80,28 @@ absent; until then it stays `in_flight` and answers `IntentInFlight`. An in-flig
 no signature at startup becomes `failed`, because nothing was sent. A repeat of a settled or
 failed Intent returns the stored outcome.
 
+**Strategy** — a registered, data-only description of work the Engine may later perform: a kind,
+that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
+Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
+or swarm uses to tell its registrations apart. It is never authorization.
+`schedule` and `trigger` are defined in `@solos-sh/actions`. `rebalance`, `range`, and `carry`
+are names until their issues ship. Nothing in this slice ticks. States are `active`,
+`paused`, `done`, `expired`, and `failed`. `done`,
+`expired`, and `failed` are terminal. A move the state table does not allow is refused with
+`StrategyTransitionRefused`.
+
+**Registry** — where Strategies are registered and where their state is changed. The Engine owns
+the one Registry. Callers reach it through the strategy tools or `solos strategy`. A Strategy
+whose allowlist widens the Engine's is refused at registration with `BoundsExceeded`.
+
+**Bounds** — the limits one Strategy may spend, carried as `StrategyBoundsSchema`.
+`maxNotionalPerTickUsd` caps the notional of one tick. `maxDailySpendUsd` caps what the Strategy
+may reserve during the current UTC day. `allowedMints` lists the mints it may spend: empty means
+any mint the Engine allowlist already permits, and a non-empty list can only narrow that
+allowlist, never widen it. `expiresAt` is when the bounds stop authorizing spends, or null when
+they do not expire on a clock. `maxConsecutiveFailures` is how many failed ticks in a row move
+the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
+
 **Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
 (`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a
 separate repo the harness depends on (ADR-0037).

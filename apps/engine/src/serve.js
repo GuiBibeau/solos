@@ -17,6 +17,7 @@ import { handleRequest } from "./routes.js";
  *   mode: import("./config.js").Mode;
  *   token: string;
  *   dataDir: string;
+ *   strategyHandle?: import("./http.js").EngineDeps["strategyHandle"];
  * }} input
  */
 export const serveEngine = async (input) => {
@@ -36,6 +37,7 @@ export const serveEngine = async (input) => {
         db: input.db,
         runtime: input.runtime,
         executor,
+        ...(input.strategyHandle !== undefined && { strategyHandle: input.strategyHandle }),
       }),
   });
   const url = `http://${input.host}:${server.port}`;

@@ -13,6 +13,12 @@
 /** @typedef {import("./venue-actions.js").WithdrawLendAction} WithdrawLendAction */
 /** @typedef {import("./mandate.js").Mandate} Mandate */
 /** @typedef {import("./strategy-bounds.js").StrategyBounds} StrategyBounds */
+/** @typedef {import("./strategy-schema.js").Strategy} Strategy */
+/** @typedef {import("./strategy-schema.js").StrategyDraft} StrategyDraft */
+/** @typedef {import("./strategy-schedule.js").ScheduleParams} ScheduleParams */
+/** @typedef {import("./strategy-state.js").StrategyState} StrategyState */
+/** @typedef {import("./strategy-tick-source.js").TickSource} TickSource */
+/** @typedef {import("./strategy-trigger.js").TriggerParams} TriggerParams */
 /** @typedef {import("./portfolio.js").PortfolioState} PortfolioState */
 /** @typedef {import("./portfolio.js").Position} Position */
 /** @typedef {import("./primitives.js").Address} Address */
@@ -54,6 +60,15 @@ export {
 } from "./action.js";
 export { MandateSchema } from "./mandate.js";
 export { StrategyBoundsSchema } from "./strategy-bounds.js";
+export { ScheduleParamsSchema } from "./strategy-schedule.js";
+export { StrategyDraftSchema, StrategyIdSchema, StrategySchema } from "./strategy-schema.js";
+export {
+  STRATEGY_STATES,
+  StrategyRequestStateSchema,
+  StrategyStateSchema,
+} from "./strategy-state.js";
+export { DurationSchema, TickSourceSchema } from "./strategy-tick-source.js";
+export { TriggerParamsSchema } from "./strategy-trigger.js";
 export { PortfolioStateSchema, PositionSchema } from "./portfolio.js";
 export {
   LendPositionSchema,

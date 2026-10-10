@@ -29,6 +29,7 @@ import { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 import { SolanaRpcLive } from "./rpc/solana-rpc.js";
 import { KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 import { SignerLive } from "./signer/signer-live.js";
+import { MissingStrategyRegistry } from "./strategy/missing-registry.js";
 import { RpcSubmitterLive } from "./submission/submitter.js";
 import { JupiterSwapBuildLive } from "./swap/jupiter-swap-build-live.js";
 import { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
@@ -37,6 +38,7 @@ import { BalanceReaderLive } from "./wallet/balance-reader-live.js";
 export * from "./credentials/index.js";
 export { JevToolSelectorLive } from "./discovery/jev-tool-selector.js";
 export { LocalToolSelectorLive } from "./discovery/local-tool-selector.js";
+export { diagnoseSolanaEnv } from "./doctor.js";
 export {
   DEFAULT_AI_GATEWAY_BASE_URL,
   DEFAULT_ELFA_BASE_URL,
@@ -50,7 +52,6 @@ export {
   loadSolanaEnv,
   phoenixBaseUrl,
 } from "./env.js";
-export { diagnoseSolanaEnv } from "./doctor.js";
 export { DirectSignerExecutor, EXECUTOR_NAME } from "./executor/direct-signer-executor.js";
 export { EngineExecutor } from "./executor/engine-executor.js";
 export { LaunchVenueLive } from "./launch/launch-venue-live.js";
@@ -60,14 +61,15 @@ export { LiquidityVenueLive } from "./liquidity/liquidity-venue-live.js";
 export { JupiterPriceLive } from "./market/jupiter-price-live.js";
 export { MarketIntelligenceLive } from "./market/market-intelligence-live.js";
 export { TokenRegistryLive } from "./market/token-registry-live.js";
-export { PerpVenueLive } from "./perp/perp-venue-live.js";
 export { PerpOnboarderLive } from "./perp/perp-onboarder-live.js";
+export { PerpVenueLive } from "./perp/perp-venue-live.js";
 export { PortfolioReaderLive } from "./portfolio/portfolio-reader-live.js";
 export * from "./privy/index.js";
 export { rpcOrigin } from "./rpc/rpc-origin.js";
 export { SolanaRpc, SolanaRpcLive } from "./rpc/solana-rpc.js";
 export { KitSigner, KitSignerFromBytes, KitSignerLive } from "./signer/kit-signer.js";
 export { SignerLive } from "./signer/signer-live.js";
+export { HttpStrategyRegistry } from "./strategy/http-registry.js";
 export { SLOW, SubmissionModeSchema } from "./submission/mode.js";
 export { signatureOutlook } from "./submission/signature-outlook.js";
 export { signedIntentNote } from "./submission/signed-note.js";
@@ -92,6 +94,7 @@ const adapters = (executorConfig) =>
     KaminoVenueLive(),
     LiquidityVenueLive,
     DirectSignerExecutor(executorConfig),
+    MissingStrategyRegistry,
   );
 
 /**
@@ -127,7 +130,6 @@ const perp = (phoenix) => {
   const config = phoenix ?? { baseUrl: DEFAULT_PHOENIX_BASE_URL };
   return Layer.merge(PerpVenueLive(config), PerpOnboarderLive(config));
 };
-
 /**
  * Free-text tool selection behaves like Iris and prices: without AI_GATEWAY_API_KEY it still
  * works, matching locally and saying so, because JEV fails pre-HTTP and selection falls back.

@@ -14,6 +14,7 @@
     "./liquidity": "./src/liquidity/index.js",
     "./perp": "./src/perp/index.js",
     "./signals": "./src/signals/index.js",
+    "./strategy": "./src/strategy/index.js",
     "./shared": "./src/shared/index.js"
   },
   "dependencies": {

@@ -46,6 +46,12 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_perp_simulate_open` | simulate | stable | `perp` |
 | `solana_perp_simulate_withdraw_collateral` | simulate | stable | `perp` |
 | `solana_portfolio_get_state` | read | beta | `portfolio` |
+| `solana_strategy_execute_register` | execute | beta | `strategy` |
+| `solana_strategy_execute_update` | execute | beta | `strategy` |
+| `solana_strategy_get_status` | read | beta | `strategy` |
+| `solana_strategy_list_strategies` | read | beta | `strategy` |
+| `solana_strategy_simulate_register` | simulate | beta | `strategy` |
+| `solana_strategy_simulate_update` | simulate | beta | `strategy` |
 | `solana_swap_execute_swap` | execute | stable | `swap` |
 | `solana_swap_get_quote` | read | beta | `swap` |
 | `solana_swap_simulate_swap` | simulate | stable | `swap` |
@@ -68,7 +74,13 @@ overrides the public endpoint for loopback fixtures); `liquidity` has the Orca W
 reader plus bounded deposits into, and removals from, explicitly identified existing positions
 over the configured Solana RPC (no provider key at all); `lend` has the Kamino reserve and supply
 readers plus bounded deposits and withdrawals over the configured Solana RPC through the official
-Kamino klend-sdk (no provider key; one explicitly configured market); `portfolio`
+Kamino klend-sdk (no provider key; one explicitly configured market); `strategy` registers a
+data-only Strategy with the Engine (ADR-0037) and can pause, resume, or cancel it — `allowedMints`
+can only narrow the Engine allowlist, and nothing ticks. Core registers the six MCP tools
+unconditionally, so they always exist. `STRATEGIES` is a build-time `feature()` flag. The flag
+only compiles in the Engine strategy routes and the CLI `solos strategy` group, and it is off
+in release builds. Against an Engine built without the flag, a tool call returns
+`EngineUnavailable` with a remedy naming the flag; `portfolio`
 composes the wallet, price feed and venue reads into the supported-portfolio state
 (ADR-0018): cash, positions, perp account equity and USD valuation only when every nonzero
 holding is priced — a supported-assets view, never full net worth; `wallet` has the balance and
@@ -88,5 +100,6 @@ liquidity) and their QA docs.
 - [Liquidity](liquidity.md)
 - [Market](market.md)
 - [Perp](perp.md)
+- [Strategy](strategy.md)
 - [Swap](swap.md)
 - [Wallet](wallet.md)

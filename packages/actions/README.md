@@ -10,6 +10,13 @@ Engine allowlist already permits; a Strategy list narrows that allowlist. `expir
 epoch milliseconds, or null when the bounds do not expire on a clock. `maxConsecutiveFailures` is
 an integer of at least 1.
 
+`StrategySchema` is the registered Strategy on the same wire: one `kind`, that kind's parameters,
+a tick source, those bounds, a lifecycle state, and an owner label. `schedule` carries an ordered
+list of Actions and an optional tick count. `trigger` watches one mint's price. `rebalance`,
+`range`, and `carry` are named in the union and fail validation until their issues ship. A
+`stream` tick source fails until streams exist. A clock source sets exactly one of `every` or
+`cron`. The Registry assigns the id.
+
 `SimulationResult` and `ExecutionResult` carry the original Action and execution outcome.
 `VaultState` is for vault consumers only. These Zod 4 schemas have no adapter or SDK dependencies.
 Integer quantities are decimal strings; never convert them through JavaScript Number.

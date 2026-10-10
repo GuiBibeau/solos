@@ -17,6 +17,11 @@ const MAX_BODY_BYTES = 1_000_000;
  *   readonly db: import("bun:sqlite").Database;
  *   readonly runtime: import("effect").ManagedRuntime.ManagedRuntime<any, any>;
  *   readonly executor: import("@solos/core/shared").ActionExecutorShape;
+ *   readonly strategyHandle?: (
+ *     request: Request,
+ *     deps: EngineDeps,
+ *     pathname: string,
+ *   ) => Promise<Response>;
  * }} EngineDeps
  */
 
@@ -27,6 +32,10 @@ const STATUS = /** @type {Record<string, number>} */ ({
   TierWithheld: 403,
   IntentNotFound: 404,
   IntentInFlight: 409,
+  StrategyNotFound: 404,
+  StrategyInvalid: 400,
+  StrategyTransitionRefused: 409,
+  BoundsExceeded: 422,
   SignerUnavailable: 503,
   RpcError: 503,
   RpcConfigMissing: 503,

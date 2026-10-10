@@ -5,7 +5,7 @@ import { validateTool } from "./shared/tools/validate-tool.js";
 import { allTools, toolGroups } from "./index.js";
 
 describe("tool registry", () => {
-  test("has the discovery, wallet, transfer, market, launch, lend, liquidity, perp, portfolio, and swap tools", () => {
+  test("has the discovery, wallet, transfer, market, launch, lend, liquidity, perp, portfolio, strategy, and swap tools", () => {
     expect(allTools.map((t) => t.name)).toEqual([
       "solana_discovery_search_tools",
       "solana_launch_execute_buy",
@@ -47,6 +47,12 @@ describe("tool registry", () => {
       "solana_perp_simulate_open",
       "solana_perp_simulate_withdraw_collateral",
       "solana_portfolio_get_state",
+      "solana_strategy_execute_register",
+      "solana_strategy_execute_update",
+      "solana_strategy_get_status",
+      "solana_strategy_list_strategies",
+      "solana_strategy_simulate_register",
+      "solana_strategy_simulate_update",
       "solana_swap_execute_swap",
       "solana_swap_get_quote",
       "solana_swap_simulate_swap",
@@ -65,6 +71,7 @@ describe("tool registry", () => {
       "market",
       "perp",
       "portfolio",
+      "strategy",
       "swap",
       "transfer",
       "wallet",

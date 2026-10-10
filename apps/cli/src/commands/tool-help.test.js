@@ -101,6 +101,7 @@ describe("tool-backed command help", () => {
       "perp-close-commands.js",
       "perp.js",
       "portfolio.js",
+      "strategy.js",
       "swap.js",
       "transfer.js",
       "wallet.js",
