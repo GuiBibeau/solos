@@ -10,24 +10,21 @@ on its clock: the Engine observes, evaluates, reserves each Action, and sends. `
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
 `solos strategy`, both of which talk to the Engine over HTTP. Core registers the twelve MCP
-tools unconditionally, so they always exist. `STRATEGIES` is a `feature()` flag fixed when
-Bun loads the code (`bun --feature=STRATEGIES`); release builds leave it off. `bun run solos`
-starts a second Bun and drops `--feature`, so both the Engine and the CLI group are started
-with the flag on the same process:
+tools unconditionally, so they always exist. The Engine serves the registry and the CLI
+includes `solos strategy`.
 
 ```sh
-bun --feature=STRATEGIES run apps/cli/src/main.js engine start --tier execute \
+bun run solos engine start --tier execute \
   --allowed-mints So11111111111111111111111111111111111111112,EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-bun --feature=STRATEGIES run apps/cli/src/main.js strategy register --file strategy.json
+bun run solos strategy register --file strategy.json
 ```
 
 `--allowed-mints` is the Engine allowlist. An execute-tier Engine refuses to start without
 it. `--allowed-mints any` allows every mint. A comma-separated list allows only those mints.
 Paper and dry-run Engines default to any mint when the flag is omitted. Native SOL is priced
-through the wrapped SOL mint `So11111111111111111111111111111111111111112`. Against an Engine
-built without the flag, a tool call returns `EngineUnavailable` with a remedy naming the flag.
-In direct mode (`SOLOS_EXECUTOR=direct`) a strategy tool returns `EngineConfigMissing` because
-there's no Engine to hold a Registry.
+through the wrapped SOL mint `So11111111111111111111111111111111111111112`. In direct mode
+(`SOLOS_EXECUTOR=direct`) a strategy tool returns `EngineConfigMissing` because there's no
+Engine to hold a Registry.
 
 ## Bounds
 
@@ -69,7 +66,7 @@ Any other scope is one Strategy id.
 `solos strategy register --file <path>`, `list`, `status <id>`, `ticks <id>`, `pause <id>`,
 `resume <id>`, and `cancel <id>` are the same operations. `solos strategy kill --scope <scope> --reason <text>`,
 `kill-status --scope <scope>`, and `disengage --scope <scope>` are the kill switch. They need
-`SOLOS_ENGINE_URL` and `SOLOS_ENGINE_TOKEN`, and the CLI process needs `--feature=STRATEGIES`.
+`SOLOS_ENGINE_URL` and `SOLOS_ENGINE_TOKEN`.
 
 ## Caps on an execute
 

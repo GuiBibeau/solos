@@ -4,9 +4,8 @@
  * `solos`: the operator CLI (ADR-0010). Every command prints JSON; the exit code is non-zero on
  * any domain error. The developer lever (`solos dev ...`) joins the command tree only under
  * `SOLOS_DEV=1`, which the checkout's `bun run solos` script sets; an installed `solos` never
- * advertises it (ADR-0034). The strategy group is compiled in only with the STRATEGIES flag.
+ * advertises it (ADR-0034).
  */
-import { feature } from "bun:bundle";
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { engine } from "@solos/engine";
@@ -27,6 +26,7 @@ import { perp } from "./commands/perp.js";
 import { portfolio } from "./commands/portfolio.js";
 import { profiles } from "./commands/profiles.js";
 import { router } from "./commands/router.js";
+import { strategy } from "./commands/strategy.js";
 import { swap } from "./commands/swap.js";
 import { transfer } from "./commands/transfer.js";
 import { wallet } from "./commands/wallet.js";
@@ -37,10 +37,6 @@ import { wallet } from "./commands/wallet.js";
  * @param {NodeJS.ProcessEnv} env
  */
 const hasDevLever = (env) => env.SOLOS_DEV === "1";
-
-const strategyCommand = feature("STRATEGIES")
-  ? [(await import("./commands/strategy.js")).strategy]
-  : [];
 
 const operatorCommands = [
   login,
@@ -61,7 +57,7 @@ const operatorCommands = [
   mcp,
   router,
   agent,
-  ...strategyCommand,
+  strategy,
 ];
 
 const root = Command.make("solos").pipe(

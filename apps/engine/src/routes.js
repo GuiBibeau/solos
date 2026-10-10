@@ -49,14 +49,14 @@ const strategyRoute = (request, deps, pathname) => {
   return deps.strategyHandle(request, deps, pathname);
 };
 
-/** Flag-off engines answer 404. Callers surface that as EngineUnavailable. @param {Request} request */
+/** An engine started without the registry answers 404. Callers surface that as EngineUnavailable. @param {Request} request */
 const strategiesDisabled = (request) =>
   json(404, {
     error: errorEnvelope(
       new EngineUnavailable({
         url: new URL(request.url).origin,
         reason: "strategy routes are not served by this engine",
-        remedy: "start the engine with the STRATEGIES flag",
+        remedy: "start an engine that mounts the strategy registry",
       }),
     ),
   });

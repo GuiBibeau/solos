@@ -95,15 +95,11 @@ describe("schedule ticks on surfpool [integration]", () => {
       expect(status.body.nextDueAt).toBe(time.now() + EVERY);
       const inspected = await inspectLanded(ticks[0].intents[0].signature, engine);
       expect(inspected.signature).toBe(ticks[0].intents[0].signature);
-      const printed = await runSolos(
-        ["strategy", "ticks", registered.body.id],
-        {
-          SOLOS_ENGINE_URL: engine.url,
-          SOLOS_ENGINE_TOKEN: engine.token,
-          SOLOS_LOG_LEVEL: "warn",
-        },
-        { features: ["STRATEGIES"] },
-      );
+      const printed = await runSolos(["strategy", "ticks", registered.body.id], {
+        SOLOS_ENGINE_URL: engine.url,
+        SOLOS_ENGINE_TOKEN: engine.token,
+        SOLOS_LOG_LEVEL: "warn",
+      });
       expect(printed.code).toBe(0);
       expect(JSON.parse(printed.stdout).ticks[0].tickId).toBe(ticks[0].tickId);
     } finally {
@@ -254,7 +250,6 @@ describe("schedule ticks on surfpool [integration]", () => {
       feed.stop();
     }
   });
-
 });
 
 /**
