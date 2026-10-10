@@ -3247,5 +3247,96 @@
       "The intent id was recorded for qa234-restart-2 only.",
       "Surfpool coverage is not claimed."
     ]
+  },
+  {
+    "status": "live-validated",
+    "action": "transfer_sol",
+    "issue": 195,
+    "codeSha": "0e8eb3bd8c685c8b24e49509c2a8eecc05778e83",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "qa": "docs/engine-qa.md#durable-cap-ledger-and-kill-switch-195",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000048"
+    },
+    "sends": [
+      {
+        "signature": "2Y2pghoHccYYGcBnh1ndT1VjoeNUczgBMVeQE1jvux5waSfGbzqYFmWGsicfcYACqBm8rpHXnM2uy7f5pepXZZoR",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "APnNCEARfm18mufc8jC8aJA59a1FJyQ9CRN7YiPyYTxFqnPgpXgo3ZLDfL18un1WB2yZuoDnLJndykCEzFnEFSH",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "2qTw96DrvbAsXnWzGtNDCDcFJUdtKzqb2KgHALc9Y5KXwpVn2ZJbvBzVWnkMFtjHwMhhTvAJPwQ2JFAB9d4iCuVz",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "2xA7RUuUAdQ1kjUwM7p5bVAJn2FNYf2GfdDRzeJ5SSLL7RqN8brhfxXNUNHGyb87RLsKJvJoymHhGJh7tbmAQmUR",
+        "wallet": {
+          "sol": {
+            "delta": "-0.005006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "5k4gHuSBAzjgc8p3KVAKbatqUzmAszbeUA72wtTZG67fXWwdwdPu1dC83fY9nZAkktDPyXZhKTRm2ByqLJyebWjP",
+        "wallet": {
+          "sol": {
+            "delta": "-0.001006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "2SLNT6Z3myBKwNc2jTHN8eVMfyUEghHX5u9k9ZSCU8De8ri8KBSwE5eCWC6ubsmeuM97Q4BKMPWWEDTZQpKAx7sw",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "2EP8JEfb8EQcBKXKeuSQXXqS8wFeKnwHLscb7nuTv5CQFGfFhWDEGCX3d2Kh6PhN8HgT5j9FiV1GxcMqwkeCebz4",
+        "wallet": {
+          "sol": {
+            "delta": "-0.003006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      },
+      {
+        "signature": "49MvFPHfy5pFNSpxvN2vyQ99Csz1EowF71KBRT9FvpzzcuMruCtm6fgnfBK1hQ5MpMNUVB8qWzy8dnjAyqWN7LTQ",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010006",
+            "feeLamportsApprox": "6000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The blockhash-expiry path is covered on Surfpool only.",
+      "The in-flight-across-restart branch landed confirmed before restart, so the unconfirmed-at-restart case is covered on Surfpool only.",
+      "Surfpool coverage is not claimed in this row."
+    ]
   }
 ]
