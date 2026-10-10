@@ -47,3 +47,23 @@ export class IntentNotFound extends /** @type {IntentNotFoundClass} */ (
 export class SurfpoolUnavailable extends /** @type {SurfpoolUnavailableClass} */ (
   taggedError("SurfpoolUnavailable")
 ) {}
+
+/** @typedef {import("./tagged-error.js").TaggedErrorClass<"BoundsExceeded", BoundsExceededProps>} BoundsExceededClass */
+/**
+ * @typedef {{
+ *   readonly bound: string;
+ *   readonly limit: string;
+ *   readonly requested: string;
+ *   readonly scope: string;
+ *   readonly reason: string;
+ *   readonly remedy: string;
+ * }} BoundsExceededProps
+ */
+/**
+ * The Engine refused work past the Operator's Bounds (ADR-0037). `bound` names the limit,
+ * `limit` is what was allowed, `requested` is what was asked, and `scope` is `engine` or a
+ * strategy id.
+ */
+export class BoundsExceeded extends /** @type {BoundsExceededClass} */ (
+  taggedError("BoundsExceeded")
+) {}

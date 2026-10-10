@@ -3,6 +3,13 @@
 The contract between an agent that decides and an executor that acts on Solana.
 
 `Action` expresses intent; `PortfolioState` and `Mandate` express observations and constraints.
+`StrategyBoundsSchema` is the per-Strategy limit object a Strategy carries on the wire. The Engine
+enforces those limits as a Caller (ADR-0037). `maxNotionalPerTickUsd` and `maxDailySpendUsd` are
+non-negative decimal USD strings (zero admits no spend). `allowedMints` empty means any mint the
+Engine allowlist already permits; a Strategy list narrows that allowlist. `expiresAt` is Unix
+epoch milliseconds, or null when the bounds do not expire on a clock. `maxConsecutiveFailures` is
+an integer of at least 1.
+
 `SimulationResult` and `ExecutionResult` carry the original Action and execution outcome.
 `VaultState` is for vault consumers only. These Zod 4 schemas have no adapter or SDK dependencies.
 Integer quantities are decimal strings; never convert them through JavaScript Number.
