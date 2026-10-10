@@ -13,14 +13,18 @@ const refused = () => Effect.fail(missing);
  * Direct mode has no Engine, so a strategy tool fails with a configuration error instead of
  * a missing Effect service.
  */
+const service = {
+  register: refused,
+  update: refused,
+  list: refused,
+  get: refused,
+  simulateRegister: refused,
+  simulateUpdate: refused,
+};
+
 export const MissingStrategyRegistry = Layer.succeed(
   StrategyRegistry,
-  /** @type {import("@solos/core/strategy").StrategyRegistryShape} */ ({
-    register: refused,
-    update: refused,
-    list: refused,
-    get: refused,
-    simulateRegister: refused,
-    simulateUpdate: refused,
-  }),
+  /** @type {import("@solos/core/strategy").StrategyRegistryShape} */ (
+    /** @type {unknown} */ (service)
+  ),
 );
