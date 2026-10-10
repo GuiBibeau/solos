@@ -53,6 +53,22 @@ By default the server advertises three tools and withholds the rest until
 which Claude Code follows. To advertise every permitted tool up front instead, connect with
 `--tools all`.
 
+## Remote engine
+
+Point the server at an Engine that holds the key. The three variables go in the entry's `env`
+(or the shell that launches Claude Code). The caller needs no `SOLOS_SIGNER_*`:
+
+```json
+"env": {
+  "SOLOS_EXECUTOR": "engine",
+  "SOLOS_ENGINE_URL": "http://127.0.0.1:8787",
+  "SOLOS_ENGINE_TOKEN": "<the token the engine was started with>"
+}
+```
+
+`SOLOS_ENGINE_URL` is the origin only. Start the engine with `solos engine start` (dry run),
+`solos engine start --paper` (Surfpool), or `solos engine start --tier execute` (live).
+
 ## From a checkout
 
 The repo ships `.mcp.json`, so Claude Code opened at the root starts the source server with

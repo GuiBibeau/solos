@@ -112,7 +112,8 @@ until their executor branches land.
   `JUPITER_BASE_URL` (default `https://api.jup.ag`; plain `http` only for loopback fixtures);
   `SOLANA_RPC_URL` (or the active profile's stored endpoint) is where signed transactions go.
   The signer comes from `SOLOS_SIGNER_PRIVATE_KEY` / `SOLOS_SIGNER_KEYPAIR_PATH` /
-  `SOLOS_PROFILE` per ADR-0015; `SOLOS_EXECUTOR` selects the executor (currently `direct`).
+  `SOLOS_PROFILE` per ADR-0015; `SOLOS_EXECUTOR` selects the executor (`direct` locally, or
+  `engine` to forward simulate and execute to a running Engine, ADR-0037).
   Keys live in the environment or profile store, never in tool arguments or error payloads.
 - **Errors:** executor-channel failures — `BuildRejected` (pre-sign policy), `BuildUnavailable`
   (credential, rate limit, timeout, contract mismatch; with no `JUPITER_API_KEY` the failure is

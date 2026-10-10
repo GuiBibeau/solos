@@ -12,6 +12,7 @@
     "@effect/platform-bun": "0.91.2",
     "@solos-sh/actions": "workspace:*",
     "@solos/core": "workspace:*",
+    "@solos/engine": "workspace:*",
     "@solos/harness": "workspace:*",
     "@solos/mcp": "workspace:*",
     "@solos/solana": "workspace:*",

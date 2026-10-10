@@ -63,6 +63,45 @@ describe("solana env resolution [integration]", () => {
     });
   });
 
+  test("engine mode needs the url and the token, and no local signer", () => {
+    const missingUrl = thrownBy(() =>
+      loadSolanaEnv({
+        SOLOS_CONFIG_DIR: emptyDir,
+        SOLANA_RPC_URL: MAIN_RPC,
+        SOLOS_EXECUTOR: "engine",
+        SOLOS_ENGINE_TOKEN: "engine-token",
+      }),
+    );
+    expect(missingUrl._tag).toBe("EngineConfigMissing");
+    expect(missingUrl.reason).toContain("SOLOS_ENGINE_URL");
+    expect(missingUrl.remedy).toContain("SOLOS_ENGINE_URL");
+
+    const missingToken = thrownBy(() =>
+      loadSolanaEnv({
+        SOLOS_CONFIG_DIR: emptyDir,
+        SOLANA_RPC_URL: MAIN_RPC,
+        SOLOS_EXECUTOR: "engine",
+        SOLOS_ENGINE_URL: "http://127.0.0.1:8787",
+      }),
+    );
+    expect(missingToken._tag).toBe("EngineConfigMissing");
+    expect(missingToken.reason).toContain("SOLOS_ENGINE_TOKEN");
+
+    expect(
+      loadSolanaEnv({
+        SOLOS_CONFIG_DIR: emptyDir,
+        SOLANA_RPC_URL: MAIN_RPC,
+        SOLOS_EXECUTOR: "engine",
+        SOLOS_ENGINE_URL: "http://127.0.0.1:8787",
+        SOLOS_ENGINE_TOKEN: "engine-token",
+      }),
+    ).toMatchObject({
+      executor: "engine",
+      signer: undefined,
+      engine: { url: "http://127.0.0.1:8787", token: "engine-token" },
+    });
+  });
+
   test("has no default rpc url", () => {
     expect(
       thrownBy(() => loadSolanaEnv({ SOLOS_CONFIG_DIR: emptyDir, SOLOS_SIGNER_PRIVATE_KEY: "x" }))

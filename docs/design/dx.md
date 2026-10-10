@@ -17,7 +17,9 @@ it belongs upstream (ADR-0006). The Operator's one deliberate act is the tier ce
 
 **solOS refuses strategies, and little else.** Primitives for autonomy; the harness and swarm
 packages compose them. Jito submissions, shreds and the rest are in scope eventually — not
-groomed.
+groomed. The Engine is the exception, decided in
+[ADR-0037](../adr/0037-engine-is-a-caller.md): it is a Caller in this repo, and strategies live
+there.
 
 **The CLI is a validation tool**, not a product. It proves behaviour quickly and adapts. It ships
 with the repo, never to npm. That settles the open question in #150: publish the MCP server and

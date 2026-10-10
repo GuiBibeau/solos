@@ -5,6 +5,7 @@
  * owns loading a good environment; this owns describing a bad one.
  */
 import { selectProfile } from "./credentials/resolve.js";
+import { applyEngineDiagnosis } from "./doctor-engine.js";
 import { EnvSchema } from "./env.js";
 import { rpcOrigin } from "./rpc/rpc-origin.js";
 
@@ -172,5 +173,6 @@ export const diagnoseSolanaEnv = (env) => {
   issues.push(...diagnosis.issues);
   const signer = signerResult(fromEnv.signer, diagnosis.selected, issues);
   const rpcUrl = rpcDiagnosis(data.SOLANA_RPC_URL, diagnosis.selected, issues);
-  return toReport(diagnosis.selected, { rpcUrl, signer }, issues);
+  const engineSigner = applyEngineDiagnosis(env, issues);
+  return toReport(diagnosis.selected, { rpcUrl, signer: engineSigner ?? signer }, issues);
 };

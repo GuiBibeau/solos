@@ -1,6 +1,7 @@
 # 0014 — solOS is `finance-harness`; vaults are an optional executor
 
 Status: accepted, 2026-09-16
+Amended by ADR-0037.
 
 ## Context
 

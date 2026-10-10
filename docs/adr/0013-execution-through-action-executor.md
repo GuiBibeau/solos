@@ -1,6 +1,7 @@
 # 0013 — Execution goes through `ActionExecutor`; the wallet is the default target
 
 Status: accepted, 2026-09-16
+Amended by ADR-0037.
 
 ## Context
 

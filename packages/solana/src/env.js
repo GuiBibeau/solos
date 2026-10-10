@@ -3,6 +3,7 @@ import { RpcConfigMissing, SignerConfigMissing } from "@solos/core";
 import { base58ByteLength } from "@solos/core/shared";
 import { z } from "zod";
 import { selectProfile, sourceFromProfile } from "./credentials/resolve.js";
+import { engineCaller } from "./env-engine.js";
 import {
   aiGatewayBaseUrl,
   deriveWsUrl,
@@ -30,8 +31,19 @@ export const EnvSchema = z.object({
   SOLOS_SIGNER_PRIVATE_KEY: z.string().min(1).optional(),
   SOLOS_SIGNER_KEYPAIR_PATH: z.string().min(1).optional(),
   SOLOS_PROFILE: z.string().min(1).optional(),
-  // `direct` signs with the configured signer. `engine` is reserved for the vault-engine executor.
-  SOLOS_EXECUTOR: z.enum(["direct"]).default("direct"),
+  // `direct` signs locally. `engine` forwards simulate and execute to a solos-engine process (ADR-0037).
+  SOLOS_EXECUTOR: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["direct", "engine"]).default("direct"),
+  ),
+  SOLOS_ENGINE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url("SOLOS_ENGINE_URL must be a URL").optional(),
+  ),
+  SOLOS_ENGINE_TOKEN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
   // Market intelligence (Elfa): the key is optional until a tool that bills credits is used.
   ELFA_API_KEY: z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -82,8 +94,9 @@ export const EnvSchema = z.object({
  * @typedef {{
  *   readonly rpcUrl: string;
  *   readonly wsUrl: string;
- *   readonly signer: SignerSource;
- *   readonly executor: "direct";
+ *   readonly signer: SignerSource | undefined;
+ *   readonly executor: "direct" | "engine";
+ *   readonly engine?: { readonly url: string; readonly token: string };
  *   readonly profile: string | undefined;
  *   readonly elfa: { readonly apiKey: string | undefined; readonly baseUrl: string };
  *   readonly jupiter: { readonly apiKey: string | undefined; readonly baseUrl: string };
@@ -144,15 +157,15 @@ const resolveSigner = (parsed, env) => {
 };
 
 /**
- * Validate and shape the Solana-related environment. Precedence, per ADR-0015:
- * explicit env vars, then the profile named by SOLOS_PROFILE, then the default profile.
- * There is never a default RPC URL.
- * @param {Record<string, string | undefined>} env
+ * @param {{
+ *   parsed: z.infer<typeof EnvSchema>;
+ *   signer: SignerSource | undefined;
+ *   selected: { name: string; profile: import("./credentials/profile.js").Profile } | undefined;
+ *   engine: { readonly url: string; readonly token: string } | undefined;
+ * }} input
  * @returns {SolanaEnv}
  */
-export const loadSolanaEnv = (env) => {
-  const parsed = EnvSchema.parse(env);
-  const { signer, selected } = resolveSigner(parsed, env);
+const shapedEnv = ({ parsed, signer, selected, engine }) => {
   const rpcUrl = parsed.SOLANA_RPC_URL ?? selected?.profile.rpcUrl;
   if (rpcUrl === undefined) {
     throw new RpcConfigMissing({
@@ -165,6 +178,7 @@ export const loadSolanaEnv = (env) => {
     wsUrl: parsed.SOLANA_WS_URL ?? deriveWsUrl(rpcUrl),
     signer,
     executor: parsed.SOLOS_EXECUTOR,
+    ...(engine !== undefined && { engine }),
     profile: selected?.name,
     elfa: { apiKey: parsed.ELFA_API_KEY, baseUrl: elfaBaseUrl(parsed.ELFA_BASE_URL) },
     jupiter: { apiKey: parsed.JUPITER_API_KEY, baseUrl: jupiterBaseUrl(parsed.JUPITER_BASE_URL) },
@@ -172,4 +186,31 @@ export const loadSolanaEnv = (env) => {
     kamino: { market: parsed.KAMINO_LENDING_MARKET ?? KAMINO_MAIN_MARKET },
     gateway: gatewayEnv(parsed),
   };
+};
+
+/**
+ * The engine holds the key. A local signer var is still rejected when both are set, and is
+ * otherwise ignored: the Signer port reports the engine's address.
+ * @param {z.infer<typeof EnvSchema>} parsed
+ * @param {Record<string, string | undefined>} env
+ * @param {{ readonly url: string; readonly token: string }} engine
+ */
+const engineEnv = (parsed, env, engine) => {
+  signerFromEnv(parsed);
+  return shapedEnv({ parsed, signer: undefined, selected: selectProfile(env), engine });
+};
+
+/**
+ * Validate and shape the Solana-related environment. Precedence, per ADR-0015:
+ * explicit env vars, then the profile named by SOLOS_PROFILE, then the default profile.
+ * There is never a default RPC URL.
+ * @param {Record<string, string | undefined>} env
+ * @returns {SolanaEnv}
+ */
+export const loadSolanaEnv = (env) => {
+  const parsed = EnvSchema.parse(env);
+  const engine = engineCaller(parsed);
+  if (engine !== undefined) return engineEnv(parsed, env, engine);
+  const { signer, selected } = resolveSigner(parsed, env);
+  return shapedEnv({ parsed, signer, selected, engine: undefined });
 };

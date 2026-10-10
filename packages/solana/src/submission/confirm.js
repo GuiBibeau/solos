@@ -9,7 +9,8 @@
  * always look the transaction up instead of losing it.
  */
 import { TransactionFailed } from "@solos/core";
-import { Duration, Effect, Schedule } from "effect";
+import { Duration, Effect, FiberRef, Schedule } from "effect";
+import { signedIntentNote } from "./signed-note.js";
 
 export const MAY_HAVE_LANDED =
   "confirmation was not established before the deadline; the transaction may still have landed";
@@ -78,6 +79,8 @@ const sendOrRecover = (submitter, sealed, commitment) =>
  */
 export const confirmDelivery = (submitter, sealed, confirmation) =>
   Effect.gen(function* () {
+    const note = yield* FiberRef.get(signedIntentNote);
+    if (note !== undefined) note(sealed);
     yield* sendOrRecover(submitter, sealed, confirmation.commitment);
     yield* Effect.repeat(hasLanded(submitter, sealed.signature, confirmation.commitment), {
       schedule: Schedule.spaced(Duration.millis(confirmation.pollMs)),

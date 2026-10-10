@@ -19,8 +19,8 @@ not in the loop of any individual call. Policy above that boundary lives upstrea
 **Port** — an interface the core needs from the outside world, declared as an Effect
 `Context.GenericTag` in `ports/`. Examples: `Signer`, `BalanceReader`, `SolTransfer`, `EventBus`.
 
-**Adapter** — a `Layer` that provides a port with real I/O. Lives in `packages/solana` (Kit,
-keychain) or the harness (OTel). Never in core.
+**Adapter** — a `Layer` that provides a port with real I/O. Adapters live in `packages/solana`
+(Kit, keychain), the harness (OTel), or the Engine (SQLite Intent store). Never in core.
 
 **Use case** — an `Effect` in `use-cases/` that composes ports into one operation with a span.
 Called by tools, the CLI, and the harness alike.
@@ -57,10 +57,32 @@ per-step activation in the agent loop.
 (`transfer_sol`, `swap`, ...). Who executes it is not part of the action.
 
 **Executor** — the `ActionExecutor` port: `simulate(action)` and `execute(action)`. The default
-adapter is `DirectSignerExecutor` (local keypair). A vault engine is another adapter, optional.
+adapter is `DirectSignerExecutor` (local keypair). `SOLOS_EXECUTOR=engine` selects
+`EngineExecutor`, which forwards to the Engine (ADR-0037).
 
-**Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product;
-vault mode plugs the same tools into pooled custody through `vault-engine`.
+**Engine** — the process in `apps/engine` that holds the hot key and executes one-off Actions over
+HTTP. A Caller reaches it with `SOLOS_EXECUTOR=engine`, `SOLOS_ENGINE_URL` and
+`SOLOS_ENGINE_TOKEN`. It is a Caller inside this repo: the same tools, aimed at a remote signer.
+Dry run (no flags) simulates and refuses execute. `--paper` runs the execute tier on Surfpool.
+`--tier execute` is live.
+
+**Hot key** — the keypair that lives only on the Engine host. Callers configured with
+`SOLOS_EXECUTOR=engine` send Actions; they never see the key.
+
+**Intent** — one Caller request to execute one Action, identified by `intentId`. CLI and MCP
+retries reuse the id `EngineExecutor` saved for that action in the caller's config directory
+(`engine-intents.sqlite`) before the first request. The Engine executes an Intent at most once.
+States: `in_flight`, `settled` (with the `ExecutionResult`), `failed` (with the error envelope).
+Before broadcast it stores the signature and last valid block height. On startup, or when a
+request touches an in-flight Intent that has a signature, a landed signature becomes `settled`
+and is not resent; `failed` waits until the blockhash has expired and the signature is still
+absent; until then it stays `in_flight` and answers `IntentInFlight`. An in-flight Intent with
+no signature at startup becomes `failed`, because nothing was sent. A repeat of a settled or
+failed Intent returns the stored outcome.
+
+**Wallet mode / vault mode** — which executor is configured. Wallet mode is a complete product
+(`SOLOS_EXECUTOR=direct`). Vault mode, if it comes, is a later Layer inside the Engine, not a
+separate repo the harness depends on (ADR-0037).
 
 **Signer** — the identity that pays and signs. Core sees only its address (`Signer` port). The
 adapter holds the `KitSigner` produced by `@solana/keychain`. Backend is a config value.
