@@ -5,6 +5,8 @@ strategies" note in `docs/design/dx.md` for the Engine only. Issue #194 asked fo
 ADR-0036; that number is the release-lanes decision, already accepted, so this is 0037. No earlier
 ADR was renumbered.
 
+Amended by ADR-0038.
+
 ## Context
 
 ADR-0013 left `SOLOS_EXECUTOR=engine` reserved for a `VaultEngineExecutor` that would talk to a

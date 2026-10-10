@@ -43,3 +43,4 @@ Each has Context, Decision, Consequences. New decisions get a new number.
 | [0035](0035-one-compiled-solos-binary.md) | One compiled `solos` binary is the distribution; the CLI ships; `solos mcp serve` |
 | [0036](0036-release-lanes-and-stability-labels.md) | Release lanes: canary on every merge, stable through a reviewed release PR, promotion by pointer; every tool carries a stability label |
 | [0037](0037-engine-is-a-caller.md) | The Engine is a Caller inside this repo; `SOLOS_EXECUTOR=engine` means that process |
+| [0038](0038-unattended-strategy-spending.md) | Unattended Strategy spending: consent is registration; Bounds and the cap ledger limit each tick |
