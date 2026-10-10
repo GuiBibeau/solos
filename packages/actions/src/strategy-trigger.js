@@ -21,7 +21,7 @@ export const TriggerParamsSchema = z
       .describe("The observation a trigger resolves"),
     condition: z
       .enum(["above", "below"])
-      .describe("Fire when the price is above or below the threshold"),
+      .describe("strictly above or below; an exact match emits nothing"),
     priceUsd: DecimalSchema.optional().describe(
       "USD price threshold. Set this or trailingBps, not both",
     ),

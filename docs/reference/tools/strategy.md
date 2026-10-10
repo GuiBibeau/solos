@@ -12,7 +12,8 @@ The Engine owns the Registry (ADR-0037). Callers reach it with these tools or wi
 tools unconditionally, so they always exist. `STRATEGIES` is a build-time `feature()` flag.
 The flag only compiles in the Engine strategy routes and the CLI `solos strategy` group, and
 it is off in release builds. Against an Engine built without the flag, a tool call returns
-`EngineUnavailable` with a remedy naming the flag.
+`EngineUnavailable` with a remedy naming the flag. In direct mode (`SOLOS_EXECUTOR=direct`) a
+strategy tool returns `EngineConfigMissing` because there's no Engine to hold a Registry.
 
 ## Bounds
 
@@ -34,9 +35,10 @@ move is refused with `StrategyTransitionRefused`, which carries `from` and `to`.
 `solana_strategy_list_strategies` and `solana_strategy_get_status` read the Registry.
 
 `solana_strategy_simulate_register` validates a draft and returns the Actions a first tick would
-emit. A schedule returns its configured Actions. A trigger also returns the observed price. The
-Registry is unchanged. `solana_strategy_execute_register` stores the Strategy and returns
-`{ id, state: "active" }`. The id survives an Engine restart.
+emit. A schedule returns its configured Actions. A trigger also returns the observed price.
+The comparison is strict: an exact match emits nothing. The Registry is unchanged.
+`solana_strategy_execute_register` stores the Strategy and returns `{ id, state: "active" }`.
+The id survives an Engine restart.
 
 `solana_strategy_simulate_update` reports whether a move to `active`, `paused`, or `done` is
 allowed, including `allowed: false` and the refusal when the Strategy is already `done`. It

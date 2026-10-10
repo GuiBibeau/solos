@@ -1,39 +1,40 @@
 // @ts-check
 
+/** Digits after the decimal point. No dot means a whole number. @param {string} value */
+const fractionLength = (value) => {
+  const dot = value.indexOf(".");
+  if (dot < 0) return 0;
+  return value.length - dot - 1;
+};
+
 /**
- * Compare two non-negative decimal strings. Positive when `left` is greater.
+ * Scale a decimal string to an integer of `width` fractional digits. No digit is dropped
+ * and no digit is rounded.
+ * @param {string} value
+ * @param {number} width
+ */
+const scaledUnits = (value, width) => {
+  const [whole, frac = ""] = value.split(".", 2);
+  return BigInt(`${whole}${frac.padEnd(width, "0")}`);
+};
+
+/**
+ * Compare two decimal strings exactly. Positive when `left` is greater. Both sides are
+ * scaled to the wider fractional length, so a difference past any fixed width still counts.
  * @param {string} left
  * @param {string} right
  */
-/** @param {string | undefined} left @param {string | undefined} right */
-const compareWhole = (left, right) => {
-  const delta = BigInt(left ?? "0") - BigInt(right ?? "0");
+const compareDecimal = (left, right) => {
+  const width = Math.max(fractionLength(left), fractionLength(right));
+  const delta = scaledUnits(left, width) - scaledUnits(right, width);
   if (delta === 0n) return 0;
   return delta > 0n ? 1 : -1;
-};
-
-/** @param {string} left @param {string} right */
-const compareFrac = (left, right) => {
-  const width = 18;
-  const frac = left.padEnd(width, "0").slice(0, width);
-  const other = right.padEnd(width, "0").slice(0, width);
-  if (frac === other) return 0;
-  return frac > other ? 1 : -1;
-};
-
-/** @param {string} left @param {string} right */
-const compareDecimal = (left, right) => {
-  const [leftWhole, leftFrac = ""] = left.split(".", 2);
-  const [rightWhole, rightFrac = ""] = right.split(".", 2);
-  const whole = compareWhole(leftWhole, rightWhole);
-  if (whole !== 0) return whole;
-  return compareFrac(leftFrac, rightFrac);
 };
 
 /**
  * Actions a first tick would emit. A trailing trigger has no anchor yet, so it emits nothing.
  * Schedule emits its configured Actions. A price trigger emits its Action only when the
- * observed price already meets the condition.
+ * observed price is strictly above or strictly below the threshold. An exact match emits nothing.
  * @param {import("@solos-sh/actions").StrategyDraft} draft
  * @param {string | undefined} priceUsd
  */
@@ -50,6 +51,6 @@ export const firstTickActions = (draft, priceUsd) => {
 const triggerActions = (params, priceUsd) => {
   if (priceUsd === undefined || params.priceUsd === undefined) return [];
   const order = compareDecimal(priceUsd, params.priceUsd);
-  const isMet = params.condition === "above" ? order >= 0 : order <= 0;
+  const isMet = params.condition === "above" ? order > 0 : order < 0;
   return isMet ? [params.action] : [];
 };

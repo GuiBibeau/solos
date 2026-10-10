@@ -51,6 +51,8 @@ when no action exists rather than padding the field.
 ## Strategy lifecycle
 
 `StrategyInvalid`, `StrategyNotFound`, and `StrategyTransitionRefused` are reason-bearing.
+A strategy tool in direct mode, where no Engine holds a Registry, is `EngineConfigMissing`
+and the remedy names `SOLOS_EXECUTOR=engine` and `SOLOS_ENGINE_URL`.
 `StrategyTransitionRefused` carries `from` and `to`: the state the Strategy is in, and the state
 the Caller asked for. `done`, `expired`, and `failed` are terminal, so a second cancel is this
 error. `BoundsExceeded` is the same refusal the Engine uses when a Strategy's `allowedMints`
