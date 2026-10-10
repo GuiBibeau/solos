@@ -1,25 +1,29 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
-import { executeSwap, getQuote, simulateSwap } from "@solos/core";
+import {
+  executeSwap,
+  executeSwapTool,
+  getQuote,
+  getQuoteTool,
+  simulateSwap,
+  simulateSwapTool,
+} from "@solos/core";
 import { Effect } from "effect";
 import { emit, exitOnFailure } from "../output.js";
 import { withSolos } from "../runtime.js";
+import { commandHelp, groupHelp, optionHelp } from "./tool-help.js";
 
-const inputMint = Options.text("input-mint").pipe(
-  Options.withDescription("Base58 mint of the token to sell, e.g. the wSOL mint"),
-);
+const inputMint = Options.text("input-mint").pipe(optionHelp(getQuoteTool.input.shape.inputMint));
 
 const outputMint = Options.text("output-mint").pipe(
-  Options.withDescription("Base58 mint of the token to buy, e.g. the USDC mint"),
+  optionHelp(getQuoteTool.input.shape.outputMint),
 );
 
-const amount = Options.text("amount").pipe(
-  Options.withDescription("Input amount in base units of inputMint, as an exact integer string"),
-);
+const amount = Options.text("amount").pipe(optionHelp(getQuoteTool.input.shape.amount));
 
 const slippageBps = Options.integer("slippage-bps").pipe(
   Options.withDefault(50),
-  Options.withDescription("Max slippage in basis points. Default 50 (0.5%)."),
+  optionHelp(getQuoteTool.input.shape.slippageBps),
 );
 
 const swapOptions = { inputMint, outputMint, amount, slippageBps };
@@ -33,11 +37,7 @@ const quote = Command.make("quote", swapOptions, (options) =>
       slippageBps: options.slippageBps,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Get an indicative Jupiter V2 swap quote; routing pinned to Metis, nothing is sent on chain",
-  ),
-);
+).pipe(commandHelp(getQuoteTool));
 
 const simulate = Command.make("simulate", swapOptions, (options) =>
   withSolos(
@@ -48,18 +48,11 @@ const simulate = Command.make("simulate", swapOptions, (options) =>
       slippageBps: options.slippageBps,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Simulate a Jupiter swap for the configured signer without submitting anything; the fresh " +
-      "build behind this simulation is never reused by a later execute",
-  ),
-);
+).pipe(commandHelp(simulateSwapTool));
 
 const skipSimulation = Options.boolean("skip-simulation").pipe(
   Options.withDefault(false),
-  Options.withDescription(
-    "Skip the pre-send simulation of the exact transaction, and with it the measured spend bound. Defaults to false.",
-  ),
+  optionHelp(executeSwapTool.input.shape.skipSimulation),
 );
 
 const execute = Command.make("execute", { ...swapOptions, skipSimulation }, (options) =>
@@ -72,18 +65,11 @@ const execute = Command.make("execute", { ...swapOptions, skipSimulation }, (opt
       skipSimulation: options.skipSimulation,
     }).pipe(Effect.flatMap(emit)),
   ).pipe(exitOnFailure),
-).pipe(
-  Command.withDescription(
-    "Execute a Jupiter swap from the configured signer and wait for confirmation. Fetches a " +
-      "fresh build for this call — earlier quote or simulate output is never reused — simulates " +
-      "the exact transaction first, and sends nothing when validation or simulation fails",
-  ),
-);
+).pipe(commandHelp(executeSwapTool));
 
 export const swap = Command.make("swap").pipe(
-  Command.withDescription(
-    "Jupiter V2 swap quotes plus simulation and execution through the ActionExecutor (execution " +
-      "moves funds; every execute fetches a fresh build)",
+  groupHelp(
+    "Jupiter V2 swap quotes plus simulation and execution through the ActionExecutor (execution moves funds; every execute fetches a fresh build)",
   ),
   Command.withSubcommands([quote, simulate, execute]),
 );
