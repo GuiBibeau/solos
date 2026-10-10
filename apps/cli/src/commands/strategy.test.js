@@ -61,13 +61,10 @@ const callerEnv = (engine, baseUrl) => ({
 });
 
 describe("`solos strategy` help [integration]", () => {
-  test("the group is absent unless the process was started with STRATEGIES", async () => {
-    const off = await runSolos(["--help"], { SOLOS_LOG_LEVEL: "warn" });
-    const on = await runSolos(["--help"], { SOLOS_LOG_LEVEL: "warn" }, FEATURES);
-    expect(off.code).toBe(0);
-    expect(on.code).toBe(0);
-    expect(off.stdout).not.toMatch(/\bstrategy\b/);
-    expect(on.stdout).toMatch(/\bstrategy\b/);
+  test("the strategy group is part of the operator surface", async () => {
+    const help = await runSolos(["--help"], { SOLOS_LOG_LEVEL: "warn" });
+    expect(help.code).toBe(0);
+    expect(help.stdout).toMatch(/\bstrategy\b/);
   });
 });
 
@@ -235,8 +232,8 @@ describe("`solos strategy` after an engine restart [integration]", () => {
   });
 });
 
-describe("strategy tools against an engine without the flag [integration]", () => {
-  test("list_strategies returns EngineUnavailable naming STRATEGIES", async () => {
+describe("strategy tools against the engine [integration]", () => {
+  test("list_strategies reads the registry", async () => {
     const engine = await startTestEngine();
     try {
       const { stdout, code } = await runSolos(
@@ -251,9 +248,8 @@ describe("strategy tools against an engine without the flag [integration]", () =
           SOLOS_LOG_LEVEL: "warn",
         },
       );
-      expect(code).not.toBe(0);
-      expect(JSON.parse(stdout).structuredContent.remedy).toContain("STRATEGIES");
-      expect(JSON.parse(stdout).structuredContent.code).toBe("EngineUnavailable");
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout).structuredContent.strategies).toEqual([]);
     } finally {
       await engine.stop();
     }
