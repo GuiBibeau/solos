@@ -132,6 +132,7 @@
 <a href="#market">market</a>
 <a href="#perp">perp</a>
 <a href="#portfolio">portfolio</a>
+<a href="#strategy">strategy</a>
 <a href="#swap">swap</a>
 <a href="#transfer">transfer</a>
 <a href="#wallet">wallet</a>
@@ -395,6 +396,45 @@
 <p class="title">Get portfolio state</p>
 <p class="desc">Read one owner's supported-portfolio state: cash (native SOL and recognized stablecoins), wallet token, lending, LP and perp positions, one equity observation per trader account, and a USD valuation when every nonzero holding and account is priced. A supported-assets view, never a claim of full net worth; unknown prices keep valuation null instead of inventing numbers. Defaults to the configured signer when no owner is given.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_portfolio_get_state"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>owner</code></td><td>string</td><td>no</td><td>Owner to read. Omit to use the configured signer's address.</td></tr></tbody></table></div>
+</article>
+</section>
+<section class="group" id="strategy">
+<h2><code>strategy</code> <span class="count">6 tools</span></h2>
+<article class="tool" id="solana_strategy_execute_register">
+<h3><code>solana_strategy_execute_register</code> <span class="tier tier-execute">execute</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Register a strategy</p>
+<p class="desc">Register a Strategy with the Engine. Returns its id and active state. The Strategy survives Engine restarts. Nothing ticks until a later release.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_execute_register"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>owner</code></td><td>string</td><td>yes</td><td>Label a swarm uses to tell its registrations apart. Never authorization</td></tr><tr><td><code>kind</code></td><td>schedule | trigger | rebalance | range | carry</td><td>yes</td><td>Strategy kind: schedule, trigger, rebalance, range, or carry</td></tr><tr><td><code>params</code></td><td>any</td><td>yes</td><td>Parameters for that kind. schedule and trigger are accepted; rebalance, range, and carry fail until their issues ship</td></tr><tr><td><code>tickSource</code></td><td>any</td><td>yes</td><td>Clock tick source with exactly one of every or cron. Stream sources are not available yet</td></tr><tr><td><code>bounds</code></td><td>object</td><td>yes</td><td>Limits on what one Strategy may spend</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_execute_update">
+<h3><code>solana_strategy_execute_update</code> <span class="tier tier-execute">execute</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Change strategy state</p>
+<p class="desc">Pause, resume, or cancel a registered Strategy. Cancel is the done state. A move the state table does not allow is refused and the stored state stays as it was.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_execute_update"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td>yes</td><td>Strategy id returned by register</td></tr><tr><td><code>state</code></td><td>active | paused | done</td><td>yes</td><td>Requested state: active to resume, paused to pause, or done to cancel</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_get_status">
+<h3><code>solana_strategy_get_status</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Get strategy status</p>
+<p class="desc">Read one registered Strategy, including its kind, bounds, tick source, and lifecycle state. Use after register to confirm what the Engine stored.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_get_status"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td>yes</td><td>Strategy id returned by register</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_list_strategies">
+<h3><code>solana_strategy_list_strategies</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">List strategies</p>
+<p class="desc">List Strategies registered with the Engine, optionally filtered by lifecycle state and owner label. Use to see what is active, paused, done, expired, or failed.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_list_strategies"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>state</code></td><td>active | paused | done | expired | failed</td><td>no</td><td>Only Strategies in this lifecycle state</td></tr><tr><td><code>owner</code></td><td>string</td><td>no</td><td>Only Strategies with this owner label</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_simulate_register">
+<h3><code>solana_strategy_simulate_register</code> <span class="tier tier-simulate">simulate</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Preview a strategy</p>
+<p class="desc">Validate a Strategy and resolve the observation a first tick would read, then return the Actions that tick would emit. Registers nothing and does not change the Engine registry.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_simulate_register"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>owner</code></td><td>string</td><td>yes</td><td>Label a swarm uses to tell its registrations apart. Never authorization</td></tr><tr><td><code>kind</code></td><td>schedule | trigger | rebalance | range | carry</td><td>yes</td><td>Strategy kind: schedule, trigger, rebalance, range, or carry</td></tr><tr><td><code>params</code></td><td>any</td><td>yes</td><td>Parameters for that kind. schedule and trigger are accepted; rebalance, range, and carry fail until their issues ship</td></tr><tr><td><code>tickSource</code></td><td>any</td><td>yes</td><td>Clock tick source with exactly one of every or cron. Stream sources are not available yet</td></tr><tr><td><code>bounds</code></td><td>object</td><td>yes</td><td>Limits on what one Strategy may spend</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_simulate_update">
+<h3><code>solana_strategy_simulate_update</code> <span class="tier tier-simulate">simulate</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Preview a strategy state change</p>
+<p class="desc">Check whether a Strategy can move to active, paused, or done, and return the refusal when it cannot. Applies nothing, including when the Strategy is already done, expired, or failed.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_simulate_update"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td>yes</td><td>Strategy id returned by register</td></tr><tr><td><code>state</code></td><td>active | paused | done</td><td>yes</td><td>Requested state: active to resume, paused to pause, or done to cancel</td></tr></tbody></table></div>
 </article>
 </section>
 <section class="group" id="swap">

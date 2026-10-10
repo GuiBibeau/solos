@@ -90,6 +90,9 @@ const captureStderr = (logs) => {
  *   keepData?: boolean;
  *   rpcUrl?: string;
  *   wsUrl?: string;
+ *   strategies?: boolean;
+ *   allowedMints?: ReadonlyArray<string>;
+ *   env?: Record<string, string>;
  * }} [options]
  */
 export const startTestEngine = async (options = {}) => {
@@ -109,70 +112,103 @@ export const startTestEngine = async (options = {}) => {
  *   keepData?: boolean;
  *   rpcUrl?: string;
  *   wsUrl?: string;
+ *   strategies?: boolean;
+ *   allowedMints?: ReadonlyArray<string>;
+ *   env?: Record<string, string>;
  * }} options
  * @param {() => void} release
  */
 const boot = async (options, release) => {
   const surfnet = await ensureSurfnet();
-  const seed = randomSeed();
-  const privateKey = await seedToPrivateKeyString(seed);
-  const signer = await seedAddress(seed);
-  const didCreateDir = options.dataDir === undefined;
-  const dataDir = options.dataDir ?? mkdtempSync(path.join(tmpdir(), "solos-engine-"));
-  await surfnet.cheats.fundSol(signer, 2);
+  const identity = await freshSigner();
+  const directory = dataDirectory(options);
+  await surfnet.cheats.fundSol(identity.signer, 2);
   /** @type {string[]} */
   const logs = [];
   const restore = captureStderr(logs);
-  const handle = await startEngine({
-    env: hostEnv(privateKey, dataDir, {
-      rpcUrl: options.rpcUrl ?? surfnet.rpcUrl,
-      wsUrl: options.wsUrl ?? surfnet.wsUrl,
-    }),
-    tier: options.tier,
-    host: "127.0.0.1",
-    port: freePort(),
-    dataDir,
-  }).catch((error) => {
-    restore();
-    if (didCreateDir) rmSync(dataDir, { recursive: true, force: true });
-    throw error;
-  });
-  return {
-    ...handle,
-    token: ENGINE_TOKEN,
-    privateKey,
-    signer,
-    dataDir,
-    surfnet,
-    logs: () => logs.join(""),
-    stop: () =>
-      stopEngine({ handle, restore, dataDir, release, removeDir: options.keepData !== true }),
-  };
+  const handle = await launch({ options, identity, directory, surfnet, restore });
+  return presented(handle, { identity, directory, surfnet, logs, restore, release, options });
 };
 
-/**
- * @param {string} privateKey
- * @param {string} dataDir
- * @param {{ readonly rpcUrl: string; readonly wsUrl: string }} endpoints
- */
-const hostEnv = (privateKey, dataDir, endpoints) => ({
-  SOLOS_ENGINE_TOKEN: ENGINE_TOKEN,
-  SOLOS_SIGNER_PRIVATE_KEY: privateKey,
-  SOLOS_CONFIG_DIR: dataDir,
-  SOLOS_LOG_LEVEL: "info",
-  SOLANA_RPC_URL: endpoints.rpcUrl,
-  SOLANA_WS_URL: endpoints.wsUrl,
+const freshSigner = async () => {
+  const seed = randomSeed();
+  return { privateKey: await seedToPrivateKeyString(seed), signer: await seedAddress(seed) };
+};
+
+/** @param {{ dataDir?: string }} options */
+const dataDirectory = (options) => ({
+  path: options.dataDir ?? mkdtempSync(path.join(tmpdir(), "solos-engine-")),
+  created: options.dataDir === undefined,
 });
 
 /**
- * @param {{
- *   handle: { stop: () => Promise<void> };
+ * @typedef {{
+ *   options: { tier?: "read" | "simulate" | "execute"; strategies?: boolean; allowedMints?: ReadonlyArray<string>; rpcUrl?: string; wsUrl?: string; env?: Record<string, string> };
+ *   identity: { privateKey: string; signer: string };
+ *   directory: { path: string; created: boolean };
+ *   surfnet: Awaited<ReturnType<typeof ensureSurfnet>>;
  *   restore: () => void;
- *   dataDir: string;
- *   release: () => void;
- *   removeDir: boolean;
- * }} input
+ * }} LaunchInput
+ * @typedef {{ identity: { privateKey: string; signer: string }; directory: { path: string }; surfnet: Awaited<ReturnType<typeof ensureSurfnet>>; logs: string[]; restore: () => void; release: () => void; options: { keepData?: boolean } }} PresentedParts
+ * @typedef {{ privateKey: string; dataDir: string; rpcUrl: string; wsUrl: string; extra?: Record<string, string> }} HostEnvInput
  */
+
+/** @param {LaunchInput} input */
+const launch = (input) =>
+  startEngine({
+    env: hostEnv({
+      privateKey: input.identity.privateKey,
+      dataDir: input.directory.path,
+      rpcUrl: input.options.rpcUrl ?? input.surfnet.rpcUrl,
+      wsUrl: input.options.wsUrl ?? input.surfnet.wsUrl,
+      extra: input.options.env,
+    }),
+    tier: input.options.tier,
+    host: "127.0.0.1",
+    port: freePort(),
+    dataDir: input.directory.path,
+    ...(input.options.strategies !== undefined && { strategies: input.options.strategies }),
+    ...(input.options.allowedMints !== undefined && { allowedMints: input.options.allowedMints }),
+  }).catch((error) => {
+    input.restore();
+    if (input.directory.created) rmSync(input.directory.path, { recursive: true, force: true });
+    throw error;
+  });
+
+/**
+ * @param {{ url: string; signer: string; stop: () => Promise<void> }} handle
+ * @param {PresentedParts} parts
+ */
+const presented = (handle, parts) => ({
+  ...handle,
+  token: ENGINE_TOKEN,
+  privateKey: parts.identity.privateKey,
+  signer: parts.identity.signer,
+  dataDir: parts.directory.path,
+  surfnet: parts.surfnet,
+  logs: () => parts.logs.join(""),
+  stop: () =>
+    stopEngine({
+      handle,
+      restore: parts.restore,
+      dataDir: parts.directory.path,
+      release: parts.release,
+      removeDir: parts.options.keepData !== true,
+    }),
+});
+
+/** @param {HostEnvInput} input */
+const hostEnv = (input) => ({
+  ...input.extra,
+  SOLOS_ENGINE_TOKEN: ENGINE_TOKEN,
+  SOLOS_SIGNER_PRIVATE_KEY: input.privateKey,
+  SOLOS_CONFIG_DIR: input.dataDir,
+  SOLOS_LOG_LEVEL: "info",
+  SOLANA_RPC_URL: input.rpcUrl,
+  SOLANA_WS_URL: input.wsUrl,
+});
+
+/** @param {{ handle: { stop: () => Promise<void> }; restore: () => void; dataDir: string; release: () => void; removeDir: boolean }} input */
 const stopEngine = async (input) => {
   try {
     await input.handle.stop();

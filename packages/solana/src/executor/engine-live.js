@@ -12,6 +12,7 @@ import { PerpOnboarderLive } from "../perp/perp-onboarder-live.js";
 import { PerpVenueLive } from "../perp/perp-venue-live.js";
 import { PortfolioReaderLive } from "../portfolio/portfolio-reader-live.js";
 import { SolanaRpcLive } from "../rpc/solana-rpc.js";
+import { HttpStrategyRegistry } from "../strategy/http-registry.js";
 import { JupiterSwapBuildLive } from "../swap/jupiter-swap-build-live.js";
 import { JupiterSwapLive } from "../swap/jupiter-swap-live.js";
 import { BalanceReaderLive } from "../wallet/balance-reader-live.js";
@@ -44,6 +45,7 @@ const readStack = (env) => {
     KaminoVenueLive(),
     LiquidityVenueLive,
     EngineExecutor(engine),
+    HttpStrategyRegistry(engine),
   ).pipe(
     Layer.merge(KaminoVenueLive(env.kamino)),
     Layer.provideMerge(SolanaRpcLive(env.rpcUrl, env.wsUrl)),

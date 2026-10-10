@@ -17,13 +17,22 @@ export const CLI_ENTRY = path.join(ROOT, "apps/cli/src/main.js");
  * Spawn the CLI entry directly.
  * @param {string[]} args
  * @param {Record<string, string>} env
- * @param {{ cwd?: string; shouldLoadEnvFile?: boolean }} [options] `shouldLoadEnvFile: true`
- *   opts OUT of isolation, only to prove a developer `.env` file would really be loaded
+ * @param {{ cwd?: string; shouldLoadEnvFile?: boolean; features?: readonly string[] }} [options]
+ *   `shouldLoadEnvFile: true` opts OUT of isolation, only to prove a developer `.env` file would
+ *   really be loaded. `features` passes bun `--feature` flags, such as STRATEGIES.
  */
 export const runSolos = async (args, env, options = {}) => {
-  const { cwd = ROOT, shouldLoadEnvFile = false } = options;
+  const { cwd = ROOT, shouldLoadEnvFile = false, features = [] } = options;
+  const featureArgs = features.flatMap((name) => ["--feature", name]);
   const proc = Bun.spawn(
-    [process.execPath, ...(shouldLoadEnvFile ? [] : ["--no-env-file"]), "run", CLI_ENTRY, ...args],
+    [
+      process.execPath,
+      ...featureArgs,
+      ...(shouldLoadEnvFile ? [] : ["--no-env-file"]),
+      "run",
+      CLI_ENTRY,
+      ...args,
+    ],
     {
       cwd,
       env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env },

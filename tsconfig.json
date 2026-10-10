@@ -19,6 +19,7 @@
     "packages/*/src/**/*.js",
     "apps/*/src/**/*.js",
     "scripts/**/*.js",
+    "types/**/*.d.ts",
     "harness.config.js"
   ],
   "exclude": ["node_modules", "**/node_modules", "**/*.test.js"]

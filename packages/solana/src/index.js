@@ -71,6 +71,7 @@ export { SignerLive } from "./signer/signer-live.js";
 export { SLOW, SubmissionModeSchema } from "./submission/mode.js";
 export { signatureOutlook } from "./submission/signature-outlook.js";
 export { signedIntentNote } from "./submission/signed-note.js";
+export { HttpStrategyRegistry } from "./strategy/http-registry.js";
 export { RpcSubmitterLive, Submitter } from "./submission/submitter.js";
 export { JupiterSwapLive } from "./swap/jupiter-swap-live.js";
 export { BalanceReaderLive } from "./wallet/balance-reader-live.js";

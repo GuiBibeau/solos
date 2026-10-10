@@ -48,6 +48,14 @@ Where a cause is genuinely data-dependent (the funding shortfall names the amoun
 deposit that buys no liquidity names the budgets) the raise site supplies the remedy, and omits it
 when no action exists rather than padding the field.
 
+## Strategy lifecycle
+
+`StrategyInvalid`, `StrategyNotFound`, and `StrategyTransitionRefused` are reason-bearing.
+`StrategyTransitionRefused` carries `from` and `to`: the state the Strategy is in, and the state
+the Caller asked for. `done`, `expired`, and `failed` are terminal, so a second cancel is this
+error. `BoundsExceeded` is the same refusal the Engine uses when a Strategy's `allowedMints`
+names a mint outside the Engine allowlist; `requested` is that mint.
+
 ## Why the field is `reason`, never `cause`
 
 `Error.cause` is non-enumerable and vanishes from serialised output (ADR-0003). `reason` is a plain

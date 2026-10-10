@@ -4,8 +4,9 @@
  * `solos`: the operator CLI (ADR-0010). Every command prints JSON; the exit code is non-zero on
  * any domain error. The developer lever (`solos dev ...`) joins the command tree only under
  * `SOLOS_DEV=1`, which the checkout's `bun run solos` script sets; an installed `solos` never
- * advertises it (ADR-0034).
+ * advertises it (ADR-0034). The strategy group is compiled in only with the STRATEGIES flag.
  */
+import { feature } from "bun:bundle";
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { engine } from "@solos/engine";
@@ -37,7 +38,11 @@ import { wallet } from "./commands/wallet.js";
  */
 const hasDevLever = (env) => env.SOLOS_DEV === "1";
 
-const operatorCommands = /** @type {const} */ ([
+const strategyCommand = feature("STRATEGIES")
+  ? [(await import("./commands/strategy.js")).strategy]
+  : [];
+
+const operatorCommands = [
   login,
   profiles,
   doctor,
@@ -56,13 +61,20 @@ const operatorCommands = /** @type {const} */ ([
   mcp,
   router,
   agent,
-]);
+  ...strategyCommand,
+];
 
 const root = Command.make("solos").pipe(
   Command.withDescription(
     "solOS: Solana execution layer for LLM agents. Every command prints JSON; live commands hit whatever SOLANA_RPC_URL points at.",
   ),
-  Command.withSubcommands(hasDevLever(process.env) ? [...operatorCommands, dev] : operatorCommands),
+  Command.withSubcommands(
+    /** @type {readonly [typeof login, ...(typeof login)[]]} */ (
+      /** @type {unknown} */ (
+        hasDevLever(process.env) ? [...operatorCommands, dev] : operatorCommands
+      )
+    ),
+  ),
 );
 
 const cli = Command.run(root, { name: "solos", version: SOLOS_VERSION });
