@@ -5,10 +5,7 @@ import { ActionSchema } from "./action.js";
 /** Actions a schedule Strategy emits on every tick, and an optional finite count. */
 export const ScheduleParamsSchema = z
   .object({
-    actions: z
-      .array(ActionSchema)
-      .min(1)
-      .describe("Ordered Actions to emit on every tick"),
+    actions: z.array(ActionSchema).min(1).describe("Ordered Actions to emit on every tick"),
     count: z
       .number()
       .int()

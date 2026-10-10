@@ -14,11 +14,7 @@ const clock = z
     every: DurationSchema.optional().describe(
       "Milliseconds between ticks, UTC. Set this or cron, not both",
     ),
-    cron: z
-      .string()
-      .min(1)
-      .optional()
-      .describe("UTC cron expression. Set this or every, not both"),
+    cron: z.string().min(1).optional().describe("UTC cron expression. Set this or every, not both"),
   })
   .refine((value) => (value.every === undefined) !== (value.cron === undefined), {
     message: "a clock tick source needs exactly one of every or cron",
