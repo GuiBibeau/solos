@@ -20,7 +20,7 @@ not in the loop of any individual call. Policy above that boundary lives upstrea
 `Context.GenericTag` in `ports/`. Examples: `Signer`, `BalanceReader`, `SolTransfer`, `EventBus`.
 
 **Adapter** — a `Layer` that provides a port with real I/O. Lives in `packages/solana` (Kit,
-keychain) or the harness (sqlite, OTel). Never in core.
+keychain) or the harness (OTel). Never in core.
 
 **Use case** — an `Effect` in `use-cases/` that composes ports into one operation with a span.
 Called by tools, the CLI, and the harness alike.
@@ -103,8 +103,8 @@ create a mint, time travel.
 **Router** — maps a task class (`fast`, `default`, `reasoning`) to a gateway model string plus
 fallbacks and a reasoning level. Presets per provider, selected by `ROUTER_PRESET`.
 
-**Harness** — the long-running app: daemon (event loop), router, agent loop (`ToolLoopAgent`),
-store. Imports core directly; goes through MCP only for third-party servers.
+**Harness** — router, agent loop (`ToolLoopAgent`), external MCP discovery, and tracing. Imports
+core directly; goes through MCP only for third-party servers.
 
 **Lever** — the `solos` CLI used by humans and agents to verify behaviour instead of writing
 throwaway scripts. Its `dev` group exists only under `SOLOS_DEV=1`, which the checkout's

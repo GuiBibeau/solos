@@ -1,10 +1,11 @@
 // @ts-check
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { searchTools } from "@solos/core";
+import { Store, searchTools } from "@solos/core";
 import { randomSeed, seedToPrivateKeyString } from "@solos/solana/surfnet";
+import { Effect, Option } from "effect";
 import { loadHarness, makeHarnessRuntime } from "./composition.js";
 
 /** @type {string} */
@@ -15,10 +16,7 @@ let runtime;
 beforeAll(async () => {
   dir = await mkdtemp(path.join(tmpdir(), "solos-harness-composition-"));
   const configPath = path.join(dir, "harness.config.js");
-  await writeFile(
-    configPath,
-    `export default { daemon: { storePath: ${JSON.stringify(path.join(dir, "harness.sqlite"))} } };\n`,
-  );
+  await writeFile(configPath, "export default {};\n");
   const { layer } = await loadHarness({
     configPath,
     env: {
@@ -76,5 +74,19 @@ describe("harness composition [integration]", () => {
       ["solana_wallet_simulate_close_token_account", true],
     ]);
     expect(result.notes).toEqual([]);
+  });
+
+  test("provides the Store port in memory: a value written is read back and nothing hits disk", async () => {
+    const live = /** @type {NonNullable<typeof runtime>} */ (runtime);
+    const read = await live.runPromise(
+      Effect.gen(function* () {
+        const store = yield* Store;
+        yield* store.set("composition.test", "k", { n: 1 });
+        return yield* store.get("composition.test", "k");
+      }),
+    );
+    expect(Option.getOrNull(read)).toEqual({ n: 1 });
+    // Only the config file: the retired SQLite store is not recreated.
+    expect(await readdir(dir)).toEqual(["harness.config.js"]);
   });
 });

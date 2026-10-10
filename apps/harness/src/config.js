@@ -27,7 +27,7 @@ const McpServerEntrySchema = z.object({
   env: z.record(z.string(), z.string()).default({}),
 });
 
-export const HarnessConfigSchema = z.object({
+const HarnessConfigFields = z.object({
   router: z
     .object({
       overrides: z.partialRecord(TaskClassSchema, RouteOverrideSchema).default({}),
@@ -37,14 +37,27 @@ export const HarnessConfigSchema = z.object({
   agent: z
     .object({ maxSteps: z.number().int().min(1).max(200).default(20) })
     .default({ maxSteps: 20 }),
-  daemon: z
-    .object({ storePath: z.string().default(".solos/harness.sqlite") })
-    .default({ storePath: ".solos/harness.sqlite" }),
   mcpServers: z.array(McpServerEntrySchema).default([]),
 });
 
-/** @typedef {z.input<typeof HarnessConfigSchema>} HarnessConfigInput */
-/** @typedef {z.output<typeof HarnessConfigSchema>} HarnessConfig */
+/**
+ * `daemon` is retired. Other unknown keys stay stripped, which is what `z.object` already did.
+ * @param {unknown} value
+ * @param {{ addIssue: (issue: { code: "unrecognized_keys"; keys: string[] }) => void }} ctx
+ */
+const rejectRetiredDaemon = (value, ctx) => {
+  if (typeof value === "object" && value !== null && Object.hasOwn(value, "daemon")) {
+    ctx.addIssue({ code: "unrecognized_keys", keys: ["daemon"] });
+  }
+};
+
+export const HarnessConfigSchema = z
+  .unknown()
+  .superRefine(rejectRetiredDaemon)
+  .pipe(HarnessConfigFields);
+
+/** @typedef {z.input<typeof HarnessConfigFields>} HarnessConfigInput */
+/** @typedef {z.output<typeof HarnessConfigFields>} HarnessConfig */
 
 const HarnessEnvSchema = z.object({
   ROUTER_PRESET: z.enum(["anthropic", "openai"]).default("anthropic"),
