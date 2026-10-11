@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import { BoundsExceeded } from "../../shared/domain/engine-errors.js";
 import { compareDecimal } from "../domain/decimal.js";
 import { KillSwitchEngaged, StrategyNotFound } from "../domain/errors.js";
+import { confirmedSpendUsd, failedSpend } from "../domain/spend-settle.js";
 import { CapLedger } from "../ports/cap-ledger.js";
 import { SpendMeter } from "../ports/spend-meter.js";
 import { TickSubmit } from "../ports/tick-submit.js";
@@ -64,9 +65,13 @@ const finish = (reservationId, quote, sent) =>
     const ledger = yield* CapLedger;
     const intent = intentOf(sent, quote);
     if (sent.state === "in_flight") return { outcome: /** @type {const} */ ("in_flight"), intent };
-    if (sent.state === "failed") return yield* failed({ ledger, reservationId, sent, intent });
-    yield* ledger.settle(reservationId, quote.actualUsd);
-    return settled(quote, intent);
+    if (sent.state === "failed") {
+      return yield* failed({ ledger, reservationId, sent, intent, quote });
+    }
+    const spend = confirmedSpendUsd(quote, sent);
+    if (spend === undefined) return parked(intent);
+    yield* ledger.settle(reservationId, spend);
+    return settled(quote, intent, spend);
   });
 
 /**
@@ -76,12 +81,15 @@ const finish = (reservationId, quote, sent) =>
  *   reservationId: string;
  *   sent: import("../ports/tick-submit.js").SubmitResult;
  *   intent: import("../domain/tick.js").TickIntent;
+ *   quote: import("../ports/spend-meter.js").SpendQuote;
  * }} input
  */
 const failed = (input) =>
   Effect.gen(function* () {
-    if (input.sent.feeUsd === undefined) yield* input.ledger.release(input.reservationId);
-    else yield* input.ledger.settle(input.reservationId, input.sent.feeUsd);
+    const spend = failedSpend(input.quote, input.sent);
+    if (spend.isOpen) return parked(input.intent);
+    if (spend.usd === undefined) yield* input.ledger.release(input.reservationId);
+    else yield* input.ledger.settle(input.reservationId, spend.usd);
     return {
       outcome: /** @type {const} */ ("failed"),
       intent: input.intent,
@@ -93,19 +101,26 @@ const failed = (input) =>
 /**
  * @param {import("../ports/spend-meter.js").SpendQuote} quote
  * @param {import("../domain/tick.js").TickIntent} intent
+ * @param {string} spendUsd
  * @returns {StepResult}
  */
-const settled = (quote, intent) => {
-  if (compareDecimal(quote.actualUsd, quote.reserveUsd) <= 0) {
+const settled = (quote, intent, spendUsd) => {
+  if (compareDecimal(spendUsd, quote.reserveUsd) <= 0) {
     return { outcome: "executed", intent };
   }
   return {
     outcome: "executed",
     intent,
-    reason: `settled ${quote.actualUsd} USD is above the reserved hold of ${quote.reserveUsd} USD`,
+    reason: `settled ${spendUsd} USD is above the reserved hold of ${quote.reserveUsd} USD`,
     remedy: "the strategy kill switch is engaged; disengage it before the next tick",
   };
 };
+
+/** @param {import("../domain/tick.js").TickIntent} intent @returns {StepResult} */
+const parked = (intent) => ({
+  outcome: "in_flight",
+  intent: { ...intent, state: "in_flight" },
+});
 
 /** @param {unknown} error @returns {StepResult} */
 const boundsSkip = (error) => ({

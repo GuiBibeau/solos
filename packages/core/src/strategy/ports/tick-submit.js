@@ -9,6 +9,7 @@ import { Context } from "effect";
  *   readonly reason?: string;
  *   readonly remedy?: string;
  *   readonly feeUsd?: string;
+ *   readonly feeLamports?: string;
  * }} SubmitResult
  */
 

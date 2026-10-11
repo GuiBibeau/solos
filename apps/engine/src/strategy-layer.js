@@ -27,10 +27,20 @@ import { engineTickSubmit } from "./tick-submit.js";
  *   readonly now: () => number;
  *   readonly observations?: () => Readonly<Record<string, string | number>>;
  *   readonly quote?:
- *     | { readonly reserveUsd: string; readonly actualUsd: string; readonly mint: string }
+ *     | {
+ *         readonly reserveUsd: string;
+ *         readonly actualUsd: string;
+ *         readonly mint: string;
+ *         readonly solPriceUsd?: string;
+ *       }
  *     | ((
  *         action: import("@solos-sh/actions").Action,
- *       ) => { readonly reserveUsd: string; readonly actualUsd: string; readonly mint: string });
+ *       ) => {
+ *         readonly reserveUsd: string;
+ *         readonly actualUsd: string;
+ *         readonly mint: string;
+ *         readonly solPriceUsd?: string;
+ *       });
  * }} StrategyLayerOptions
  */
 

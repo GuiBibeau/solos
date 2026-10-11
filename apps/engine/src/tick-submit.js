@@ -1,7 +1,7 @@
 // @ts-check
 import { ActionExecutor, PriceFeed, errorEnvelope, toJsonSafe } from "@solos/core";
 import { TickSubmit } from "@solos/core/strategy";
-import { SolanaRpc, signedIntentNote } from "@solos/solana";
+import { SolanaRpc, landedFeeLamports, signedIntentNote } from "@solos/solana";
 import { Effect, Layer } from "effect";
 import { claimIntent, failIntent, readIntent, recordSigned, settleIntent } from "./intents.js";
 import { paidFeeUsd } from "./paid-fee.js";
@@ -81,23 +81,52 @@ const landed = (db, intentId, result) =>
       return failedResult(db, intentId, result);
     }
     settleIntent(db, intentId, toJsonSafe(result));
+    const feeLamports = yield* feeText(signature);
     if (signature === null || signature.length === 0 || result.status === "confirmed") {
-      return { intentId, state: /** @type {const} */ ("settled"), signature };
+      return settledFee(intentId, signature, feeLamports);
     }
     const feeUsd = yield* paidFeeUsd(signature);
-    return feeRow(intentId, result, feeUsd);
+    return feeRow(intentId, result, { feeUsd, feeLamports });
   });
 
 /**
  * A known fee settles the hold. An unknown fee stays in flight so recovery can price it.
+ * `feeLamports` lets a swap price `meta.fee` at the quote's SOL price.
  * @param {string} intentId
  * @param {import("@solos-sh/actions").ExecutionResult} result
- * @param {string | undefined} feeUsd
+ * @param {{ feeUsd: string | undefined; feeLamports: string | undefined }} fees
  */
-const feeRow = (intentId, result, feeUsd) => {
+const feeRow = (intentId, result, fees) => {
   const signature = result.signature;
-  if (feeUsd === undefined) return openRow(intentId, signature);
-  return { ...failedRow(intentId, result.error ?? "execution failed", signature), feeUsd };
+  if (fees.feeUsd === undefined && fees.feeLamports === undefined) {
+    return openRow(intentId, signature);
+  }
+  return {
+    ...failedRow(intentId, result.error ?? "execution failed", signature),
+    ...(fees.feeUsd !== undefined && { feeUsd: fees.feeUsd }),
+    ...(fees.feeLamports !== undefined && { feeLamports: fees.feeLamports }),
+  };
+};
+
+/**
+ * @param {string} intentId
+ * @param {string | null} signature
+ * @param {string | undefined} feeLamports
+ */
+const settledFee = (intentId, signature, feeLamports) => ({
+  intentId,
+  state: /** @type {const} */ ("settled"),
+  signature,
+  ...(feeLamports !== undefined && { feeLamports }),
+});
+
+/** @param {string | null} signature */
+const feeText = (signature) => {
+  if (signature === null || signature.length === 0) return Effect.succeed(undefined);
+  return landedFeeLamports(signature).pipe(
+    Effect.map((fee) => (fee === undefined ? undefined : fee.toString())),
+    Effect.catchAll(() => Effect.succeed(undefined)),
+  );
 };
 
 /**

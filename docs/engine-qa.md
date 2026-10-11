@@ -69,10 +69,12 @@ Block time 2026-10-11T12:26:30Z. `err` null.
 The ledger has one `cap_reservations` row, `res_1`: notional $1.6001, actual
 $1.0946, settled, no overshoot, day 2026-10-11. The hold of $1.60 was about 46%
 above the expected worst case of roughly $1.11 (0.01 SOL plus 50 bps slippage
-plus the 105,000-lamport fee). The settle valued the USDC that came in ($1.0946)
-instead of what left the wallet (0.01 SOL plus fee, about $1.10), which
-undercounts spend. These two gaps are tied to Forge's #241 fix. Kernel will
-rerun this round on the fixed head and the row will be updated with that run.
+plus the 105,000-lamport fee). The cause was a flat $0.50 fee buffer. The built
+swap does not price a compute-unit limit: it pays a flat 100,000 lamport priority
+fee plus the 5,000 lamport base fee, and `meta.fee` was that 105,000 lamports.
+The settle of $1.0946 was the input notional at the quote's SOL price, not the
+1.094922 USDC received and not the input plus the fee. Kernel will rerun this
+round on the fixed head and the row will be updated with that run.
 
 The swap-back ran through the direct CLI with the Engine stopped. It is not
 Engine-validated. It converted 1.094922 USDC back to SOL and paid a 105,000-lamport

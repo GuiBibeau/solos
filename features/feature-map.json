@@ -3302,8 +3302,8 @@
       }
     ],
     "gaps": [
-      "The hold of $1.60 was about 46% above the expected worst case of roughly $1.11 (0.01 SOL plus 50 bps slippage plus the 105,000-lamport fee).",
-      "The settle valued the USDC that came in ($1.0946) instead of what left the wallet (0.01 SOL plus fee, about $1.10), which undercounts spend.",
+      "The hold added a flat $0.50 fee buffer, so $1.60007 was about 46% above the input at 50 bps. The built fee is 105000 lamports, not a compute-unit price times a limit.",
+      "Settled $1.0946 was the input notional at the quote SOL price, not the 1.094922 USDC received and not the input plus meta.fee.",
       "Kernel will rerun this round on the fixed head and the row will be updated with that run.",
       "The swap-back ran through the direct CLI with the Engine stopped, so it is not Engine-validated.",
       "Surfpool coverage is not claimed."

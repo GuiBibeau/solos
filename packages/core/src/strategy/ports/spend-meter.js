@@ -6,6 +6,7 @@ import { Context } from "effect";
  *   readonly reserveUsd: string;
  *   readonly actualUsd: string;
  *   readonly mint: string;
+ *   readonly solPriceUsd?: string;
  * }} SpendQuote
  */
 
