@@ -108,7 +108,10 @@ describe("more than one schedule [integration]", () => {
     const time = clock();
     const dataDir = mkdtempSync(path.join(tmpdir(), "solos-missed-"));
     const first = await boot(feed, time, { tier: "simulate", dataDir, keepData: true });
-    const registered = await engineFetch(first, "/v1/strategies", { method: "POST", body: draft(WSOL) });
+    const registered = await engineFetch(first, "/v1/strategies", {
+      method: "POST",
+      body: draft(WSOL),
+    });
     await first.stop();
     time.advance();
     time.advance();

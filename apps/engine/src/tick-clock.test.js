@@ -254,7 +254,6 @@ describe("schedule ticks on surfpool [integration]", () => {
       feed.stop();
     }
   });
-
 });
 
 /**
