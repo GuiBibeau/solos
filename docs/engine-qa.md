@@ -67,9 +67,12 @@ Intent `01M4NESFCXYJQ7KHH4AQQAGB1M.01M4NEVK7DYTBGB1X5DVZV7VAR.0` is settled, wit
 Block time 2026-10-11T12:26:30Z. `err` null.
 
 The ledger has one `cap_reservations` row, `res_1`: notional $1.6001, actual
-$1.0946, settled, no overshoot, day 2026-10-11. The hold was about 46% above the
-settled amount ($1.60 vs $1.09). Forge is reviewing whether that is larger than
-slippage plus fees.
+$1.0946, settled, no overshoot, day 2026-10-11. The hold of $1.60 was about 46%
+above the expected worst case of roughly $1.11 (0.01 SOL plus 50 bps slippage
+plus the 105,000-lamport fee). The settle valued the USDC that came in ($1.0946)
+instead of what left the wallet (0.01 SOL plus fee, about $1.10), which
+undercounts spend. These two gaps are tied to Forge's #241 fix. Kernel will
+rerun this round on the fixed head and the row will be updated with that run.
 
 The swap-back ran through the direct CLI with the Engine stopped. It is not
 Engine-validated. It converted 1.094922 USDC back to SOL and paid a 105,000-lamport

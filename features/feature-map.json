@@ -3302,7 +3302,9 @@
       }
     ],
     "gaps": [
-      "The hold was about 46% above the settled amount ($1.60 vs $1.09). Forge is reviewing whether that is larger than slippage plus fees.",
+      "The hold of $1.60 was about 46% above the expected worst case of roughly $1.11 (0.01 SOL plus 50 bps slippage plus the 105,000-lamport fee).",
+      "The settle valued the USDC that came in ($1.0946) instead of what left the wallet (0.01 SOL plus fee, about $1.10), which undercounts spend.",
+      "Kernel will rerun this round on the fixed head and the row will be updated with that run.",
       "The swap-back ran through the direct CLI with the Engine stopped, so it is not Engine-validated.",
       "Surfpool coverage is not claimed."
     ]
