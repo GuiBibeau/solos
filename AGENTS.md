@@ -202,3 +202,27 @@ changes. Adapters live in
 5. `bun run solos dev check && bun run solos dev test`.
 
 Decisions and their reasons are in `docs/adr/`. Vocabulary is in `CONTEXT.md`.
+
+## pstack: where project knowledge lives
+
+A map of the files that already hold project knowledge.
+
+- `features/feature-map.json` records execute paths validated with a real funded mainnet spend.
+  Update it on every live-spend round with the signatures, before/after balances, and the commit
+  SHA the round ran (`codeSha`; row shape in `features/README.md`), in the same change as the QA
+  notes the row cites, such as [docs/engine-qa.md](docs/engine-qa.md) and
+  [docs/liquidity-qa.md](docs/liquidity-qa.md).
+- `CONTEXT.md` holds the shared domain terms for code, docs, and conversation. Update it when a
+  pull request introduces or changes a term.
+- `docs/adr/` holds the decision records, one numbered file each (Context, Decision,
+  Consequences), and `docs/adr/README.md` indexes them. A decision that changes behaviour or
+  safety gets a new file at the next free number and a new index row; an accepted file is edited
+  only to mark it superseded.
+- `AGENTS.md` holds the working rules for agents in this repo. Update it when those rules change.
+- CLI help for a tool command is the tool's title, and each option's help is that argument's
+  `.describe()` text (`apps/cli/src/commands/tool-help.js`); change the tool definition, not the
+  help text. A command group's one-line blurb is the hand-written exception.
+- `docs/reference/tools/` is the tool reference: a page per group and the catalogue in `index.md`.
+  `solos dev docs check --write` rewrites the catalogue table and the venues line in `liquidity.md`
+  from the registry, and `solos dev check` fails when they drift. Update the hand-written prose
+  when a page's description of a tool changes.
