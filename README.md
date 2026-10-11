@@ -120,6 +120,7 @@ binary.
 - [Tools](docs/reference/tools/index.md) and [Errors](docs/reference/errors.md)
 - Clients: [Claude Code](docs/clients/claude-code.md), [Codex](docs/clients/codex.md), [Cursor](docs/clients/cursor.md)
 - [Decisions](docs/adr/README.md), [CONTEXT.md](CONTEXT.md), [Feature map](features/README.md)
+- [Engine host](docs/engine-ops.md): the service user, systemd unit, and environment file for the compiled binary
 
 ## Contributing
 

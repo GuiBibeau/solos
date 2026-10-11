@@ -131,7 +131,8 @@ const boundaryRules = {
         policy("engine", [to("actions"), to("engine")]),
         policy("cli", [to("actions"), to("cli"), to("engine")]),
         policy("landing", [to("landing")]),
-        policy("scripts", [to("scripts")]),
+        // The engine release compile reuses the CLI bundler plugins.
+        policy("scripts", [to("scripts"), to("cli")]),
       ],
     },
   ],

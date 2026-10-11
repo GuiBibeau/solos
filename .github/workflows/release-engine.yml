@@ -1,0 +1,121 @@
+name: release-engine
+
+# Compiled solos-engine binaries (issue #196). A tag solos-engine@<semver> must equal the
+# @solos/engine manifest version; a mismatch fails before the build. The job reuses the shared
+# Bun setup, compiles bun-linux-x64 and bun-linux-arm64 with dotenv autoload off, smoke-tests
+# the x64 binary, and publishes a GitHub release. It does not publish to npm and reads no
+# repository secret. workflow_dispatch and pull requests that touch this workflow build and
+# smoke-test only: publishing waits for a tag push, which the workflow token cannot create.
+on:
+  push:
+    tags: ["solos-engine@*"]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release-engine.yml
+      - scripts/engine-release.sh
+      - scripts/engine-compile.js
+
+concurrency:
+  group: release-engine-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The only shipped bun:bundle feature flags, comma-separated. Empty keeps STRATEGIES
+      # compiled out; the smoke test then expects GET /v1/strategies to return 404.
+      SOLOS_ENGINE_FEATURES: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Tag version must equal the @solos/engine manifest
+        if: startsWith(github.ref, 'refs/tags/solos-engine@')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#solos-engine@}"
+          manifest="$(jq -r '.version' apps/engine/package.json)"
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::tag solos-engine@${tag} does not match @solos/engine version ${manifest}"
+            exit 1
+          fi
+      - uses: ./.github/actions/setup
+      - name: Compile and smoke-test
+        run: |
+          set -euo pipefail
+          version="$(jq -r '.version' apps/engine/package.json)"
+          if [[ "$GITHUB_REF" == refs/tags/solos-engine@* ]]; then
+            version="${GITHUB_REF_NAME#solos-engine@}"
+          fi
+          scripts/engine-release.sh \
+            --version "$version" \
+            --features "$SOLOS_ENGINE_FEATURES" \
+            --targets linux-x64,linux-arm64 \
+            --outdir dist/engine
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: solos-engine
+          path: dist/engine/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/solos-engine@')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: solos-engine
+          path: dist/engine
+      - name: Checksums of the downloaded assets
+        run: |
+          set -euo pipefail
+          cd dist/engine
+          sha256sum --check SHA256SUMS
+          test -s solos-engine-linux-arm64
+          grep -Eq '^[[:xdigit:]]{64}  solos-engine-linux-arm64$' SHA256SUMS
+      - name: Release notes
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          version="${VERSION#solos-engine@}"
+          {
+            echo "## solos-engine ${version}"
+            echo
+            echo "Linux binaries for the Engine. Verify before installing:"
+            echo
+            echo '```sh'
+            echo "sha256sum --check SHA256SUMS"
+            echo '```'
+            echo
+            echo "\`/v1/health\` reports \`${version}\`. A \`.env\` beside the binary is not read."
+            echo "Setup for the box is [docs/engine-ops.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/docs/engine-ops.md)."
+          } > "$RUNNER_TEMP/notes.md"
+      # github.token is the workflow token, not a repository secret.
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" \
+              dist/engine/solos-engine-linux-x64 \
+              dist/engine/solos-engine-linux-arm64 \
+              dist/engine/SHA256SUMS --clobber
+          else
+            gh release create "$VERSION" \
+              dist/engine/solos-engine-linux-x64 \
+              dist/engine/solos-engine-linux-arm64 \
+              dist/engine/SHA256SUMS \
+              --verify-tag --title "solos-engine ${VERSION#solos-engine@}" \
+              --notes-file "$RUNNER_TEMP/notes.md"
+          fi
