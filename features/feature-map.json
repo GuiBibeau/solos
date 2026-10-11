@@ -3252,13 +3252,13 @@
     "status": "live-validated",
     "action": "swap",
     "issue": 198,
-    "codeSha": "c6a80a6bf542690522dc23a867bc23859eefe70a",
+    "codeSha": "0d66a487f299c09cb29b95dcaf23531c52be9377",
     "cluster": "mainnet",
     "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
     "maxSlippageBps": 50,
     "qa": "docs/engine-qa.md#clock-ticks-schedule-198",
     "lifecycleNet": {
-      "solFeeDelta": "-0.000213274",
+      "solFeeDelta": "-0.000210194",
       "tokens": {
         "a": {
           "symbol": "USDC",
@@ -3269,7 +3269,7 @@
     },
     "sends": [
       {
-        "signature": "5WhMikBCQ7iz9y5Pxuq186DxeMWJeeZRGxpvavw1zRDyksktaDyd1emZHT6VmDVT7267weM9TQrYWYyrRf3qLNs4",
+        "signature": "3uhe1jeAQXAAHJ8rCDJhshCTtK7W4FC5mkkYmT3UMFaMgBfN3TVfL9F7CHg577eQVtqrN3aDFGr239mqV6cWmi7N",
         "wallet": {
           "sol": {
             "delta": "-0.010105",
@@ -3279,34 +3279,32 @@
             "symbol": "USDC",
             "unit": "display",
             "before": "21.885179",
-            "after": "22.980101",
-            "delta": "+1.094922"
+            "after": "22.978598",
+            "delta": "+1.093419"
           }
         }
       },
       {
-        "signature": "4wH8SgnYghb5Tps4gMLEV41u6Deb7CSomfopP29aK7fNjvcchVnER2Pno1MaxoEbfmaumggY1mKL1HzStvBh2emm",
+        "signature": "Ne1Z9YKfBd8CHmK6WDYNx4AgUGMGdXqsvz5eBafaRczTvyC86ggesxkfUfmUwjyAC6CUHKAGMGuX29PT4HUpkrP",
         "wallet": {
           "sol": {
-            "delta": "+0.009891726",
+            "delta": "+0.009894806",
             "feeLamportsApprox": "105000"
           },
           "a": {
             "symbol": "USDC",
             "unit": "display",
-            "before": "22.980101",
+            "before": "22.978598",
             "after": "21.885179",
-            "delta": "-1.094922"
+            "delta": "-1.093419"
           }
         }
       }
     ],
     "gaps": [
-      "The hold added a flat $0.50 fee buffer, so $1.60007 was about 46% above the input at 50 bps. The built fee is 105000 lamports, not a compute-unit price times a limit.",
-      "Settled $1.0946 was the input notional at the quote SOL price, not the 1.094922 USDC received and not the input plus meta.fee.",
-      "Kernel will rerun this round on the fixed head and the row will be updated with that run.",
-      "The swap-back ran through the direct CLI with the Engine stopped, so it is not Engine-validated.",
-      "Surfpool coverage is not claimed."
+      "The swap-back used the direct CLI, not the Engine.",
+      "No Surfpool coverage is claimed.",
+      "The tick doesn't expose the quote price, so the settle check is partly circular; the hold matching at the same price is the independent check."
     ]
   }
 ]

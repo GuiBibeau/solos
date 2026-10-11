@@ -50,41 +50,30 @@ recipient gained 1,000,000 lamports on each send.
 
 ## Clock ticks schedule (#198)
 
-**Status: one funded mainnet schedule tick is recorded.** Kernel ran it from Gui's Mac
-on 2026-10-11 at commit `c6a80a6bf542690522dc23a867bc23859eefe70a` (#241). The live
-Engine was started with `--allowed-mints` set to wrapped SOL and USDC. The signer is
+**Status: the funded rerun on the fixed head is recorded.** Kernel reran it on
+2026-10-11 at commit `0d66a487f299c09cb29b95dcaf23531c52be9377` (#241). The signer is
 `E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`.
 
-Schedule Strategy `01M4NESFCXYJQ7KHH4AQQAGB1M` (count 1, every 60 s) ran exactly one
-Tick, then went to done with `nextDueAt` null. No second tick fired. Tick
-`01M4NEVK7DYTBGB1X5DVZV7VAR` had outcome `executed`. Its action swapped 10000000
-lamports of SOL to USDC with `maxSlippageBps` 50.
+Run 1 (`5WhMikBC…`) found the hold about 46% over and the settle measuring the
+wrong side. `0d66a48` fixed both.
 
-Intent `01M4NESFCXYJQ7KHH4AQQAGB1M.01M4NEVK7DYTBGB1X5DVZV7VAR.0` is settled, with
-`notionalUsd` 1.60007240339006. The swap received 1.094922 USDC and paid a
-105,000-lamport fee. Signature
-`5WhMikBCQ7iz9y5Pxuq186DxeMWJeeZRGxpvavw1zRDyksktaDyd1emZHT6VmDVT7267weM9TQrYWYyrRf3qLNs4`.
-Block time 2026-10-11T12:26:30Z. `err` null.
+Schedule Strategy `01M4NH04T767VCR5WBF5AT33VP` ran one Tick,
+`01M4NH27BF9MCGW6MPNB4K9H2F`, with outcome `executed`. It then went to done with
+`nextDueAt` null. There was no second spend.
 
-The ledger has one `cap_reservations` row, `res_1`: notional $1.6001, actual
-$1.0946, settled, no overshoot, day 2026-10-11. The hold of $1.60 was about 46%
-above the expected worst case of roughly $1.11 (0.01 SOL plus 50 bps slippage
-plus the 105,000-lamport fee). The cause was a flat $0.50 fee buffer. The built
-swap does not price a compute-unit limit: it pays a flat 100,000 lamport priority
-fee plus the 5,000 lamport base fee, and `meta.fee` was that 105,000 lamports.
-The settle of $1.0946 was the input notional at the quote's SOL price, not the
-1.094922 USDC received and not the input plus the fee. Kernel will rerun this
-round on the fixed head and the row will be updated with that run.
+Ledger `res_1` is settled: hold $1.109163, settle $1.103702, no overshoot. At the
+implied price of $109.2233 per SOL, the hold equals 0.01 × P × 1.005 ($1.097694)
+plus the 105,000-lamport fee ($0.011468), and the settle equals (0.01 + 0.000105)
+× P. The USDC received, worth $1.093419, is not what the settle used.
 
-The swap-back ran through the direct CLI with the Engine stopped. It is not
-Engine-validated. It converted 1.094922 USDC back to SOL and paid a 105,000-lamport
-fee. Signature
-`4wH8SgnYghb5Tps4gMLEV41u6Deb7CSomfopP29aK7fNjvcchVnER2Pno1MaxoEbfmaumggY1mKL1HzStvBh2emm`.
-Block time 2026-10-11T12:27:09Z. `err` null.
+The tick swap paid a 105,000-lamport fee. Signature
+`3uhe1jeAQXAAHJ8rCDJhshCTtK7W4FC5mkkYmT3UMFaMgBfN3TVfL9F7CHg577eQVtqrN3aDFGr239mqV6cWmi7N`.
+`err` null.
 
-Both full signatures were matched by prefix with `getSignaturesForAddress` on the
-signer for 2026-10-11. The feature-map row has no timestamp key, so the block times
-stay in this note.
+The swap-back of 1.093419 USDC ran through the direct CLI with simulate first, not
+the Engine. It paid a 105,000-lamport fee. Signature
+`Ne1Z9YKfBd8CHmK6WDYNx4AgUGMGdXqsvz5eBafaRczTvyC86ggesxkfUfmUwjyAC6CUHKAGMGuX29PT4HUpkrP`.
+`err` null.
 
-SOL 1.507627930 → 1.497522930 → 1.507414656. USDC 21.885179 → 22.980101 →
-21.885179. Net cost 213,274 lamports: 210,000 in fees, about 3,274 lost to spread.
+SOL 1.507414656 → 1.497309656 → 1.507204462. USDC 21.885179 → 22.978598 →
+21.885179. Net cost 210,194 lamports: 210,000 in fees and 194 lost to spread.
