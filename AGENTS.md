@@ -222,7 +222,8 @@ A map of the files that already hold project knowledge.
 - CLI help for a tool command is the tool's title, and each option's help is that argument's
   `.describe()` text (`apps/cli/src/commands/tool-help.js`); change the tool definition, not the
   help text. A command group's one-line blurb is the hand-written exception.
-- `docs/reference/tools/` is the tool reference: a page per group and the catalogue in `index.md`.
-  `solos dev docs check --write` rewrites the catalogue table and the venues line in `liquidity.md`
-  from the registry, and `solos dev check` fails when they drift. Update the hand-written prose
-  when a page's description of a tool changes.
+- `docs/reference/tools/index.md` is the catalogue of all tools. Only some groups have their own
+  page beside it; the "Slice pages" list in that file names them. `solos dev docs check --write`
+  rewrites the catalogue table and the venues line in `liquidity.md` from the registry, and
+  `solos dev check` fails when they drift. Update the hand-written prose when a page's description
+  of a tool changes.
