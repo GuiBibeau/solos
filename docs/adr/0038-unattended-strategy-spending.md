@@ -56,7 +56,10 @@ Of the owner, CONTEXT.md says "It is never authorization."
   confirmed transfer." A transaction that lands with an execution error settles the fee it
   actually paid, from `meta.fee`, priced like the hold. "The hold is released only when the
   Intent is marked failed: the blockhash expired and the signature is still absent, or the
-  Engine stopped before anything was signed." That recovery lands with #243.
+  Engine stopped before anything was signed." That recovery lands with #243. Each clock pass
+  runs that same reconcile, not only startup. Closing the Tick applies lifecycle either way: a
+  finished `count` moves the Strategy to `done` with `nextDueAt` null, and failed ticks count
+  toward `maxConsecutiveFailures` and pause at the limit.
   "`memoryCapLedger` keeps the account in the process."
 - **Engine allowlist.** An execute-tier Engine refuses to start without `--allowed-mints`.
   Allowing every mint requires passing `--allowed-mints any`. Paper and dry-run Engines keep
@@ -79,7 +82,9 @@ Of the owner, CONTEXT.md says "It is never authorization."
   `memoryCapLedger` are on main. `sqliteCapLedger`, the Engine kill switch, and HTTP 423 land
   with #243, and they replace that log.
 - An execute-tier Engine starts with an explicit allowlist. Paper and dry-run keep `any`.
-- An Intent that may have landed stays `in_flight`, and its hold keeps counting, until recovery
-  settles the reserved notional or the fee actually paid, or releases the hold when the Intent
-  is marked failed.
+- An Intent that may have landed stays `in_flight`, and its hold keeps counting, until a clock
+  pass or startup reconciles it on the same path: settle the reserved notional or the fee
+  actually paid, or release the hold when the Intent is marked failed. Closing the Tick applies
+  lifecycle either way: a finished `count` moves the Strategy to `done` with `nextDueAt` null,
+  and failed ticks count toward `maxConsecutiveFailures` and pause at the limit.
 - This record leaves `STRATEGIES` in place and sends no transaction.

@@ -46,6 +46,11 @@ States are `active`, `paused`, `done`, `expired`, and `failed`. A Caller may pau
 resume (`active`), or cancel (`done`). `done`, `expired`, and `failed` are terminal. Any other
 move is refused with `StrategyTransitionRefused`, which carries `from` and `to`.
 
+Each clock pass reconciles an in-flight Tick on the same path as startup. Closing the Tick
+applies the lifecycle either way. A schedule whose executed ticks reach `count` becomes `done`
+and `nextDueAt` is null. Failed ticks count toward `maxConsecutiveFailures` and pause the
+Strategy at that limit.
+
 ## Tools
 
 `solana_strategy_list_strategies` and `solana_strategy_get_status` read the Registry. Status
@@ -84,5 +89,10 @@ reserved notional once. A transaction that lands with an execution error settles
 it paid, priced the same way as the hold.
 Nothing signed, or a blockhash that expires with the signature still absent, releases the hold.
 If the Engine stops after broadcast and before confirm, the hold stays open and keeps counting
-against the per-tick and daily caps while the Intent is `in_flight`. Restart does not release
-it and does not reserve it again. Recovery settles it once when the signature has landed.
+against the per-tick and daily caps while the Intent is `in_flight`. A restart does not release
+that hold and does not reserve it again. Each clock pass reconciles the in-flight Tick on the
+same path as startup. A landed signature settles once, a failed signature settles the fee, and
+an expired blockhash releases the hold. A missing fee leaves the Tick in flight. Closing it
+applies the same lifecycle on a clock pass or at startup: a finished `count` moves the Strategy
+to `done` with `nextDueAt` null, and failed ticks count toward `maxConsecutiveFailures` and
+pause at the limit.

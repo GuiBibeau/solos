@@ -78,7 +78,9 @@ request touches an in-flight Intent that has a signature, a landed signature bec
 and is not resent; `failed` waits until the blockhash has expired and the signature is still
 absent; until then it stays `in_flight` and answers `IntentInFlight`. An in-flight Intent with
 no signature at startup becomes `failed`, because nothing was sent. A repeat of a settled or
-failed Intent returns the stored outcome.
+failed Intent returns the stored outcome. An in-flight Tick whose Intent already has a signature
+is reconciled on each clock pass on the same path as startup. The Tick lifecycle, a finished
+`count` to `done` or `maxConsecutiveFailures` to `paused`, applies on either pass.
 
 **Strategy** — a registered, data-only description of work the Engine may later perform: a kind,
 that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
@@ -107,7 +109,12 @@ Observations the kind declared, the Actions evaluate returned, and one Intent pe
 was sent. Outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped_bounds`,
 `skipped_observation`, and `in_flight`. A missed Tick is an occurrence the Engine was down for.
 It is recorded once and never replayed. An in-flight Tick keeps its reservation until the Intent
-settles. Ticks are appended. A read returns the newest first.
+settles. Each clock pass reconciles it on the same path as startup. A landed signature settles
+and finalizes the Tick, a failed signature settles the fee, an expired blockhash releases the
+hold and marks the Tick failed, and a missing fee leaves it in flight. Closing it applies the
+same lifecycle on a clock pass or at startup: executed ticks that reach `count` move the
+Strategy to `done` with `nextDueAt` null, and failed ticks count toward `maxConsecutiveFailures`
+and pause at the limit. Ticks are appended. A read returns the newest first.
 
 **Observation** — one named fact a kind declares and the Engine reads before evaluate. A schedule
 Tick reads the signer's lamport balance and the Tick instant. The kind never reads them itself.
@@ -134,10 +141,14 @@ A higher settle is a bug: the overshoot is recorded on the reservation and that 
 per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
 hold as the first call left it. A settled hold stays settled. A released hold stays released.
 An in-flight Intent keeps its hold. A restart does not release that hold and does not count it
-a second time. When recovery finds the signature landed, `settle` records the reserved notional
-once for a confirmed transfer, or the fee the transaction paid when it landed with an execution
-error. The hold is released only when the Intent is marked failed: the blockhash expired and the
-signature is still absent, or the Engine stopped before anything was signed.
+a second time. Each clock pass reconciles an in-flight Tick on the same path as startup. When
+recovery finds the signature landed, `settle` records the reserved notional once for a confirmed
+transfer, or the fee the transaction paid when it landed with an execution error. The hold is
+released only when the Intent is marked failed: the blockhash expired and the signature is still
+absent, or the Engine stopped before anything was signed. Closing the Tick applies that same
+lifecycle on a clock pass or at startup: a finished `count` moves the Strategy to `done` with
+`nextDueAt` null, and a failed or expired Tick counts toward `maxConsecutiveFailures` and pauses
+at the limit.
 
 **Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
 scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and
