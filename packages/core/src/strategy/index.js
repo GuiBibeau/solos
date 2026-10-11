@@ -75,6 +75,7 @@ export {
 export { runDueTicks } from "./use-cases/run-due.js";
 export { scriptedObservationReader } from "./use-cases/scripted-reader.js";
 export { scriptedSpendMeter } from "./use-cases/scripted-spend.js";
+export { applyLifecycle } from "./use-cases/tick-lifecycle.js";
 
 import { executeDisengageKillTool } from "./tools/execute-disengage-kill.js";
 import { executeEngageKillTool } from "./tools/execute-engage-kill.js";

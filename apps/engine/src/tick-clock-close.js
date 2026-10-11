@@ -1,11 +1,5 @@
 // @ts-check
-import {
-  CapLedger,
-  StrategyIds,
-  StrategyRepository,
-  TickRepository,
-  TickSource,
-} from "@solos/core/strategy";
+import { applyLifecycle, CapLedger, StrategyIds, TickRepository } from "@solos/core/strategy";
 import { Effect } from "effect";
 
 /** @typedef {import("./http.js").EngineDeps["runtime"]} TickRuntime */
@@ -90,8 +84,9 @@ const saveTick = (strategy, closed) =>
       limit: 20,
     });
     if (open.every((row) => row.tickId !== closed.tick.tickId)) return;
-    yield* (yield* TickRepository).save(closedBody(closed.tick, closed.steps, now));
-    yield* reschedule(strategy, now);
+    const saved = closedBody(closed.tick, closed.steps, now);
+    yield* (yield* TickRepository).save(saved);
+    yield* applyLifecycle(strategy, saved.outcome, now);
   });
 
 /**
@@ -132,16 +127,6 @@ const intentBody = (step) => {
     mint: step.mint,
   };
 };
-
-/** @param {Strategy} strategy @param {number} now */
-const reschedule = (strategy, now) =>
-  Effect.gen(function* () {
-    const repository = yield* StrategyRepository;
-    const current = yield* repository.load(strategy.id);
-    if (current === undefined || current.state !== "active") return;
-    const nextDueAt = (yield* (yield* TickSource).nextDue(current, now)) ?? null;
-    yield* repository.save({ ...current, nextDueAt });
-  });
 
 /**
  * @param {{ strategy: Strategy; tick: Tick }} work
