@@ -3306,5 +3306,68 @@
       "No Surfpool coverage is claimed.",
       "The tick doesn't expose the quote price, so the settle check is partly circular; the hold matching at the same price is the independent check."
     ]
+  },
+  {
+    "status": "failed-landing",
+    "action": "swap",
+    "issue": 198,
+    "codeSha": "b2e2d44213a8ac9e9f5588e179945f72758ce896",
+    "cluster": "mainnet",
+    "owner": "DfWpQReRKLMkwYa9kXf3BLMCkm42HwT1zDokzGgaerFw",
+    "maxSlippageBps": 50,
+    "qa": "docs/engine-qa.md#clock-ticks-schedule-qa-wallet-198",
+    "sends": [
+      {
+        "signature": "2TKmBpyY13XwKy3MaiyA38nMRDqJJsohCAFGug1wvGHPrjLi9KieX75GvSCfDck2PQVHqf1tE4Rv8PunzRVckfWr",
+        "wallet": {
+          "sol": {
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Failed-landing case, kept on purpose as evidence. The swap simulated OK, then landed failed with InstructionError [4, Custom 6001] (likely Jupiter slippage). The Tick is failed. The ledger settled meta.fee only.",
+      "The Engine stopped before retry. Restarts were not exercised in this run.",
+      "A kill between settle and Tick save was not exercised live. That window is milliseconds inside one process and needs a test hook. The recovery unit tests cover it."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "issue": 198,
+    "codeSha": "b2e2d44213a8ac9e9f5588e179945f72758ce896",
+    "cluster": "mainnet",
+    "owner": "DfWpQReRKLMkwYa9kXf3BLMCkm42HwT1zDokzGgaerFw",
+    "maxSlippageBps": 100,
+    "qa": "docs/engine-qa.md#clock-ticks-schedule-qa-wallet-198",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000222867"
+    },
+    "sends": [
+      {
+        "signature": "27kYPkRYtFNeSru4RHRgHaU6wLjuuSB1iWfYLqgYsxq27iZVLAyyfRBpsxe2QCxhorVvK4N2Fe7LSSkHvHoBaN5i",
+        "wallet": {
+          "sol": {
+            "delta": "-0.011593440",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "delta": "+1.098391"
+          }
+        }
+      },
+      {
+        "signature": "vLpPomz24nLongn3GzkHpeK1bAKRCRpoQhYdu5rCnynRFWKYTFNdHwQVSorumDXdE6SAe4E6LuR3zsenSej34Si"
+      },
+      {
+        "signature": "4EqHbhP9de7njvc6ALNQt416frUrduPohaiXZuo79tyiN1dKBj8JpMZf6wDVLqJv81e28u9pNYSgWjGtbVpJfUq2"
+      }
+    ],
+    "gaps": [
+      "A kill between settle and Tick save was not exercised live. That window is milliseconds inside one process and needs a test hook. The recovery unit tests cover it."
+    ]
   }
 ]
