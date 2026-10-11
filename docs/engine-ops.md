@@ -45,8 +45,8 @@ sudo install -o root -g root -m 0600 /dev/null /etc/solos-engine.env
 Logs are JSON on stderr and reach journald unchanged. `Restart=always` brings the process
 back. `--host` stays on loopback. Callers reach that port over the private network; the
 process does not listen on a public address. `--tier execute` belongs on the live box only.
-Any other box omits it and stays at the simulate ceiling. Live start also needs
-`--allowed-mints` (mint addresses, or `any`).
+Any other box omits it and stays a dry run (`mode: "dry"` in /v1/health) at the
+simulate ceiling. Live start also needs `--allowed-mints` (mint addresses, or `any`).
 
 ```ini
 [Unit]
