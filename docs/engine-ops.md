@@ -14,12 +14,13 @@ Configuration comes from the environment file and the flags on the command line.
 
 ## Service user
 
-A dedicated user owns the binary and the keypair. It does not own the environment file.
-The keypair file is owned by that user, mode 0600.
+A dedicated user owns the data directory and the keypair. It does not own the environment
+file. The keypair file is owned by that user, mode 0600. `/usr/local/bin/solos-engine` is
+root:root, mode 0755. The service user must not own that binary or be able to write it.
 
 ```sh
 sudo useradd --system --create-home --home-dir /var/lib/solos-engine --shell /usr/sbin/nologin solos-engine
-sudo install -o solos-engine -g solos-engine -m 0755 solos-engine-linux-x64 /usr/local/bin/solos-engine
+sudo install -o root -g root -m 0755 solos-engine-linux-x64 /usr/local/bin/solos-engine
 sudo install -d -o solos-engine -g solos-engine -m 0750 /var/lib/solos-engine
 sudo install -o solos-engine -g solos-engine -m 0600 keypair.json /var/lib/solos-engine/keypair.json
 ```
@@ -48,7 +49,7 @@ Logs are JSON on stderr and reach journald unchanged. `Restart=always` brings th
 back. The engine binds `127.0.0.1`. Remote callers reach that port through an SSH tunnel:
 
 ```sh
-ssh -N -L 8787:127.0.0.1:<port> engine-host
+ssh -N -L 8787:127.0.0.1:8787 engine-host
 ```
 
 or through a TLS reverse proxy on the host. Binding `--host` to the private interface IP
