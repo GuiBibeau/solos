@@ -22,8 +22,9 @@ groomed. The Engine is the exception, decided in
 there.
 
 **The CLI is a validation tool**, not a product. It proves behaviour quickly and adapts. It ships
-with the repo, never to npm. That settles the open question in #150: publish the MCP server and
-`@solos-sh/actions`, nothing else, and cut the `dev` surface from anything published.
+as one compiled binary (ADR-0035, ADR-0036): canary and stable builds publish `@solos-sh/cli`
+on npm and attach binaries to GitHub Releases. A pull-request preview is a workflow artifact
+and is not published. The `dev` surface stays out of that product (ADR-0034).
 
 ## Discovery
 
