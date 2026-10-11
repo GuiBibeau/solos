@@ -3247,5 +3247,127 @@
       "The intent id was recorded for qa234-restart-2 only.",
       "Surfpool coverage is not claimed."
     ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "issue": 198,
+    "codeSha": "0d66a487f299c09cb29b95dcaf23531c52be9377",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/engine-qa.md#clock-ticks-schedule-198",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000210194",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "display",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "3uhe1jeAQXAAHJ8rCDJhshCTtK7W4FC5mkkYmT3UMFaMgBfN3TVfL9F7CHg577eQVtqrN3aDFGr239mqV6cWmi7N",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010105",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "21.885179",
+            "after": "22.978598",
+            "delta": "+1.093419"
+          }
+        }
+      },
+      {
+        "signature": "Ne1Z9YKfBd8CHmK6WDYNx4AgUGMGdXqsvz5eBafaRczTvyC86ggesxkfUfmUwjyAC6CUHKAGMGuX29PT4HUpkrP",
+        "wallet": {
+          "sol": {
+            "delta": "+0.009894806",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "22.978598",
+            "after": "21.885179",
+            "delta": "-1.093419"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The swap-back used the direct CLI, not the Engine.",
+      "No Surfpool coverage is claimed.",
+      "The tick doesn't expose the quote price, so the settle check is partly circular; the hold matching at the same price is the independent check."
+    ]
+  },
+  {
+    "status": "failed-landing",
+    "action": "swap",
+    "issue": 198,
+    "codeSha": "b2e2d44213a8ac9e9f5588e179945f72758ce896",
+    "cluster": "mainnet",
+    "owner": "DfWpQReRKLMkwYa9kXf3BLMCkm42HwT1zDokzGgaerFw",
+    "maxSlippageBps": 50,
+    "qa": "docs/engine-qa.md#clock-ticks-schedule-qa-wallet-198",
+    "sends": [
+      {
+        "signature": "2TKmBpyY13XwKy3MaiyA38nMRDqJJsohCAFGug1wvGHPrjLi9KieX75GvSCfDck2PQVHqf1tE4Rv8PunzRVckfWr",
+        "wallet": {
+          "sol": {
+            "feeLamportsApprox": "105000"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "Failed-landing case, kept on purpose as evidence. The swap simulated OK, then landed failed with InstructionError [4, Custom 6001] (likely Jupiter slippage). The Tick is failed. The ledger settled meta.fee only.",
+      "The Engine stopped before retry. Restarts were not exercised in this run.",
+      "A kill between settle and Tick save was not exercised live. That window is milliseconds inside one process and needs a test hook. The recovery unit tests cover it."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "issue": 198,
+    "codeSha": "b2e2d44213a8ac9e9f5588e179945f72758ce896",
+    "cluster": "mainnet",
+    "owner": "DfWpQReRKLMkwYa9kXf3BLMCkm42HwT1zDokzGgaerFw",
+    "maxSlippageBps": 100,
+    "qa": "docs/engine-qa.md#clock-ticks-schedule-qa-wallet-198",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000222867"
+    },
+    "sends": [
+      {
+        "signature": "27kYPkRYtFNeSru4RHRgHaU6wLjuuSB1iWfYLqgYsxq27iZVLAyyfRBpsxe2QCxhorVvK4N2Fe7LSSkHvHoBaN5i",
+        "wallet": {
+          "sol": {
+            "delta": "-0.011593440",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "delta": "+1.098391"
+          }
+        }
+      },
+      {
+        "signature": "vLpPomz24nLongn3GzkHpeK1bAKRCRpoQhYdu5rCnynRFWKYTFNdHwQVSorumDXdE6SAe4E6LuR3zsenSej34Si"
+      },
+      {
+        "signature": "4EqHbhP9de7njvc6ALNQt416frUrduPohaiXZuo79tyiN1dKBj8JpMZf6wDVLqJv81e28u9pNYSgWjGtbVpJfUq2"
+      }
+    ],
+    "gaps": [
+      "A kill between settle and Tick save was not exercised live. That window is milliseconds inside one process and needs a test hook. The recovery unit tests cover it."
+    ]
   }
 ]

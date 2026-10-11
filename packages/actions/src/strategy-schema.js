@@ -39,6 +39,14 @@ const assigned = {
   expiresAt: TimestampSchema.nullable().describe(
     "Unix epoch milliseconds when the Strategy expires, or null when it does not expire on a clock",
   ),
+  nextDueAt: TimestampSchema.nullable()
+    .optional()
+    .describe("Unix epoch milliseconds of the next due Tick, or null when none is scheduled"),
+  reason: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Why the Engine paused this Strategy, when it did"),
 };
 
 /** @param {string} kind */

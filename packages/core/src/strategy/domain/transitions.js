@@ -12,7 +12,7 @@ const CALLER = {
 
 /** Moves only the Engine makes. Child 7 is what performs them. */
 const ENGINE = {
-  active: ["expired", "failed", "done"],
+  active: ["paused", "expired", "failed", "done"],
 };
 
 /**

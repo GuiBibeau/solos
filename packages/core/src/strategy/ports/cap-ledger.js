@@ -19,6 +19,7 @@ export const GLOBAL_KILL_SCOPE = "global";
 /**
  * @typedef {import("../../shared/domain/engine-errors.js").BoundsExceeded
  *   | import("../domain/errors.js").KillSwitchEngaged
+ *   | import("../domain/errors.js").MintDecimalsUnverified
  *   | import("../domain/errors.js").StrategyNotFound} ReserveError
  */
 

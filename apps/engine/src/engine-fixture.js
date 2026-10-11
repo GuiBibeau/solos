@@ -8,9 +8,8 @@ import {
   seedAddress,
   seedToPrivateKeyString,
 } from "@solos/solana/surfnet";
+import { ENGINE_TOKEN, forwardStart, hostEnv, stopEngine } from "./engine-test-env.js";
 import { startEngine } from "./start.js";
-
-export const ENGINE_TOKEN = "engine-integration-token";
 
 /** @type {Promise<void>} */
 let turn = Promise.resolve();
@@ -84,16 +83,7 @@ const captureStderr = (logs) => {
  * An engine on the shared Surfpool, with a funded signer that exists only in this process.
  * `dataDir` reopens an existing store. `keepData` leaves that directory after stop.
  * `rpcUrl` replaces the fork URL the engine dials (a proxy in front of Surfpool).
- * @param {{
- *   tier?: "read" | "simulate" | "execute";
- *   dataDir?: string;
- *   keepData?: boolean;
- *   rpcUrl?: string;
- *   wsUrl?: string;
- *   strategies?: boolean;
- *   allowedMints?: ReadonlyArray<string>;
- *   env?: Record<string, string>;
- * }} [options]
+ * @param {import("./engine-test-env.js").TestEngineOptions} [options]
  */
 export const startTestEngine = async (options = {}) => {
   const release = await acquire();
@@ -106,16 +96,7 @@ export const startTestEngine = async (options = {}) => {
 };
 
 /**
- * @param {{
- *   tier?: "read" | "simulate" | "execute";
- *   dataDir?: string;
- *   keepData?: boolean;
- *   rpcUrl?: string;
- *   wsUrl?: string;
- *   strategies?: boolean;
- *   allowedMints?: ReadonlyArray<string>;
- *   env?: Record<string, string>;
- * }} options
+ * @param {import("./engine-test-env.js").TestEngineOptions} options
  * @param {() => void} release
  */
 const boot = async (options, release) => {
@@ -143,14 +124,13 @@ const dataDirectory = (options) => ({
 
 /**
  * @typedef {{
- *   options: { tier?: "read" | "simulate" | "execute"; strategies?: boolean; allowedMints?: ReadonlyArray<string>; rpcUrl?: string; wsUrl?: string; env?: Record<string, string> };
+ *   options: import("./engine-test-env.js").TestEngineOptions;
  *   identity: { privateKey: string; signer: string };
  *   directory: { path: string; created: boolean };
  *   surfnet: Awaited<ReturnType<typeof ensureSurfnet>>;
  *   restore: () => void;
  * }} LaunchInput
  * @typedef {{ identity: { privateKey: string; signer: string }; directory: { path: string }; surfnet: Awaited<ReturnType<typeof ensureSurfnet>>; logs: string[]; restore: () => void; release: () => void; options: { keepData?: boolean } }} PresentedParts
- * @typedef {{ privateKey: string; dataDir: string; rpcUrl: string; wsUrl: string; extra?: Record<string, string> }} HostEnvInput
  */
 
 /** @param {LaunchInput} input */
@@ -167,8 +147,7 @@ const launch = (input) =>
     host: "127.0.0.1",
     port: freePort(),
     dataDir: input.directory.path,
-    ...(input.options.strategies !== undefined && { strategies: input.options.strategies }),
-    ...(input.options.allowedMints !== undefined && { allowedMints: input.options.allowedMints }),
+    ...forwardStart(input.options),
   }).catch((error) => {
     input.restore();
     if (input.directory.created) rmSync(input.directory.path, { recursive: true, force: true });
@@ -197,24 +176,4 @@ const presented = (handle, parts) => ({
     }),
 });
 
-/** @param {HostEnvInput} input */
-const hostEnv = (input) => ({
-  ...input.extra,
-  SOLOS_ENGINE_TOKEN: ENGINE_TOKEN,
-  SOLOS_SIGNER_PRIVATE_KEY: input.privateKey,
-  SOLOS_CONFIG_DIR: input.dataDir,
-  SOLOS_LOG_LEVEL: "info",
-  SOLANA_RPC_URL: input.rpcUrl,
-  SOLANA_WS_URL: input.wsUrl,
-});
-
-/** @param {{ handle: { stop: () => Promise<void> }; restore: () => void; dataDir: string; release: () => void; removeDir: boolean }} input */
-const stopEngine = async (input) => {
-  try {
-    await input.handle.stop();
-    input.restore();
-    if (input.removeDir) rmSync(input.dataDir, { recursive: true, force: true });
-  } finally {
-    input.release();
-  }
-};
+export { ENGINE_TOKEN } from "./engine-test-env.js";

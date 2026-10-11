@@ -64,6 +64,11 @@ UTC-day spend, a mint allowlist, or an `expiresAt` that no longer authorizes the
 hold records the overshoot and engages the per-Strategy switch; the next reserve then raises
 `KillSwitchEngaged`. The Engine's SQLite adapter keeps an engaged switch across a restart.
 `PriceUnavailable` (HTTP 503): The cap ledger raises it when the SOL price is missing or zero, and reserves nothing.
+`UnsupportedStrategyAction` (HTTP 400): Registration and a tick both return it when a scheduled
+action is not `transfer_sol` or `swap`. The remedy names those two kinds. Nothing is reserved
+or sent.
+`MintDecimalsUnverified` (HTTP 503): The cap ledger raises it at reserve when the mint account's
+decimals cannot be verified. Nothing is reserved and nothing is sent.
 
 ## Why the field is `reason`, never `cause`
 

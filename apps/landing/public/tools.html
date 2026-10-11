@@ -399,7 +399,7 @@
 </article>
 </section>
 <section class="group" id="strategy">
-<h2><code>strategy</code> <span class="count">11 tools</span></h2>
+<h2><code>strategy</code> <span class="count">12 tools</span></h2>
 <article class="tool" id="solana_strategy_execute_disengage_kill">
 <h3><code>solana_strategy_execute_disengage_kill</code> <span class="tier tier-execute">execute</span> <span class="stability stability-beta">beta</span></h3>
 <p class="title">Disengage the kill switch</p>
@@ -433,8 +433,14 @@
 <article class="tool" id="solana_strategy_get_status">
 <h3><code>solana_strategy_get_status</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
 <p class="title">Get strategy status</p>
-<p class="desc">Read one registered Strategy, including its kind, bounds, tick source, and lifecycle state. Use after register to confirm what the Engine stored.</p>
+<p class="desc">Read one registered Strategy, including its kind, bounds, tick source, lifecycle state, last Tick, and when the next Tick is due.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_get_status"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td>yes</td><td>Strategy id returned by register</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_strategy_get_ticks">
+<h3><code>solana_strategy_get_ticks</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Get strategy ticks</p>
+<p class="desc">Read the Ticks one Strategy has recorded, newest first. Use this to see what each interval did, including misses, failures, and the Intents that landed.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_strategy_get_ticks"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td>yes</td><td>Strategy id returned by register</td></tr><tr><td><code>limit</code></td><td>integer</td><td>no</td><td>How many Ticks to return, newest first. Defaults to 20 and cannot exceed 200 <span class="meta">1 to 200</span></td></tr><tr><td><code>outcome</code></td><td>missed | evaluated | executed | failed | skipped_bounds | skipped_observation | in_flight</td><td>no</td><td>Only Ticks with this outcome</td></tr></tbody></table></div>
 </article>
 <article class="tool" id="solana_strategy_list_strategies">
 <h3><code>solana_strategy_list_strategies</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>

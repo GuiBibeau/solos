@@ -3,10 +3,12 @@ import { describe, expect, test } from "bun:test";
 import { Effect, Layer } from "effect";
 import { PriceFeed } from "../../market/index.js";
 import { ulidFrom } from "../domain/ulid.js";
+import { CadenceFloor } from "../ports/cadence-floor.js";
 import { EngineAllowlist } from "../ports/engine-allowlist.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
 import { registryConformance, repositoryConformance } from "./conformance.js";
 import { memoryStrategyRepository } from "./memory-repository.js";
+import { memoryTickRepository } from "./memory-ticks.js";
 import { InProcessStrategyRegistry } from "./registry-live.js";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -35,7 +37,9 @@ const registryLayer = () =>
     Layer.provide(
       Layer.mergeAll(
         memoryStrategyRepository(),
+        memoryTickRepository(),
         Layer.succeed(EngineAllowlist, { mints: [USDC] }),
+        Layer.succeed(CadenceFloor, { minIntervalMs: 10_000 }),
         ids(),
         prices,
       ),

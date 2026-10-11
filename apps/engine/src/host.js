@@ -23,15 +23,15 @@ export const engineHostLayer = (solanaEnv, logLevel, otelEndpoint) =>
  * Strategy routes compiled into this process. Absent unless the binary was built or started
  * with the STRATEGIES flag. Release builds leave the flag off (ADR-0037).
  * @param {import("bun:sqlite").Database} db
- * @param {ReadonlyArray<string>} allowedMints
+ * @param {import("./strategy-layer.js").StrategyLayerOptions} options
  */
-export const compiledStrategyMount = async (db, allowedMints) => {
+export const compiledStrategyMount = async (db, options) => {
   if (feature("STRATEGIES")) {
     const [{ strategyLayer }, { handleStrategy }] = await Promise.all([
       import("./strategy-layer.js"),
       import("./strategy-http.js"),
     ]);
-    return { layer: strategyLayer(db, allowedMints), handle: handleStrategy };
+    return { layer: strategyLayer(db, options), handle: handleStrategy };
   }
   return undefined;
 };

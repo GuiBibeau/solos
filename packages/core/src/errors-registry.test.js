@@ -48,6 +48,7 @@ const REASONFUL = new Set([
   "LiquidityInputInvalid",
   "LiquidityPositionUnavailable",
   "LiquidityUnsupportedProtocol",
+  "MintDecimalsUnverified",
   "NoPositionToClose",
   "NoRouteFound",
   "PerpAccountCorrupt",
@@ -98,6 +99,7 @@ const REASONFUL = new Set([
   "UnknownToken",
   "UnsupportedAction",
   "UnsupportedQuoteAsset",
+  "UnsupportedStrategyAction",
   "ValidationError",
 ]);
 

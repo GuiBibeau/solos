@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineConfigMissing, ValidationError } from "@solos/core";
-import { AddressSchema } from "@solos-sh/actions";
+import { AddressSchema, durationMs } from "@solos-sh/actions";
 
 /** @typedef {"read" | "simulate" | "execute"} Tier */
 /** @typedef {"dry" | "paper" | "live"} Mode */
@@ -129,6 +129,7 @@ export const requireToken = (env) => {
  *   host?: string;
  *   port?: number;
  *   dataDir?: string;
+ *   minIntervalMs?: number;
  * }} input
  */
 export const resolveStart = (input) => {
@@ -144,5 +145,45 @@ export const resolveStart = (input) => {
     host: input.host ?? "127.0.0.1",
     port: input.port ?? 8787,
     dataDir,
+    minIntervalMs: input.minIntervalMs ?? intervalFromEnv(input.env),
+    tickWindow: windowFromEnv(input.env),
   };
 };
+
+/** The flag wins because the caller passes `minIntervalMs` before this reads the env. @param {Record<string, string | undefined>} env */
+const intervalFromEnv = (env) => {
+  const value = env.SOLOS_STRATEGY_MIN_INTERVAL;
+  if (value === undefined || value === "") return 10_000;
+  return requiredDuration("SOLOS_STRATEGY_MIN_INTERVAL", value);
+};
+
+/** @param {Record<string, string | undefined>} env */
+const windowFromEnv = (env) => {
+  const value = env.SOLOS_TICK_WINDOW;
+  if (value === undefined || value === "") return 50;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new ValidationError({
+      field: "SOLOS_TICK_WINDOW",
+      value,
+      reason: "SOLOS_TICK_WINDOW must be a positive integer",
+      remedy: "unset SOLOS_TICK_WINDOW or set it to a positive integer",
+    });
+  }
+  return parsed;
+};
+
+/** @param {string} field @param {string} value */
+const requiredDuration = (field, value) => {
+  const ms = durationMs(value);
+  if (ms !== undefined) return ms;
+  throw new ValidationError({
+    field,
+    value,
+    reason: `${field} must be a duration such as 10s, 1m, or PT1M`,
+    remedy: "use a positive duration such as 10s",
+  });
+};
+
+/** Operator flag. Undefined when the flag was omitted. @param {string} value */
+export const parseMinInterval = (value) => requiredDuration("min-interval", value);

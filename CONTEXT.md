@@ -78,14 +78,16 @@ request touches an in-flight Intent that has a signature, a landed signature bec
 and is not resent; `failed` waits until the blockhash has expired and the signature is still
 absent; until then it stays `in_flight` and answers `IntentInFlight`. An in-flight Intent with
 no signature at startup becomes `failed`, because nothing was sent. A repeat of a settled or
-failed Intent returns the stored outcome.
+failed Intent returns the stored outcome. An in-flight Tick whose Intent already has a signature
+is reconciled on each clock pass on the same path as startup. The Tick lifecycle, a finished
+`count` to `done` or `maxConsecutiveFailures` to `paused`, applies on either pass.
 
 **Strategy** — a registered, data-only description of work the Engine may later perform: a kind,
 that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
 Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
 or swarm uses to tell its registrations apart. It is never authorization.
 `schedule` and `trigger` are defined in `@solos-sh/actions`. `rebalance`, `range`, and `carry`
-are names until their issues ship. Nothing in this slice ticks. States are `active`,
+are names until their issues ship. A `schedule` Strategy ticks on its clock. States are `active`,
 `paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
 `StrategyTransitionRefused`.
@@ -100,7 +102,23 @@ what the Strategy may reserve during the current UTC day. `allowedMints` lists t
 any mint the Engine allowlist already permits, and a non-empty list can only narrow that
 allowlist, never widen it. `expiresAt` is when the bounds stop authorizing spends, or null when
 they do not expire on a clock. `maxConsecutiveFailures` is how many failed ticks in a row move
-the Strategy to `failed`. A breach is refused with `BoundsExceeded`.
+the Strategy to `paused`. A breach is refused with `BoundsExceeded`.
+
+**Tick** — one evaluation of one Strategy at one instant. It records when it was due, the
+Observations the kind declared, the Actions evaluate returned, and one Intent per Action that
+was sent. Outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped_bounds`,
+`skipped_observation`, and `in_flight`. A missed Tick is an occurrence the Engine was down for.
+It is recorded once and never replayed. An in-flight Tick keeps its reservation until the Intent
+settles. Each clock pass reconciles it on the same path as startup. A landed signature settles
+and finalizes the Tick, a failed signature settles the fee, an expired blockhash releases the
+hold and marks the Tick failed, and a missing fee leaves it in flight. Closing it applies the
+same lifecycle on a clock pass or at startup: executed ticks that reach `count` move the
+Strategy to `done` with `nextDueAt` null, and failed ticks count toward `maxConsecutiveFailures`
+and pause at the limit. Ticks are appended. A read returns the newest first.
+
+**Observation** — one named fact a kind declares and the Engine reads before evaluate. A schedule
+Tick reads the signer's lamport balance and the Tick instant. The kind never reads them itself.
+A missing Observation records `skipped_observation`.
 
 **Cap ledger** — the account of what a Strategy has reserved and settled against its Bounds.
 `reserve` holds the notional of one Intent and returns a reservation. The same `intentId`
@@ -115,16 +133,22 @@ reservations, settled amounts, per-tick sums, and an engaged kill switch survive
 reopening it. `memoryCapLedger` keeps the account in the process for tests.
 
 **Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
-`intentId`. The hold is the worst case: the notional at max slippage plus fees, so a correct
-execution never settles above it. `settle` replaces an open hold with the measured USD spend.
+`intentId`. The hold is the worst case: the input notional at max slippage plus the fee the
+built transaction can cost, priced with the mint's verified decimals, so a correct execution
+never settles above it. A mint whose decimals cannot be read is `MintDecimalsUnverified` and
+nothing is reserved. `settle` replaces an open hold with the measured USD spend.
 A higher settle is a bug: the overshoot is recorded on the reservation and that engages the
 per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
 hold as the first call left it. A settled hold stays settled. A released hold stays released.
 An in-flight Intent keeps its hold. A restart does not release that hold and does not count it
-a second time. When recovery finds the signature landed, `settle` records the reserved notional
-once for a confirmed transfer, or the fee the transaction paid when it landed with an execution
-error. The hold is released only when the Intent is marked failed: the blockhash expired and the
-signature is still absent, or the Engine stopped before anything was signed.
+a second time. Each clock pass reconciles an in-flight Tick on the same path as startup. When
+recovery finds the signature landed, `settle` records the reserved notional once for a confirmed
+transfer, or the fee the transaction paid when it landed with an execution error. The hold is
+released only when the Intent is marked failed: the blockhash expired and the signature is still
+absent, or the Engine stopped before anything was signed. Closing the Tick applies that same
+lifecycle on a clock pass or at startup: a finished `count` moves the Strategy to `done` with
+`nextDueAt` null, and a failed or expired Tick counts toward `maxConsecutiveFailures` and pauses
+at the limit.
 
 **Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
 scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and

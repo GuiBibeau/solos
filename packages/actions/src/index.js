@@ -67,6 +67,7 @@ export {
   StrategyRequestStateSchema,
   StrategyStateSchema,
 } from "./strategy-state.js";
+export { durationMs, formatDuration } from "./duration.js";
 export { DurationSchema, TickSourceSchema } from "./strategy-tick-source.js";
 export { TriggerParamsSchema } from "./strategy-trigger.js";
 export { PortfolioStateSchema, PositionSchema } from "./portfolio.js";

@@ -1,7 +1,7 @@
 // @ts-check
 import { Command, Options } from "@effect/cli";
 import { Effect, Option } from "effect";
-import { parseAllowedMintsFlag } from "./config.js";
+import { parseAllowedMintsFlag, parseMinInterval } from "./config.js";
 import { asStartupError, exitOnFailure } from "./output.js";
 import { startEngine } from "./start.js";
 
@@ -41,6 +41,13 @@ const allowedMints = Options.text("allowed-mints").pipe(
   ),
 );
 
+const minInterval = Options.text("min-interval").pipe(
+  Options.optional,
+  Options.withDescription(
+    "Shortest clock interval, such as 10s. Wins over SOLOS_STRATEGY_MIN_INTERVAL. Default 10s",
+  ),
+);
+
 /**
  * @template T
  * @param {import("effect/Option").Option<T>} value
@@ -59,6 +66,7 @@ const startupFailure = (error) => asStartupError(error);
  *   port: number;
  *   dataDir: import("effect/Option").Option<string>;
  *   allowedMints: import("effect/Option").Option<string>;
+ *   minInterval: import("effect/Option").Option<string>;
  * }} options
  */
 const run = (options) =>
@@ -75,9 +83,11 @@ const run = (options) =>
  *   port: number;
  *   dataDir: import("effect/Option").Option<string>;
  *   allowedMints: import("effect/Option").Option<string>;
+ *   minInterval: import("effect/Option").Option<string>;
  * }} options
  */
 const runUntilSignal = async (options) => {
+  const requested = defined(options.minInterval);
   const handle = await startEngine({
     env: process.env,
     tier: defined(options.tier),
@@ -85,9 +95,11 @@ const runUntilSignal = async (options) => {
     host: options.host,
     port: options.port,
     dataDir: defined(options.dataDir),
+    tickDrive: "auto",
     ...(Option.isSome(options.allowedMints) && {
       allowedMints: parseAllowedMintsFlag(options.allowedMints.value),
     }),
+    ...(requested !== undefined && { minIntervalMs: parseMinInterval(requested) }),
   });
   await new Promise((resolve) => {
     process.once("SIGINT", () => resolve(undefined));
@@ -98,7 +110,7 @@ const runUntilSignal = async (options) => {
 
 /** @param {string} name */
 export const engineStartCommand = (name) =>
-  Command.make(name, { tier, paper, host, port, dataDir, allowedMints }, run).pipe(
+  Command.make(name, { tier, paper, host, port, dataDir, allowedMints, minInterval }, run).pipe(
     Command.withDescription(
       "Start the engine. No flags: dry run, simulate works and execute is refused. --paper runs on Surfpool. --tier execute is live.",
     ),

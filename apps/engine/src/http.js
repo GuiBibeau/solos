@@ -35,6 +35,7 @@ const STATUS = /** @type {Record<string, number>} */ ({
   IntentInFlight: 409,
   StrategyNotFound: 404,
   StrategyInvalid: 400,
+  UnsupportedStrategyAction: 400,
   StrategyTransitionRefused: 409,
   BoundsExceeded: 422,
   KillSwitchEngaged: 423,
@@ -44,6 +45,7 @@ const STATUS = /** @type {Record<string, number>} */ ({
   SurfpoolUnavailable: 503,
   EngineUnavailable: 503,
   PriceUnavailable: 503,
+  MintDecimalsUnverified: 503,
 });
 
 /**
