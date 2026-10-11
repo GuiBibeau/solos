@@ -5,6 +5,7 @@ import {
   compareDecimal,
   reserveRefusal,
   subtractDecimal,
+  guardMintDecimals,
   utcDay,
 } from "@solos/core";
 import { Effect, Layer } from "effect";
@@ -73,6 +74,9 @@ const killStatus = (db, scope) => {
  */
 const reserve = (db, options, request) =>
   Effect.gen(function* () {
+    const known = holdByIntent(db, request.intentId);
+    if (known) return { reservationId: known.reservation_id };
+    yield* guardMintDecimals(request.mint);
     const outcome = capTransaction(db, () => decideReserve(db, options, request));
     if (outcome.refusal) return yield* outcome.refusal;
     return { reservationId: outcome.reservationId };

@@ -1,7 +1,13 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import { PriceFeed } from "@solos/core";
-import { SpendMeter, actualUsdFor, reserveUsdFor, usdForLamports } from "@solos/core/strategy";
+import {
+  MintDecimals,
+  SpendMeter,
+  actualUsdFor,
+  reserveUsdFor,
+  usdForLamports,
+} from "@solos/core/strategy";
 import { swapFeeReserveLamports } from "@solos/solana/swap/fee-reserve";
 import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect, Layer } from "effect";
@@ -9,32 +15,43 @@ import { transferNotionalUsd } from "./sol-notional.js";
 import { liveSpendMeter } from "./tick-spend.js";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 const SOL_PRICE = "100";
 const USDC_PRICE = "1";
 
 /** @param {string} mint */
 const priceFor = (mint) => (mint === WSOL_MINT ? SOL_PRICE : USDC_PRICE);
 
+/** @param {string} mint */
+const knownDecimals = (mint) => (mint === WSOL_MINT ? 9 : 6);
+
 /**
  * @param {(mint: string) => void} [onRead]
+ * @param {(mint: string) => number | undefined} [decimalsOf]
  */
-const feed = (onRead) =>
-  Layer.succeed(PriceFeed, {
-    source: "test",
-    getPrice: (mint) => {
-      onRead?.(mint);
-      return Effect.succeed({ mint, priceUsd: priceFor(mint), source: "test", at: 1 });
-    },
-  });
+const feed = (onRead, decimalsOf = knownDecimals) =>
+  Layer.mergeAll(
+    Layer.succeed(PriceFeed, {
+      source: "test",
+      getPrice: (mint) => {
+        onRead?.(mint);
+        return Effect.succeed({ mint, priceUsd: priceFor(mint), source: "test", at: 1 });
+      },
+    }),
+    Layer.succeed(MintDecimals, {
+      decimalsOf: (mint) => Effect.succeed(decimalsOf(mint)),
+    }),
+  );
 
 /**
  * @param {import("@solos-sh/actions").Action} action
  * @param {(mint: string) => void} [onRead]
+ * @param {(mint: string) => number | undefined} [decimalsOf]
  */
-const quote = (action, onRead) =>
+const quote = (action, onRead, decimalsOf) =>
   Effect.gen(function* () {
     return yield* (yield* SpendMeter).quote(action);
-  }).pipe(Effect.provide(Layer.provide(liveSpendMeter, feed(onRead))));
+  }).pipe(Effect.provide(Layer.provide(liveSpendMeter, feed(onRead, decimalsOf))));
 
 /** @param {string} inputMint @param {string} amount */
 const swap = (inputMint, amount) => ({
@@ -58,8 +75,9 @@ describe("live swap quote", () => {
     const feeUsd = usdForLamports(swapFeeReserveLamports().toString(), SOL_PRICE) ?? "0";
     expect(reads).toEqual([WSOL_MINT]);
     expect(quoted.solPriceUsd).toBe(SOL_PRICE);
-    expect(quoted.actualUsd).toBe(actualUsdFor(action, SOL_PRICE));
-    expect(quoted.reserveUsd).toBe(reserveUsdFor(action, SOL_PRICE, feeUsd));
+    const priced = { priceUsd: SOL_PRICE, decimals: 9, feeUsd };
+    expect(quoted.actualUsd).toBe(actualUsdFor(action, priced));
+    expect(quoted.reserveUsd).toBe(reserveUsdFor(action, priced));
   });
 
   test("a non-SOL swap prices the fee with a second SOL read", async () => {
@@ -74,8 +92,9 @@ describe("live swap quote", () => {
     const feeUsd = usdForLamports(swapFeeReserveLamports().toString(), SOL_PRICE) ?? "0";
     expect(reads).toEqual([USDC, WSOL_MINT]);
     expect(quoted.solPriceUsd).toBe(SOL_PRICE);
-    expect(quoted.actualUsd).toBe(actualUsdFor(action, USDC_PRICE));
-    expect(quoted.reserveUsd).toBe(reserveUsdFor(action, USDC_PRICE, feeUsd));
+    const priced = { priceUsd: USDC_PRICE, decimals: 6, feeUsd };
+    expect(quoted.actualUsd).toBe(actualUsdFor(action, priced));
+    expect(quoted.reserveUsd).toBe(reserveUsdFor(action, priced));
   });
 
   test("a transfer hold stays principal plus the transfer builder fee", async () => {
@@ -85,5 +104,22 @@ describe("live swap quote", () => {
     expect(quoted.reserveUsd).toBe(notional);
     expect(quoted.actualUsd).toBe(notional);
     expect(quoted.solPriceUsd).toBeUndefined();
+  });
+
+  test("a 6-decimal non-USDC mint is priced at those decimals", async () => {
+    const action = swap(USDT, "1000000");
+    const quoted = await Effect.runPromise(quote(action));
+    expect(quoted.actualUsd).toBe("1.00000000");
+    expect(quoted.unverified).toBeUndefined();
+  });
+
+  test("unreadable decimals are not priced as 9", async () => {
+    const action = swap(USDT, "1000000");
+    const quoted = await Effect.runPromise(
+      quote(action, undefined, (mint) => (mint === USDT ? undefined : knownDecimals(mint))),
+    );
+    expect(quoted.unverified).toBe(true);
+    expect(quoted.actualUsd).toBe("0");
+    expect(quoted.reserveUsd).toBe("0");
   });
 });

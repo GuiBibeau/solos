@@ -126,8 +126,10 @@ reservations, settled amounts, per-tick sums, and an engaged kill switch survive
 reopening it. `memoryCapLedger` keeps the account in the process for tests.
 
 **Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
-`intentId`. The hold is the worst case: the notional at max slippage plus fees, so a correct
-execution never settles above it. `settle` replaces an open hold with the measured USD spend.
+`intentId`. The hold is the worst case: the input notional at max slippage plus the fee the
+built transaction can cost, priced with the mint's verified decimals, so a correct execution
+never settles above it. A mint whose decimals cannot be read is `MintDecimalsUnverified` and
+nothing is reserved. `settle` replaces an open hold with the measured USD spend.
 A higher settle is a bug: the overshoot is recorded on the reservation and that engages the
 per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
 hold as the first call left it. A settled hold stays settled. A released hold stays released.

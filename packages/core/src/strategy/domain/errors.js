@@ -63,3 +63,35 @@ export class StrategyInvalid extends /** @type {StrategyInvalidClass} */ (
     });
   }
 }
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"UnsupportedStrategyAction", UnsupportedStrategyActionProps>} UnsupportedStrategyActionClass */
+/** @typedef {{ readonly type?: string; readonly reason?: string }} UnsupportedStrategyActionProps */
+/** A schedule or trigger action is not one of the kinds a tick can reserve. */
+export class UnsupportedStrategyAction extends /** @type {UnsupportedStrategyActionClass} */ (
+  taggedError("UnsupportedStrategyAction")
+) {
+  /** @param {UnsupportedStrategyActionProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `scheduled action ${props.type ?? "unknown"} is not supported`,
+      remedy: "schedule transfer_sol or swap",
+    });
+  }
+}
+
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"MintDecimalsUnverified", MintDecimalsUnverifiedProps>} MintDecimalsUnverifiedClass */
+/** @typedef {{ readonly mint?: string; readonly reason?: string }} MintDecimalsUnverifiedProps */
+/** The mint account's decimals could not be read, so a reserve must not price the amount. */
+export class MintDecimalsUnverified extends /** @type {MintDecimalsUnverifiedClass} */ (
+  taggedError("MintDecimalsUnverified")
+) {
+  /** @param {MintDecimalsUnverifiedProps} props */
+  constructor(props) {
+    super({
+      ...props,
+      reason: props.reason ?? `mint decimals could not be verified for ${props.mint ?? "unknown"}`,
+      remedy: "retry when the mint account can be read as an initialized mint",
+    });
+  }
+}

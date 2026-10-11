@@ -4,6 +4,7 @@ import { BoundsExceeded } from "../../shared/domain/engine-errors.js";
 import { compareDecimal } from "../domain/decimal.js";
 import { KillSwitchEngaged, StrategyNotFound } from "../domain/errors.js";
 import { confirmedSpendUsd, failedSpend } from "../domain/spend-settle.js";
+import { unsupportedStrategyAction } from "../domain/supported-action.js";
 import { CapLedger } from "../ports/cap-ledger.js";
 import { SpendMeter } from "../ports/spend-meter.js";
 import { TickSubmit } from "../ports/tick-submit.js";
@@ -24,10 +25,13 @@ import { TickSubmit } from "../ports/tick-submit.js";
  */
 export const runStep = (input) =>
   Effect.gen(function* () {
+    const refused = unsupportedStrategyAction(input.action.type);
+    if (refused !== undefined) return failedStep(refused);
     const quoted = yield* (yield* SpendMeter).quote(input.action).pipe(Effect.either);
     if (quoted._tag === "Left") return observationSkip(quoted.left);
     const reserved = yield* reserve(input, quoted.right);
     if (!reserved.ok) return reserved.outcome;
+    if (quoted.right.unverified === true) return yield* releaseUnverified(reserved.reservationId);
     const sent = yield* (yield* TickSubmit).submit({
       intentId: input.intentId,
       action: input.action,
@@ -121,6 +125,30 @@ const parked = (intent) => ({
   outcome: "in_flight",
   intent: { ...intent, state: "in_flight" },
 });
+
+/** @param {{ readonly reason?: string; readonly remedy?: string }} error @returns {StepResult} */
+const failedStep = (error) => ({
+  outcome: /** @type {const} */ ("failed"),
+  reason: error.reason,
+  remedy: error.remedy,
+});
+
+/**
+ * The quote could not price the mint. Reserve already refused when a reader is installed.
+ * A hold that slipped through is released, and nothing is sent.
+ * @param {string} reservationId
+ */
+const releaseUnverified = (reservationId) =>
+  Effect.gen(function* () {
+    yield* (yield* CapLedger).release(reservationId);
+    /** @type {StepResult} */
+    const result = {
+      outcome: "skipped_bounds",
+      reason: "mint decimals were not verified",
+      remedy: "retry when the mint account can be read as an initialized mint",
+    };
+    return result;
+  });
 
 /** @param {unknown} error @returns {StepResult} */
 const boundsSkip = (error) => ({

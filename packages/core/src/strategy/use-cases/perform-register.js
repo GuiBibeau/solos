@@ -3,6 +3,7 @@ import { StrategySchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { allowlistRefusal, widenedMint } from "../domain/allowlist.js";
 import { floorRefusal, nextInstant } from "../domain/cadence.js";
+import { unsupportedStrategyAction } from "../domain/supported-action.js";
 import { CadenceFloor } from "../ports/cadence-floor.js";
 import { EngineAllowlist } from "../ports/engine-allowlist.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
@@ -13,6 +14,8 @@ import { parseDraft } from "./parse-draft.js";
 export const performRegister = (input) =>
   Effect.gen(function* () {
     const draft = yield* parseDraft(input);
+    const refused = refusedAction(draft);
+    if (refused !== undefined) return yield* refused;
     const widened = yield* allowlistBlock(draft);
     if (widened !== undefined) return yield* widened;
     const interval = floorRefusal(draft.tickSource, (yield* CadenceFloor).minIntervalMs);
@@ -23,6 +26,22 @@ export const performRegister = (input) =>
     yield* (yield* StrategyRepository).save(strategy);
     return { id: strategy.id, state: /** @type {const} */ ("active") };
   }).pipe(Effect.withSpan("strategy.register"));
+
+/** @param {import("@solos-sh/actions").StrategyDraft} draft */
+const refusedAction = (draft) => {
+  if (draft.kind === "schedule") return refusedIn(draft.params.actions);
+  if (draft.kind === "trigger") return unsupportedStrategyAction(draft.params.action.type);
+  return undefined;
+};
+
+/** @param {ReadonlyArray<{ readonly type: string }>} actions */
+const refusedIn = (actions) => {
+  for (const action of actions) {
+    const refused = unsupportedStrategyAction(action.type);
+    if (refused !== undefined) return refused;
+  }
+  return undefined;
+};
 
 /** @param {import("@solos-sh/actions").StrategyDraft} draft */
 const allowlistBlock = (draft) =>

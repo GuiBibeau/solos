@@ -2,20 +2,22 @@
 import { WSOL_MINT } from "@solos-sh/actions";
 import { addDecimal, divDecimalUp, mulDecimal } from "./decimal.js";
 
-const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+/**
+ * Price and the mint's verified decimals. Callers pass the decimals a mint read returned.
+ * @typedef {{ readonly priceUsd: string; readonly decimals: number }} PricedAmount
+ */
 
 /**
  * Worst-case USD for one Action: input notional at max slippage, plus the fee the built
  * transaction can cost. `feeUsd` is priced with the same SOL read the settle uses.
  * @param {import("@solos-sh/actions").Action} action
- * @param {string} priceUsd
- * @param {string} feeUsd
+ * @param {PricedAmount & { readonly feeUsd: string }} priced
  */
-export const reserveUsdFor = (action, priceUsd, feeUsd) =>
-  addDecimal(slippageUsd(inputUsd(action, priceUsd), slippageBps(action)), feeUsd);
+export const reserveUsdFor = (action, priced) =>
+  addDecimal(slippageUsd(inputUsd(action, priced), slippageBps(action)), priced.feeUsd);
 
-/** Input notional in USD, without the slippage or fee buffer. @param {import("@solos-sh/actions").Action} action @param {string} priceUsd */
-export const actualUsdFor = (action, priceUsd) => inputUsd(action, priceUsd);
+/** Input notional in USD, without the slippage or fee buffer. @param {import("@solos-sh/actions").Action} action @param {PricedAmount} priced */
+export const actualUsdFor = (action, priced) => inputUsd(action, priced);
 
 /** Mint the reservation is judged against. @param {import("@solos-sh/actions").Action} action */
 export const mintOf = (action) => {
@@ -23,9 +25,12 @@ export const mintOf = (action) => {
   return WSOL_MINT;
 };
 
-/** @param {import("@solos-sh/actions").Action} action @param {string} priceUsd */
-const inputUsd = (action, priceUsd) =>
-  divDecimalUp(mulDecimal(baseUnits(action), priceUsd), String(10n ** BigInt(decimalsOf(action))));
+/** @param {import("@solos-sh/actions").Action} action @param {PricedAmount} priced */
+const inputUsd = (action, priced) =>
+  divDecimalUp(
+    mulDecimal(baseUnits(action), priced.priceUsd),
+    String(10n ** BigInt(priced.decimals)),
+  );
 
 /** @param {string} notional @param {number} bps */
 const slippageUsd = (notional, bps) =>
@@ -39,10 +44,3 @@ const lamportsOf = (action) => (action.type === "transfer_sol" ? action.lamports
 
 /** @param {import("@solos-sh/actions").Action} action */
 const slippageBps = (action) => (action.type === "swap" ? action.maxSlippageBps : 0);
-
-/** @param {import("@solos-sh/actions").Action} action */
-const decimalsOf = (action) => {
-  const mint = mintOf(action);
-  if (mint === USDC) return 6;
-  return 9;
-};

@@ -56,8 +56,9 @@ describe("swap fee reserve", () => {
     const reserved = swapFeeReserveLamports();
     const feeUsd = usdForLamports(reserved.toString(), PRICE) ?? "0";
     const paidUsd = usdForLamports(paid.toString(), PRICE) ?? "0";
-    const hold = reserveUsdFor(action, PRICE, feeUsd);
-    const input = actualUsdFor(action, PRICE);
+    const priced = { priceUsd: PRICE, decimals: 9, feeUsd };
+    const hold = reserveUsdFor(action, priced);
+    const input = actualUsdFor(action, priced);
     expect(draft.config).toBe(SWAP_V1_CONFIG);
     expect(compiled.header.numSignerAccounts).toBe(1);
     expect(priority).toBe(SWAP_V1_CONFIG.priorityFeeLamports);

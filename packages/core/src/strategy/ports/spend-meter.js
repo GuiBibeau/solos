@@ -7,6 +7,7 @@ import { Context } from "effect";
  *   readonly actualUsd: string;
  *   readonly mint: string;
  *   readonly solPriceUsd?: string;
+ *   readonly unverified?: boolean;
  * }} SpendQuote
  */
 

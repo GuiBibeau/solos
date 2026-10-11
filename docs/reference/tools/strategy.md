@@ -4,8 +4,10 @@ Part of the [tool reference](index.md).
 
 A Strategy is a registered description of later work: a kind, that kind's parameters, a tick
 source, Bounds, and a lifecycle state. Registering one stores it. A `schedule` Strategy ticks
-on its clock: the Engine observes, evaluates, reserves each Action, and sends. `schedule` and
-`trigger` are the kinds the contract accepts.
+on its clock: the Engine observes, evaluates, reserves each Action, and sends. A schedule or
+trigger action is only `transfer_sol` or `swap` for now. Any other action type is refused at
+registration with `UnsupportedStrategyAction`. A tick that still carries one fails the same
+way, before a reserve or a send. `schedule` and `trigger` are the kinds the contract accepts.
 `rebalance`, `range`, and `carry` are names that fail until their issues ship.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with

@@ -4,15 +4,19 @@
 /** @typedef {import("./domain/cap-check.js").ReserveFacts} ReserveFacts */
 /** @typedef {import("./ports/strategy-registry.js").StrategyRegistryShape} StrategyRegistryShape */
 /** @typedef {import("./use-cases/memory-cap-ledger.js").MemoryCapLedgerOptions} MemoryCapLedgerOptions */
+/** @typedef {import("./ports/mint-decimals.js").MintDecimalsShape} MintDecimalsShape */
 export { allowlistRefusal, widenedMint } from "./domain/allowlist.js";
 export { reserveRefusal, utcDay } from "./domain/cap-check.js";
 export { addDecimal, compareDecimal, subtractDecimal } from "./domain/decimal.js";
 export {
   KillSwitchEngaged,
+  MintDecimalsUnverified,
   StrategyInvalid,
   StrategyNotFound,
   StrategyTransitionRefused,
+  UnsupportedStrategyAction,
 } from "./domain/errors.js";
+export { unsupportedStrategyAction } from "./domain/supported-action.js";
 export { firstTickActions } from "./domain/first-tick.js";
 export { actualUsdFor, mintOf, reserveUsdFor } from "./domain/notional.js";
 export { usdForLamports } from "./domain/usd-for-lamports.js";
@@ -23,6 +27,7 @@ export { ulidFrom } from "./domain/ulid.js";
 export { CadenceFloor } from "./ports/cadence-floor.js";
 export { CapLedger, GLOBAL_KILL_SCOPE } from "./ports/cap-ledger.js";
 export { EngineAllowlist } from "./ports/engine-allowlist.js";
+export { MintDecimals } from "./ports/mint-decimals.js";
 export { IntentLookup } from "./ports/intent-lookup.js";
 export { ObservationReader } from "./ports/observation-reader.js";
 export { RunMode } from "./ports/run-mode.js";
@@ -44,6 +49,7 @@ export { listStrategiesTool } from "./tools/list-strategies.js";
 export { simulateRegisterTool } from "./tools/simulate-register.js";
 export { simulateUpdateTool } from "./tools/simulate-update.js";
 export { clockTickSource } from "./use-cases/clock-source.js";
+export { guardMintDecimals } from "./use-cases/guard-mint-decimals.js";
 export { registryConformance, repositoryConformance } from "./use-cases/conformance.js";
 export {
   disengageKillSwitch,

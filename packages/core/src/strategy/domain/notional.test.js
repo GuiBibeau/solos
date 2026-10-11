@@ -21,10 +21,11 @@ describe("reservation notional", () => {
   test("a swap hold is the input at max slippage plus the built fee", () => {
     const action = swap("10000000", 50);
     const price = "100";
-    const input = actualUsdFor(action, price);
+    const priced = { priceUsd: price, decimals: 9 };
+    const input = actualUsdFor(action, priced);
     const feeUsd = usdForLamports(SWAP_FEE_LAMPORTS, price);
-    const slipped = reserveUsdFor(action, price, "0");
-    const hold = reserveUsdFor(action, price, feeUsd ?? "0");
+    const slipped = reserveUsdFor(action, { ...priced, feeUsd: "0" });
+    const hold = reserveUsdFor(action, { ...priced, feeUsd: feeUsd ?? "0" });
     expect(input).toBe("1.00000000");
     expect(feeUsd).toBe("0.0105");
     expect(slipped).toBe("1.00500000");

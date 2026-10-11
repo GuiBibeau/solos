@@ -12,6 +12,7 @@ import { scriptedSpendMeter } from "./scripted-spend.js";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const PRICE = "100";
+const NINE = { priceUsd: PRICE, decimals: 9 };
 const FEE_LAMPORTS = "105000";
 const ACTION = {
   type: /** @type {const} */ ("swap"),
@@ -57,7 +58,7 @@ const step = (quote, sent, cap = bounds()) =>
 
 describe("swap spend", () => {
   test("a confirmed swap settles the input notional plus the landed fee", async () => {
-    const input = actualUsdFor(ACTION, PRICE);
+    const input = actualUsdFor(ACTION, NINE);
     const feeUsd = usdForLamports(FEE_LAMPORTS, PRICE) ?? "0";
     const spend = addDecimal(input, feeUsd);
     const quote = {
@@ -80,10 +81,10 @@ describe("swap spend", () => {
   });
 
   test("the same spend stays inside a hold of slippage plus the built fee", async () => {
-    const input = actualUsdFor(ACTION, PRICE);
+    const input = actualUsdFor(ACTION, NINE);
     const feeUsd = usdForLamports(FEE_LAMPORTS, PRICE) ?? "0";
     const quote = {
-      reserveUsd: reserveUsdFor(ACTION, PRICE, feeUsd),
+      reserveUsd: reserveUsdFor(ACTION, { ...NINE, feeUsd }),
       actualUsd: input,
       mint: WSOL_MINT,
       solPriceUsd: PRICE,
@@ -118,7 +119,7 @@ describe("swap spend", () => {
     const feeUsd = usdForLamports(FEE_LAMPORTS, PRICE) ?? "0";
     const quote = {
       reserveUsd: feeUsd,
-      actualUsd: actualUsdFor(ACTION, PRICE),
+      actualUsd: actualUsdFor(ACTION, NINE),
       mint: WSOL_MINT,
       solPriceUsd: PRICE,
     };

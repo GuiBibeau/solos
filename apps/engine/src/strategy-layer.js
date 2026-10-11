@@ -8,6 +8,7 @@ import {
   scriptedObservationReader,
   scriptedSpendMeter,
 } from "@solos/core/strategy";
+import { MintDecimalsLive } from "@solos/solana/market/mint-decimals";
 import { Layer } from "effect";
 import { sqliteCapLedger } from "./cap-ledger.js";
 import { strategyIds } from "./strategy-ids.js";
@@ -77,4 +78,4 @@ const sharedLayer = (db, options) =>
     options.quote === undefined ? liveSpendMeter : scriptedSpendMeter(options.quote),
     engineTickSubmit(db),
     engineIntentLookup(db),
-  );
+  ).pipe(Layer.provideMerge(MintDecimalsLive()));

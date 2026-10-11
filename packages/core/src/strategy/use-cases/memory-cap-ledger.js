@@ -3,6 +3,7 @@ import { Effect, Layer } from "effect";
 import { reserveRefusal, utcDay } from "../domain/cap-check.js";
 import { addDecimal, compareDecimal, subtractDecimal } from "../domain/decimal.js";
 import { CapLedger, GLOBAL_KILL_SCOPE } from "../ports/cap-ledger.js";
+import { guardMintDecimals } from "./guard-mint-decimals.js";
 
 const EMPTY = Object.freeze(/** @type {readonly string[]} */ ([]));
 
@@ -79,6 +80,7 @@ const reserve = (state, options, request) =>
   Effect.gen(function* () {
     const existing = state.byIntent.get(request.intentId);
     if (existing !== undefined) return { reservationId: existing };
+    yield* guardMintDecimals(request.mint);
     const now = options.now?.() ?? Date.now();
     const refusal = reserveRefusal(facts(state, options, { request, now }));
     if (refusal) return yield* refusal;

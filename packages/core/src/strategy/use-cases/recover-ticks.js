@@ -11,6 +11,7 @@ import { StrategyRepository } from "../ports/strategy-repository.js";
 import { TickRepository } from "../ports/tick-repository.js";
 import { TickSource } from "../ports/tick-source.js";
 import { performEngineTransition } from "./perform-engine.js";
+import { applyLifecycle } from "./tick-lifecycle.js";
 
 /** One missed Tick per Strategy, then settle any Tick that was in flight. Never replay. */
 export const recoverTicks = () =>
@@ -70,7 +71,8 @@ const recoverOpen = (strategy, tick, now) =>
     }
     const outcome = folded(intents, tick.actions.length);
     yield* (yield* TickRepository).save(closedTick({ tick, intents, outcome, now }));
-    if (outcome !== "in_flight") yield* reschedule(strategy, now);
+    if (outcome === "in_flight") return;
+    yield* applyLifecycle(strategy, outcome, now);
   });
 
 /**

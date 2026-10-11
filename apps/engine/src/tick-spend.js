@@ -1,10 +1,13 @@
 // @ts-check
 import { PriceFeed, PriceUnavailable, compareDecimal } from "@solos/core";
 import {
+  MintDecimals,
   SpendMeter,
+  UnsupportedStrategyAction,
   actualUsdFor,
   mintOf,
   reserveUsdFor,
+  unsupportedStrategyAction,
   usdForLamports,
 } from "@solos/core/strategy";
 import { swapFeeReserveLamports } from "@solos/solana/swap/fee-reserve";
@@ -12,31 +15,31 @@ import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect, Layer } from "effect";
 import { transferNotionalUsd } from "./sol-notional.js";
 
-/** Flat buffer for an Action whose builder fee is not known here. Swaps do not use it. */
-const OTHER_FEE_USD = "0.50";
-
-/** Worst-case reservation from the price feed. Tests inject a scripted meter instead. */
+/** Worst-case reservation from the price feed and the mint's verified decimals. */
 export const liveSpendMeter = Layer.effect(
   SpendMeter,
   Effect.gen(function* () {
     const feed = yield* PriceFeed;
-    return { quote: (action) => quoteAction(feed, action) };
+    const decimals = yield* MintDecimals;
+    return { quote: (action) => quoteAction({ feed, decimals }, action) };
   }),
 );
 
 /**
  * A transfer holds principal plus its builder fee. A swap holds the input at max slippage
- * plus the fee the built transaction can cost, both at this read. A nonpositive price is
- * PriceUnavailable and reserves nothing.
- * @param {PriceReader} feed
+ * plus the fee the built transaction can cost. Any other kind is refused. A nonpositive
+ * price is PriceUnavailable. Unverified swap decimals are not priced.
+ * @param {QuoteDeps} deps
  * @param {import("@solos-sh/actions").Action} action
  */
-const quoteAction = (feed, action) =>
+const quoteAction = (deps, action) =>
   Effect.gen(function* () {
+    const refused = unsupportedStrategyAction(action.type);
+    if (refused !== undefined) return yield* refused;
     const mint = mintOf(action);
-    const price = yield* feed.getPrice(mint);
+    const price = yield* deps.feed.getPrice(mint);
     if (!isPositive(price.priceUsd)) return yield* missingPrice(mint, price.source);
-    return yield* quotePriced(feed, action, { mint, priceUsd: price.priceUsd });
+    return yield* quotePriced(deps, action, { mint, priceUsd: price.priceUsd });
   });
 
 /**
@@ -47,18 +50,19 @@ const quoteAction = (feed, action) =>
  *     never
  *   >;
  * }} PriceReader
+ * @typedef {{ readonly feed: PriceReader; readonly decimals: import("@solos/core/strategy").MintDecimalsShape }} QuoteDeps
  * @typedef {{ readonly mint: string; readonly priceUsd: string }} Priced
  */
 
 /**
- * @param {PriceReader} feed
+ * @param {QuoteDeps} deps
  * @param {import("@solos-sh/actions").Action} action
  * @param {Priced} priced
  */
-const quotePriced = (feed, action, priced) => {
+const quotePriced = (deps, action, priced) => {
   if (action.type === "transfer_sol") return Effect.succeed(transferQuote(action, priced));
-  if (action.type === "swap") return swapQuote(feed, action, priced);
-  return Effect.succeed(otherQuote(action, priced));
+  if (action.type === "swap") return swapQuote(deps, action, priced);
+  return Effect.fail(new UnsupportedStrategyAction({ type: action.type }));
 };
 
 /**
@@ -72,23 +76,47 @@ const transferQuote = (action, priced) => {
 };
 
 /**
- * @param {PriceReader} feed
+ * @param {QuoteDeps} deps
  * @param {import("@solos-sh/actions").Action} action
  * @param {Priced} priced
  */
-const swapQuote = (feed, action, priced) =>
+const swapQuote = (deps, action, priced) =>
   Effect.gen(function* () {
-    const sol = yield* solPriceFor(feed, priced);
+    const sol = yield* solPriceFor(deps.feed, priced);
     if (!isPositive(sol.priceUsd)) return yield* missingPrice(WSOL_MINT, sol.source);
-    const feeUsd = usdForLamports(swapFeeReserveLamports().toString(), sol.priceUsd);
-    if (feeUsd === undefined) return yield* missingPrice(WSOL_MINT, sol.source);
+    const decimals = yield* deps.decimals.decimalsOf(priced.mint);
+    if (decimals === undefined) return unverifiedQuote(priced.mint);
+    return yield* swapPriced({ action, priced, solPriceUsd: sol.priceUsd, decimals });
+  });
+
+/**
+ * @param {{
+ *   action: import("@solos-sh/actions").Action;
+ *   priced: Priced;
+ *   solPriceUsd: string;
+ *   decimals: number;
+ * }} input
+ */
+const swapPriced = (input) =>
+  Effect.gen(function* () {
+    const feeUsd = usdForLamports(swapFeeReserveLamports().toString(), input.solPriceUsd);
+    if (feeUsd === undefined) return yield* missingPrice(WSOL_MINT, "price-feed");
+    const priced = { priceUsd: input.priced.priceUsd, decimals: input.decimals, feeUsd };
     return {
-      reserveUsd: reserveUsdFor(action, priced.priceUsd, feeUsd),
-      actualUsd: actualUsdFor(action, priced.priceUsd),
-      mint: priced.mint,
-      solPriceUsd: sol.priceUsd,
+      reserveUsd: reserveUsdFor(input.action, priced),
+      actualUsd: actualUsdFor(input.action, priced),
+      mint: input.priced.mint,
+      solPriceUsd: input.solPriceUsd,
     };
   });
+
+/** @param {string} mint */
+const unverifiedQuote = (mint) => ({
+  reserveUsd: "0",
+  actualUsd: "0",
+  mint,
+  unverified: /** @type {const} */ (true),
+});
 
 /**
  * The input mint's price covers the fee when the input is SOL. Any other input still
@@ -101,16 +129,6 @@ const solPriceFor = (feed, priced) => {
     return Effect.succeed({ priceUsd: priced.priceUsd, source: "price-feed" });
   return feed.getPrice(WSOL_MINT);
 };
-
-/**
- * @param {import("@solos-sh/actions").Action} action
- * @param {Priced} priced
- */
-const otherQuote = (action, priced) => ({
-  reserveUsd: reserveUsdFor(action, priced.priceUsd, OTHER_FEE_USD),
-  actualUsd: actualUsdFor(action, priced.priceUsd),
-  mint: priced.mint,
-});
 
 /** @param {string} priceUsd */
 const isPositive = (priceUsd) =>

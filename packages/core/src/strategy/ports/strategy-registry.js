@@ -7,7 +7,9 @@ import { Context } from "effect";
  * @typedef {{
  *   readonly register: (draft: unknown) => import("effect").Effect.Effect<
  *     { id: string; state: string },
- *     import("../domain/errors.js").StrategyInvalid | import("../../shared/domain/engine-errors.js").BoundsExceeded,
+ *     import("../domain/errors.js").StrategyInvalid
+ *       | import("../domain/errors.js").UnsupportedStrategyAction
+ *       | import("../../shared/domain/engine-errors.js").BoundsExceeded,
  *     never
  *   >;
  *   readonly update: (id: string, state: string) => import("effect").Effect.Effect<

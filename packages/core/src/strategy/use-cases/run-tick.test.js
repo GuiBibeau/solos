@@ -188,4 +188,35 @@ describe("runTick bounds", () => {
     expect(stored.executed.outcome).toBe("executed");
     expect(stored.state).toBe("done");
   });
+
+  test("an unsupported action fails before a reserve or a send", async () => {
+    const action = {
+      type: /** @type {const} */ ("lend"),
+      protocol: /** @type {const} */ ("kamino"),
+      market: USDC,
+      mint: USDC,
+      amount: "1000000",
+    };
+    const strategy = strategyOf({ params: { actions: [action] } });
+    const world = provided(strategy);
+    const recorded = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* (yield* StrategyRepository).save(strategy);
+        const failed = yield* runTick(strategy);
+        const probe = yield* (yield* CapLedger).reserve({
+          strategyId: strategy.id,
+          tickId: failed.tickId,
+          intentId: "probe",
+          notionalUsd: "10",
+          mint: USDC,
+        });
+        return { failed, reserved: probe.reservationId };
+      }).pipe(Effect.provide(world.layer)),
+    );
+    expect(recorded.failed.outcome).toBe("failed");
+    expect(recorded.failed.intents).toHaveLength(0);
+    expect(recorded.failed.remedy).toContain("transfer_sol");
+    expect(recorded.failed.remedy).toContain("swap");
+    expect(recorded.reserved).toBe("res_1");
+  });
 });
