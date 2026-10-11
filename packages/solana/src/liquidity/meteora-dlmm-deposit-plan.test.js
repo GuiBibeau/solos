@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { TOKEN_2022_PROGRAM, TOKEN_PROGRAM } from "../market/mint-account.js";
 import { tlvRecord, token2022MintBytes, zeros } from "../market/test-fixtures.js";
+import { TRANSFER_HOOK } from "../market/token-2022-layout.js";
 import { mintBytes } from "./liquidity-token-fixture.js";
 import { binArrayAddress } from "./meteora-dlmm-bins.js";
 import {
@@ -15,6 +16,7 @@ import {
 } from "./meteora-dlmm-bytes.js";
 import { meteoraDepositPlan } from "./meteora-dlmm-deposit-plan.js";
 import { METEORA_DLMM_PROGRAM } from "./meteora-dlmm-program.js";
+import { ata } from "./raydium-clmm-plan-reads.js";
 
 const OWNER = "D8ZDjWpJL83gR72eAQDGoRhE8Ryi9Cpamyms74xxevUt";
 const OTHER = "66o3kiYMgs7ws8wqMKNdP9yiAZcxr4y5DfjsUiyd9EcS";
@@ -182,5 +184,34 @@ describe("meteora deposit plan", () => {
     expect(held.status).toBe("ok");
     if (held.status !== "ok") return;
     expect(held.bins).toEqual([{ binId: 0, distributionX: 10_000, distributionY: 10_000 }]);
+  });
+
+  test("a token-2022 mint names that program, and an active transfer hook is refused", async () => {
+    const binArray = await binArrayAddress(PAIR, 0);
+    const plain = fundedMap(binArray);
+    plain.set(MINT_Y, row(TOKEN_2022_PROGRAM, mintBytes(6)));
+    const accepted = await planOf(plain);
+    expect(accepted.status).toBe("ok");
+    if (accepted.status !== "ok") return;
+    expect(accepted.programs.tokenY).toBe(TOKEN_2022_PROGRAM);
+    expect(accepted.accounts.tokenYProgram).toBe(TOKEN_2022_PROGRAM);
+    expect(accepted.accounts.userTokenY).toBe(await ata(OWNER, MINT_Y, TOKEN_2022_PROGRAM));
+
+    const hook = zeros(64);
+    hook[63] = 1;
+    const hooked = fundedMap(binArray);
+    hooked.set(
+      MINT_X,
+      row(
+        TOKEN_2022_PROGRAM,
+        token2022MintBytes({ decimals: 6, records: [tlvRecord(TRANSFER_HOOK, hook)] }),
+      ),
+    );
+    const refused = await planOf(hooked);
+    expect(refused.status).toBe("reject");
+    if (refused.status !== "reject") return;
+    expect(refused.reason).toContain(MINT_X);
+    expect(refused.reason).toContain("transfer hook");
+    expect(refused.remedy).toBe("use a pool whose mints have no transfer-hook program");
   });
 });

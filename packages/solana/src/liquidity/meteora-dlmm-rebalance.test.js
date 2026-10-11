@@ -73,8 +73,10 @@ describe("meteora rebalance_liquidity wire form", () => {
     expect(view.getUint32(80, true)).toBe(2);
     expect(view.getUint8(84)).toBe(1);
     expect(view.getInt32(85, true)).toBe(-3);
+    expect(view.getInt32(90, true)).toBe(-3);
     expect(view.getUint16(94, true)).toBe(10_000);
     expect(view.getInt32(113, true)).toBe(4);
+    expect(view.getInt32(118, true)).toBe(4);
     expect(view.getUint16(122, true)).toBe(10_000);
     const afterRemoves = 84 + 28 * 2;
     expect(view.getUint32(afterRemoves, true)).toBe(0);

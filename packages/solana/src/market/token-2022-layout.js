@@ -35,7 +35,11 @@ export const MULTISIG_ACCOUNT_BYTES = 355;
 
 /** Extension discriminants, from interface/src/extension/mod.rs. */
 export const TRANSFER_FEE_CONFIG = 1;
+/** `TransferHook` in that same enum. Authority then program id, 32 bytes each. */
+export const TRANSFER_HOOK = 14;
 const TLV_HEADER_BYTES = 4;
+const HOOK_PROGRAM_BYTES = 32;
+const HOOK_VALUE_BYTES = 64;
 
 /**
  * Whether the extension area declares a transfer fee. Records are TLV: a u16 type, a u16
@@ -54,6 +58,47 @@ export const hasTransferFee = (extensions) => {
     at += TLV_HEADER_BYTES + view.getUint16(at + 2, true);
   }
   return false;
+};
+
+/** @param {Uint8Array} value */
+const hookProgramIsSet = (value) => {
+  for (let index = HOOK_PROGRAM_BYTES; index < HOOK_VALUE_BYTES; index += 1) {
+    if (value[index] !== 0) return true;
+  }
+  return false;
+};
+
+/**
+ * The `TransferHook` value, when the area declares one. A short slice means the record
+ * was truncated; callers treat that as active so an unreadable hook is not accepted.
+ * @param {Uint8Array | undefined} extensions
+ * @returns {Uint8Array | undefined}
+ */
+const transferHookValue = (extensions) => {
+  if (extensions === undefined) return undefined;
+  const view = new DataView(extensions.buffer, extensions.byteOffset, extensions.byteLength);
+  let at = 0;
+  while (at + TLV_HEADER_BYTES <= extensions.length) {
+    const type = view.getUint16(at, true);
+    const length = view.getUint16(at + 2, true);
+    const start = at + TLV_HEADER_BYTES;
+    if (type === TRANSFER_HOOK) return extensions.subarray(start, start + length);
+    at = start + length;
+  }
+  return undefined;
+};
+
+/**
+ * Whether the mint has a transfer hook whose program id is set. A zero program id is the
+ * disabled form and is not a hook. A truncated record fails closed.
+ * @param {Uint8Array | undefined} extensions
+ * @returns {boolean}
+ */
+export const hasActiveTransferHook = (extensions) => {
+  const value = transferHookValue(extensions);
+  if (value === undefined) return false;
+  if (value.length < HOOK_VALUE_BYTES) return true;
+  return hookProgramIsSet(value);
 };
 
 /**

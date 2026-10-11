@@ -1,12 +1,13 @@
 // @ts-check
 /**
  * Refusals that happen before a Meteora deposit is quoted: ownership, the pair the position
- * already names, fee-bearing mints, and an active bin that moved past the pre-send tolerance.
+ * already names, fee-bearing mints, transfer-hook mints, and an active bin that moved past
+ * the pre-send tolerance.
  * Position identity is the PositionV2 account. There is no NFT.
  */
 import { Effect } from "effect";
 import { readMintLayout } from "../market/mint-account.js";
-import { hasTransferFee } from "../market/token-2022-layout.js";
+import { hasActiveTransferHook, hasTransferFee } from "../market/token-2022-layout.js";
 import { activeBinMoved, activeBinTolerance } from "./meteora-dlmm-allocate.js";
 import { decodeLbPair, decodePositionV2 } from "./meteora-dlmm-decode.js";
 import { METEORA_DLMM_PROGRAM } from "./meteora-dlmm-program.js";
@@ -14,15 +15,16 @@ import { METEORA_DLMM_PROGRAM } from "./meteora-dlmm-program.js";
 /** @typedef {import("./meteora-dlmm-deposit-accounts.js").Reader} Reader */
 /** @typedef {import("./meteora-dlmm-decode.js").MeteoraPositionLayout} MeteoraPositionLayout */
 /** @typedef {import("./meteora-dlmm-decode.js").MeteoraPairLayout} MeteoraPairLayout */
-/** @typedef {{ readonly status: "reject"; readonly reason: string }} Rejected */
+/** @typedef {{ readonly status: "reject"; readonly reason: string; readonly remedy?: string }} Rejected */
 /** @typedef {{ readonly status: "ok"; readonly layout: MeteoraPositionLayout }} PositionHeld */
 /** @typedef {{ readonly status: "ok"; readonly layout: MeteoraPairLayout }} PairHeld */
 /** @typedef {{ readonly status: "ok"; readonly tokenX: string; readonly tokenY: string }} MintPrograms */
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
 
-/** @param {string} reason @returns {Rejected} */
-const reject = (reason) => ({ status: "reject", reason });
+/** @param {string} reason @param {string} [remedy] @returns {Rejected} */
+const reject = (reason, remedy) =>
+  remedy === undefined ? { status: "reject", reason } : { status: "reject", reason, remedy };
 
 /**
  * @param {{ owner: string; bytes: Uint8Array } | null | undefined} row
@@ -92,9 +94,11 @@ const usablePair = (layout) => {
 };
 
 /**
- * Token program of one pool mint. A transfer fee changes what the signed amounts mean, so a
- * fee-bearing mint is refused. The `*2` instruction still carries an empty remaining-accounts
- * list so a later hook can be appended without a new builder.
+ * Token program of one pool mint: the account owner, classic or Token-2022. A transfer fee
+ * changes what the signed amounts mean, so a fee-bearing mint is refused. A transfer hook
+ * needs extra accounts these instructions do not attach, so a hook whose program id is set
+ * is refused too. `RemainingAccountsInfo` stays empty. `close_position2` moves no pool tokens
+ * and does not call this guard.
  * @param {string} mint
  * @param {{ owner: string; bytes: Uint8Array } | null | undefined} row
  */
@@ -105,6 +109,12 @@ const guardedMint = (mint, row) => {
   if (hasTransferFee(layout.extensions)) {
     return reject(
       `the pool's mint ${mint} charges a token-2022 transfer fee, which these quotes do not account for`,
+    );
+  }
+  if (hasActiveTransferHook(layout.extensions)) {
+    return reject(
+      `the pool's mint ${mint} has a token-2022 transfer hook, which these instructions do not attach`,
+      "use a pool whose mints have no transfer-hook program",
     );
   }
   return { program: row.owner };

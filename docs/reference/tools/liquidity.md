@@ -182,6 +182,13 @@ is the same flag as in [Deposits into existing positions](#deposits-into-existin
   down. The active bin is fit to its reserves, and any unused cap stays in the wallet. A
   quote that buys no shares is rejected before anything is signed. The two sides need not
   fill in the same proportion.
+- **Each mint keeps its own token program.** `token_x_program` and `token_y_program` are
+  the owners of the pool mints, and the owner's associated accounts are derived with that
+  program. A Token-2022 mint is included when it charges no transfer fee and its transfer-hook
+  program id is unset. A transfer fee, or a transfer hook whose program id is set, is
+  `BuildRejected` before anything is signed. The hook refusal's remedy is to use a pool whose
+  mints have no transfer-hook program. `RemainingAccountsInfo` stays empty. `close_position2`
+  transfers no pool tokens, so this guard does not apply to close.
 - **Active-bin drift is refused before send.** After the quote, solOS reads the pair again
   and refuses when the active bin has moved more than `ceil(maxSlippageBps / binStep)` bins.
   Zero slippage allows zero bins of movement. That check is not an argument of
@@ -218,6 +225,13 @@ position's `lb_pair`.
   own shares. `bps` 10000 is a full exit: every occupied bin is removed at 10000 bps and the
   position's liquidity shares are zero. A removal that computes to zero liquidity is rejected
   before anything is signed.
+- **Contiguous bins share one range entry.** The per-bin bps above is unchanged. On the wire,
+  occupied bins that are adjacent and share that bps become one `RemoveLiquidityParams`
+  (`min_bin_id` through `max_bin_id`, both set). A gap, or a different bps, starts another
+  entry. One occupied bin is a range of that single id. A 70-bin window of one bps is one
+  28-byte entry.
+- **The mint guard matches deposit.** Withdraw names each mint's own token program the same
+  way, and a transfer-hook mint fails with the same `BuildRejected` reason and remedy.
 - **Minimum receipts are on chain.** `min_withdraw_x` and `min_withdraw_y` are
   `floor(quoted principal * (10000 - maxSlippageBps) / 10000)` in base units of mint X and
   mint Y. The quote is `Bin::calculate_out_amount` on the removed share only, at the same
@@ -285,6 +299,8 @@ PositionV2 and return its rent to the owner.
    pair. The signer must equal the `owner` field at byte 40. A remaining liquidity share
    fails `BuildRejected` before `close_position2` is built. The reason includes the share
    sum. Pending fees and rewards stay unclaimed. The emptiness check uses the share sum.
+   Close returns rent to the owner. It transfers no pool tokens, so the deposit and withdraw
+   token-program and transfer-hook guard does not apply.
 3. Close with the same arguments. `close` takes `[--skip-simulation]`. The default simulates
    first and sends nothing when that simulation fails. The signer is the only signer. Rent
    returns to that owner.

@@ -6,11 +6,14 @@
  * both edges), and both claim flags are false. Fee and reward receipts are a follow-up;
  * encoding a claim here would make the quoted principal dishonest. `min_withdraw_x/y`
  * are the on-chain receipt floors. `max_deposit_*` stay zero because nothing is added.
- * Bin arrays follow the named accounts, writable. An empty remaining-accounts list
- * leaves Token-2022 transfer hooks off, matching the deposit path.
+ * Bin arrays follow the named accounts, writable. Transfer-hook mints are refused before
+ * this runs, so `RemainingAccountsInfo` stays empty. The memo program the IDL names is
+ * still one of the 17 accounts. Contiguous equal-bps bins are one `RemoveLiquidityParams`
+ * range (`min_bin_id` through `max_bin_id`); a gap or a different bps stays its own entry.
  */
 import { address, getU64Encoder } from "@solana/kit";
 import { METEORA_DLMM_PROGRAM } from "./meteora-dlmm-program.js";
+import { collapseRemoveRanges } from "./meteora-dlmm-remove-ranges.js";
 
 const u64 = getU64Encoder();
 
@@ -61,9 +64,19 @@ const concat = (...parts) => Uint8Array.from(parts.flatMap((part) => [...part]))
  * }} RebalanceArgs
  */
 
-/** One `RemoveLiquidityParams`: both bin ids set, then bps, then 16 zero padding bytes. */
-const removeParam = (/** @type {RemoveBin} */ bin) =>
-  concat(u8(1), i32(bin.binId), u8(1), i32(bin.binId), u16(bin.bps), new Uint8Array(16));
+/**
+ * One IDL `RemoveLiquidityParams`: Some(min_bin_id), Some(max_bin_id), bps, 16 zero bytes.
+ * @param {{ readonly minBinId: number; readonly maxBinId: number; readonly bps: number }} range
+ */
+const removeParam = (range) =>
+  concat(
+    u8(1),
+    i32(range.minBinId),
+    u8(1),
+    i32(range.maxBinId),
+    u16(range.bps),
+    new Uint8Array(16),
+  );
 
 /**
  * Header through the shrink padding. Claim flags are the two zero bytes after the
@@ -89,14 +102,16 @@ const rebalanceHeader = (params) =>
  * Params, then an empty `RemainingAccountsInfo`. `adds` is an empty vec.
  * @param {RebalanceArgs} params
  */
-export const rebalanceLiquidityData = (params) =>
-  concat(
+export const rebalanceLiquidityData = (params) => {
+  const removes = collapseRemoveRanges(params.removes);
+  return concat(
     rebalanceHeader(params),
-    u32(params.removes.length),
-    ...params.removes.map(removeParam),
+    u32(removes.length),
+    ...removes.map(removeParam),
     u32(0),
     u32(0),
   );
+};
 
 /** Kit's AccountRole numbering: writable and signer are independent bits. */
 /** @param {{ writable?: boolean; signer?: boolean }} account */

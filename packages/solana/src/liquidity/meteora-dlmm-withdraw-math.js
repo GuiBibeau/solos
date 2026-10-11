@@ -131,6 +131,8 @@ const quoted = ({ input, shares, paid, bounds }) => ({
 /**
  * Quote one removal. A bin whose floored share is zero is left out of `removes`
  * so the program is not asked to withdraw nothing. Full exit keeps every occupied bin.
+ * The list stays one entry per bin. `rebalanceLiquidityData` collapses contiguous
+ * equal-bps entries into one range at encode time.
  * @param {{ bins: readonly ShareBin[]; bps: number; maxSlippageBps: number;
  *   slotFor: (binId: number) => Slot | undefined }} input
  */
