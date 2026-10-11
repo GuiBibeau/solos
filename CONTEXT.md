@@ -120,6 +120,13 @@ and pause at the limit. Ticks are appended. A read returns the newest first.
 Tick reads the signer's lamport balance and the Tick instant. The kind never reads them itself.
 A missing Observation records `skipped_observation`.
 
+**Notional** — the USD value of a `transfer_sol` Action, read when the Engine reserves it against a
+Strategy cap. It is the lamports sent plus the fee reserve the transfer builder sets: one signer's
+base fee plus the priority fee from its compute-unit price times its compute-unit limit, priced at
+the wrapped-SOL price. A confirmed transfer settles that reserved amount. A transaction that lands
+with an execution error settles only the fee `meta.fee` reports, priced the same way.
+`maxNotionalPerTickUsd` caps the sum of those reserves that share a `tickId`.
+
 **Cap ledger** — the account of what a Strategy has reserved and settled against its Bounds.
 `reserve` holds the notional of one Intent and returns a reservation. The same `intentId`
 returns that reservation again and does not add to the day's spend. The day's spend is every
