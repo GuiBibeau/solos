@@ -3247,5 +3247,64 @@
       "The intent id was recorded for qa234-restart-2 only.",
       "Surfpool coverage is not claimed."
     ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "issue": 198,
+    "codeSha": "c6a80a6bf542690522dc23a867bc23859eefe70a",
+    "cluster": "mainnet",
+    "owner": "E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f",
+    "maxSlippageBps": 50,
+    "qa": "docs/engine-qa.md#clock-ticks-schedule-198",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000213274",
+      "tokens": {
+        "a": {
+          "symbol": "USDC",
+          "unit": "display",
+          "delta": "0"
+        }
+      }
+    },
+    "sends": [
+      {
+        "signature": "5WhMikBCQ7iz9y5Pxuq186DxeMWJeeZRGxpvavw1zRDyksktaDyd1emZHT6VmDVT7267weM9TQrYWYyrRf3qLNs4",
+        "wallet": {
+          "sol": {
+            "delta": "-0.010105",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "21.885179",
+            "after": "22.980101",
+            "delta": "+1.094922"
+          }
+        }
+      },
+      {
+        "signature": "4wH8SgnYghb5Tps4gMLEV41u6Deb7CSomfopP29aK7fNjvcchVnER2Pno1MaxoEbfmaumggY1mKL1HzStvBh2emm",
+        "wallet": {
+          "sol": {
+            "delta": "+0.009891726",
+            "feeLamportsApprox": "105000"
+          },
+          "a": {
+            "symbol": "USDC",
+            "unit": "display",
+            "before": "22.980101",
+            "after": "21.885179",
+            "delta": "-1.094922"
+          }
+        }
+      }
+    ],
+    "gaps": [
+      "The hold was about 46% above the settled amount ($1.60 vs $1.09). Forge is reviewing whether that is larger than slippage plus fees.",
+      "The swap-back ran through the direct CLI with the Engine stopped, so it is not Engine-validated.",
+      "Surfpool coverage is not claimed."
+    ]
   }
 ]

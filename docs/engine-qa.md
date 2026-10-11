@@ -47,3 +47,39 @@ timestamp key, so those figures stay in this note. Each send's signer lamport
 delta on chain was −1,006,000 (−0.001006 SOL): the 0.001 SOL transfer plus the
 6,000 lamport fee. Those three deltas sum to the signer line above, and the
 recipient gained 1,000,000 lamports on each send.
+
+## Clock ticks schedule (#198)
+
+**Status: one funded mainnet schedule tick is recorded.** Kernel ran it from Gui's Mac
+on 2026-10-11 at commit `c6a80a6bf542690522dc23a867bc23859eefe70a` (#241). The live
+Engine was started with `--allowed-mints` set to wrapped SOL and USDC. The signer is
+`E15BHE3BEGdQ5PwJxe2sMVN1MtKKA5kGXVbAaDeBSJ8f`.
+
+Schedule Strategy `01M4NESFCXYJQ7KHH4AQQAGB1M` (count 1, every 60 s) ran exactly one
+Tick, then went to done with `nextDueAt` null. No second tick fired. Tick
+`01M4NEVK7DYTBGB1X5DVZV7VAR` had outcome `executed`. Its action swapped 10000000
+lamports of SOL to USDC with `maxSlippageBps` 50.
+
+Intent `01M4NESFCXYJQ7KHH4AQQAGB1M.01M4NEVK7DYTBGB1X5DVZV7VAR.0` is settled, with
+`notionalUsd` 1.60007240339006. The swap received 1.094922 USDC and paid a
+105,000-lamport fee. Signature
+`5WhMikBCQ7iz9y5Pxuq186DxeMWJeeZRGxpvavw1zRDyksktaDyd1emZHT6VmDVT7267weM9TQrYWYyrRf3qLNs4`.
+Block time 2026-10-11T12:26:30Z. `err` null.
+
+The ledger has one `cap_reservations` row, `res_1`: notional $1.6001, actual
+$1.0946, settled, no overshoot, day 2026-10-11. The hold was about 46% above the
+settled amount ($1.60 vs $1.09). Forge is reviewing whether that is larger than
+slippage plus fees.
+
+The swap-back ran through the direct CLI with the Engine stopped. It is not
+Engine-validated. It converted 1.094922 USDC back to SOL and paid a 105,000-lamport
+fee. Signature
+`4wH8SgnYghb5Tps4gMLEV41u6Deb7CSomfopP29aK7fNjvcchVnER2Pno1MaxoEbfmaumggY1mKL1HzStvBh2emm`.
+Block time 2026-10-11T12:27:09Z. `err` null.
+
+Both full signatures were matched by prefix with `getSignaturesForAddress` on the
+signer for 2026-10-11. The feature-map row has no timestamp key, so the block times
+stay in this note.
+
+SOL 1.507627930 → 1.497522930 → 1.507414656. USDC 21.885179 → 22.980101 →
+21.885179. Net cost 213,274 lamports: 210,000 in fees, about 3,274 lost to spread.
