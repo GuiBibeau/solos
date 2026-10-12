@@ -126,7 +126,7 @@ cover it.
 
 ## Durable cap ledger and kill switch (#195)
 
-**Status: one funded mainnet round is recorded.** Kernel ran it from Gui's Mac
+**Status: recorded.** Kernel ran it from Gui's Mac
 on 2026-10-10, Engine execute tier, at commit
 `0e8eb3bd8c685c8b24e49509c2a8eecc05778e83` (PR #243, merged as
 `7baa1ac54dbb85ee1195cc687d0d086bb28a83d4`). `transfer_sol` went through
@@ -187,3 +187,7 @@ The recipient was read from the account keys.
 The blockhash-expiry path is covered on Surfpool only. The in-flight-across-restart
 branch landed confirmed before restart, so the unconfirmed-at-restart case is
 covered on Surfpool only. Surfpool coverage is not claimed in the feature-map row.
+
+Simulate-first wasn't recorded for those sends. The row can be promoted again
+after a funded round that logs the simulate result, compute units, and
+`skipSimulation: false` next to each signature.

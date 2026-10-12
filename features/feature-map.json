@@ -3371,7 +3371,7 @@
     ]
   },
   {
-    "status": "live-validated",
+    "status": "recorded",
     "action": "transfer_sol",
     "issue": 195,
     "codeSha": "0e8eb3bd8c685c8b24e49509c2a8eecc05778e83",
@@ -3458,7 +3458,9 @@
     "gaps": [
       "The blockhash-expiry path is covered on Surfpool only.",
       "The in-flight-across-restart branch landed confirmed before restart, so the unconfirmed-at-restart case is covered on Surfpool only.",
-      "Surfpool coverage is not claimed in this row."
+      "Surfpool coverage is not claimed in this row.",
+      "Simulate-first wasn't recorded for those sends.",
+      "The row can be promoted again after a funded round that logs the simulate result, compute units, and skipSimulation: false next to each signature."
     ]
   }
 ]
