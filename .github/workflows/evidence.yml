@@ -1,9 +1,18 @@
 name: evidence
 
-# The head SHA does not exist until the push, so the synchronize run reads a body that
-# cannot name it yet and fails. Editing the pull request body runs this check again;
-# the live body comes from the API, not the event payload. Title-only and base-only
-# edits do not run the check.
+# The check resolves the reviewed commit itself. It checks out the pull request head
+# and runs `solos dev evidence check --sha HEAD`, which is `git rev-parse HEAD` on that
+# checkout (ADR-0040). An Evidence block is accepted when its sha is that commit (a
+# prefix of 7+ characters is enough), the literal marker `HEAD`, or an ancestor of that
+# head whose `git diff` touches only docs (`docs/**`, `*.md` outside code roots,
+# `features/feature-map.json`, including engine-qa.md). A missing block fails. A sha
+# that does not resolve, is not an ancestor, or whose diff changes code, config, or a
+# workflow fails. Live QA still requires the full exact head sha.
+#
+# A push whose body already says `HEAD`, or whose new commits are docs-only relative to
+# the pasted sha, therefore passes without a follow-up body edit. Editing the body still
+# runs the check again; the live body comes from the API, not the event payload.
+# Title-only and base-only edits do not run the check.
 #
 # A skipped job still publishes a check, and GitHub treats skipped as success for a
 # required check. This job therefore always runs, so its name is evaluated: evidence
@@ -55,6 +64,11 @@ jobs:
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: steps.gate.outputs.run == 'true'
+        with:
+          # The reviewed commit, not the merge commit a pull_request checkout uses by
+          # default. Full history so an ancestor sha can be resolved and diffed.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
       - uses: ./.github/actions/setup
         if: steps.gate.outputs.run == 'true'
       - name: Fetch the live PR body
@@ -64,4 +78,4 @@ jobs:
         run: gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body > pr-body.md
       - name: solos dev evidence check
         if: steps.gate.outputs.run == 'true'
-        run: bun run solos dev evidence check --body-file pr-body.md --sha "${{ github.event.pull_request.head.sha }}"
+        run: bun run solos dev evidence check --body-file pr-body.md --sha HEAD

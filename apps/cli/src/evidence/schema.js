@@ -39,8 +39,8 @@ export const EvidenceSchema = z.object({
   ok: z.boolean().describe("Every step passed"),
   sha: z
     .string()
-    .regex(/^[0-9a-f]{7,40}$/)
-    .describe("git rev-parse HEAD"),
+    .regex(/^(?:HEAD|[0-9a-f]{7,40})$/)
+    .describe("git rev-parse HEAD, or the literal HEAD for the commit under review"),
   dirty: z.boolean().describe("Working tree had uncommitted changes (git status --porcelain)"),
   scope: ScopeSchema,
   versions: z.object({

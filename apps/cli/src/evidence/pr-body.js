@@ -1,7 +1,8 @@
 // @ts-check
 /**
  * Pull-request bodies carry the Evidence under `## Evidence` in a json fenced block. CI parses it
- * here and asserts it belongs to the commit under review, from a clean tree, and passed.
+ * here and asserts it belongs to the commit under review (a matching sha, the literal `HEAD`, or
+ * a docs-only ancestor the caller has already qualified), from a clean tree, and passed.
  */
 import { EvidenceSchema, REQUIRED_STEPS } from "./schema.js";
 
@@ -47,12 +48,25 @@ const parseJson = (text) => {
 };
 
 /**
- * @param {Evidence} evidence @param {string} sha
+ * `HEAD` stands for the reviewed commit. `ancestorDocsOnly` is set only after the caller has
+ * shown the evidence sha is an ancestor whose tree diff is docs-only.
+ * @param {string} evidenceSha
+ * @param {string} sha
+ * @param {boolean} ancestorDocsOnly
+ */
+const shaAccepted = (evidenceSha, sha, ancestorDocsOnly) =>
+  evidenceSha === "HEAD" || shaMatches(evidenceSha, sha) || ancestorDocsOnly;
+
+/**
+ * @param {Evidence} evidence
+ * @param {string} sha
+ * @param {{ ancestorDocsOnly?: boolean }} [options]
  * @returns {string | undefined}
  */
-const assertEvidence = (evidence, sha) => {
-  if (!shaMatches(evidence.sha, sha))
+const assertEvidence = (evidence, sha, options = {}) => {
+  if (!shaAccepted(evidence.sha, sha, options.ancestorDocsOnly === true)) {
     return `sha mismatch: evidence ${evidence.sha}, expected ${sha}`;
+  }
   if (evidence.dirty) return "evidence was produced from a dirty working tree";
   if (!evidence.ok) return "evidence reports a failed verification";
   return assertQa(evidence, sha) ?? assertSteps(evidence);
@@ -86,10 +100,12 @@ const assertSteps = (evidence) => {
 
 /**
  * Locate, parse, and assert the Evidence pasted in a PR body.
- * @param {string} body @param {string} sha
+ * @param {string} body
+ * @param {string} sha
+ * @param {{ ancestorDocsOnly?: boolean }} [options]
  * @returns {EvidenceCheck}
  */
-export const checkPrBody = (body, sha) => {
+export const checkPrBody = (body, sha, options = {}) => {
   const section = evidenceSection(body);
   if (section === undefined) return { ok: false, reason: "missing `## Evidence` section" };
   const block = firstJsonBlock(section);
@@ -100,7 +116,7 @@ export const checkPrBody = (body, sha) => {
   if (!parsed.success) {
     return { ok: false, reason: `evidence does not match schema: ${parsed.error.message}` };
   }
-  const reason = assertEvidence(parsed.data, sha);
+  const reason = assertEvidence(parsed.data, sha, options);
   return reason === undefined
     ? { ok: true, evidence: parsed.data }
     : { ok: false, reason, evidence: parsed.data };

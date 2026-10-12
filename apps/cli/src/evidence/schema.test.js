@@ -40,7 +40,12 @@ describe("evidence schema", () => {
   test("rejects unknown scope, non-hex sha, and non-ISO startedAt", () => {
     expect(EvidenceSchema.safeParse({ ...sampleEvidence, scope: "all" }).success).toBe(false);
     expect(EvidenceSchema.safeParse({ ...sampleEvidence, sha: "not-a-sha" }).success).toBe(false);
+    expect(EvidenceSchema.safeParse({ ...sampleEvidence, sha: "head" }).success).toBe(false);
     expect(EvidenceSchema.safeParse({ ...sampleEvidence, startedAt: "today" }).success).toBe(false);
+  });
+
+  test("accepts the literal HEAD marker as a sha", () => {
+    expect(EvidenceSchema.safeParse({ ...sampleEvidence, sha: "HEAD" }).success).toBe(true);
   });
 
   test("rejects summaries over 200 chars and missing versions", () => {

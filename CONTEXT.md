@@ -230,7 +230,8 @@ strives for. Surfpool coverage and Evidence are the pull-request check; they are
 
 **Evidence** — the JSON printed by `solos dev verify --json`: `ok`, `sha`, `dirty`, `scope`, tool
 versions, and per-step results. The only accepted proof that a pull request's checks passed.
-Counts only when `sha` is the commit under review and `dirty` is false.
+Counts when `dirty` is false and `sha` is the commit under review, the literal `HEAD` (that same
+commit), or an ancestor of it whose tree diff is docs-only (ADR-0040).
 
 **Reason / Remedy** — the two sentences a domain error carries. `reason` says what is wrong,
 precisely; `remedy` names the next action (an argument, a tool, a command) and is omitted when no

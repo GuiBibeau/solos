@@ -53,8 +53,10 @@ Reusable tests never touch mainnet. Surfpool starts itself when a test needs it.
 3. Keep files under the line limits (150 logical / 225 physical for production files). The
    check fails on changed files that exceed them; split, do not loosen the rule.
 4. Run `bun run solos dev verify --scope unit --json` on the exact commit you push.
-5. Paste the JSON it prints into the pull request body under `## Evidence`. CI checks that the
-   `sha` matches the PR head, `dirty` is false and `ok` is true, then re-runs the same command.
+5. Paste the JSON it prints into the pull request body under `## Evidence`. CI resolves the
+   reviewed commit itself. The `sha` may be that commit, the literal `HEAD`, or an ancestor whose
+   later commits change only docs. `dirty` must be false and `ok` must be true. CI then re-runs
+   verify: scope `check` for a docs-only pull request, scope `full` otherwise.
 
 A description of what you ran is not evidence. The JSON is.
 
