@@ -120,6 +120,20 @@ and pause at the limit. Ticks are appended. A read returns the newest first.
 Tick reads the signer's lamport balance and the Tick instant. The kind never reads them itself.
 A missing Observation records `skipped_observation`.
 
+**Notional** — the USD value of an Action's input, read when the Engine reserves it against a
+Strategy cap. A `transfer_sol` hold is the lamports sent plus the fee reserve the transfer builder
+sets: one signer's base fee plus the priority fee from its compute-unit price times its
+compute-unit limit, priced at the wrapped-SOL price. A confirmed transfer settles that reserved
+amount. A transaction that lands with an execution error settles only the fee `meta.fee` reports,
+priced the same way. A swap's input is priced from the mint account's verified decimals. Its hold
+is that input at max slippage plus the fee the built transaction can cost: one signer's base fee
+plus the priority fee the swap builder sets locally (compute-unit price × limit), which assumes a
+single-signer swap. A confirmed swap settles the input notional plus
+the actual `meta.fee`, priced at the quote's SOL price. A landed execution error settles only that
+fee, at that same price. An unverified mint is refused at reserve with `MintDecimalsUnverified`
+(HTTP 503) and nothing is stored. `maxNotionalPerTickUsd` caps the sum of those reserves that share
+a `tickId`.
+
 **Cap ledger** — the account of what a Strategy has reserved and settled against its Bounds.
 `reserve` holds the notional of one Intent and returns a reservation. The same `intentId`
 returns that reservation again and does not add to the day's spend. The day's spend is every
@@ -133,10 +147,8 @@ reservations, settled amounts, per-tick sums, and an engaged kill switch survive
 reopening it. `memoryCapLedger` keeps the account in the process for tests.
 
 **Reservation** — one hold in the cap ledger, identified by `reservationId` and keyed by
-`intentId`. The hold is the worst case: the input notional at max slippage plus the fee the
-built transaction can cost, priced with the mint's verified decimals, so a correct execution
-never settles above it. A mint whose decimals cannot be read is `MintDecimalsUnverified` and
-nothing is reserved. `settle` replaces an open hold with the measured USD spend.
+`intentId`. The amount is that Action's Notional, so a correct execution never settles above
+it. `settle` replaces an open hold with the measured USD spend.
 A higher settle is a bug: the overshoot is recorded on the reservation and that engages the
 per-Strategy kill switch. `release` frees an open hold. Each applies once; a repeat leaves the
 hold as the first call left it. A settled hold stays settled. A released hold stays released.
