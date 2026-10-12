@@ -127,7 +127,8 @@ compute-unit limit, priced at the wrapped-SOL price. A confirmed transfer settle
 amount. A transaction that lands with an execution error settles only the fee `meta.fee` reports,
 priced the same way. A swap's input is priced from the mint account's verified decimals. Its hold
 is that input at max slippage plus the fee the built transaction can cost: one signer's base fee
-plus the flat priority fee the swap builder sets. A confirmed swap settles the input notional plus
+plus the priority fee the swap builder sets locally (compute-unit price × limit), which assumes a
+single-signer swap. A confirmed swap settles the input notional plus
 the actual `meta.fee`, priced at the quote's SOL price. A landed execution error settles only that
 fee, at that same price. An unverified mint is refused at reserve with `MintDecimalsUnverified`
 (HTTP 503) and nothing is stored. `maxNotionalPerTickUsd` caps the sum of those reserves that share
