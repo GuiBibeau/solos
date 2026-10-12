@@ -191,6 +191,13 @@ p {
   padding: 10px 18px;
 }
 
+/* On a phone the button wraps; keep it on the right with the other header links. */
+@media (max-width: 480px) {
+  .nav a.button {
+    margin-left: auto;
+  }
+}
+
 /* sections */
 .section {
   padding: 56px 0;
