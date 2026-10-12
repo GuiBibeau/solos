@@ -166,16 +166,13 @@ describe("kill switch tier [integration]", () => {
   });
 });
 
-describe("strategy routes without the STRATEGIES flag [integration]", () => {
-  test("a strategy path is EngineUnavailable and the remedy names the flag", async () => {
+describe("strategy routes on a release engine [integration]", () => {
+  test("a strategy path is served without a compile flag", async () => {
     const engine = await startTestEngine();
     try {
       const response = await engineFetch(engine, "/v1/strategies");
-      expect(response.status).toBe(404);
-      expect(response.body.error).toMatchObject({
-        code: "EngineUnavailable",
-        remedy: expect.stringContaining("STRATEGIES"),
-      });
+      expect(response.status).toBe(200);
+      expect(response.body.strategies).toEqual([]);
     } finally {
       await engine.stop();
     }

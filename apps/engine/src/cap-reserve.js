@@ -49,7 +49,7 @@ const capsOff = () =>
     field: "strategyId",
     value: null,
     reason: "this engine is not serving Strategy caps",
-    remedy: "start the engine with the STRATEGIES flag",
+    remedy: "start an engine that mounts the strategy registry",
   });
 
 /**

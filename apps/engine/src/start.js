@@ -28,8 +28,7 @@ import { bootTicks } from "./tick-boot.js";
  * Start the engine in this process. Paper boots Surfpool first and funds the signer before the
  * socket opens, so the first request already has lamports. The returned `stop` closes the
  * socket, the database, the runtime and, in paper mode, Surfpool.
- * `strategies: true` mounts the registry for in-process tests. A release process mounts it
- * only when the STRATEGIES compile flag is on.
+ * `strategies: true` mounts the registry for in-process tests. A release process mounts it too.
  * @param {StartInput} input
  */
 export const startEngine = async (input) => {
@@ -151,7 +150,7 @@ const layerOptions = (input) => ({
 });
 
 /**
- * In-process tests mount the same modules a STRATEGIES build serves.
+ * In-process tests mount the same modules a release build serves.
  * @param {import("bun:sqlite").Database} db
  * @param {import("./strategy-layer.js").StrategyLayerOptions} options
  */
