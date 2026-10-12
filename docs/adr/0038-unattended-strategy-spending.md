@@ -1,7 +1,6 @@
 # 0038 — Unattended Strategy spending
 
-Status: accepted, 2026-10-10. Amends ADR-0037. The owner sign-off gate for removing
-`STRATEGIES` was met on 2026-10-12.
+Status: accepted, 2026-10-10. Amends ADR-0037.
 
 ## Context
 
@@ -70,13 +69,10 @@ Of the owner, CONTEXT.md says "It is never authorization."
   it," so a default of `any` leaves that safeguard with nothing to narrow. #243's flag says
   "Omit to allow any mint." The refusal is this decision.
 - **Removing `STRATEGIES` is what turns on live spending.** That removal waits until #243 has
-  landed (the durable cap ledger and the kill switch) and the funded mainnet rounds are
-  recorded in `features/feature-map.json`. The owner sign-off gate is met: Gui (the repo
-  owner) signed off on 2026-10-12. He confirmed the 2026-10-10 17:36 swap on the QA wallet
-  E15BHE3… was his own. That unexplained swap had held unattended signing. The funded gate
-  covers the #243 round and #198's schedule-Strategy swap: 0.01 SOL to USDC through the
-  Engine as a `count: 1` Tick, then back to SOL. The removal is its own final commit on #198.
-  The flag removal itself lands in #246. The first unattended funded round is still to come.
+  landed (the durable cap ledger and the kill switch), the funded mainnet rounds are recorded
+  in `features/feature-map.json`, and Gui has signed off. The funded gate covers the #243 round
+  and #198's schedule-Strategy swap: 0.01 SOL to USDC through the Engine as a `count: 1` Tick,
+  then back to SOL. The removal is its own final commit on #198.
 
 ## Consequences
 
