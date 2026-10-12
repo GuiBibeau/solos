@@ -29,8 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # The only shipped bun:bundle feature flags, comma-separated. Empty keeps STRATEGIES
-      # compiled out; the smoke test then expects GET /v1/strategies to return 404.
+      # No bun:bundle feature flags ship. Strategy routes are compiled into every
+      # binary; the smoke test expects GET /v1/strategies to return 200.
       SOLOS_ENGINE_FEATURES: ""
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

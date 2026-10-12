@@ -83,8 +83,9 @@ assert_dotenv_ignored() {
 }
 
 assert_dry_run() {
-  local binary="$1" expected="$2" shipped="$3"
-  local token key port data log pid body ok got_version tier mode unauth gated
+  local binary="$1" expected="$2"
+  local token key port data log pid body ok got_version tier mode unauth
+  local strategies_file strategies_status strategies_kind
   token="$(bun -e 'process.stdout.write(crypto.randomUUID())')"
   key="$(
     cd "${root}/packages/solana"
@@ -117,12 +118,14 @@ assert_dry_run() {
     echo "GET /v1/health without a token returned ${unauth}, expected 401" >&2
     exit 1
   fi
-  if [[ ",${shipped}," != *",STRATEGIES,"* ]]; then
-    gated="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -H "Authorization: Bearer ${token}" "http://127.0.0.1:${port}/v1/strategies")"
-    if [[ "$gated" != "404" ]]; then
-      echo "GET /v1/strategies returned ${gated}, expected 404 while STRATEGIES is not shipped" >&2
-      exit 1
-    fi
+  # Strategy routes are compiled into every release binary. A 404 means the mount is missing.
+  strategies_file="$(mktemp)"
+  strategies_status="$(curl -sS -o "$strategies_file" -w '%{http_code}' --max-time 5 -H "Authorization: Bearer ${token}" "http://127.0.0.1:${port}/v1/strategies")"
+  strategies_kind="$(jq -r '.strategies | type' "$strategies_file" 2>/dev/null || true)"
+  if [[ "$strategies_status" != "200" || "$strategies_kind" != "array" ]]; then
+    echo "GET /v1/strategies returned ${strategies_status}, expected 200 from the mounted registry" >&2
+    cat "$strategies_file" >&2
+    exit 1
   fi
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
@@ -130,7 +133,7 @@ assert_dry_run() {
 }
 
 smoke_binary() {
-  local binary="$1" expected="$2" shipped="$3" help reported
+  local binary="$1" expected="$2" help reported
   chmod +x "$binary"
   help="$("$binary" --help)"
   [[ "$help" == *"Start the engine"* ]]
@@ -140,7 +143,7 @@ smoke_binary() {
     exit 1
   fi
   assert_dotenv_ignored "$binary"
-  assert_dry_run "$binary" "$expected" "$shipped"
+  assert_dry_run "$binary" "$expected"
 }
 
 manifest="$(jq -r '.version' apps/engine/package.json)"
@@ -192,7 +195,7 @@ case "$(uname -m)" in
 esac
 
 if [[ -n "$host_target" && ",${targets// /}," == *",${host_target},"* ]]; then
-  smoke_binary "${outdir}/solos-engine-${host_target}" "$version" "$features"
+  smoke_binary "${outdir}/solos-engine-${host_target}" "$version"
 fi
 
 printf '{"ok":true,"version":"%s","targets":"%s"}\n' "$version" "$targets"
