@@ -34,8 +34,9 @@ ancestor satisfies a block that carries `qa`.
 
 The `verify` job always runs, so branch protection never waits on a path-filtered workflow. A
 docs-only pull request runs `solos dev verify --scope check` and does not install Surfpool. Every
-other pull request, and every push to main, runs `--scope full`. An empty file list or a failed
-classification runs full.
+other pull request, and every push to main, runs `--scope full`. An empty file list, a list of
+3,000 or more files (the list-files API cap), a list whose length differs from the pull request's
+`changed_files` count, or a failed classification runs full.
 
 ## Consequences
 

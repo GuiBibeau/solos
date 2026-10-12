@@ -71,10 +71,61 @@ export const isDocsPath = (file) => {
 export const isDocsOnlyChange = (paths) =>
   paths.length > 0 && paths.every((path) => isDocsPath(path));
 
+/** The list-pull-request-files endpoint returns at most this many files. */
+export const FILES_API_CAP = 3000;
+
+/**
+ * @param {string | undefined} value
+ * @returns {number | undefined}
+ */
+const parseCount = (value) => {
+  if (value === undefined || !/^[0-9]+$/u.test(value)) return undefined;
+  const count = Number(value);
+  return Number.isSafeInteger(count) ? count : undefined;
+};
+
+/**
+ * One TSV row per file the API returned: filename, then the previous name when the file was renamed.
+ * A quoted field is refused so a truncated or escaped row cannot be classified as complete.
+ * @param {string} text
+ * @returns {{ listed: number, paths: string[] } | undefined}
+ */
+export const listingFromTsv = (text) => {
+  const rows = text.split("\n").filter((line) => line !== "");
+  if (rows.some((line) => line.includes('"'))) return undefined;
+  /** @type {string[]} */
+  const paths = [];
+  for (const row of rows) {
+    const tab = row.indexOf("\t");
+    const filename = tab === -1 ? row : row.slice(0, tab);
+    if (filename === "") return undefined;
+    const previous = tab === -1 ? "" : row.slice(tab + 1);
+    paths.push(filename);
+    if (previous !== "") paths.push(previous);
+  }
+  return { listed: rows.length, paths };
+};
+
+/**
+ * Docs-only only when the API list is complete and every path is docs. `listed` counts file
+ * entries, not a rename's extra previous name. At {@link FILES_API_CAP} the endpoint may have
+ * truncated, so that length is never complete. A count that disagrees with `changedFiles` is not
+ * complete either.
+ * @param {{ paths: readonly string[], listed: number, changedFiles: number }} listing
+ */
+export const isCompleteDocsOnly = (listing) => {
+  const { paths, listed, changedFiles } = listing;
+  if (!Number.isSafeInteger(listed) || !Number.isSafeInteger(changedFiles)) return false;
+  if (listed !== changedFiles || listed >= FILES_API_CAP) return false;
+  return isDocsOnlyChange(paths);
+};
+
 if (import.meta.main) {
-  const paths = readFileSync(0, "utf8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line !== "");
-  process.stdout.write(isDocsOnlyChange(paths) ? "true\n" : "false\n");
+  const listing = listingFromTsv(readFileSync(0, "utf8"));
+  const changedFiles = parseCount(process.env.CHANGED_FILES);
+  const docsOnly =
+    listing !== undefined &&
+    changedFiles !== undefined &&
+    isCompleteDocsOnly({ ...listing, changedFiles });
+  process.stdout.write(docsOnly ? "true\n" : "false\n");
 }

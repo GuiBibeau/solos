@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
-import { isDocsOnlyChange, isDocsPath } from "./docs-path.js";
+import {
+  FILES_API_CAP,
+  isCompleteDocsOnly,
+  isDocsOnlyChange,
+  isDocsPath,
+  listingFromTsv,
+} from "./docs-path.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
@@ -60,10 +66,17 @@ describe("docs paths", () => {
   });
 });
 
-/** @param {string} text */
-const classifyStdin = async (text) => {
+/**
+ * @param {string} text
+ * @param {string | undefined} changedFiles
+ */
+const classifyStdin = async (text, changedFiles) => {
+  const env = { ...process.env };
+  delete env.CHANGED_FILES;
+  if (changedFiles !== undefined) env.CHANGED_FILES = changedFiles;
   const proc = Bun.spawn(["bun", "apps/cli/src/evidence/docs-path.js"], {
     cwd: ROOT,
+    env,
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
@@ -75,13 +88,55 @@ const classifyStdin = async (text) => {
   return { stdout: stdout.trim(), code };
 };
 
+describe("complete file list", () => {
+  test("a rename is one listed file and both names must be docs", () => {
+    const listing = listingFromTsv("docs/new.md\tdocs/old.md\n");
+    expect(listing).toEqual({ listed: 1, paths: ["docs/new.md", "docs/old.md"] });
+    if (listing === undefined) throw new Error("expected a listing");
+    expect(isCompleteDocsOnly({ ...listing, changedFiles: 1 })).toBe(true);
+    const renamedCode = listingFromTsv("docs/notes.md\tapps/engine/src/tick.js\n");
+    if (renamedCode === undefined) throw new Error("expected a listing");
+    expect(isCompleteDocsOnly({ ...renamedCode, changedFiles: 1 })).toBe(false);
+  });
+
+  test("the API cap, a count mismatch, and a quoted row fail closed", () => {
+    const one = { paths: ["CONTEXT.md"], listed: 1, changedFiles: 1 };
+    expect(isCompleteDocsOnly(one)).toBe(true);
+    expect(isCompleteDocsOnly({ ...one, changedFiles: 2 })).toBe(false);
+    expect(
+      isCompleteDocsOnly({
+        paths: ["CONTEXT.md"],
+        listed: FILES_API_CAP,
+        changedFiles: FILES_API_CAP,
+      }),
+    ).toBe(false);
+    const underCap = FILES_API_CAP - 1;
+    expect(
+      isCompleteDocsOnly({ paths: ["CONTEXT.md"], listed: underCap, changedFiles: underCap }),
+    ).toBe(true);
+    expect(listingFromTsv('CONTEXT.md\t"quoted"\n')).toBeUndefined();
+    expect(listingFromTsv("\tapps/cli/src/main.js\n")).toBeUndefined();
+  });
+});
+
 describe("docs-path stdin", () => {
-  test("prints true only when every path is docs", async () => {
-    const docs = await classifyStdin("docs/engine-qa.md\nCONTEXT.md\nfeatures/feature-map.json\n");
+  test("prints true only when the list is complete and every path is docs", async () => {
+    const docs = await classifyStdin(
+      "docs/engine-qa.md\t\nCONTEXT.md\t\nfeatures/feature-map.json\t\n",
+      "3",
+    );
     expect(docs).toEqual({ stdout: "true", code: 0 });
-    const mixed = await classifyStdin("AGENTS.md\napps/engine/src/tick.js\n");
+    const mixed = await classifyStdin("AGENTS.md\t\napps/engine/src/tick.js\t\n", "2");
     expect(mixed).toEqual({ stdout: "false", code: 0 });
-    const empty = await classifyStdin("\n");
+    const empty = await classifyStdin("\n", "0");
     expect(empty).toEqual({ stdout: "false", code: 0 });
+    const missingCount = await classifyStdin("CONTEXT.md\t\n", undefined);
+    expect(missingCount).toEqual({ stdout: "false", code: 0 });
+    const mismatch = await classifyStdin("CONTEXT.md\t\n", "2");
+    expect(mismatch).toEqual({ stdout: "false", code: 0 });
+    const rename = await classifyStdin("docs/new.md\tdocs/old.md\n", "1");
+    expect(rename).toEqual({ stdout: "true", code: 0 });
+    const quoted = await classifyStdin('CONTEXT.md\t"old"\n', "1");
+    expect(quoted).toEqual({ stdout: "false", code: 0 });
   });
 });

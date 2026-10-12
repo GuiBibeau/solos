@@ -70,8 +70,10 @@ roots, `features/feature-map.json`, including `engine-qa.md`). `dirty` must be f
 must be true. A missing block, or a sha that is not that head and not such an ancestor, fails.
 CI then re-runs `solos dev verify` on the head: scope `full` when the diff touches code, config,
 or workflows (including `apps/engine`, the cap ledger, tick/strategy, and swap/transfer
-builders), and scope `check` when the diff is docs-only. A description of what you ran is not
-evidence; the JSON is. That object proves the commit's checks. Live validation of an execute
+builders), and scope `check` when the diff is docs-only. The files list must be shorter than
+3,000 and equal the pull request's `changed_files` count; otherwise the run is full. A
+description of what you ran is not evidence; the JSON is. That object proves the commit's
+checks. Live validation of an execute
 path is a separate bar; see Funds and [features/feature-map.json](features/feature-map.json).
 
 Do not write throwaway scripts to poke the chain or the server. If a verification step is missing,
