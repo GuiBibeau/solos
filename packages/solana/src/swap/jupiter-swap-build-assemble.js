@@ -17,6 +17,11 @@ import { ATA_PROGRAM, WSOL_MINT, dataBytes } from "./jupiter-swap-build-validate
 /** Explicit local compute-unit budget: never provider-chosen; tunable after funded QA. */
 export const SWAP_COMPUTE_UNIT_LIMIT = 400_000;
 /**
+ * Micro-lamports per compute unit. The builder pays this price times the limit.
+ * ceil(250_000 × 400_000 / 1_000_000) is 100_000 lamports, the v1 priority-fee cap.
+ */
+export const SWAP_COMPUTE_UNIT_PRICE_MICRO_LAMPORTS = 250_000n;
+/**
  * Explicit local bound on loaded account data bytes: never provider-chosen.
  *
  * The first value here was 16 MiB, chosen on 2026-09-20 as the smallest that passed one live
@@ -35,13 +40,27 @@ export const SWAP_COMPUTE_UNIT_LIMIT = 400_000;
  * without reserving block-space accounting the swap cannot use.
  */
 export const SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 33_554_432;
-/** Local total priority fee in lamports: the cap, paid as-is, never provider-derived. */
+/**
+ * V1 priority-fee cap in lamports. The built fee is the price times the limit, and it equals
+ * this cap.
+ */
 export const SWAP_MAX_PRIORITY_FEE_LAMPORTS = 100_000n;
+
+const MICRO_LAMPORTS_PER_LAMPORT = 1_000_000n;
+
+/**
+ * Priority fee in lamports: ceil(price × limit / 1_000_000). The v1 config pays this total.
+ * @returns {bigint}
+ */
+export const swapPriorityFeeLamports = () => {
+  const micro = SWAP_COMPUTE_UNIT_PRICE_MICRO_LAMPORTS * BigInt(SWAP_COMPUTE_UNIT_LIMIT);
+  return (micro + MICRO_LAMPORTS_PER_LAMPORT - 1n) / MICRO_LAMPORTS_PER_LAMPORT;
+};
 
 export const SWAP_V1_CONFIG = Object.freeze({
   computeUnitLimit: SWAP_COMPUTE_UNIT_LIMIT,
   loadedAccountsDataSizeLimit: SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
-  priorityFeeLamports: SWAP_MAX_PRIORITY_FEE_LAMPORTS,
+  priorityFeeLamports: swapPriorityFeeLamports(),
 });
 
 /** @typedef {import("./jupiter-swap-build-response.js").RawInstruction} RawInstruction */
