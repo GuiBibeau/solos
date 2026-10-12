@@ -15,7 +15,7 @@ import { ensureSurfnet, randomSeed, seedAddress } from "../surfnet/test-surfnet.
 import {
   SWAP_COMPUTE_UNIT_LIMIT,
   SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
-  SWAP_MAX_PRIORITY_FEE_LAMPORTS,
+  swapPriorityFeeLamports,
 } from "../swap/jupiter-swap-build-assemble.js";
 import {
   AMOUNT,
@@ -115,7 +115,7 @@ describe("the exact submitted swap wire [integration]", () => {
     expect(decompiled.config).toEqual({
       computeUnitLimit: SWAP_COMPUTE_UNIT_LIMIT,
       loadedAccountsDataSizeLimit: SWAP_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
-      priorityFeeLamports: SWAP_MAX_PRIORITY_FEE_LAMPORTS,
+      priorityFeeLamports: swapPriorityFeeLamports(),
     });
     // Pinned to the measured literal: the submitted wire carries the 32 MiB bound. 16 MiB left
     // 17% of real routes failing MaxLoadedAccountsDataSizeExceeded over 60 attempts (ADR-0024

@@ -97,8 +97,10 @@ until their executor branches land.
   recipients, pre-existing wSOL ATAs, or a pre-sign expiry are refused with a fixed-reason
   `BuildRejected` before anything is signed or sent.
 - **v1-only, self-submitted.** The transaction is assembled as a Solana v1 message with explicit
-  local resource policy (compute-unit limit, loaded-account-data limit, a capped total priority
-  fee in lamports), all accounts inline (no address-lookup tables), signed once by the
+  local resource policy (compute-unit limit, loaded-account-data limit, and a priority fee of
+  ceil(compute-unit price × that limit / 1_000_000), set locally and never from Jupiter, inside
+  the v1 cap), all accounts inline (no
+  address-lookup tables), signed once by the
   configured signer, proven v1 on the wire before simulation or submission, simulated as those
   exact bytes unless `--skip-simulation` is explicit, and submitted exactly once to
   `SOLANA_RPC_URL`. The configured RPC supplies and pre-sign gates the blockhash lifetime;
