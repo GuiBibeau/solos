@@ -259,6 +259,9 @@ is not a guaranteed minimum; only post-confirmation balance reads establish the 
 **LP position** — an existing protocol position account, never its NFT mint or its pool. Adds
 preserve its range and A/B maximum spends; removes take an explicit 1..10000 bps fraction of its
 liquidity, preserving account/NFT. Underlying principal is separate from shares and unclaimed fees.
+A Meteora DLMM removal encodes contiguous occupied bins that share one bps as a single
+`RemoveLiquidityParams` range. Each mint's token program is the mint account owner. A Token-2022
+transfer hook is refused before signing.
 
 **Venue selector** — swap Action.venue; omission means Jupiter. Launch buys explicitly choose
 pump. No mint-based route inference, fallback, or public swap-tool venue argument.

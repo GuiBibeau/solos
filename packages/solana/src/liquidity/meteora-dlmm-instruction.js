@@ -2,9 +2,9 @@
 /**
  * `add_liquidity2` from the pinned IDL (`lb_clmm` 0.12.0, commit 576919e3).
  *
- * The `*2` form carries `remaining_accounts_info` so a later Token-2022 transfer hook can be
- * appended without a new instruction. This slice passes an empty slice list: fee-bearing mints
- * are refused before build (ADR-0022). Bin arrays follow the named accounts, writable.
+ * The `*2` form carries `remaining_accounts_info`. This slice passes an empty slice list:
+ * fee-bearing mints and transfer-hook mints are refused before build (ADR-0022). Each mint's
+ * token program is still the mint account owner. Bin arrays follow the named accounts, writable.
  */
 import { address, getU64Encoder } from "@solana/kit";
 import { METEORA_DLMM_PROGRAM } from "./meteora-dlmm-program.js";

@@ -70,6 +70,17 @@ instruction variant enforces the requested limits. Implementations must report t
 they must not ignore maxSlippageBps, silently relax the contract, or report simulated bounds as
 on-chain protection. Reads and the deterministic allocation rule above remain specified.
 
+### Remove ranges and transfer hooks
+
+Follow-up to #156. `rebalance_liquidity` `removes` are `RemoveLiquidityParams` ranges:
+`min_bin_id` and `max_bin_id` plus one bps. Contiguous occupied bins that share that bps are
+one entry. A gap, or a different bps, is another entry, so a bin left out of the removal is
+not covered by a neighbor. Deposit and withdraw name each mint's token program (the mint
+account owner) and derive associated accounts with it. A transfer fee, and a Token-2022
+transfer hook whose program id is set, are refused before signing. Hook extra-account metas
+are not attached; `RemainingAccountsInfo` stays empty. `close_position2` transfers no pool
+tokens and does not use that guard.
+
 ## Consequences
 
 Live adds wait for removes. Use dedicated tiny positions provisioned by the operator, record

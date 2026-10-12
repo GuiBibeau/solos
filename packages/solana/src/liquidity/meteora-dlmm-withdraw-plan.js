@@ -6,7 +6,8 @@
  * The removal is remove-only `rebalance_liquidity` with `NoShrinkBoth`. It does not
  * move `lower_bin_id` / `upper_bin_id` and does not claim fees. `min_withdraw_x/y`
  * are the on-chain floors. Active-bin drift is also encoded as `max_active_bin_slippage`
- * and re-checked here before send.
+ * and re-checked here before send. `removes` stays one entry per occupied bin so bin-array
+ * coverage stays exact; the encoder collapses contiguous equal-bps entries into ranges.
  */
 import { Effect } from "effect";
 import { activeBinTolerance } from "./meteora-dlmm-allocate.js";
@@ -23,7 +24,7 @@ import {
 /** @typedef {import("./meteora-dlmm-rebalance.js").RebalanceAccounts} RebalanceAccounts */
 /** @typedef {import("./meteora-dlmm-withdraw-math.js").ShareBin} ShareBin */
 /** @typedef {{ readonly position: string; readonly bps: number; readonly maxSlippageBps: number }} WithdrawAction */
-/** @typedef {{ readonly status: "reject"; readonly reason: string }} Rejected */
+/** @typedef {{ readonly status: "reject"; readonly reason: string; readonly remedy?: string }} Rejected */
 /**
  * @typedef {{
  *   readonly status: "ok";

@@ -36,7 +36,7 @@ import { driftOf, mintsOf, pairOf, positionOf } from "./meteora-dlmm-deposit-gua
  *   readonly mintB: string;
  *   readonly bins: readonly BinDistribution[];
  *   readonly programs: { readonly tokenX: string; readonly tokenY: string };
- * } | { readonly status: "reject"; readonly reason: string }} MeteoraDepositPlan
+ * } | { readonly status: "reject"; readonly reason: string; readonly remedy?: string }} MeteoraDepositPlan
  */
 /** @typedef {{ reader: Reader; owner: string; action: DepositAction }} PlanInput */
 /** @typedef {{ position: { layout: MeteoraPositionLayout }; pair: { layout: MeteoraPairLayout }; mints: { tokenX: string; tokenY: string }; reserves: { reserveX: bigint; reserveY: bigint } }} PlanRead */

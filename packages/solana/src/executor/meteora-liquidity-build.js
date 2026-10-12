@@ -4,12 +4,12 @@
  * signs or sends. A refused plan never becomes bytes. The instruction caps spend at the encoded
  * amounts; active-bin drift was already refused in the plan.
  */
-import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { meteoraDepositPlan } from "../liquidity/meteora-dlmm-deposit-plan.js";
 import { addLiquidity2Instruction } from "../liquidity/meteora-dlmm-instruction.js";
 import { fundingSide, liquidityRead, setupSides } from "./liquidity-token-accounts.js";
+import { planRejected } from "./plan-rejected.js";
 import { WSOL_MINT, wrapForSides } from "./wrap-sol.js";
 
 /** Pinned CLI `add_liquidity` compute budget, so a live deposit is not compute-starved. */
@@ -90,7 +90,7 @@ export const draftMeteoraDeposit = ({ ctx, kit }, action) =>
         maxSlippageBps: action.maxSlippageBps,
       },
     });
-    if (plan.status === "reject") return yield* new BuildRejected({ reason: plan.reason });
+    if (plan.status === "reject") return yield* planRejected(plan);
     const wrap = yield* wrapForSides({
       ctx,
       kit,

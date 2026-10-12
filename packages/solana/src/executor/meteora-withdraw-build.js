@@ -4,13 +4,13 @@
  * (ADR-0032). Nothing here signs or sends. A refused plan never becomes bytes. The instruction
  * floors receipts at `min_withdraw_x/y` and does not claim fees or rewards.
  */
-import { BuildRejected } from "@solos/core";
 import { Effect } from "effect";
 import { fetchAccounts } from "../liquidity/liquidity-accounts.js";
 import { rebalanceLiquidityInstruction } from "../liquidity/meteora-dlmm-rebalance.js";
 import { meteoraWithdrawPlan } from "../liquidity/meteora-dlmm-withdraw-plan.js";
 import { liquidityRead, receivingSide, setupSides } from "./liquidity-token-accounts.js";
 import { METEORA_DEPOSIT_V1_CONFIG } from "./meteora-liquidity-build.js";
+import { planRejected } from "./plan-rejected.js";
 
 /** Same pinned budget as a Meteora deposit, so a live removal is not compute-starved. */
 const WITHDRAW_V1_CONFIG = METEORA_DEPOSIT_V1_CONFIG;
@@ -91,7 +91,7 @@ export const draftMeteoraWithdraw = ({ ctx, kit }, action) =>
         maxSlippageBps: action.maxSlippageBps,
       },
     });
-    if (plan.status === "reject") return yield* new BuildRejected({ reason: plan.reason });
+    if (plan.status === "reject") return yield* planRejected(plan);
     const creates = yield* receiptSetup({ read: liquidityRead(ctx), kit, plan });
     return { draft: withdrawDraft(plan, /** @type {any} */ (creates)), plan };
   }).pipe(Effect.withSpan("executor.buildMeteoraWithdraw"));
