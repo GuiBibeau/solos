@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 import { Command, Options } from "@effect/cli";
 import { Effect } from "effect";
+import { reviewEvidence } from "../evidence/evidence-commit.js";
 import { formatTable } from "../evidence/format.js";
-import { checkPrBody } from "../evidence/pr-body.js";
 import { runVerify } from "../evidence/verify.js";
 import { emit, exitOnFailure } from "../output.js";
 
@@ -43,12 +43,14 @@ const bodyFile = Options.text("body-file").pipe(
   Options.withDescription("Path to the pull-request body (markdown)"),
 );
 const sha = Options.text("sha").pipe(
-  Options.withDescription("Commit the PR is at; a prefix of 7+ chars is accepted"),
+  Options.withDescription(
+    "Commit under review. HEAD is git rev-parse HEAD; a prefix of 7+ characters is accepted",
+  ),
 );
 
 const check = Command.make("check", { bodyFile, sha }, (o) =>
-  Effect.sync(() => {
-    const result = checkPrBody(readFileSync(o.bodyFile, "utf8"), o.sha);
+  Effect.promise(async () => {
+    const result = await reviewEvidence(readFileSync(o.bodyFile, "utf8"), o.sha);
     if (!result.ok) process.exitCode = 1;
     return result;
   })
@@ -56,7 +58,7 @@ const check = Command.make("check", { bodyFile, sha }, (o) =>
     .pipe(exitOnFailure),
 ).pipe(
   Command.withDescription(
-    "Assert the `## Evidence` block in a PR body is for this sha, clean, and ok",
+    "Assert the `## Evidence` block is clean and ok for this commit, HEAD, or a docs-only ancestor",
   ),
 );
 

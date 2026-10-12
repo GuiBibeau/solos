@@ -43,7 +43,7 @@ bun run solos mcp call solana_wallet_get_balance --args '{}'
 bun run solos dev check                  # format, lint, dependency rules, types
 bun run solos dev test                   # unit + integration (Surfpool starts itself)
 bun run solos dev verify --scope unit    # check + unit tests, prints Evidence JSON (scope: check|unit|full)
-bun run solos dev evidence check --body-file pr.md --sha $(git rev-parse HEAD)  # what CI runs on PR bodies
+bun run solos dev evidence check --body-file pr.md --sha HEAD  # or a sha; what CI runs on PR bodies
 bun run solos dev build                  # compile the solos binary for this machine (or --target all) and smoke-test it
 bun run solos dev pack --version 0.1.0   # assemble the npm launcher and platform packages from dist/
 bun run solos dev release version --lane canary --run 7 --sha $(git rev-parse HEAD)  # the next canary version (ADR-0036)
@@ -62,10 +62,19 @@ The JSON printed by `solos dev verify` is the only accepted proof that a pull re
 passed. It records the HEAD sha, whether the tree was dirty, the scope, tool versions, and one
 entry per step (`ok` true/false/null for skipped, duration, last output line). Run it with `--json`
 and paste the object in the PR body under a `## Evidence` heading inside a ```json fence. CI runs
-`solos dev evidence check` against the PR body: the sha must match the PR head, `dirty` must be
-false, `ok` must be true. Then CI re-runs `solos dev verify` on the same sha. A description of what
-you ran is not evidence; the JSON is. That object proves the commit's checks. Live validation of an
-execute path is a separate bar; see Funds and [features/feature-map.json](features/feature-map.json).
+`solos dev evidence check` against the PR body. The check resolves the reviewed commit itself
+(`--sha HEAD` is `git rev-parse HEAD` on the pull request head; ADR-0040). The block's `sha` may
+be that commit (a prefix of 7+ characters is enough), the literal marker `HEAD`, or an ancestor
+of it when `git diff` from that ancestor changes only docs (`docs/**`, any `*.md` outside code
+roots, `features/feature-map.json`, including `engine-qa.md`). `dirty` must be false and `ok`
+must be true. A missing block, or a sha that is not that head and not such an ancestor, fails.
+CI then re-runs `solos dev verify` on the head: scope `full` when the diff touches code, config,
+or workflows (including `apps/engine`, the cap ledger, tick/strategy, and swap/transfer
+builders), and scope `check` when the diff is docs-only. The files list must be shorter than
+3,000 and equal the pull request's `changed_files` count; otherwise the run is full. A
+description of what you ran is not evidence; the JSON is. That object proves the commit's
+checks. Live validation of an execute
+path is a separate bar; see Funds and [features/feature-map.json](features/feature-map.json).
 
 Do not write throwaway scripts to poke the chain or the server. If a verification step is missing,
 add a `solos` command instead.

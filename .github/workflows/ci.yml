@@ -10,8 +10,92 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # One job at scope `full`: line limits, docs gate, format, lint, dependency rules, types, unit
-  # tests, then integration tests on Surfpool (offline; no RPC key, no mainnet, no secrets).
+  # Classifies the pull request the way preview.yml classifies code, then `verify` always runs.
+  # A workflow-level `paths` filter would skip the workflow and leave the required `verify`
+  # check pending. This job always publishes `docs_only`; `verify` always runs and passes or
+  # fails on the scope it chose. Pushes to main are never docs-only.
+  #
+  # Docs-only means every changed path (including a rename's old name) passes
+  # `isDocsOnlyChange` in apps/cli/src/evidence/docs-path.js: `docs/**`, any `*.md`
+  # (CONTEXT.md, AGENTS.md, ADRs, engine-qa.md), and `features/feature-map.json`.
+  # apps/engine, the cap ledger, tick/strategy, swap and transfer builders, and any other
+  # code, config, or workflow file fail that predicate. The list-files API returns at most
+  # 3,000 files, so a list that long, or one whose length differs from the pull request's
+  # changed_files count, is incomplete and fails closed to full verify. An empty list does too.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.files.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: github.event_name == 'pull_request'
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: github.event_name == 'pull_request'
+        with:
+          bun-version-file: .bun-version
+
+      # Always writes docs_only. A skipped step's output is not the job output, so a
+      # push to main and a pull request share this step.
+      - name: Classify changed paths
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            echo "docs_only=false"
+            exit 0
+          fi
+          # The event payload is the count. When it is absent, the pull request API is the
+          # same field. A missing or non-numeric count cannot prove the file list is complete.
+          changed_files="${CHANGED_FILES}"
+          if ! [[ "$changed_files" =~ ^[0-9]+$ ]]; then
+            if ! changed_files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.changed_files')"; then
+              echo "could not read changed_files; full verify"
+              echo "docs_only=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          if ! [[ "$changed_files" =~ ^[0-9]+$ ]]; then
+            echo "changed_files is not a count; full verify"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # One TSV row per file: filename, then previous_filename when the file was renamed.
+          # Row count is what changed_files counts. The 3,000-file cap is applied in the script.
+          if ! rows="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate \
+            --jq '.[] | [.filename, (.previous_filename // "")] | @tsv')"; then
+            echo "could not list pull request files; full verify"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # bun reads the rows on stdin and prints true or false. tr only strips whitespace
+          # from that one word. Anything unexpected fails closed to full verify.
+          docs_only="$(CHANGED_FILES="$changed_files" bun apps/cli/src/evidence/docs-path.js <<<"$rows" | tr -d '[:space:]')"
+          case "$docs_only" in
+            true|false) ;;
+            *)
+              echo "classifier returned '${docs_only}'; full verify"
+              docs_only=false
+              ;;
+          esac
+          echo "changed_files=${changed_files}"
+          echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
+          echo "docs_only=${docs_only}"
+
+  # One job. Docs-only pull requests run scope `check` (line limits, docs, format, lint,
+  # dependency rules, types) and do not install Surfpool. Everything else runs scope `full`:
+  # those static checks, unit tests, then integration tests on Surfpool (offline; no RPC key,
+  # no mainnet, no secrets).
   #
   # This used to be three jobs, one per scope. The scopes are cumulative (REQUIRED_STEPS in
   # apps/cli/src/evidence/schema.js), so `unit` re-ran every static step to add ~10s of tests and
@@ -19,6 +103,8 @@ jobs:
   # no earlier signal either: `runSteps` stops at the first failing step, so a lint break still
   # reports here in ~90s and never reaches the integration tests.
   verify:
+    needs: changes
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -28,19 +114,24 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
-          surfpool: "true"
+          surfpool: ${{ needs.changes.outputs.docs_only == 'true' && 'false' || 'true' }}
       # stdout is the Evidence JSON. stderr streams to this log and already carries the failing
       # step's full output, redacted and bounded to 64KB (apps/cli/src/evidence/diagnostics.js),
-      # so there is nothing to recover by re-running the suite.
-      - name: solos dev verify --scope full
+      # so there is nothing to recover by re-running the suite. A missing or failed classifier
+      # leaves docs_only unset, which selects full.
+      - name: solos dev verify
         env:
           SURFNET_DIAGNOSTICS: "1"
-        run: bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-full.json"
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+        run: |
+          scope=full
+          if [ "$DOCS_ONLY" = "true" ]; then scope=check; fi
+          bun run solos dev verify --scope "$scope" --json > "$RUNNER_TEMP/evidence.json"
       - uses: ./.github/actions/evidence-summary
         if: always()
         with:
-          name: evidence-full
-          file: ${{ runner.temp }}/evidence-full.json
+          name: ${{ needs.changes.outputs.docs_only == 'true' && 'evidence-check' || 'evidence-full' }}
+          file: ${{ runner.temp }}/evidence.json
 
   # A release PR (ADR-0036) must pass the lever's check: branch release/x.y.z newer than the last
   # stable tag, both server.json versions equal to it, the notes file present, and for a major a

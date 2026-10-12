@@ -67,6 +67,19 @@ describe("pr-body evidence check", () => {
     expect(result.ok && result.evidence.sha).toBe(SHA);
   });
 
+  test("the literal HEAD marker stands for the reviewed commit", () => {
+    const result = checkPrBody(bodyWith({ ...sampleEvidence, sha: "HEAD" }), SHA);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.evidence.sha).toBe("HEAD");
+  });
+
+  test("a caller-qualified docs-only ancestor does not have to equal the head", () => {
+    const head = "b".repeat(40);
+    expect(checkPrBody(bodyWith(sampleEvidence), head).ok).toBe(false);
+    const result = checkPrBody(bodyWith(sampleEvidence), head, { ancestorDocsOnly: true });
+    expect(result.ok).toBe(true);
+  });
+
   test("accepts a 7+ char sha prefix in either direction", () => {
     expect(checkPrBody(bodyWith(sampleEvidence), SHA.slice(0, 7)).ok).toBe(true);
     expect(shaMatches("834f0b2", SHA)).toBe(true);

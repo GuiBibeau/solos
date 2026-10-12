@@ -1,6 +1,7 @@
 # 0016 — Evidence is the verification contract
 
-Status: accepted, 2026-09-16. See also 0010.
+Status: accepted, 2026-09-16. See also 0010. The SHA-equality clause is extended by
+[0040](0040-evidence-sha-resolution.md).
 
 ## Context
 

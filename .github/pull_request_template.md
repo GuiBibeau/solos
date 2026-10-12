@@ -7,9 +7,10 @@
 ## Evidence
 
 <!--
-Paste the JSON printed by `bun run solos dev verify --scope unit --json` (or `--scope full`),
-run on the exact commit you pushed. CI checks that `sha` matches the PR head, `dirty` is false
-and `ok` is true, then re-runs the same command itself. Hand-edited JSON fails the check.
+Paste the JSON printed by `bun run solos dev verify --scope unit --json` (or `--scope full`).
+`sha` may be that commit, the literal `HEAD` (the commit CI checks out), or an ancestor when
+only docs changed since. `dirty` must be false and `ok` must be true. CI re-runs verify:
+scope `check` for a docs-only pull request, scope `full` otherwise. Hand-edited steps fail.
 -->
 
 ```json

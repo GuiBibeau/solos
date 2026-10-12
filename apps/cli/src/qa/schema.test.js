@@ -66,4 +66,13 @@ describe("Iris QA evidence", () => {
     expect(checkPrBody(bodyWithQa({ ...QA, mode: "fixture" }), SHA).ok).toBe(false);
     expect(checkPrBody(bodyWithQa({ ...QA, status: "blocked" }), SHA).ok).toBe(false);
   });
+
+  test("live QA refuses a HEAD marker and a docs-only ancestor", () => {
+    const marked = checkPrBody(bodyWithQa(QA).replaceAll(SHA, "HEAD"), SHA);
+    expect(marked.ok).toBe(false);
+    if (!marked.ok) expect(marked.reason).toContain("exact");
+    const ancestor = checkPrBody(bodyWithQa(QA), "b".repeat(40), { ancestorDocsOnly: true });
+    expect(ancestor.ok).toBe(false);
+    if (!ancestor.ok) expect(ancestor.reason).toContain("exact");
+  });
 });
