@@ -32,9 +32,11 @@ Of the owner, CONTEXT.md says "It is never authorization."
   UTC day the hold was reserved." `settle` and `release` each apply once, on the reservation
   keyed by that `intentId`. The port and `memoryCapLedger` are what #240 merged. The call from
   a tick is #198, still ahead of this record.
-- **The hold is the worst case:** "the notional at max slippage plus fees." The fee in the hold
-  comes from the compute-unit price and limit the Engine sets on the transaction, and a test
-  asserts the built transaction can't cost more than the hold. `settle` "replaces
+- **The hold is the worst case:** "the notional at max slippage plus fees." A swap hold's fee
+  is one signer's base fee plus ceil(compute-unit price × compute-unit limit / 1_000_000).
+  The builder sets that price locally, never from Jupiter. At 250_000 micro-lamports and a
+  400_000 unit limit the reserve is still 105_000 lamports, and it assumes a single-signer
+  swap. A test asserts the built transaction can't cost more than the hold. `settle` "replaces
   an open hold with the measured spend and is not refused when that spend is higher," because
   the transaction has landed: "the overshoot is stored on the reservation and the per-Strategy
   switch engages," so any overshoot is limited to one transaction.

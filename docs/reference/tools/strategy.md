@@ -87,9 +87,11 @@ fee from its compute-unit price times its compute-unit limit. A nonpositive wrap
 price is `PriceUnavailable` and nothing is reserved. A confirmed transfer settles that
 reserved notional once. A transaction that lands with an execution error settles the fee
 it paid, priced the same way as the hold. A schedule swap holds the input at max slippage
-plus the fee the built transaction can cost: the base signature fee plus the priority fee
-from its compute-unit price times its compute-unit limit. Settle adds the landed `meta.fee`
-to the input notional at the same SOL price.
+plus one signer's base fee plus ceil(compute-unit price × compute-unit limit / 1_000_000).
+The builder sets that price locally, never from Jupiter. At 250_000 micro-lamports and a
+400_000 unit limit that reserve is still 105_000 lamports, and the hold assumes a
+single-signer swap. Settle adds the landed `meta.fee` to the input notional at the same SOL
+price.
 Nothing signed, or a blockhash that expires with the signature still absent, releases the hold.
 If the Engine stops after broadcast and before confirm, the hold stays open and keeps counting
 against the per-tick and daily caps while the Intent is `in_flight`. A restart does not release

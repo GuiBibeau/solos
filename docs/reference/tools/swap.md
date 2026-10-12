@@ -98,7 +98,8 @@ until their executor branches land.
   `BuildRejected` before anything is signed or sent.
 - **v1-only, self-submitted.** The transaction is assembled as a Solana v1 message with explicit
   local resource policy (compute-unit limit, loaded-account-data limit, and a priority fee of
-  the compute-unit price times that limit, inside the v1 cap), all accounts inline (no
+  ceil(compute-unit price × that limit / 1_000_000), set locally and never from Jupiter, inside
+  the v1 cap), all accounts inline (no
   address-lookup tables), signed once by the
   configured signer, proven v1 on the wire before simulation or submission, simulated as those
   exact bytes unless `--skip-simulation` is explicit, and submitted exactly once to
