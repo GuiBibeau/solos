@@ -100,9 +100,9 @@ solos mcp call solana_swap_get_quote --args '{"inputMint":"So111...","outputMint
 ```
 
 `solos --help` lists every group. Swap quotes and price reads need a `JUPITER_API_KEY`; market
-research needs an `ELFA_API_KEY`. Strategy tools are in the catalogue. A release build leaves the
-Engine `STRATEGIES` flag off, so a call needs an Engine started with that flag, plus
-`SOLOS_ENGINE_URL` and `SOLOS_ENGINE_TOKEN`. Everything else needs the RPC URL and the wallet.
+research needs an `ELFA_API_KEY`. Strategy tools need `SOLOS_EXECUTOR=engine`, `SOLOS_ENGINE_URL`,
+and `SOLOS_ENGINE_TOKEN`. The executor defaults to `direct`. Everything else needs the RPC URL and
+the wallet.
 
 ## From source
 
