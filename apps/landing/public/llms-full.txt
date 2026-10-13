@@ -500,7 +500,7 @@ Read the Ticks one Strategy has recorded, newest first. Use this to see what eac
 
 - `id` (string, required): Strategy id returned by register
 - `limit` (integer, optional): How many Ticks to return, newest first. Defaults to 20 and cannot exceed 200; 1 to 200
-- `outcome` (missed | evaluated | executed | failed | skipped_bounds | skipped_observation | in_flight, optional): Only Ticks with this outcome
+- `outcome` (missed | evaluated | executed | failed | skipped_bounds | skipped_kill_switch | skipped_observation | in_flight, optional): Only Ticks with this outcome
 
 ### solana_strategy_list_strategies
 
