@@ -2,13 +2,17 @@
 import { ActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
 
-/** Outcomes a Tick can record. `in_flight` is a Tick whose Intent is not settled yet. */
+/**
+ * Outcomes a Tick can record. `skipped_kill_switch` is a kill-switch refusal.
+ * `in_flight` is a Tick whose Intent is not settled yet.
+ */
 export const TICK_OUTCOMES = [
   "missed",
   "evaluated",
   "executed",
   "failed",
   "skipped_bounds",
+  "skipped_kill_switch",
   "skipped_observation",
   "in_flight",
 ];
