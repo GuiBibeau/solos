@@ -3461,7 +3461,8 @@
       "Surfpool coverage is not claimed in this row.",
       "Simulate-first wasn't recorded for those sends.",
       "The row can be promoted again after a funded round that logs the simulate result, compute units, and skipSimulation: false next to each signature.",
-      "The 6b64c81 round logged simulate-first for cap-ledger hold and settle on swaps. It did not re-send these transfer_sol signatures, so this row stays recorded."
+      "The 6b64c81 round logged simulate-first for cap-ledger hold and settle on swaps. It did not re-send these transfer_sol signatures, so this row stays recorded.",
+      "The 423 refusal through transfer_sol is a known gap. A funded check is planned under issue 257."
     ]
   },
   {
@@ -3532,8 +3533,8 @@
     ],
     "gaps": [
       "Chain compute units on the four landed ticks were 142459, 157035, 252326, and 194106. The send objects store the simulation counts.",
-      "The kill-switch clock tick was skipped_bounds, with no simulation, no send, and balances unchanged. A refused tick did not consume a slot. Disengaging resumed the next tick. Neither is a send in this row.",
-      "The 423 refusal was not exercised. A clock tick is not an HTTP call, and /v1/actions/execute returns 400 for swaps. Only transfer_sol reserves against a strategy cap.",
+      "Tick 3 was refused by the kill switch. It currently appears as skipped_bounds, the status it shows today. Issue 257 gives this case its own status. There was no simulation, no send, and balances unchanged. A refused tick did not consume a slot. Disengaging resumed the next tick. Neither is a send in this row.",
+      "The 423 refusal through transfer_sol is a known gap. A clock tick is not an HTTP call, and /v1/actions/execute returns 400 for swaps, so this round did not reach 423. A funded check is planned under issue 257.",
       "Simulation compute units were not recorded for the USDC account close. The swap-back and the close have no per-send fee. Round fees were 531000 lamports and the spread was 41949 lamports.",
       "Per-tick wallet lamport deltas were not recorded. The swap-back moved 4.004195 USDC to SOL. The wallet ended all SOL.",
       "Surfpool coverage is not claimed."

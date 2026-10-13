@@ -213,8 +213,10 @@ Tick 2. Hold 1.021312, settled 1.011311. Simulation compute units 157,035,
 chain compute units 157,035, fee 105,000 lamports. Signature
 `4iv31MvGYbix3sD5f1c2jTzkEi3wjU7rJMvom4DuX23qFahMqPuLi92hJirgpAYymRV2yZG6FyBiuqpRbu7nLNeo`.
 
-Tick 3 was the kill switch, engaged. Recorded as `skipped_bounds`, with no
-simulation, no send, and balances unchanged.
+Tick 3 was refused by the kill switch. It currently appears as
+`skipped_bounds`, the status it shows today.
+[#257](https://github.com/GuiBibeau/solos/issues/257) gives this case its own
+status. There was no simulation, no send, and balances were unchanged.
 
 Tick 4. Hold 1.023548, settled 1.013525. Simulation compute units 251,170,
 chain compute units 252,326, fee 105,000 lamports. Signature
@@ -236,7 +238,9 @@ fees, 41,949 spread). The wallet was all SOL.
 
 The 423 path can't be reached for swaps. The clock tick isn't an HTTP call,
 and `/v1/actions/execute` returns 400 for swaps. Only `transfer_sol` reserves
-against a strategy cap, so the 423 check wasn't exercised.
+against a strategy cap, so the 423 check wasn't exercised. The 423 refusal
+through `transfer_sol` is a known gap. A funded check is planned under
+[#257](https://github.com/GuiBibeau/solos/issues/257).
 
 A refused tick doesn't consume a slot. Four ticks executed across five clock
 ticks.
