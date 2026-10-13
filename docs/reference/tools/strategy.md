@@ -50,8 +50,9 @@ Strategy at that limit.
 
 Recorded tick outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped_bounds`,
 `skipped_kill_switch`, `skipped_observation`, and `in_flight`. `skipped_bounds` is a cap or
-slippage refusal. `skipped_kill_switch` is a clock tick stopped by `KillSwitchEngaged`. That
-tick does not simulate, send, or reserve, and it does not count toward `count`.
+slippage refusal. `skipped_kill_switch` is a clock tick `KillSwitchEngaged` stopped before any
+action was sent. That tick does not simulate, send, or reserve, and it does not count toward
+`count`. A tick that already sent records `executed`, and `step` is the action the switch refused.
 `skipped_observation` is a missing declared read.
 
 ## Tools

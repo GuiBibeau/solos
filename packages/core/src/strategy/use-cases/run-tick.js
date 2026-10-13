@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import { evaluateKind, observationNames } from "../domain/evaluator.js";
 import { intentIdFor } from "../domain/intent-id.js";
 import { buildTick } from "../domain/tick-build.js";
+import { outcomeWhenStopped } from "../domain/tick.js";
 import { ObservationReader } from "../ports/observation-reader.js";
 import { RunMode } from "../ports/run-mode.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
@@ -130,7 +131,7 @@ const runActions = (strategy, input) =>
         remedy = result.remedy;
       }
       if (result.outcome === "executed") continue;
-      outcome = result.outcome;
+      outcome = outcomeWhenStopped(result.outcome, intents.length);
       step = index;
       break;
     }

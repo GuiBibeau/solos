@@ -109,9 +109,11 @@ Observations the kind declared, the Actions evaluate returned, and one Intent pe
 was sent. Outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped_bounds`,
 `skipped_kill_switch`, `skipped_observation`, and `in_flight`. A missed Tick is an occurrence the
 Engine was down for. It is recorded once and never replayed. A clock tick stopped by
-`KillSwitchEngaged` records `skipped_kill_switch`: nothing is simulated or sent, no cap is
-reserved, and the tick does not count toward `count`. An in-flight Tick keeps its reservation
-until the Intent settles. Each clock pass reconciles it on the same path as startup. A landed
+`KillSwitchEngaged` before any action is sent records `skipped_kill_switch`: nothing is
+simulated or sent, no cap is reserved, and the tick does not count toward `count`. A tick
+that already sent records `executed`, and `step` is the action the switch refused.
+An in-flight Tick keeps its reservation until the Intent settles. Each clock pass
+reconciles it on the same path as startup. A landed
 signature settles and finalizes the Tick, a failed signature settles the fee, an expired
 blockhash releases the hold and marks the Tick failed, and a missing fee leaves it in flight.
 Closing it applies the same lifecycle on a clock pass or at startup: executed ticks that reach
@@ -167,7 +169,8 @@ at the limit.
 
 **Kill switch** — a pause on new reserves for one Strategy, or for every Strategy when the
 scope is `global`. While the switch is engaged, `reserve` fails with `KillSwitchEngaged` and
-names that scope. A clock tick stopped by that refusal records `skipped_kill_switch`. A global
+names that scope. A clock tick stopped by that refusal before any action is sent records
+`skipped_kill_switch`. A tick that already sent records `executed`. A global
 switch blocks every Strategy. A per-Strategy switch blocks only that Strategy. Settle and
 release still complete. Disengaging that scope allows new reserves again.
 The Engine's SQLite adapter keeps an engaged switch across restarts. `memoryCapLedger` keeps the

@@ -3,8 +3,8 @@ import { ActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
 
 /**
- * Outcomes a Tick can record. `skipped_kill_switch` is a kill-switch refusal.
- * `in_flight` is a Tick whose Intent is not settled yet.
+ * Outcomes a Tick can record. `skipped_kill_switch` is a kill-switch refusal
+ * before any action is sent. `in_flight` is a Tick whose Intent is not settled yet.
  */
 export const TICK_OUTCOMES = [
   "missed",
@@ -70,3 +70,13 @@ export const TickSchema = z
 /** @typedef {z.infer<typeof TickSchema>} Tick */
 /** @typedef {z.infer<typeof TickIntentSchema>} TickIntent */
 /** @typedef {Tick["outcome"]} TickOutcome */
+
+/**
+ * A kill-switch skip means the refused action was not sent. A tick that already
+ * recorded an intent keeps `executed`, and `step` names the refused action.
+ * @param {TickOutcome} outcome
+ * @param {number} sent
+ * @returns {TickOutcome}
+ */
+export const outcomeWhenStopped = (outcome, sent) =>
+  outcome === "skipped_kill_switch" && sent > 0 ? "executed" : outcome;

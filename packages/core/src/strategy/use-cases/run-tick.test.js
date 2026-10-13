@@ -183,6 +183,34 @@ describe("runTick bounds", () => {
     expect(recorded.nextDueAt).toBe(NOW + 60_000);
   });
 
+  test("a sent tick the kill switch stops later stays executed", async () => {
+    const strategy = strategyOf();
+    let submits = 0;
+    const world = provided(strategy, {
+      quote: { reserveUsd: "6", actualUsd: "8", mint: USDC },
+      onSubmit: () => {
+        submits += 1;
+      },
+    });
+    const recorded = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* (yield* StrategyRepository).save(strategy);
+        const stopped = yield* runTick(strategy);
+        const status = yield* (yield* CapLedger).status(strategy.id);
+        const stored = yield* (yield* StrategyRepository).load(strategy.id);
+        return { stopped, engaged: status.engaged, state: stored?.state };
+      }).pipe(Effect.provide(world.layer)),
+    );
+    expect(submits).toBe(1);
+    expect(recorded.stopped.outcome).toBe("executed");
+    expect(recorded.stopped.step).toBe(1);
+    expect(recorded.stopped.intents).toHaveLength(1);
+    expect(recorded.stopped.intents[0]?.state).toBe("settled");
+    expect(recorded.stopped.reason).toContain("above the reserved hold");
+    expect(recorded.engaged).toBe(true);
+    expect(recorded.state).toBe("active");
+  });
+
   test("a signer that cannot fund the Actions fails with no Intent", async () => {
     const strategy = strategyOf({
       params: { actions: [ACTION] },
