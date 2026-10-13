@@ -191,3 +191,55 @@ covered on Surfpool only. Surfpool coverage is not claimed in the feature-map ro
 Simulate-first wasn't recorded for those sends. The row can be promoted again
 after a funded round that logs the simulate result, compute units, and
 `skipSimulation: false` next to each signature.
+
+## Unattended strategy ticks after the STRATEGIES flag (#246)
+
+**Status: one unattended funded round is recorded.** Kernel ran it on
+2026-10-13 (UTC+7) at commit `6b64c81edf01e4d469aa26073bc33cc2c9e82299`, the
+merge commit for #246. The signer is QA wallet `DfWpQReR…`. The run was from
+Kernel's computer. The strategy ended `done`.
+
+Every send was simulated first with `skipSimulation:false`. Simulation results
+and compute units were captured by an RPC logging proxy outside the repo. The
+hold is input × 1.01 + 105,000 lamports (5k base fee plus 100k priority). On
+each landed tick, settled equaled input plus meta.fee and was no more than the
+hold. `err` was null.
+
+Tick 1. Hold 1.022508, settled 1.012495. Simulation compute units 142,419,
+chain compute units 142,459, fee 105,000 lamports. Signature
+`3rU9dMAKfr5xsQ6yQ8WQQPc5w4V545KzcnQEcbw1n4gZDQGbzwva3L2BJdeoj1jb3Ux8br7NGzKjJzpc3S5k1kt3`.
+
+Tick 2. Hold 1.021312, settled 1.011311. Simulation compute units 157,035,
+chain compute units 157,035, fee 105,000 lamports. Signature
+`4iv31MvGYbix3sD5f1c2jTzkEi3wjU7rJMvom4DuX23qFahMqPuLi92hJirgpAYymRV2yZG6FyBiuqpRbu7nLNeo`.
+
+Tick 3 was the kill switch, engaged. Recorded as `skipped_bounds`, with no
+simulation, no send, and balances unchanged.
+
+Tick 4. Hold 1.023548, settled 1.013525. Simulation compute units 251,170,
+chain compute units 252,326, fee 105,000 lamports. Signature
+`5K62PRw3BxSYg7m1YdD6KgvjitvD7eVZpYYxZs9xpGA4Va4YJYJ4NmtQA37WAsuPzAPVt2SrfhJfD9JuKe8ijuEA`.
+
+Tick 5. Hold 1.021995, settled 1.011987. Simulation compute units 194,877,
+chain compute units 194,106, fee 105,000 lamports. Signature
+`2h5nGESZFZq6AsC7LnkyzZFKpbqgr5KHgLzDoVzcua9L1dnRin4urLNfYHvH7HNeLdnUrApW5HA9hvAdWGrHt8vq`.
+
+The swap-back moved 4.004195 USDC to SOL. Simulation compute units 29,166.
+Signature
+`67EnBQfoSW25etX7fJgBafQiyr3CPgFMF6HzzNFu1WDTvT27fBA6iq7uc87cZrDWak1YVERmDTn3MJ5kzkGS2yfs`.
+
+The USDC account closed in
+`53UNw1rWFrEFV7wRp9S5rDx8QS8sD2mZ5PEyiK7ayVQJUt1cfZPDbV97uCDHzES5c4FQD71rtx5NqzhuVgrY2auk`.
+
+SOL went 910,971,092 → 910,398,143, a net cost of 572,949 lamports (531,000
+fees, 41,949 spread). The wallet was all SOL.
+
+The 423 path can't be reached for swaps. The clock tick isn't an HTTP call,
+and `/v1/actions/execute` returns 400 for swaps. Only `transfer_sol` reserves
+against a strategy cap, so the 423 check wasn't exercised.
+
+A refused tick doesn't consume a slot. Four ticks executed across five clock
+ticks.
+
+Disengaging the kill switch resumed ticks normally. Tick 4 ran after the
+disengage.

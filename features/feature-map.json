@@ -3460,7 +3460,83 @@
       "The in-flight-across-restart branch landed confirmed before restart, so the unconfirmed-at-restart case is covered on Surfpool only.",
       "Surfpool coverage is not claimed in this row.",
       "Simulate-first wasn't recorded for those sends.",
-      "The row can be promoted again after a funded round that logs the simulate result, compute units, and skipSimulation: false next to each signature."
+      "The row can be promoted again after a funded round that logs the simulate result, compute units, and skipSimulation: false next to each signature.",
+      "The 6b64c81 round logged simulate-first for cap-ledger hold and settle on swaps. It did not re-send these transfer_sol signatures, so this row stays recorded."
+    ]
+  },
+  {
+    "status": "live-validated",
+    "action": "swap",
+    "issue": 246,
+    "codeSha": "6b64c81edf01e4d469aa26073bc33cc2c9e82299",
+    "cluster": "mainnet",
+    "owner": "DfWpQReRKLMkwYa9kXf3BLMCkm42HwT1zDokzGgaerFw",
+    "qa": "docs/engine-qa.md#unattended-strategy-ticks-after-the-strategies-flag-246",
+    "lifecycleNet": {
+      "solFeeDelta": "-0.000572949"
+    },
+    "sends": [
+      {
+        "signature": "3rU9dMAKfr5xsQ6yQ8WQQPc5w4V545KzcnQEcbw1n4gZDQGbzwva3L2BJdeoj1jb3Ux8br7NGzKjJzpc3S5k1kt3",
+        "simulation": {
+          "computeUnits": 142419
+        },
+        "wallet": {
+          "sol": {
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "4iv31MvGYbix3sD5f1c2jTzkEi3wjU7rJMvom4DuX23qFahMqPuLi92hJirgpAYymRV2yZG6FyBiuqpRbu7nLNeo",
+        "simulation": {
+          "computeUnits": 157035
+        },
+        "wallet": {
+          "sol": {
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "5K62PRw3BxSYg7m1YdD6KgvjitvD7eVZpYYxZs9xpGA4Va4YJYJ4NmtQA37WAsuPzAPVt2SrfhJfD9JuKe8ijuEA",
+        "simulation": {
+          "computeUnits": 251170
+        },
+        "wallet": {
+          "sol": {
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "2h5nGESZFZq6AsC7LnkyzZFKpbqgr5KHgLzDoVzcua9L1dnRin4urLNfYHvH7HNeLdnUrApW5HA9hvAdWGrHt8vq",
+        "simulation": {
+          "computeUnits": 194877
+        },
+        "wallet": {
+          "sol": {
+            "feeLamportsApprox": "105000"
+          }
+        }
+      },
+      {
+        "signature": "67EnBQfoSW25etX7fJgBafQiyr3CPgFMF6HzzNFu1WDTvT27fBA6iq7uc87cZrDWak1YVERmDTn3MJ5kzkGS2yfs",
+        "simulation": {
+          "computeUnits": 29166
+        }
+      },
+      {
+        "signature": "53UNw1rWFrEFV7wRp9S5rDx8QS8sD2mZ5PEyiK7ayVQJUt1cfZPDbV97uCDHzES5c4FQD71rtx5NqzhuVgrY2auk"
+      }
+    ],
+    "gaps": [
+      "Chain compute units on the four landed ticks were 142459, 157035, 252326, and 194106. The send objects store the simulation counts.",
+      "The kill-switch clock tick was skipped_bounds, with no simulation, no send, and balances unchanged. A refused tick did not consume a slot. Disengaging resumed the next tick. Neither is a send in this row.",
+      "The 423 refusal was not exercised. A clock tick is not an HTTP call, and /v1/actions/execute returns 400 for swaps. Only transfer_sol reserves against a strategy cap.",
+      "Simulation compute units were not recorded for the USDC account close. The swap-back and the close have no per-send fee. Round fees were 531000 lamports and the spread was 41949 lamports.",
+      "Per-tick wallet lamport deltas were not recorded. The swap-back moved 4.004195 USDC to SOL. The wallet ended all SOL.",
+      "Surfpool coverage is not claimed."
     ]
   }
 ]
