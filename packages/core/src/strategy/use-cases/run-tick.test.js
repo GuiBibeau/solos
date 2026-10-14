@@ -60,7 +60,7 @@ const provided = (strategy, options = {}) => {
     memoryCapLedger({ boundsFor: () => strategy.bounds }),
     scriptedObservationReader(() => ({ lamports })),
     scriptedSpendMeter(quote),
-    submit(options.failSecond === true),
+    submit(options.failSecond === true, /** @type {(() => void) | undefined} */ (options.onSubmit)),
     Layer.succeed(RunMode, { dry: isDry }),
   );
   return { repository, layer };
@@ -78,11 +78,12 @@ const ids = () => {
   }));
 };
 
-/** @param {boolean} failSecond */
-const submit = (failSecond) =>
+/** @param {boolean} failSecond @param {() => void} [onSubmit] */
+const submit = (failSecond, onSubmit) =>
   Layer.sync(TickSubmit, () => ({
-    submit: (input) =>
-      Effect.succeed(
+    submit: (input) => {
+      if (onSubmit !== undefined) onSubmit();
+      return Effect.succeed(
         failSecond && input.intentId.endsWith(".1")
           ? {
               intentId: input.intentId,
@@ -91,7 +92,8 @@ const submit = (failSecond) =>
               remedy: "retry",
             }
           : { intentId: input.intentId, state: "settled", signature: "sig" },
-      ),
+      );
+    },
   }));
 
 /** @param {import("@solos-sh/actions").Strategy} strategy @param {Record<string, unknown>} [options] */
@@ -139,7 +141,74 @@ describe("runTick bounds", () => {
     expect(recorded.first.outcome).toBe("executed");
     expect(recorded.first.reason).toContain("above the reserved hold");
     expect(recorded.status.reason).toContain("settle exceeded reservation");
-    expect(recorded.second.outcome).toBe("skipped_bounds");
+    expect(recorded.second.outcome).toBe("skipped_kill_switch");
+  });
+
+  test("an engaged kill switch records skipped_kill_switch and reserves nothing", async () => {
+    const strategy = strategyOf({ params: { actions: [ACTION], count: 1 } });
+    let submits = 0;
+    const world = provided(strategy, {
+      onSubmit: () => {
+        submits += 1;
+      },
+    });
+    const recorded = await Effect.runPromise(
+      Effect.gen(function* () {
+        const ledger = yield* CapLedger;
+        yield* (yield* StrategyRepository).save(strategy);
+        yield* ledger.engage({ scope: strategy.id, reason: "operator stop" });
+        const skipped = yield* runTick(strategy);
+        yield* ledger.disengage(strategy.id);
+        const probe = yield* ledger.reserve({
+          strategyId: strategy.id,
+          tickId: skipped.tickId,
+          intentId: "probe",
+          notionalUsd: "1",
+          mint: USDC,
+        });
+        const stored = yield* (yield* StrategyRepository).load(strategy.id);
+        return {
+          skipped,
+          reserved: probe.reservationId,
+          state: stored?.state,
+          nextDueAt: stored?.nextDueAt,
+        };
+      }).pipe(Effect.provide(world.layer)),
+    );
+    expect(submits).toBe(0);
+    expect(recorded.skipped.outcome).toBe("skipped_kill_switch");
+    expect(recorded.skipped.intents).toHaveLength(0);
+    expect(recorded.reserved).toBe("res_1");
+    expect(recorded.state).toBe("active");
+    expect(recorded.nextDueAt).toBe(NOW + 60_000);
+  });
+
+  test("a sent tick the kill switch stops later stays executed", async () => {
+    const strategy = strategyOf();
+    let submits = 0;
+    const world = provided(strategy, {
+      quote: { reserveUsd: "6", actualUsd: "8", mint: USDC },
+      onSubmit: () => {
+        submits += 1;
+      },
+    });
+    const recorded = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* (yield* StrategyRepository).save(strategy);
+        const stopped = yield* runTick(strategy);
+        const status = yield* (yield* CapLedger).status(strategy.id);
+        const stored = yield* (yield* StrategyRepository).load(strategy.id);
+        return { stopped, engaged: status.engaged, state: stored?.state };
+      }).pipe(Effect.provide(world.layer)),
+    );
+    expect(submits).toBe(1);
+    expect(recorded.stopped.outcome).toBe("executed");
+    expect(recorded.stopped.step).toBe(1);
+    expect(recorded.stopped.intents).toHaveLength(1);
+    expect(recorded.stopped.intents[0]?.state).toBe("settled");
+    expect(recorded.stopped.reason).toContain("above the reserved hold");
+    expect(recorded.engaged).toBe(true);
+    expect(recorded.state).toBe("active");
   });
 
   test("a signer that cannot fund the Actions fails with no Intent", async () => {

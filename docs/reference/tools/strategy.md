@@ -48,6 +48,13 @@ applies the lifecycle either way. A schedule whose executed ticks reach `count` 
 and `nextDueAt` is null. Failed ticks count toward `maxConsecutiveFailures` and pause the
 Strategy at that limit.
 
+Recorded tick outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped_bounds`,
+`skipped_kill_switch`, `skipped_observation`, and `in_flight`. `skipped_bounds` is a cap or
+slippage refusal. `skipped_kill_switch` is a clock tick `KillSwitchEngaged` stopped before any
+action was sent. That tick does not simulate, send, or reserve, and it does not count toward
+`count`. A tick that already sent records `executed`, and `step` is the action the switch refused.
+`skipped_observation` is a missing declared read.
+
 ## Tools
 
 `solana_strategy_list_strategies` and `solana_strategy_get_status` read the Registry. Status

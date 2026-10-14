@@ -11,7 +11,13 @@ import { TickSubmit } from "../ports/tick-submit.js";
 
 /**
  * @typedef {{
- *   readonly outcome: "executed" | "failed" | "skipped_bounds" | "skipped_observation" | "in_flight";
+ *   readonly outcome:
+ *     | "executed"
+ *     | "failed"
+ *     | "skipped_bounds"
+ *     | "skipped_kill_switch"
+ *     | "skipped_observation"
+ *     | "in_flight";
  *   readonly intent?: import("../domain/tick.js").TickIntent;
  *   readonly reason?: string;
  *   readonly remedy?: string;
@@ -150,12 +156,20 @@ const releaseUnverified = (reservationId) =>
     return result;
   });
 
-/** @param {unknown} error @returns {StepResult} */
+/**
+ * A kill-switch refusal is its own outcome. Every other reserve refusal stays a bounds skip.
+ * @param {unknown} error
+ * @returns {StepResult}
+ */
 const boundsSkip = (error) => ({
-  outcome: "skipped_bounds",
+  outcome: refusalOutcome(error),
   reason: reasonOf(error),
   remedy: remedyOf(error),
 });
+
+/** @param {unknown} error @returns {StepResult["outcome"]} */
+const refusalOutcome = (error) =>
+  error instanceof KillSwitchEngaged ? "skipped_kill_switch" : "skipped_bounds";
 
 /** @param {unknown} error @returns {StepResult} */
 const observationSkip = (error) => ({

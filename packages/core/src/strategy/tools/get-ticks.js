@@ -9,6 +9,7 @@ const OUTCOMES = /** @type {const} */ ([
   "executed",
   "failed",
   "skipped_bounds",
+  "skipped_kill_switch",
   "skipped_observation",
   "in_flight",
 ]);
