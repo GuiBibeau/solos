@@ -1,6 +1,7 @@
 // @ts-check
 import { ActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
+import { rangeTickFields } from "./tick-range-state.js";
 
 /**
  * Outcomes a Tick can record. `skipped_kill_switch` is a kill-switch refusal
@@ -87,6 +88,7 @@ export const TickSchema = z
           )
           .optional()
           .describe("Per-mint weight, target, and drift recorded by a rebalance tick"),
+        ...rangeTickFields,
       })
       .passthrough()
       .optional()

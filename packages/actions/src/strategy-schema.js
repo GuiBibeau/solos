@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { TimestampSchema } from "./primitives.js";
 import { StrategyBoundsSchema } from "./strategy-bounds.js";
+import { RangeParamsSchema } from "./strategy-range.js";
 import { RebalanceParamsSchema } from "./strategy-rebalance.js";
 import { ScheduleParamsSchema } from "./strategy-schedule.js";
 import { StrategyStateSchema } from "./strategy-state.js";
@@ -22,7 +23,7 @@ const owner = z
   .describe("Label a swarm uses to tell its registrations apart. Never authorization");
 
 /** @type {Record<string, string>} */
-const LATER = { range: "#201", carry: "#202" };
+const LATER = { carry: "#202" };
 
 const shared = {
   owner,
@@ -48,6 +49,7 @@ const assigned = {
     .nullable()
     .optional()
     .describe("Why the Engine paused this Strategy, when it did"),
+  updatedAt: TimestampSchema.optional().describe("Unix ms of the last Engine update"),
 };
 
 /**
@@ -131,7 +133,7 @@ export const StrategyDraftSchema = z
     }),
     z.object({
       kind: z.literal("range").describe("Strategy kind"),
-      params: z.unknown().describe("range parameters"),
+      params: RangeParamsSchema,
       ...shared,
     }),
     z.object({
@@ -169,7 +171,7 @@ export const StrategySchema = z
     }),
     z.object({
       kind: z.literal("range").describe("Strategy kind"),
-      params: z.unknown().describe("range parameters"),
+      params: RangeParamsSchema,
       ...shared,
       ...assigned,
     }),

@@ -6,14 +6,17 @@ import { Effect, Layer } from "effect";
 import { claimIntent, failIntent, readIntent, recordSigned, settleIntent } from "./intents.js";
 import { paidFeeUsd } from "./paid-fee.js";
 import { openSwapLedger, runSwapOrExecute } from "./swap-fixture.js";
+import { withDetails } from "./tick-result-details.js";
+import { scriptedSettle } from "./tick-settle.js";
 
 /**
  * Claim the Intent, sign through the Engine executor, then settle or fail the row.
  * A repeat claim returns the stored row and does not send again.
  * @param {import("bun:sqlite").Database} db
  * @param {import("./swap-fixture.js").SwapFixtureConfig | undefined} [swapFixture]
+ * @param {import("./tick-settle.js").SettleAction | undefined} [settleAction]
  */
-export const engineTickSubmit = (db, swapFixture) =>
+export const engineTickSubmit = (db, swapFixture, settleAction) =>
   Layer.effect(
     TickSubmit,
     Effect.gen(function* () {
@@ -23,11 +26,13 @@ export const engineTickSubmit = (db, swapFixture) =>
       const ledger =
         swapFixture === undefined ? undefined : openSwapLedger(swapFixture, yield* Signer);
       return {
-        submit: (input) =>
-          submitOne(db, { executor, ledger }, input).pipe(
+        submit: (input) => {
+          if (settleAction !== undefined) return scriptedSettle(input, settleAction);
+          return submitOne(db, { executor, ledger }, input).pipe(
             Effect.provideService(PriceFeed, prices),
             Effect.provideService(SolanaRpc, rpc),
-          ),
+          );
+        },
       };
     }),
   );
@@ -87,7 +92,7 @@ const landed = (db, intentId, result) =>
     settleIntent(db, intentId, toJsonSafe(result));
     const feeLamports = yield* feeText(signature);
     if (signature === null || signature.length === 0 || result.status === "confirmed") {
-      return settledFee(intentId, signature, feeLamports);
+      return withDetails(settledFee(intentId, signature, feeLamports), result);
     }
     const feeUsd = yield* paidFeeUsd(signature);
     return feeRow(intentId, result, { feeUsd, feeLamports });
@@ -187,8 +192,12 @@ const settledRow = (intentId, result) => {
     /** @type {{ status?: string; signature?: string | null; error?: string | null }} */ (
       result ?? {}
     );
-  if (body.status === "confirmed")
-    return { intentId, state: /** @type {const} */ ("settled"), signature: body.signature ?? null };
+  if (body.status === "confirmed") {
+    return withDetails(
+      { intentId, state: /** @type {const} */ ("settled"), signature: body.signature ?? null },
+      body,
+    );
+  }
   return failedRow(intentId, body.error ?? "execution failed", body.signature ?? null);
 };
 

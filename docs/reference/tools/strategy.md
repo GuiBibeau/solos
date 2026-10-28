@@ -5,10 +5,11 @@ Part of the [tool reference](index.md).
 A Strategy is a registered description of later work: a kind, that kind's parameters, a tick
 source, Bounds, and a lifecycle state. Registering one stores it. A `schedule` Strategy ticks
 on its clock: the Engine observes, evaluates, reserves each Action, and sends. A schedule or
-trigger action is only `transfer_sol` or `swap` for now. Any other action type is refused at
-registration with `UnsupportedStrategyAction`. A tick that still carries one fails the same
-way, before a reserve or a send. `schedule`, `trigger`, and `rebalance` are the kinds the contract
-accepts. `range` and `carry` are names that fail until their issues ship.
+trigger action is `transfer_sol` or `swap`. A range tick may also reserve `remove_liquidity`,
+`close_position`, `open_position`, and `add_liquidity`. Any other action type is refused at
+registration with `UnsupportedStrategyAction`, and again before a tick reserves or sends.
+`schedule`, `trigger`, `rebalance`, and `range` are the kinds the contract accepts. `carry` is a
+name that fails until its issue ships.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
 `solos strategy`, both of which talk to the Engine over HTTP. Core registers the twelve MCP
@@ -119,6 +120,50 @@ and `driftBps`, plus the Actions that tick emitted and each Intent's state. When
 exceeds `maxNotionalPerTickUsd`, that swap and the ones after it are not sent. The tick records
 `skipped_bounds` with the cap reason and the step. Leading intents stay settled. The next tick
 emits only what is still outside the band.
+
+## Range
+
+A `range` keeps one Meteora DLMM position centred on the pool's active bin. It ticks on the same
+clock. Orca and Raydium are not part of this kind.
+
+```json
+{
+  "kind": "range",
+  "params": {
+    "protocol": "meteora",
+    "pool": "<LbPair>",
+    "position": "<PositionV2>",
+    "width": 10,
+    "recenterWhenOutsideFor": 3,
+    "maxRecentersPerDay": 4,
+    "maxSlippageBps": 50
+  }
+}
+```
+
+`width` is an integer from 1 to 70. `recenterWhenOutsideFor` is how many consecutive ticks the
+active bin must sit outside `[lowerBinId, upperBinId]` before the Strategy acts.
+`maxRecentersPerDay` is an integer from 1 to 24, counted on the UTC day, in addition to the
+Engine caps. `maxSlippageBps` defaults to 50 and applies to the withdrawal and the deposit.
+
+While the active bin is inside the position, the tick emits nothing and resets `outsideStreak`.
+Outside, the streak increments. When it reaches the debounce and the day's budget remains, the
+tick emits four Actions in order: `remove_liquidity` at 10000 bps, `close_position`,
+`open_position` with `lowerBinId = activeId - floor(width / 2)`, and `add_liquidity` of the
+amounts the withdrawal returned. The deposit uses the Strategy's `maxSlippageBps`. A window
+past Meteora's bin bounds fails the tick. A missing position range fails the tick.
+
+The tick runs those Actions in order and stops at the first failure. Nothing is unwound and
+nothing is retried. The Strategy pauses, and the reason names the step, the Action type, and
+the Intent. `status` lists the Intents that settled. The position address on the Strategy
+changes only after `open_position` settles, so a resume targets a real account. If that open
+settled and a later step did not, the new address is kept and the day's recenter count is not
+incremented. The withdrawn principal counts once against the tick cap. The redeposit is the
+same funds.
+
+`solos strategy status <id>` shows, on `lastTick.state`, the active bin, the position range,
+`outsideStreak`, `recentersToday`, and `lastRecenterIntents` from the last completed recenter.
+Those Intent ids stay on later inside-range ticks.
 
 ## Tools
 

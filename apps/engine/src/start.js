@@ -12,6 +12,7 @@ import { bootPaper } from "./paper.js";
 import { recoverIntents } from "./recover.js";
 import { installRedaction } from "./redact.js";
 import { serveEngine } from "./serve.js";
+import { layerOptions } from "./strategy-options.js";
 import { bootTicks } from "./tick-boot.js";
 
 /**
@@ -25,6 +26,7 @@ import { bootTicks } from "./tick-boot.js";
  *   stalenessIntervals?: number;
  *   stalenessMs?: number;
  *   swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
+ *   settleAction?: import("./tick-settle.js").SettleAction;
  * }} StartInput
  */
 
@@ -77,6 +79,7 @@ const strategyStart = (input, mode) => ({
   ...(input.observations !== undefined && { observations: input.observations }),
   ...(input.quote !== undefined && { quote: input.quote }),
   ...(input.swapFixture !== undefined && { swapFixture: input.swapFixture }),
+  ...(input.settleAction !== undefined && { settleAction: input.settleAction }),
   ...stalenessOptions(input),
 });
 
@@ -91,6 +94,7 @@ const strategyStart = (input, mode) => ({
  *   stalenessIntervals?: number;
  *   stalenessMs?: number;
  *   swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
+ *   settleAction?: import("./tick-settle.js").SettleAction;
  * }} StrategyStart
  */
 
@@ -146,22 +150,6 @@ const strategyMount = async (db, input) => {
   if (input.strategies === false) return undefined;
   return compiledStrategyMount(db, options);
 };
-
-/**
- * @param {StrategyStart} input
- */
-const layerOptions = (input) => ({
-  allowedMints: input.allowedMints ?? [],
-  minIntervalMs: input.minIntervalMs,
-  tickWindow: input.tickWindow,
-  dry: input.mode === "dry",
-  now: input.now ?? (() => Date.now()),
-  ...(input.observations !== undefined && { observations: input.observations }),
-  ...(input.quote !== undefined && { quote: input.quote }),
-  ...(input.stalenessIntervals !== undefined && { stalenessIntervals: input.stalenessIntervals }),
-  ...(input.stalenessMs !== undefined && { stalenessMs: input.stalenessMs }),
-  ...(input.swapFixture !== undefined && { swapFixture: input.swapFixture }),
-});
 
 /**
  * In-process tests mount the same modules a release build serves.

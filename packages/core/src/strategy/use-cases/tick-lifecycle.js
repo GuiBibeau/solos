@@ -21,6 +21,31 @@ export const applyLifecycle = (strategy, outcome, now) =>
     yield* scheduleNext(strategy, now);
   });
 
+/**
+ * A range tick that already sent an action and then stopped is paused immediately.
+ * The wallet may hold withdrawn tokens or an empty new position, so the next tick must not retry.
+ * @param {import("@solos-sh/actions").Strategy} strategy
+ */
+const pausePartialRange = (strategy) =>
+  Effect.gen(function* () {
+    if (strategy.kind !== "range") return false;
+    const recent = yield* (yield* TickRepository).list({ strategyId: strategy.id, limit: 1 });
+    const tick = recent[0];
+    if (!rangeStopped(tick)) return false;
+    const reason = tick?.reason ?? "a range tick stopped before the recenter finished";
+    yield* performEngineTransition(strategy.id, "paused", reason);
+    return true;
+  });
+
+/**
+ * @param {{ readonly outcome?: string; readonly step?: number; readonly intents?: readonly unknown[]; readonly reason?: string } | undefined} tick
+ */
+const rangeStopped = (tick) => {
+  if (tick === undefined) return false;
+  if (tick.outcome === "failed" && tick.step !== undefined) return true;
+  return tick.outcome === "skipped_bounds" && (tick.intents?.length ?? 0) > 0;
+};
+
 /** @param {import("@solos-sh/actions").Strategy} strategy */
 const pauseFailures = (strategy) =>
   Effect.gen(function* () {
@@ -67,6 +92,7 @@ const finishCount = (strategy) =>
 /** @param {import("@solos-sh/actions").Strategy} strategy @param {number} now */
 const scheduleNext = (strategy, now) =>
   Effect.gen(function* () {
+    if (yield* pausePartialRange(strategy)) return;
     const repository = yield* StrategyRepository;
     const current = yield* repository.load(strategy.id);
     if (current === undefined || current.state !== "active") return;

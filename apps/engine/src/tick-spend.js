@@ -5,6 +5,7 @@ import {
   SpendMeter,
   UnsupportedStrategyAction,
   actualUsdFor,
+  isLiquidityAction,
   mintOf,
   reserveUsdFor,
   unsupportedStrategyAction,
@@ -14,6 +15,7 @@ import { swapFeeReserveLamports } from "@solos/solana/swap/fee-reserve";
 import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect, Layer } from "effect";
 import { transferNotionalUsd } from "./sol-notional.js";
+import { quoteLiquidity } from "./tick-spend-liquidity.js";
 
 /** Worst-case reservation from the price feed and the mint's verified decimals. */
 export const liveSpendMeter = Layer.effect(
@@ -21,7 +23,7 @@ export const liveSpendMeter = Layer.effect(
   Effect.gen(function* () {
     const feed = yield* PriceFeed;
     const decimals = yield* MintDecimals;
-    return { quote: (action) => quoteAction({ feed, decimals }, action) };
+    return { quote: (action, context) => quoteAction({ feed, decimals }, action, context) };
   }),
 );
 
@@ -31,11 +33,13 @@ export const liveSpendMeter = Layer.effect(
  * price is PriceUnavailable. Unverified swap decimals are not priced.
  * @param {QuoteDeps} deps
  * @param {import("@solos-sh/actions").Action} action
+ * @param {import("@solos/core/strategy").SpendContext | undefined} context
  */
-const quoteAction = (deps, action) =>
+const quoteAction = (deps, action, context) =>
   Effect.gen(function* () {
     const refused = unsupportedStrategyAction(action.type);
     if (refused !== undefined) return yield* refused;
+    if (isLiquidityAction(action.type)) return yield* quoteLiquidity(deps, action, context);
     const mint = mintOf(action);
     const price = yield* deps.feed.getPrice(mint);
     if (!isPositive(price.priceUsd)) return yield* missingPrice(mint, price.source);

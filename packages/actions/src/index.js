@@ -18,6 +18,7 @@
 /** @typedef {import("./strategy-schedule.js").ScheduleParams} ScheduleParams */
 /** @typedef {import("./strategy-state.js").StrategyState} StrategyState */
 /** @typedef {import("./strategy-tick-source.js").TickSource} TickSource */
+/** @typedef {import("./strategy-range.js").RangeParams} RangeParams */
 /** @typedef {import("./strategy-rebalance.js").RebalanceParams} RebalanceParams */
 /** @typedef {import("./strategy-trigger.js").TriggerParams} TriggerParams */
 /** @typedef {import("./portfolio.js").PortfolioState} PortfolioState */
@@ -70,6 +71,7 @@ export {
 } from "./strategy-state.js";
 export { durationMs, formatDuration } from "./duration.js";
 export { DurationSchema, TickSourceSchema } from "./strategy-tick-source.js";
+export { RangeParamsSchema } from "./strategy-range.js";
 export { RebalanceParamsSchema, USDC_MINT } from "./strategy-rebalance.js";
 export { TriggerParamsSchema } from "./strategy-trigger.js";
 export { PortfolioStateSchema, PositionSchema } from "./portfolio.js";

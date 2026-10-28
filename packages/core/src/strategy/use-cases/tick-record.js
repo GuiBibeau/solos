@@ -1,12 +1,11 @@
 // @ts-check
 import { Effect } from "effect";
-import { intentIdFor } from "../domain/intent-id.js";
+import { persistedState } from "../domain/persisted-state.js";
+import { withRecenterIntents } from "../domain/range-state.js";
 import { buildTick } from "../domain/tick-build.js";
-import { outcomeWhenStopped } from "../domain/tick.js";
-import { persistedState } from "../domain/trigger-kind.js";
 import { RunMode } from "../ports/run-mode.js";
 import { TickRepository } from "../ports/tick-repository.js";
-import { runStep } from "./run-step.js";
+import { executeActions } from "./run-actions.js";
 import { applyLifecycle } from "./tick-lifecycle.js";
 
 /**
@@ -14,7 +13,9 @@ import { applyLifecycle } from "./tick-lifecycle.js";
  *   readonly actions: ReadonlyArray<import("@solos-sh/actions").Action>;
  *   readonly state?: unknown;
  *   readonly note?: string;
+ *   readonly reason?: string;
  *   readonly revert?: unknown;
+ *   readonly openedPosition?: string;
  *   readonly skip?: { readonly reason: string; readonly remedy: string };
  *   readonly failure?: { readonly reason: string; readonly remedy: string };
  * }} Decision
@@ -52,7 +53,10 @@ export const recordDecision = (strategy, input) =>
     }
     const dry = (yield* RunMode).dry;
     if (dry || input.decision.actions.length === 0) {
-      return yield* store(strategy, input, { outcome: "evaluated" });
+      return yield* store(strategy, input, {
+        outcome: "evaluated",
+        ...(input.decision.reason !== undefined && { reason: input.decision.reason }),
+      });
     }
     return yield* executeAll(strategy, input);
   });
@@ -80,7 +84,13 @@ export const storeSkip = (strategy, input) =>
 const executeAll = (strategy, input) =>
   Effect.gen(function* () {
     yield* (yield* TickRepository).save(inFlight(strategy, input));
-    return yield* store(strategy, input, yield* runActions(strategy, input));
+    const ran = yield* executeActions(strategy, input);
+    const decision = {
+      ...input.decision,
+      actions: ran.actions,
+      ...(ran.opened !== undefined && { openedPosition: ran.opened }),
+    };
+    return yield* store(strategy, { ...input, decision }, ran);
   });
 
 /** @param {import("@solos-sh/actions").Strategy} strategy @param {TickInput} input */
@@ -97,55 +107,6 @@ const inFlight = (strategy, input) =>
     intents: [],
     ...noteOf(input.decision.note),
     ...stateOf(persistedState(input.decision, "in_flight")),
-  });
-
-/** @param {import("@solos-sh/actions").Strategy} strategy @param {{ tickId: string; decision: Decision }} input */
-const runActions = (strategy, input) =>
-  Effect.gen(function* () {
-    /** @type {import("../domain/tick.js").TickIntent[]} */
-    const intents = [];
-    /** @type {import("../domain/tick.js").TickOutcome} */
-    let outcome = "executed";
-    /** @type {string | undefined} */
-    let reason;
-    /** @type {string | undefined} */
-    let remedy;
-    /** @type {number | undefined} */
-    let step;
-    for (const [index, action] of input.decision.actions.entries()) {
-      const result = yield* stepResult({
-        strategyId: strategy.id,
-        tickId: input.tickId,
-        index,
-        action,
-      });
-      if (result.intent) intents.push(result.intent);
-      if (reason === undefined && result.reason !== undefined) {
-        reason = result.reason;
-        remedy = result.remedy;
-      }
-      if (result.outcome === "executed") continue;
-      outcome = outcomeWhenStopped(result.outcome, intents.length);
-      step = index;
-      break;
-    }
-    return { outcome, intents, reason, remedy, step };
-  });
-
-/**
- * @param {{
- *   strategyId: string;
- *   tickId: string;
- *   index: number;
- *   action: import("@solos-sh/actions").Action;
- * }} input
- */
-const stepResult = (input) =>
-  runStep({
-    strategyId: input.strategyId,
-    tickId: input.tickId,
-    intentId: intentIdFor(input.strategyId, input.tickId, input.index),
-    action: input.action,
   });
 
 /**
@@ -172,7 +133,7 @@ const store = (strategy, input, result) =>
       actions: input.decision.actions,
       intents: result.intents ?? [],
       ...noteOf(input.decision.note),
-      ...stateOf(persistedState(input.decision, result.outcome)),
+      ...stateOf(savedState(input.decision, result)),
       ...(result.reason !== undefined && { reason: result.reason }),
       ...(result.remedy !== undefined && { remedy: result.remedy }),
       ...(result.step !== undefined && { step: result.step }),
@@ -181,6 +142,13 @@ const store = (strategy, input, result) =>
     yield* applyLifecycle(strategy, result.outcome, input.now);
     return tick;
   });
+
+/**
+ * @param {Decision} decision
+ * @param {{ outcome: string; intents?: ReadonlyArray<{ readonly intentId: string }> }} result
+ */
+const savedState = (decision, result) =>
+  withRecenterIntents(persistedState(decision, result.outcome), result.outcome, result.intents);
 
 /** @param {string | undefined} note */
 const noteOf = (note) => (note === undefined ? {} : { note });

@@ -1,13 +1,13 @@
 // @ts-check
 import { Effect } from "effect";
-import { BoundsExceeded } from "../../shared/domain/engine-errors.js";
 import { compareDecimal } from "../domain/decimal.js";
-import { KillSwitchEngaged, StrategyNotFound } from "../domain/errors.js";
+import { KillSwitchEngaged } from "../domain/errors.js";
 import { confirmedSpendUsd, failedSpend } from "../domain/spend-settle.js";
 import { unsupportedStrategyAction } from "../domain/supported-action.js";
 import { CapLedger } from "../ports/cap-ledger.js";
 import { SpendMeter } from "../ports/spend-meter.js";
 import { TickSubmit } from "../ports/tick-submit.js";
+import { reasonOf, remedyOf } from "./step-reason.js";
 
 /**
  * @typedef {{
@@ -21,19 +21,28 @@ import { TickSubmit } from "../ports/tick-submit.js";
  *   readonly intent?: import("../domain/tick.js").TickIntent;
  *   readonly reason?: string;
  *   readonly remedy?: string;
+ *   readonly details?: Readonly<Record<string, unknown>>;
  * }} StepResult
  */
 
 /**
  * Reserve, send, and settle one Action. A settle above the hold is recorded here. The ledger
  * engages the kill switch itself.
- * @param {{ strategyId: string; tickId: string; intentId: string; action: import("@solos-sh/actions").Action }} input
+ * @param {{
+ *   strategyId: string;
+ *   tickId: string;
+ *   intentId: string;
+ *   action: import("@solos-sh/actions").Action;
+ *   context?: import("../ports/spend-meter.js").SpendContext;
+ * }} input
  */
 export const runStep = (input) =>
   Effect.gen(function* () {
     const refused = unsupportedStrategyAction(input.action.type);
     if (refused !== undefined) return failedStep(refused);
-    const quoted = yield* (yield* SpendMeter).quote(input.action).pipe(Effect.either);
+    const quoted = yield* (yield* SpendMeter)
+      .quote(input.action, input.context)
+      .pipe(Effect.either);
     if (quoted._tag === "Left") return observationSkip(quoted.left);
     const reserved = yield* reserve(input, quoted.right);
     if (!reserved.ok) return reserved.outcome;
@@ -81,7 +90,7 @@ const finish = (reservationId, quote, sent) =>
     const spend = confirmedSpendUsd(quote, sent);
     if (spend === undefined) return parked(intent);
     yield* ledger.settle(reservationId, spend);
-    return settled(quote, intent, spend);
+    return withDetails(settled(quote, intent, spend), sent.details);
   });
 
 /**
@@ -116,15 +125,22 @@ const failed = (input) =>
  */
 const settled = (quote, intent, spendUsd) => {
   if (compareDecimal(spendUsd, quote.reserveUsd) <= 0) {
-    return { outcome: "executed", intent };
+    return { outcome: /** @type {const} */ ("executed"), intent };
   }
   return {
-    outcome: "executed",
+    outcome: /** @type {const} */ ("executed"),
     intent,
     reason: `settled ${spendUsd} USD is above the reserved hold of ${quote.reserveUsd} USD`,
     remedy: "the strategy kill switch is engaged; disengage it before the next tick",
   };
 };
+
+/**
+ * @param {StepResult} result
+ * @param {Readonly<Record<string, unknown>> | undefined} details
+ * @returns {StepResult}
+ */
+const withDetails = (result, details) => (details === undefined ? result : { ...result, details });
 
 /** @param {import("../domain/tick.js").TickIntent} intent @returns {StepResult} */
 const parked = (intent) => ({
@@ -190,31 +206,3 @@ const intentOf = (sent, quote) => ({
   notionalUsd: quote.reserveUsd,
   mint: quote.mint,
 });
-
-/** @param {unknown} error */
-const reasonOf = (error) => {
-  if (isTaggedReason(error)) return error.reason ?? "";
-  return reasonField(error);
-};
-
-/** @param {unknown} error @returns {error is { reason?: string }} */
-const isTaggedReason = (error) =>
-  error instanceof BoundsExceeded ||
-  error instanceof KillSwitchEngaged ||
-  error instanceof StrategyNotFound;
-
-/** @param {unknown} error */
-const reasonField = (error) => {
-  if (typeof error === "object" && error !== null && "reason" in error) {
-    return String(/** @type {{ reason?: unknown }} */ (error).reason ?? "");
-  }
-  return "";
-};
-
-/** @param {unknown} error */
-const remedyOf = (error) => {
-  if (typeof error === "object" && error !== null && "remedy" in error) {
-    return String(/** @type {{ remedy?: unknown }} */ (error).remedy ?? "");
-  }
-  return "lower the notional or raise the strategy bounds";
-};
