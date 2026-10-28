@@ -96,7 +96,7 @@ const nextFundingAt = (start, intervalSeconds) => {
  *   intervalSeconds: number;
  *   intervalStart: number | string | null | undefined;
  *   current: FundingPoint;
- *   history: ReadonlyArray<{ at: string; rateHourlyPct: string }>;
+ *   history: Array<{ at: string; rateHourlyPct: string }>;
  * }} input
  */
 const buildSnapshot = (input) => {
