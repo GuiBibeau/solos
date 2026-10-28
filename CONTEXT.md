@@ -269,6 +269,12 @@ underlying output is estimated at the read-time rate and measured after confirma
 counted once per trader account in PortfolioState.perpAccounts. It is never leveraged notional.
 Per-market Position.valueUsd is null and its amount is absolute exposure with explicit side.
 
+**Funding snapshot** — the public Phoenix perp funding read for one market: caller-facing
+market label (`SOL-PERP`), the print time, the hourly rate in percent, the annualized percent,
+the next funding time (or null), and the lookback history. Decimals are strings. Positive
+`rateHourlyPct` means longs pay shorts. An empty `history` means the venue published a current
+rate and no interval series.
+
 **Price bound** — required limitPriceUsd on perp Actions: maximum buy or minimum sell USD per
 base token. IOC tick rounding tightens the bound and quote-lot caps constrain open notional.
 

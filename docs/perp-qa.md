@@ -13,6 +13,32 @@ production endpoint `https://perp-api.phoenix.trade`). Live credentials belong o
 operator or approved QA environment, never in issue comments, tool inputs, or implementation
 sandboxes.
 
+## Funding rate read (#202, first half)
+
+`bun run solos perp funding --market SOL-PERP --lookback-hours 24` and
+`solana_perp_get_funding` read one market's funding snapshot from the public Phoenix API.
+Nothing is signed and nothing is spent. Positive `rateHourlyPct` means longs pay shorts.
+`history` is the in-window series; it is empty when the venue has only the current rate.
+Offline tests cover history, current-only, an unknown market and a provider that does not
+answer, through the real CLI and a real stdio MCP child against the loopback fixture.
+
+### 2026-10-28 mainnet read
+
+`solos perp funding --market SOL-PERP --lookback-hours 24` against the production host
+(`PHOENIX_BASE_URL` unset). No transaction was built or sent. Spend: **zero**.
+
+| Field | Value |
+|---|---|
+| market | `SOL-PERP` |
+| at | `2026-10-28T08:00:00.000Z` |
+| rateHourlyPct | `0.001758` |
+| aprPct | `15.40008` |
+| nextFundingAt | `2026-10-28T09:00:00.000Z` |
+| history | 24 hourly prints, `2026-10-27T09:00:00.000Z` (`0.002`) through the current print |
+
+One print in that window is negative: `-0.000098` at `2026-10-28T06:00:00.000Z` (shorts pay longs).
+The full series is in the pull request that added the read.
+
 ## Explicit trader onboarding (#101)
 
 The default trader scope is the configured signer with both Phoenix trader indices fixed to zero.

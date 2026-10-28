@@ -1,5 +1,5 @@
 // @ts-check
-import { MARKET_PATH, MARKETS_PATH, TRADER_STATE_PATH } from "./phoenix-api.js";
+import { FUNDING_RATES_PATH, MARKET_PATH, MARKETS_PATH, TRADER_STATE_PATH } from "./phoenix-api.js";
 import { coldState, DEFAULT_MARKETS } from "./phoenix-scenarios.js";
 
 const JSON_HEADERS = { "content-type": "application/json" };
@@ -20,6 +20,16 @@ export const SECRET_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
  *   readonly onboardBuild?: unknown;
  *   readonly onboardSend?: unknown;
  *   readonly exchangeSnapshot?: unknown;
+ *   readonly funding?: Record<string, {
+ *     readonly rates?: ReadonlyArray<{
+ *       timestamp: number | string;
+ *       fundingRatePercentage: string;
+ *     }>;
+ *     readonly fundingRatePercentage?: string;
+ *     readonly timestamp?: number | string;
+ *   }>;
+ *   readonly fundingStatus?: number;
+ *   readonly rawFundingBody?: string;
  * }} PhoenixScript
  */
 
@@ -85,6 +95,50 @@ const onboardResponse = (script, url) => {
   return null;
 };
 
+/** A raw upstream body, when the script stands one in. @param {PhoenixScript} script */
+const hostileFunding = (script) => {
+  if (script.rawFundingBody === undefined) return undefined;
+  return new Response(script.rawFundingBody, {
+    status: script.fundingStatus ?? 200,
+    headers: JSON_HEADERS,
+  });
+};
+
+/** @param {{ fundingRatePercentage?: string; timestamp?: number | string } | undefined} entry */
+const currentFields = (entry) => {
+  if (entry?.fundingRatePercentage === undefined) return {};
+  return {
+    fundingRatePercentage: entry.fundingRatePercentage,
+    timestamp: entry.timestamp,
+  };
+};
+
+/**
+ * Rates for one wire symbol. A missing entry is an empty series. `fundingStatus` forces the
+ * route's HTTP status for provider-failure scripts.
+ * @param {PhoenixScript} script
+ * @param {string} symbol
+ */
+const fundingResponse = (script, symbol) => {
+  const hostile = hostileFunding(script);
+  if (hostile !== undefined) return hostile;
+  if (script.fundingStatus !== undefined)
+    return json({ error: "unavailable" }, script.fundingStatus);
+  const entry = script.funding?.[symbol];
+  return json({ marketId: 1, symbol, rates: entry?.rates ?? [], ...currentFields(entry) });
+};
+
+/** @param {string} pathname */
+const fundingSymbol = (pathname) =>
+  decodeURIComponent(pathname.slice(FUNDING_RATES_PATH.length + 1, -"/rates".length));
+
+/** Funding history route, or null when this URL is some other read. @param {PhoenixScript} script @param {URL} url */
+const fundingRoute = (script, url) => {
+  const { pathname } = url;
+  if (!pathname.startsWith(`${FUNDING_RATES_PATH}/`) || !pathname.endsWith("/rates")) return null;
+  return fundingResponse(script, fundingSymbol(pathname));
+};
+
 /** @param {PhoenixScript} script @param {URL} url @param {number} bodyDelayMs */
 const readResponse = (script, url, bodyDelayMs) => {
   if (url.pathname === "/v1/exchange/snapshot")
@@ -108,7 +162,9 @@ const readResponse = (script, url, bodyDelayMs) => {
 
 /** @param {PhoenixScript} script @param {URL} url @param {number} bodyDelayMs */
 const respond = (script, url, bodyDelayMs) =>
-  onboardResponse(script, url) ?? readResponse(script, url, bodyDelayMs);
+  onboardResponse(script, url) ??
+  fundingRoute(script, url) ??
+  readResponse(script, url, bodyDelayMs);
 
 /**
  * Offline loopback Phoenix Perps fixture over `Bun.serve`. Records every request (path plus

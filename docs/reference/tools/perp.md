@@ -42,6 +42,31 @@ bun run solos perp position --market SOL --owner <trader-address>
 bun run solos mcp call solana_perp_get_position --args '{"market":"SOL-PERP"}'
 ```
 
+## Phoenix Perps funding
+
+`solana_perp_get_funding` (MCP) and `solos perp funding --market <symbol> [--lookback-hours <1..168>]`
+(CLI) read one market's funding rate. The read is public: no signer is consulted and no account
+is fetched. The default lookback is 24 hours, capped at 168.
+
+The JSON is a funding snapshot. Decimals are strings. `market` is the caller-facing label
+(`SOL-PERP`). `rateHourlyPct` is the newest in-window print scaled to an hourly percent;
+positive means longs pay shorts. `aprPct` is that hourly percent times 24 × 365.
+`nextFundingAt` is the start of the current interval plus `fundingIntervalSeconds`, or null
+when the market view has no stats snapshot. `history` is every in-window print, oldest first.
+It is empty when the venue published a current rate and no series.
+
+`SOL` and `SOL-PERP` both mean the wire symbol `SOL`. A symbol the exchange does not list is
+`PerpMarketUnknown` with a `reason` and a `remedy`. A Phoenix host that does not answer is
+`PerpNetworkError` (or `PerpTimeout` / `PerpHttpError`) with a `reason` and a `remedy`. The
+endpoint and the fields are pinned beside `RISE_SDK_VERSION` in `packages/solana/src/perp/phoenix-api.js`:
+market view `fundingIntervalSeconds` and `statsSnapshot.fundingStartIntervalTimestamp`, and
+`GET /v1/funding/{symbol}/rates` (`timestamp`, `fundingRatePercentage`).
+
+```sh
+bun run solos perp funding --market SOL-PERP --lookback-hours 24
+bun run solos mcp call solana_perp_get_funding --args '{"market":"SOL-PERP","lookbackHours":24}'
+```
+
 Beyond reads, the slice enrolls the configured trader (`solana_perp_simulate_onboard_trader` /
 `solana_perp_execute_onboard_trader`, with `solana_perp_get_onboarding_status` reporting whether
 it is needed) and moves USDC collateral in exact, fixed amounts both ways

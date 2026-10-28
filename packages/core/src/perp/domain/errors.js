@@ -24,7 +24,7 @@ export class NoPositionToClose extends /** @type {NoPositionToCloseClass} */ (
 }
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpMarketUnknown", PerpMarketUnknownProps>} PerpMarketUnknownClass */
-/** @typedef {{ readonly market: string; readonly reason?: string }} PerpMarketUnknownProps */
+/** @typedef {{ readonly market: string; readonly reason?: string; readonly remedy?: string }} PerpMarketUnknownProps */
 /** The normalized symbol is absent from the exchange metadata. */
 export class PerpMarketUnknown extends /** @type {PerpMarketUnknownClass} */ (
   taggedError("PerpMarketUnknown")
@@ -57,7 +57,7 @@ export class PerpEnumerationIncomplete extends /** @type {PerpEnumerationIncompl
 ) {}
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpAuthFailed", PerpAuthFailedProps>} PerpAuthFailedClass */
-/** @typedef {{ readonly status: number; readonly reason?: string }} PerpAuthFailedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string; readonly remedy?: string }} PerpAuthFailedProps */
 export class PerpAuthFailed extends /** @type {PerpAuthFailedClass} */ (
   taggedError("PerpAuthFailed")
 ) {
@@ -71,7 +71,7 @@ export class PerpAuthFailed extends /** @type {PerpAuthFailedClass} */ (
 }
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpRateLimited", PerpRateLimitedProps>} PerpRateLimitedClass */
-/** @typedef {{ readonly status: number; readonly reason?: string }} PerpRateLimitedProps */
+/** @typedef {{ readonly status: number; readonly reason?: string; readonly remedy?: string }} PerpRateLimitedProps */
 /** HTTP 429 maps here once; there is no Retry-After retry loop. */
 export class PerpRateLimited extends /** @type {PerpRateLimitedClass} */ (
   taggedError("PerpRateLimited")
@@ -86,7 +86,7 @@ export class PerpRateLimited extends /** @type {PerpRateLimitedClass} */ (
 }
 
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"PerpTimeout", PerpTimeoutProps>} PerpTimeoutClass */
-/** @typedef {{ readonly timeoutMs: number; readonly reason?: string }} PerpTimeoutProps */
+/** @typedef {{ readonly timeoutMs: number; readonly reason?: string; readonly remedy?: string }} PerpTimeoutProps */
 export class PerpTimeout extends /** @type {PerpTimeoutClass} */ (taggedError("PerpTimeout")) {
   /** @param {PerpTimeoutProps} props */
   constructor(props) {

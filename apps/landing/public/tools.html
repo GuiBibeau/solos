@@ -321,7 +321,7 @@
 </article>
 </section>
 <section class="group" id="perp">
-<h2><code>perp</code> <span class="count">12 tools</span></h2>
+<h2><code>perp</code> <span class="count">13 tools</span></h2>
 <article class="tool" id="solana_perp_execute_close">
 <h3><code>solana_perp_execute_close</code> <span class="tier tier-execute">execute</span> <span class="stability stability-stable">stable</span></h3>
 <p class="title">Submit a reduce-only Phoenix IOC close</p>
@@ -351,6 +351,12 @@
 <p class="title">Withdraw Phoenix collateral to your wallet</p>
 <p class="desc">Remove an exact Phoenix-token input only when all markets are flat and settled, then report actual wallet USDC receipt (not guaranteed).</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_perp_execute_withdraw_collateral"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>amount</code></td><td>string</td><td>yes</td><td>Exact Phoenix collateral-token base units to debit; wallet USDC receipt is estimated, not guaranteed</td></tr></tbody></table></div>
+</article>
+<article class="tool" id="solana_perp_get_funding">
+<h3><code>solana_perp_get_funding</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>
+<p class="title">Get Phoenix perp funding</p>
+<p class="desc">What is this Phoenix perp's funding rate right now, and what did it print over the lookback? Positive rateHourlyPct means longs pay shorts. History is empty when the venue has only the current rate.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Arguments of solana_perp_get_funding"><table class="args"><thead><tr><th scope="col">Argument</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Description</th></tr></thead><tbody><tr><td><code>market</code></td><td>string</td><td>yes</td><td>Perp market symbol, e.g. SOL or SOL-PERP (normalized to the exchange symbol)</td></tr><tr><td><code>lookbackHours</code></td><td>integer</td><td>no</td><td>Hours of funding history to include, from 1 to 168. Defaults to 24 <span class="meta">default 24 · 1 to 168</span></td></tr></tbody></table></div>
 </article>
 <article class="tool" id="solana_perp_get_onboarding_status">
 <h3><code>solana_perp_get_onboarding_status</code> <span class="tier tier-read">read</span> <span class="stability stability-beta">beta</span></h3>

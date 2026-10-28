@@ -1,6 +1,6 @@
 # solOS
 
-> One binary that sits between an LLM agent and Solana and turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads, 49 tools discovered on demand. Mainnet by default. Keys stay on the operator's machine. Tools that send transactions are withheld until the operator raises the tier ceiling.
+> One binary that sits between an LLM agent and Solana and turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads, 50 tools discovered on demand. Mainnet by default. Keys stay on the operator's machine. Tools that send transactions are withheld until the operator raises the tier ceiling.
 
 ## Setup
 
@@ -372,6 +372,15 @@ Tier: execute. Stability: stable. Withdraw Phoenix collateral to your wallet.
 Remove an exact Phoenix-token input only when all markets are flat and settled, then report actual wallet USDC receipt (not guaranteed).
 
 - `amount` (string, required): Exact Phoenix collateral-token base units to debit; wallet USDC receipt is estimated, not guaranteed
+
+### solana_perp_get_funding
+
+Tier: read. Stability: beta. Get Phoenix perp funding.
+
+What is this Phoenix perp's funding rate right now, and what did it print over the lookback? Positive rateHourlyPct means longs pay shorts. History is empty when the venue has only the current rate.
+
+- `market` (string, required): Perp market symbol, e.g. SOL or SOL-PERP (normalized to the exchange symbol)
+- `lookbackHours` (integer, optional): Hours of funding history to include, from 1 to 168. Defaults to 24; default 24 · 1 to 168
 
 ### solana_perp_get_onboarding_status
 

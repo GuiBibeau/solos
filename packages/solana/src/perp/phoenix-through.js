@@ -50,6 +50,37 @@ export const readFailure = async (fixture, request, overrides) => {
   return failureOf(exit);
 };
 
+/** @param {import("@solos/core").GetFundingRequest} request */
+const fundingEffect = (request) =>
+  Effect.gen(function* () {
+    const venue = yield* PerpVenue;
+    return yield* venue.getFunding(request);
+  });
+
+/**
+ * Run a funding read through the live Layer against the fixture and await the snapshot.
+ * @param {ReturnType<typeof import("./phoenix-fixture.js").startPhoenixFixture>} fixture
+ * @param {import("@solos/core").GetFundingRequest} request
+ * @param {{ timeoutMs?: number; fetchImpl?: import("./phoenix-api.js").Fetch }} [overrides]
+ */
+export const fundingThrough = (fixture, request, overrides) =>
+  Effect.runPromise(
+    fundingEffect(request).pipe(Effect.provide(PerpVenueLive(toConfig(fixture, overrides)))),
+  );
+
+/**
+ * Funding read through the live Layer. Returns the tagged failure, or undefined on success.
+ * @param {ReturnType<typeof import("./phoenix-fixture.js").startPhoenixFixture>} fixture
+ * @param {import("@solos/core").GetFundingRequest} request
+ * @param {{ timeoutMs?: number; fetchImpl?: import("./phoenix-api.js").Fetch }} [overrides]
+ */
+export const fundingFailure = async (fixture, request, overrides) => {
+  const exit = await Effect.runPromiseExit(
+    fundingEffect(request).pipe(Effect.provide(PerpVenueLive(toConfig(fixture, overrides)))),
+  );
+  return failureOf(exit);
+};
+
 /**
  * Enumerate through the live Layer against the fixture.
  * @param {ReturnType<typeof import("./phoenix-fixture.js").startPhoenixFixture>} fixture

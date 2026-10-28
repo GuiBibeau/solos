@@ -2,6 +2,7 @@
 import { PerpVenue } from "@solos/core";
 import { Effect, Layer } from "effect";
 import { getPositionFlow, listPositionsFlow } from "./perp-venue-read.js";
+import { getFundingFlow } from "./phoenix-funding.js";
 
 /**
  * Live Phoenix Perps adapter over the documented wire contract of the pinned Rise revision
@@ -17,5 +18,6 @@ export const PerpVenueLive = (config) =>
     Effect.succeed({
       getPosition: (request) => getPositionFlow(config, request),
       listPositions: (owner) => listPositionsFlow(config, owner),
+      getFunding: (request) => getFundingFlow(config, request),
     }),
   );

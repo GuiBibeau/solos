@@ -12,6 +12,27 @@ export const DEFAULT_AUTHORITY = "11111111111111111111111111111111";
 /** The wSOL mint: a second valid address, used as a mismatching authority echo. */
 export const OTHER_AUTHORITY = "So11111111111111111111111111111111111111112";
 
+/**
+ * Market view plus the funding schedule the funding read requires. `startSeconds` is the
+ * current interval's unix start (`statsSnapshot.fundingStartIntervalTimestamp`).
+ * @param {string} symbol
+ * @param {number} startSeconds
+ */
+export function fundingMarket(symbol, startSeconds) {
+  return {
+    ...marketConfig(symbol, 2),
+    fundingIntervalSeconds: 3600,
+    fundingPeriodSeconds: 86_400,
+    statsSnapshot: {
+      slot: 1,
+      slotIndex: 0,
+      openInterestBaseLots: "0",
+      fundingStartIntervalTimestamp: String(startSeconds),
+      cumulativeFundingRate: "0",
+    },
+  };
+}
+
 export const SOL_MARKET = marketConfig("SOL", 2);
 export const ETH_MARKET = marketConfig("ETH", 3);
 export const DEFAULT_MARKETS = [SOL_MARKET, ETH_MARKET];

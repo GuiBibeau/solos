@@ -39,6 +39,7 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_perp_execute_onboard_trader` | execute | beta | `perp` |
 | `solana_perp_execute_open` | execute | stable | `perp` |
 | `solana_perp_execute_withdraw_collateral` | execute | stable | `perp` |
+| `solana_perp_get_funding` | read | beta | `perp` |
 | `solana_perp_get_onboarding_status` | read | beta | `perp` |
 | `solana_perp_get_position` | read | beta | `perp` |
 | `solana_perp_simulate_close` | simulate | stable | `perp` |
@@ -75,7 +76,7 @@ check` fails when it drifts. Do not edit it by hand.
 Jupiter Swap V2 quote-only adapter behind the same `JUPITER_API_KEY` (indicative quotes) plus
 Action-based simulation and execution over Jupiter V2 `/build` through the shared executor;
 `launch` has the pump bonding-curve reader over the configured Solana RPC (no provider key at
-all); `perp` has the Phoenix Perps position and onboarding-status readers plus trader enrollment
+all); `perp` has the Phoenix Perps position, funding-rate and onboarding-status readers plus trader enrollment
 and bounded USDC collateral deposits and withdrawals (no provider key; `PHOENIX_BASE_URL` only
 overrides the public endpoint for loopback fixtures); `liquidity` has the Orca Whirlpool position
 reader plus bounded deposits into, and removals from, explicitly identified existing positions
