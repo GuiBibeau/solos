@@ -14,6 +14,7 @@
     "./perp/phoenix-scenarios": "./src/perp/phoenix-scenarios.js",
     "./liquidity/whirlpool-fixture": "./src/liquidity/liquidity-seeds.js",
     "./liquidity/meteora-dlmm-seeds": "./src/liquidity/meteora-dlmm-seeds.js",
+    "./liquidity/raydium-clmm-seeds": "./src/liquidity/raydium-clmm-seeds.js",
     "./lend/position-fixture": "./src/lend/kamino-position-fixture.js",
     "./swap/build-http-fixture": "./src/swap/jupiter-swap-build-http-fixture.js",
     "./market/mint-decimals": "./src/market/mint-decimals-live.js",

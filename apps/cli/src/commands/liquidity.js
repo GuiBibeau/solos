@@ -5,6 +5,8 @@ import {
   executeDepositTool,
   getLpPosition,
   getLpPositionTool,
+  getPool,
+  getPoolTool,
   simulateDeposit,
   simulateDepositTool,
 } from "@solos/core";
@@ -44,6 +46,19 @@ const positionCommand = Command.make(
       }).pipe(Effect.flatMap(emit)),
     ).pipe(exitOnFailure),
 ).pipe(commandHelp(getLpPositionTool));
+
+const poolProtocol = Options.text("protocol").pipe(optionHelp(getPoolTool.input.shape.protocol));
+
+const poolAddress = Options.text("pool").pipe(optionHelp(getPoolTool.input.shape.pool));
+
+const poolCommand = Command.make("pool", { protocol: poolProtocol, pool: poolAddress }, (options) =>
+  withSolos(
+    getPool({
+      protocol: /** @type {"orca" | "meteora" | "raydium"} */ (options.protocol),
+      pool: options.pool,
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(commandHelp(getPoolTool));
 
 const wrapSol = Options.boolean("wrap-sol").pipe(
   Options.withDefault(false),
@@ -99,10 +114,11 @@ const depositCommand = Command.make("deposit", { ...depositOptions, skipSimulati
 
 export const liquidity = Command.make("liquidity").pipe(
   groupHelp(
-    "Liquidity venues: Orca, Raydium, and Meteora position reads, deposits, and withdrawals on existing positions, and opening or closing a Raydium position at a range you choose",
+    "Liquidity venues: Orca, Raydium, and Meteora position reads, a Meteora DLMM pool-price read, deposits and withdrawals on existing positions, and opening or closing a Raydium or empty Meteora position at a range you choose",
   ),
   Command.withSubcommands([
     positionCommand,
+    poolCommand,
     simulateDepositCommand,
     depositCommand,
     simulateWithdrawCommand,

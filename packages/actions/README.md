@@ -48,8 +48,10 @@ Lend positions add market and contributing obligation addresses; nonzero supply 
 least one obligation. Perps add account and side;
 amount is absolute exposure, with zero exactly `flat`. Shared signed equity lives once in
 `perpAccounts`, never in market valueUsd or notional. LP records have position identity, raw
-liquidity shares and two underlying quantities, not a generic amount/decimals pair. Consumers
-must narrow by `kind`. Portfolio cash contains only wallet tokens. Perp positions require a
+liquidity shares and two underlying quantities, not a generic amount/decimals pair. An optional
+`range` reports the position's own window: `lowerBinId` and `upperBinId` on Meteora, `tickLower`
+and `tickUpper` on Orca and Raydium. Records written before that field existed still parse.
+Consumers must narrow by `kind`. Portfolio cash contains only wallet tokens. Perp positions require a
 matching equity observation; duplicate account observations fail. Missing perpAccounts defaults
 to [] for portfolios without perps. Old lend/perp records need explicit migration; do not parse
 and silently drop account identity. Unknown values are null. This is a supported-assets view,

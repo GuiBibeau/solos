@@ -53,6 +53,7 @@ describe("`solos swap quote` error and discovery scenarios [integration]", () =>
       "solana_liquidity_execute_deposit",
       "solana_liquidity_execute_open_position",
       "solana_liquidity_execute_withdraw",
+      "solana_liquidity_get_pool",
       "solana_liquidity_get_position",
       "solana_liquidity_simulate_close_position",
       "solana_liquidity_simulate_deposit",

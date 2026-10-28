@@ -146,6 +146,10 @@ export const toMeteoraLpPosition = (position, parts) => {
       decimals: parts.decimals.decimalsY,
     },
     valueUsd: null,
+    range: {
+      lowerBinId: parts.layout.lowerBinId,
+      upperBinId: parts.layout.upperBinId,
+    },
   });
   return parsed.success
     ? Effect.succeed(parsed.data)

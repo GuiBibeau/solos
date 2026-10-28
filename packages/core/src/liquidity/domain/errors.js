@@ -32,6 +32,20 @@ export class LiquidityUnsupportedProtocol extends /** @type {LiquidityUnsupporte
 export const LIFECYCLE_PROTOCOL_REMEDY =
   "pass protocol raydium or meteora; opening and closing cover raydium and meteora only";
 
+/** The pool-price read is Meteora DLMM only. Orca and Raydium name the position read. */
+export const POOL_READ_REASON = "the pool read is Meteora-only";
+
+/** Remedy for a non-Meteora pool read: the position tool, which covers all three protocols. */
+export const POOL_READ_REMEDY = "read the position with solana_liquidity_get_position";
+
+/** @param {string} protocol */
+export const poolReadUnsupported = (protocol) =>
+  new LiquidityUnsupportedProtocol({
+    protocol,
+    reason: POOL_READ_REASON,
+    remedy: POOL_READ_REMEDY,
+  });
+
 /** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LiquidityPositionUnavailable", LiquidityPositionUnavailableProps>} LiquidityPositionUnavailableClass */
 /** @typedef {{ readonly position: string; readonly reason: string }} LiquidityPositionUnavailableProps */
 /**
@@ -52,10 +66,20 @@ export class LiquidityEnumerationIncomplete extends /** @type {LiquidityEnumerat
   taggedError("LiquidityEnumerationIncomplete")
 ) {}
 
+/** @typedef {import("../../shared/domain/tagged-error.js").TaggedErrorClass<"LiquidityPoolUnavailable", LiquidityPoolUnavailableProps>} LiquidityPoolUnavailableClass */
+/** @typedef {{ readonly pool: string; readonly reason: string }} LiquidityPoolUnavailableProps */
+/**
+ * The LbPair is absent, owned by another program, laid out wrongly, or its mints or active-bin
+ * price cannot be read. Never a fabricated price.
+ */
+export class LiquidityPoolUnavailable extends /** @type {LiquidityPoolUnavailableClass} */ (
+  taggedError("LiquidityPoolUnavailable")
+) {}
+
 /**
  * Everything the LiquidityVenue port can fail with. Structured props only, never raw chain or
  * library output. A missing account, a corrupt account and a foreign-owned position stay
  * distinct from input and protocol rejections, so callers can tell a bad address from a
  * broken venue.
- * @typedef {LiquidityInputInvalid | LiquidityUnsupportedProtocol | LiquidityPositionUnavailable | LiquidityEnumerationIncomplete} LiquidityError
+ * @typedef {LiquidityInputInvalid | LiquidityUnsupportedProtocol | LiquidityPositionUnavailable | LiquidityEnumerationIncomplete | LiquidityPoolUnavailable} LiquidityError
  */

@@ -112,6 +112,10 @@ export const toLpPosition = (found, pool, decimals) => {
     tokenA: { mint: pool.tokenMintA, amount: amounts.amountA, decimals: decimals.decimalsA },
     tokenB: { mint: pool.tokenMintB, amount: amounts.amountB, decimals: decimals.decimalsB },
     valueUsd: null,
+    range: {
+      tickLower: found.layout.tickLowerIndex,
+      tickUpper: found.layout.tickUpperIndex,
+    },
   });
   return parsed.success
     ? Effect.succeed(parsed.data)

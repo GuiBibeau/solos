@@ -46,6 +46,7 @@ const REASONFUL = new Set([
   "LendingTimeout",
   "LiquidityEnumerationIncomplete",
   "LiquidityInputInvalid",
+  "LiquidityPoolUnavailable",
   "LiquidityPositionUnavailable",
   "LiquidityUnsupportedProtocol",
   "MintDecimalsUnverified",

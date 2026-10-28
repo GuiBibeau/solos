@@ -51,6 +51,15 @@ export const POSITION_READ_PROTOCOLS = Object.freeze(["orca", "raydium", "meteor
 export const isPositionReadable = (protocol) => POSITION_READ_PROTOCOLS.includes(protocol);
 
 /**
+ * Protocols with a pool-price read. Orca and Raydium keep position reads; asking them for a
+ * pool fails typed and names the position read.
+ */
+export const POOL_PROTOCOLS = Object.freeze(["meteora"]);
+
+/** @param {string} protocol */
+export const isPoolReadable = (protocol) => POOL_PROTOCOLS.includes(protocol);
+
+/**
  * Protocols whose positions solOS can create and retire, which is narrower than the ones it can
  * read: Orca positions are opened by a different instruction family that nothing here encodes,
  * so asking for one is refused rather than silently built against Raydium.
