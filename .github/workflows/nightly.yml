@@ -35,7 +35,24 @@ jobs:
             echo 'SOLANA_RPC_URL repository secret is required; no public RPC fallback.' | tee "$RUNNER_TEMP/diagnostics-nightly.log" >&2
             exit 1
           fi
-          bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json" 2> "$RUNNER_TEMP/diagnostics-nightly.log"
+          # stderr is already redacted and bounded by apps/cli/src/evidence/diagnostics.js.
+          # Reprint it when verify fails so the assertion survives the 7-day artifact.
+          status=0
+          bun run solos dev verify --scope full --json > "$RUNNER_TEMP/evidence-nightly.json" 2> "$RUNNER_TEMP/diagnostics-nightly.log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "----- diagnostics-nightly (secret-redacted) -----"
+              bytes=$(wc -c < "$RUNNER_TEMP/diagnostics-nightly.log" | tr -d ' ')
+              if [ "$bytes" -le 65536 ]; then
+                cat "$RUNNER_TEMP/diagnostics-nightly.log"
+              else
+                head -c 32768 "$RUNNER_TEMP/diagnostics-nightly.log"
+                printf '\n[diagnostic output truncated]\n'
+                tail -c 32768 "$RUNNER_TEMP/diagnostics-nightly.log"
+              fi
+            } >&2
+            exit "$status"
+          fi
       - name: Upload verification diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -56,7 +73,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\nDownload the diagnostics-nightly artifact from this run for bounded, secret-redacted assertion/stack and Surfpool output.\n\n```json\n'"$(cat "$RUNNER_TEMP/evidence-nightly.json" 2>/dev/null || echo '{}')"$'\n```'
+          body="Nightly mainnet-fork run failed: $RUN_URL"$'\n\nThe verify step log prints the bounded, secret-redacted assertion and stack. The diagnostics-nightly artifact has the same text and expires after 7 days.\n\n```json\n'"$(cat "$RUNNER_TEMP/evidence-nightly.json" 2>/dev/null || echo '{}')"$'\n```'
           existing="$(gh issue list --label nightly-failure --state open --json number --jq '.[0].number')"
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"
@@ -88,5 +105,5 @@ jobs:
           while read -r tag; do
             [ -n "$tag" ] || continue
             echo "deleting $tag"
-            gh release delete "$tag" --cleanup-tag --yes
+            gh release delete "$tag" --cleanup-tag --yes --repo "$GITHUB_REPOSITORY"
           done < "$RUNNER_TEMP/stale.txt"
