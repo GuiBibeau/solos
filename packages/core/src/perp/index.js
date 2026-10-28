@@ -8,6 +8,9 @@
 /** @typedef {import("./domain/types.js").PerpEnumeration} PerpEnumeration */
 /** @typedef {import("./domain/types.js").PerpPosition} PerpPosition */
 /** @typedef {import("./domain/types.js").PerpAccount} PerpAccount */
+/** @typedef {import("./domain/funding.js").FundingSnapshot} FundingSnapshot */
+/** @typedef {import("./domain/funding.js").GetFundingInput} GetFundingInput */
+/** @typedef {import("./domain/funding.js").GetFundingRequest} GetFundingRequest */
 /** @typedef {import("./ports/perp-venue.js").PerpVenueShape} PerpVenueShape */
 export {
   NoPositionToClose,
@@ -31,6 +34,13 @@ export {
   sideFromLots,
 } from "./domain/lots.js";
 export { normalizeMarketSymbol } from "./domain/symbol.js";
+export {
+  FundingSnapshotSchema,
+  GetFundingInputSchema,
+  aprFundingPct,
+  fundingMarketLabel,
+  hourlyFundingPct,
+} from "./domain/funding.js";
 export { equityUsdFromSubaccount } from "./domain/equity.js";
 export {
   GetPositionInputSchema,
@@ -67,8 +77,10 @@ export { simulatePerpOpenTool, executePerpOpenTool } from "./tools/open-tools.js
 export { simulatePerpClose, executePerpClose } from "./use-cases/close.js";
 export { simulatePerpCloseTool, executePerpCloseTool } from "./tools/close-tools.js";
 export { getPosition } from "./use-cases/get-position.js";
+export { getFunding } from "./use-cases/get-funding.js";
 export { listPositions } from "./use-cases/list-positions.js";
 export { getPositionTool } from "./tools/get-position.js";
+export { getFundingTool } from "./tools/get-funding.js";
 
 import { simulatePerpCloseTool, executePerpCloseTool } from "./tools/close-tools.js";
 import {
@@ -77,6 +89,7 @@ import {
   simulatePerpWithdrawalTool,
   executePerpWithdrawalTool,
 } from "./tools/collateral-tools.js";
+import { getFundingTool } from "./tools/get-funding.js";
 import { getPositionTool } from "./tools/get-position.js";
 import {
   getOnboardingStatusTool,
@@ -88,6 +101,7 @@ import { simulatePerpOpenTool, executePerpOpenTool } from "./tools/open-tools.js
 /** @type {ReadonlyArray<import("../shared/tools/define-tool.js").AnyToolDefinition>} */
 export const perpTools = [
   getPositionTool,
+  getFundingTool,
   getOnboardingStatusTool,
   simulateOnboardTraderTool,
   executeOnboardTraderTool,

@@ -17,6 +17,11 @@ import { Context } from "effect";
  *       import("../domain/types.js").PerpEnumeration,
  *       import("../domain/errors.js").PerpError
  *     >;
+ *   readonly getFunding: (request: import("../domain/funding.js").GetFundingRequest) =>
+ *     import("effect").Effect.Effect<
+ *       import("../domain/funding.js").FundingSnapshot,
+ *       import("../domain/errors.js").PerpError
+ *     >;
  * }} PerpVenueShape
  */
 

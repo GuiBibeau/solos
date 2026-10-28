@@ -1,6 +1,6 @@
 # solOS
 
-> One binary that sits between an LLM agent and Solana and turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads, 49 tools discovered on demand. Mainnet by default. Keys stay on the operator's machine. Tools that send transactions are withheld until the operator raises the tier ceiling.
+> One binary that sits between an LLM agent and Solana and turns the chain into a fixed set of tools the agent can call: swaps, lending, perps, liquidity, transfers and market reads, 50 tools discovered on demand. Mainnet by default. Keys stay on the operator's machine. Tools that send transactions are withheld until the operator raises the tier ceiling.
 
 Install with `npm i -g @solos-sh/cli`, connect a wallet with `solos login`, connect an agent with `solos connect claude` (or `codex`, `cursor`). The MCP server is `solos mcp serve` over stdio. Tools are named `solana_<group>_<verb>_<object>` with tiers read, simulate and execute; every execute tool has a simulate twin. Every CLI command prints JSON and exits non-zero on a domain error with `{ code, reason, remedy }`.
 

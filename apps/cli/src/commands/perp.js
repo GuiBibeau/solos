@@ -11,6 +11,8 @@ import {
   executePerpWithdrawalTool,
   getOnboardingStatus,
   getOnboardingStatusTool,
+  getFunding,
+  getFundingTool,
   getPosition,
   getPositionTool,
   simulateOnboardTrader,
@@ -33,6 +35,21 @@ const owner = Options.text("owner").pipe(
   Options.optional,
   optionHelp(getPositionTool.input.shape.owner),
 );
+
+const fundingMarket = Options.text("market").pipe(optionHelp(getFundingTool.input.shape.market));
+const lookbackHours = Options.integer("lookback-hours").pipe(
+  Options.optional,
+  optionHelp(getFundingTool.input.shape.lookbackHours),
+);
+
+const funding = Command.make("funding", { market: fundingMarket, lookbackHours }, (options) =>
+  withSolos(
+    getFunding({
+      market: options.market,
+      lookbackHours: Option.getOrUndefined(options.lookbackHours),
+    }).pipe(Effect.flatMap(emit)),
+  ).pipe(exitOnFailure),
+).pipe(commandHelp(getFundingTool));
 
 const position = Command.make("position", { market, owner }, (options) =>
   withSolos(
@@ -108,9 +125,10 @@ const open = Command.make(
 ).pipe(commandHelp(executePerpOpenTool));
 
 export const perp = Command.make("perp").pipe(
-  groupHelp("Phoenix Perps: positions, enrollment, and explicit collateral management"),
+  groupHelp("Phoenix Perps: positions, funding, enrollment, and explicit collateral management"),
   Command.withSubcommands([
     position,
+    funding,
     onboardingStatus,
     simulateOnboard,
     onboard,

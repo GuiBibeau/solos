@@ -53,6 +53,7 @@ const venueLayers = (over = {}) => {
   };
   const perp = {
     getPosition: never,
+    getFunding: never,
     listPositions: () =>
       Effect.succeed({
         positions: [

@@ -103,6 +103,7 @@ describe("`solos market price` and `solos mcp` through real child processes [int
       "solana_perp_execute_onboard_trader",
       "solana_perp_execute_open",
       "solana_perp_execute_withdraw_collateral",
+      "solana_perp_get_funding",
       "solana_perp_get_onboarding_status",
       "solana_perp_get_position",
       "solana_perp_simulate_close",
