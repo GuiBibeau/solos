@@ -1,5 +1,18 @@
 # @solos-sh/actions
 
+## 0.6.0
+
+### Minor Changes
+
+- da22bf4: Accept `kind: "carry"` on the Strategy contract. `CarryParamsSchema` names the Phoenix market, the spot and quote mints, the per-leg USD notional, the entry and exit funding hurdles, the trailing lookback, the expected hold that amortises round-trip cost, and slippage and leverage. `exitHurdleAprPct` must be strictly below `entryHurdleAprPct`. Open and close perp Actions may name `protocol: "phoenix"`. All five Strategy kinds are now accepted.
+- 616a397: LpPosition gains an optional `range`. Meteora positions carry `lowerBinId` and `upperBinId`; Orca and Raydium positions carry `tickLower` and `tickUpper`. Records written before the field existed still parse.
+- 327d0ba: Accept `kind: "range"` on the Strategy contract. `RangeParamsSchema` names the Meteora DLMM pool, the PositionV2 account, the replacement width, the outside-bin debounce, the daily recenter budget, and slippage for the withdrawal and the deposit. A confirmed `remove_liquidity` may record quoted token A and token B proceeds. `carry` stays named until its issue ships.
+- 81ea61a: Accept `kind: "rebalance"` on the Strategy contract. `RebalanceParamsSchema` names target weights, the drift band, the quote mint, the minimum trade, and swap slippage. `range` and `carry` stay named until their issues ship.
+
+### Patch Changes
+
+- 1ccadcf: A trigger cooldown accepts a duration such as 10m, and trailingBps outside 50 to 9000 names that field.
+
 ## 0.5.0
 
 ### Minor Changes
