@@ -1,6 +1,7 @@
 // @ts-check
 import { Effect, Option } from "effect";
 import { evaluateKind, observationNames } from "../domain/evaluator.js";
+import { latestPersistedState } from "../domain/trigger-state.js";
 import { ObservationReader } from "../ports/observation-reader.js";
 import { ObservationStaleness } from "../ports/observation-staleness.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
@@ -17,7 +18,7 @@ export const runTick = (strategy) =>
     const dueAt = strategy.nextDueAt ?? now;
     const tickId = yield* (yield* StrategyIds).ulid();
     const names = observationNames(strategy);
-    const previous = (yield* (yield* TickRepository).recent(strategy.id))[0]?.state;
+    const previous = latestPersistedState(yield* (yield* TickRepository).recent(strategy.id));
     const read = yield* (yield* ObservationReader)
       .read({ names, strategyId: strategy.id, instant: dueAt })
       .pipe(Effect.either);

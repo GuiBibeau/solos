@@ -7,7 +7,7 @@
 /** @typedef {import("./ports/mint-decimals.js").MintDecimalsShape} MintDecimalsShape */
 export { allowlistRefusal, widenedMint } from "./domain/allowlist.js";
 export { reserveRefusal, utcDay } from "./domain/cap-check.js";
-export { addDecimal, compareDecimal, subtractDecimal } from "./domain/decimal.js";
+export { addDecimal, compareDecimal, plainDecimal, subtractDecimal } from "./domain/decimal.js";
 export {
   KillSwitchEngaged,
   MintDecimalsUnverified,

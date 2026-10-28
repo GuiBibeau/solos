@@ -1,7 +1,6 @@
 // @ts-check
-import { compareDecimal, mulDecimal, subtractDecimal } from "./decimal.js";
+import { compareDecimal, mulDecimal, plainDecimal, subtractDecimal } from "./decimal.js";
 
-const PRICE = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
 const BPS_SCALE = "10000";
 
 /**
@@ -101,8 +100,8 @@ const inFlightState = (decision) => ({
 /** @param {Readonly<Record<string, string | number>>} observations */
 const usablePrice = (observations) => {
   const price = observations.price;
-  if (typeof price !== "string" || !PRICE.test(price)) return undefined;
-  return price;
+  if (typeof price !== "string") return undefined;
+  return plainDecimal(price);
 };
 
 /** @param {Readonly<Record<string, string | number>>} observations */

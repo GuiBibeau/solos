@@ -84,3 +84,43 @@ export const divDecimalUp = (left, denominator) => {
   const units = scaledUnits(left, width);
   return fromUnits((units + den - 1n) / den, width);
 };
+
+const PLAIN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
+const SCIENTIFIC = /^(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/;
+const MAX_EXPONENT = 100;
+
+/**
+ * A plain decimal, or scientific notation expanded without floating-point rounding.
+ * `1e-7` becomes `0.0000001`. Undefined when the text is not one of those forms.
+ * @param {string} value
+ * @returns {string | undefined}
+ */
+export const plainDecimal = (value) => {
+  if (PLAIN.test(value)) return value;
+  const match = SCIENTIFIC.exec(value);
+  if (match === null) return undefined;
+  const exp = exponentOf(match[3] ?? "");
+  if (exp === undefined || Math.abs(exp) > MAX_EXPONENT) return undefined;
+  return shifted(match[1] ?? "0", match[2] ?? "", exp);
+};
+
+/** @param {string} text */
+const exponentOf = (text) => {
+  if (!/^[+-]?\d{1,3}$/.test(text)) return undefined;
+  const exp = Number(text);
+  if (!Number.isSafeInteger(exp)) return undefined;
+  return exp;
+};
+
+/**
+ * @param {string} whole
+ * @param {string} frac
+ * @param {number} exp
+ */
+const shifted = (whole, frac, exp) => {
+  const digits = `${whole}${frac}`.replace(/^0+/, "") || "0";
+  const scale = frac.length - exp;
+  if (scale <= 0) return `${digits}${"0".repeat(-scale)}`;
+  if (digits.length <= scale) return `0.${"0".repeat(scale - digits.length)}${digits}`;
+  return `${digits.slice(0, -scale)}.${digits.slice(-scale)}`;
+};

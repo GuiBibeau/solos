@@ -1,4 +1,5 @@
 // @ts-check
+import { plainDecimal } from "@solos/core/strategy";
 import { Effect } from "effect";
 
 /**
@@ -29,8 +30,15 @@ export const quotePrice = (sources, request) =>
     }
     const priced = yield* sources.feed.getPrice(strategy.params.observe.price).pipe(Effect.either);
     if (priced._tag === "Left") return yield* Effect.fail(feedFailure(priced.left));
-    return priced.right;
+    const priceUsd = plainDecimal(priced.right.priceUsd);
+    if (priceUsd === undefined) return yield* Effect.fail(unreadablePrice());
+    return { ...priced.right, priceUsd };
   });
+
+const unreadablePrice = () => ({
+  reason: "price observation is not a decimal string",
+  remedy: "retry when the price feed returns a USD price",
+});
 
 /** @param {unknown} error */
 const feedFailure = (error) => ({

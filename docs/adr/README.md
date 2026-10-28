@@ -52,3 +52,4 @@ Pump file is named from ADR-0027 and ADR-0028. The rows below are the file title
 | [0038](0038-unattended-strategy-spending.md) | Unattended Strategy spending |
 | [0039](0039-owner-sign-off-for-removing-strategies.md) | Owner sign-off for removing STRATEGIES |
 | [0040](0040-evidence-sha-resolution.md) | Evidence sha resolves to the reviewed head; docs-only diffs skip full verify |
+| [0041](0041-trigger-strategy-execution.md) | Trigger strategies tick on a clock and spend when a price crosses |

@@ -1,6 +1,8 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
+import { plainDecimal } from "./decimal.js";
 import { evaluateTrigger, persistedState } from "./trigger-kind.js";
+import { latestPersistedState } from "./trigger-state.js";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const ACTION = { type: /** @type {const} */ ("transfer_sol"), to: USDC, lamports: "1" };
@@ -94,5 +96,15 @@ describe("evaluateTrigger", () => {
     );
     expect(again.actions).toEqual([ACTION]);
     expect(again.state.firedAt).toBe(NOW + TEN_MINUTES);
+  });
+
+  test("scientific notation is a plain decimal before the comparison", () => {
+    expect(plainDecimal("1e-7")).toBe("0.0000001");
+    expect(plainDecimal("1.25e-8")).toBe("0.0000000125");
+    const dust = params({ condition: "below", priceUsd: "0.0000002" });
+    expect(evaluateTrigger(dust, seen("1e-7"), {}).actions).toEqual([ACTION]);
+    expect(evaluateTrigger(dust, seen("2e-7"), {}).actions).toEqual([]);
+    const hidden = { bestPriceUsd: "180", firedAt: NOW };
+    expect(latestPersistedState([{}, { state: hidden }])).toEqual(hidden);
   });
 });
