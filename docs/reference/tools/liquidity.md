@@ -9,7 +9,7 @@ Reads: `solana_liquidity_get_position` (MCP) and `solos liquidity position --pro
 return the shared `LpPosition` contract:
 
 <!-- generated: liquidity-venues -->
-Supported venues: point reads orca, raydium and meteora, deposits orca, raydium and meteora, withdrawals orca, raydium and meteora, owner enumeration orca, raydium and meteora; opens and closes raydium and an empty meteora position.
+Supported venues: point reads orca, raydium and meteora, pool reads meteora, deposits orca, raydium and meteora, withdrawals orca, raydium and meteora, owner enumeration orca, raydium and meteora; opens and closes raydium and an empty meteora position.
 <!-- /generated: liquidity-venues -->
 
 - **`position` is the protocol position account** — the Whirlpool position PDA on orca, the
@@ -18,16 +18,20 @@ Supported venues: point reads orca, raydium and meteora, deposits orca, raydium 
   input validation (`LiquidityInputInvalid`) before anything else.
 - **What each venue supports.** orca: read, deposit, withdraw. An open or close that names
   orca fails `LiquidityUnsupportedProtocol` before any RPC. raydium: read, deposit, withdraw,
-  and opening and closing a position. meteora: point reads, owner enumeration, deposit,
-  withdrawal, an empty open, and close of an emptied position. There is no `liquidity list`
-  command; `solos portfolio state` is the enumeration path. Open is
-  [below](#open-an-empty-meteora-dlmm-position). Close is
-  [below](#close-an-empty-meteora-dlmm-position).
+  and opening and closing a position. meteora: point reads, owner enumeration, the pool-price
+  read, deposit, withdrawal, an empty open, and close of an emptied position. A pool read that
+  names orca or raydium fails `LiquidityUnsupportedProtocol` before any RPC and names
+  `solana_liquidity_get_position`. There is no `liquidity list` command; `solos portfolio state`
+  is the enumeration path. Open is [below](#open-an-empty-meteora-dlmm-position). Close is
+  [below](#close-an-empty-meteora-dlmm-position). The pool read is
+  [below](#meteora-dlmm-pool-price).
 - **Ownership is proven, never assumed.** Whirlpool positions are tokenized: the owner is
   whoever holds the position NFT. solOS requires custody of the position NFT (one token
   account, amount 1, either token program) for the requested owner — an omitted owner means
   the configured signer. A transferred NFT therefore reads as `LiquidityPositionUnavailable`
   ("owner does not hold the position NFT"), never as a zero holding.
+- **Range.** The read includes `range: { tickLower, tickUpper }` from the position account's
+  tick indexes. A record written before that field existed still parses.
 - **Exact units.** `liquidity` is the raw u128 share as a decimal string; `tokenA`/`tokenB`
   amounts are the underlying principal in base units at the pool's current Q64.64 sqrt price,
   computed with the pinned Orca math (`@orca-so/whirlpools-core` 3.1.1, zero dependencies),
@@ -158,7 +162,28 @@ SOLANA_RPC_URL=... bun run solos liquidity position --protocol meteora --positio
 SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_position --args '{"protocol":"meteora","position":"<position-account>","owner":"<owner>"}'
 ```
 
-The zero-spend read is recorded in [liquidity QA](../../liquidity-qa.md).
+The zero-spend read is recorded in [liquidity QA](../../liquidity-qa.md). A Meteora position
+read includes `range: { lowerBinId, upperBinId }` from the PositionV2 window.
+
+### Meteora DLMM pool price
+
+`solana_liquidity_get_pool` (MCP) and `solos liquidity pool --protocol meteora --pool <pair>`
+(CLI) read where one LbPair is trading. The result is the pair address, token X and token Y
+as `tokenA` and `tokenB` with mint decimals, `activeId`, `binStep`, `priceAPerB`, and `at`.
+
+`priceAPerB` is how many token B equal one token A at the active bin, after mint-decimal
+adjustment: the pinned `priceOfBin(activeId, binStep)` (token Y lamports per token X lamport)
+times 10^(decimals of A minus decimals of B). Bin 0 is price 1 in raw units, so a 9-decimal
+token A and a 6-decimal token B read `"1000"`.
+
+Orca and Raydium have no pool read. The failure is `LiquidityUnsupportedProtocol`. `reason`
+is `the pool read is Meteora-only`. `remedy` names `solana_liquidity_get_position`. A missing
+or corrupt LbPair is `LiquidityPoolUnavailable`. Nothing is deposited, withdrawn, or signed.
+
+```sh
+SOLANA_RPC_URL=... bun run solos liquidity pool --protocol meteora --pool <pair>
+SOLANA_RPC_URL=... bun run solos mcp call solana_liquidity_get_pool --args '{"protocol":"meteora","pool":"<pair>"}'
+```
 
 ### Deposits into an existing Meteora position
 

@@ -5,6 +5,7 @@ import { TOKEN_RPC_TIMEOUT_MS } from "../market/account-read.js";
 import { rpcOrigin } from "../rpc/rpc-origin.js";
 import { SolanaRpc } from "../rpc/solana-rpc.js";
 import { listPositionsLive } from "./liquidity-enumerate.js";
+import { getPoolLive } from "./liquidity-pool.js";
 import { getPositionLive } from "./liquidity-read.js";
 
 /**
@@ -25,6 +26,7 @@ export const LiquidityVenueLive = Layer.effect(
     return {
       getPosition: (request) => getPositionLive(read, request),
       listPositions: (request) => listPositionsLive(read, request),
+      getPool: (request) => getPoolLive(read, request),
     };
   }),
 );

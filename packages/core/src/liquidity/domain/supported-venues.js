@@ -8,6 +8,7 @@ import {
   DEPOSIT_PROTOCOLS,
   ENUMERATION_PROTOCOLS,
   LIFECYCLE_PROTOCOLS,
+  POOL_PROTOCOLS,
   POSITION_READ_PROTOCOLS,
   READ_PROTOCOLS,
 } from "./types.js";
@@ -30,6 +31,7 @@ const openCaveat = (protocol) => OPEN_CAVEAT[protocol] ?? protocol;
  * "raydium and meteora" would overstate what open supports.
  */
 export const SUPPORTED_VENUES =
-  `Supported venues: point reads ${asList(POSITION_READ_PROTOCOLS)}, deposits ${asList(DEPOSIT_PROTOCOLS)}, ` +
-  `withdrawals ${asList(READ_PROTOCOLS)}, owner enumeration ${asList(ENUMERATION_PROTOCOLS)}; ` +
+  `Supported venues: point reads ${asList(POSITION_READ_PROTOCOLS)}, pool reads ${asList(POOL_PROTOCOLS)}, ` +
+  `deposits ${asList(DEPOSIT_PROTOCOLS)}, withdrawals ${asList(READ_PROTOCOLS)}, ` +
+  `owner enumeration ${asList(ENUMERATION_PROTOCOLS)}; ` +
   `opens and closes ${asList(LIFECYCLE_PROTOCOLS.map(openCaveat))}.`;

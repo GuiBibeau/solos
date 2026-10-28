@@ -59,6 +59,31 @@ const underlying = z.object({
   amount: AmountSchema,
   decimals: TokenDecimalsSchema,
 });
+
+const binRange = z
+  .object({
+    lowerBinId: z.number().int().describe("Inclusive lower Meteora bin id"),
+    upperBinId: z.number().int().describe("Inclusive upper Meteora bin id"),
+  })
+  .strict();
+
+const tickRange = z
+  .object({
+    tickLower: z.number().int().describe("Lower Orca or Raydium tick index"),
+    tickUpper: z.number().int().describe("Upper Orca or Raydium tick index"),
+  })
+  .strict();
+
+/**
+ * Meteora carries bin ids; Orca and Raydium carry tick indexes. An omitted range still parses.
+ * @param {{ readonly protocol: string; readonly range?: object }} value
+ */
+const rangeMatchesProtocol = (value) => {
+  if (value.range === undefined) return true;
+  const hasBinIds = "lowerBinId" in value.range;
+  return value.protocol === "meteora" ? hasBinIds : !hasBinIds;
+};
+
 export const LpPositionSchema = z
   .object({
     kind: z.literal("lp"),
@@ -69,15 +94,23 @@ export const LpPositionSchema = z
     tokenA: underlying,
     tokenB: underlying,
     valueUsd: DecimalSchema.nullable(),
+    range: z
+      .union([binRange, tickRange])
+      .optional()
+      .describe(
+        "The position's own window. Meteora: lowerBinId and upperBinId. Orca and Raydium: tickLower and tickUpper. Omitted on records written before the field existed",
+      ),
   })
   .refine(
     (value) =>
       value.protocol === "meteora" ||
       (/^\d+$/.test(value.liquidity) && BigInt(value.liquidity) <= (1n << 128n) - 1n),
-    {
-      message: "Orca/Raydium liquidity exceeds u128",
-    },
-  );
+    { message: "Orca/Raydium liquidity exceeds u128" },
+  )
+  .refine(rangeMatchesProtocol, {
+    message:
+      "meteora range is lowerBinId and upperBinId; orca and raydium range is tickLower and tickUpper",
+  });
 
 export const PerpAccountSchema = z.object({
   protocol: z.literal("phoenix"),

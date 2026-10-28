@@ -76,6 +76,7 @@ const venueLayers = (over = {}) => {
   };
   const liquidity = {
     getPosition: never,
+    getPool: never,
     // Protocol-aware, like the real adapters: each venue answers for itself and only the asked
     // protocol returns rows. A stub that ignored `protocol` would hand the same position back
     // for every venue, and the merged state would double-count it.

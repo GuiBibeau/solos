@@ -22,6 +22,7 @@ check` fails when it drifts. Do not edit it by hand.
 | `solana_liquidity_execute_deposit` | execute | stable | `liquidity` |
 | `solana_liquidity_execute_open_position` | execute | stable | `liquidity` |
 | `solana_liquidity_execute_withdraw` | execute | stable | `liquidity` |
+| `solana_liquidity_get_pool` | read | beta | `liquidity` |
 | `solana_liquidity_get_position` | read | beta | `liquidity` |
 | `solana_liquidity_simulate_close_position` | simulate | stable | `liquidity` |
 | `solana_liquidity_simulate_deposit` | simulate | stable | `liquidity` |

@@ -18,6 +18,11 @@ import { Context } from "effect";
  *       import("../domain/types.js").LiquidityEnumeration,
  *       import("../domain/errors.js").LiquidityError | import("../../shared/index.js").RpcError
  *     >;
+ *   readonly getPool: (request: import("../domain/pool-state.js").LiquidityGetPoolRequest) =>
+ *     import("effect").Effect.Effect<
+ *       import("../domain/pool-state.js").PoolState,
+ *       import("../domain/errors.js").LiquidityError | import("../../shared/index.js").RpcError
+ *     >;
  * }} LiquidityVenueShape
  */
 

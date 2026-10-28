@@ -69,6 +69,10 @@ export const toRaydiumLpPosition = (found, pool) => {
     tokenA: { mint: pool.tokenMint0, amount: amounts.amountA, decimals: pool.decimals0 },
     tokenB: { mint: pool.tokenMint1, amount: amounts.amountB, decimals: pool.decimals1 },
     valueUsd: null,
+    range: {
+      tickLower: found.layout.tickLowerIndex,
+      tickUpper: found.layout.tickUpperIndex,
+    },
   });
   return parsed.success
     ? Effect.succeed(parsed.data)

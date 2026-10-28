@@ -279,9 +279,19 @@ is not a guaranteed minimum; only post-confirmation balance reads establish the 
 **LP position** — an existing protocol position account, never its NFT mint or its pool. Adds
 preserve its range and A/B maximum spends; removes take an explicit 1..10000 bps fraction of its
 liquidity, preserving account/NFT. Underlying principal is separate from shares and unclaimed fees.
-A Meteora DLMM removal encodes contiguous occupied bins that share one bps as a single
-`RemoveLiquidityParams` range. Each mint's token program is the mint account owner. A Token-2022
-transfer hook is refused before signing.
+The position read reports that window as `range` when the account carries one: inclusive
+`lowerBinId` and `upperBinId` on Meteora, `tickLower` and `tickUpper` on Orca and Raydium. Records
+written before the field existed still parse. A Meteora DLMM removal encodes contiguous occupied
+bins that share one bps as a single `RemoveLiquidityParams` range. Each mint's token program is
+the mint account owner. A Token-2022 transfer hook is refused before signing.
+
+**Pool state** — where one Meteora DLMM LbPair is trading: the pair address, token X and token Y
+as token A and token B with their mint decimals, the active bin id, the bin step, and
+`priceAPerB`. Orca and Raydium have no pool read; the refusal names the position read.
+
+**priceAPerB** — how many token B equal one token A at the active bin, after mint-decimal
+adjustment. It is `priceOfBin(activeId, binStep)` (token Y lamports per token X lamport, Q64.64)
+times 10^(decimals of A minus decimals of B). Token A is the pair's token X and token B is token Y.
 
 **Venue selector** — swap Action.venue; omission means Jupiter. Launch buys explicitly choose
 pump. No mint-based route inference, fallback, or public swap-tool venue argument.
