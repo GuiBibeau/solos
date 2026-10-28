@@ -86,12 +86,18 @@ is reconciled on each clock pass on the same path as startup. The Tick lifecycle
 that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
 Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
 or swarm uses to tell its registrations apart. It is never authorization.
-`schedule` and `trigger` are defined in `@solos-sh/actions`. `rebalance`, `range`, and `carry`
+`schedule`, `trigger`, and `rebalance` are defined in `@solos-sh/actions`. `range` and `carry`
 are names until their issues ship. A `schedule` Strategy ticks on its clock. A `trigger` Strategy
 ticks on that same clock and emits its Action when a USD price is strictly above or below a line:
 a limit or a stop (`below` plus `priceUsd`), a take-profit (`above` plus `priceUsd`), or a trailing
 stop or trailing entry (`trailingBps`). `once` defaults to true and the Strategy moves to `done`
-after that Intent settles. States are `active`,
+after that Intent settles. A `rebalance` Strategy ticks on that same clock and holds target mint
+weights within `bandBps`. Weights are positive decimals in `(0, 1)` that sum to 1. Native SOL is
+wrapped SOL. Swaps route through one `quoteMint` (USDC by default): overweight mints sell into it
+and underweight mints buy from it. When the quote mint is a target, its weight absorbs the residual.
+Legs below `minTradeUsd` are skipped. A missing or non-positive USD price fails the tick and names
+the mint. The tick state records each target mint's weight, target, and drift in basis points.
+States are `active`,
 `paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
 `StrategyTransitionRefused`.
@@ -127,10 +133,14 @@ and pause at the limit. Ticks are appended. A read returns the newest first.
 
 **Observation** — one named fact a kind declares and the Engine reads before evaluate. A schedule
 Tick reads the signer's lamport balance and the Tick instant. A trigger Tick reads one mint's USD
-price and the quote timestamp. The kind never reads them itself.
-A missing, errored, or stale price records `skipped_observation` and leaves the trigger's trailing
-reference unchanged. The staleness limit defaults to two tick intervals. `SOLOS_OBSERVATION_STALENESS`
-sets a duration such as `2m` or an interval count such as `2`.
+price and the quote timestamp. A rebalance Tick reads, for each target mint and the quote mint, the
+wallet balance, decimals, and USD price, plus `priceAt` as the oldest of those quotes. Native SOL
+and wrapped SOL both count as wrapped SOL. The kind never reads them itself.
+A missing, errored, or stale trigger price records `skipped_observation` and leaves the trigger's
+trailing reference unchanged. A missing or non-positive rebalance price fails the tick and names
+the mint. A rebalance quote older than the staleness limit records `skipped_observation`. The
+staleness limit defaults to two tick intervals. `SOLOS_OBSERVATION_STALENESS` sets a duration such
+as `2m` or an interval count such as `2`.
 
 **Notional** — the USD value of an Action's input, read when the Engine reserves it against a
 Strategy cap. A `transfer_sol` hold is the lamports sent plus the fee reserve the transfer builder

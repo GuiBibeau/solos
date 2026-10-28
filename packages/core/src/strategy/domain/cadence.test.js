@@ -30,7 +30,14 @@ describe("clock cadence", () => {
       tickSource: { type: /** @type {const} */ ("clock"), every: 60_000 },
     };
     expect(isClockKind("trigger")).toBe(true);
-    expect(isClockKind("rebalance")).toBe(false);
+    expect(isClockKind("rebalance")).toBe(true);
+    const rebalance = {
+      kind: /** @type {const} */ ("rebalance"),
+      tickSource: { type: /** @type {const} */ ("clock"), every: 60_000 },
+    };
+    expect(
+      nextDueInstant(/** @type {import("@solos-sh/actions").Strategy} */ (rebalance), HOUR),
+    ).toBe(HOUR + 60_000);
     expect(
       nextDueInstant(/** @type {import("@solos-sh/actions").Strategy} */ (strategy), HOUR),
     ).toBe(HOUR + 60_000);

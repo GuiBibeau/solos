@@ -45,6 +45,7 @@ import { engineTickSubmit } from "./tick-submit.js";
  *         readonly mint: string;
  *         readonly solPriceUsd?: string;
  *       });
+ *   readonly swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
  * }} StrategyLayerOptions
  */
 
@@ -84,7 +85,7 @@ const sharedLayer = (db, options) => {
       ? liveObservationReader.pipe(Layer.provide(repository))
       : scriptedObservationReader(options.observations),
     options.quote === undefined ? liveSpendMeter : scriptedSpendMeter(options.quote),
-    engineTickSubmit(db),
+    engineTickSubmit(db, options.swapFixture),
     engineIntentLookup(db),
   ).pipe(Layer.provideMerge(MintDecimalsLive()));
 };

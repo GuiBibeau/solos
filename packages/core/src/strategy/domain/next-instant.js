@@ -1,9 +1,9 @@
 // @ts-check
 import { nextInstant } from "./cadence.js";
 
-const CLOCK_KINDS = new Set(["schedule", "trigger"]);
+const CLOCK_KINDS = new Set(["schedule", "trigger", "rebalance"]);
 
-/** A kind the clock wakes. Trigger shares the schedule's interval. @param {string} kind */
+/** A kind the clock wakes. Trigger and rebalance share the schedule's interval. @param {string} kind */
 export const isClockKind = (kind) => CLOCK_KINDS.has(kind);
 
 /**

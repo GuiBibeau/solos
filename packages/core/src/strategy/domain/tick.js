@@ -72,7 +72,23 @@ export const TickSchema = z
           })
           .optional()
           .describe("State restored when an in-flight fire does not settle"),
+        mints: z
+          .record(
+            z.string(),
+            z.object({
+              weight: z.string().describe("Current weight of this mint"),
+              target: z.string().describe("Target weight of this mint"),
+              driftBps: z
+                .number()
+                .int()
+                .nonnegative()
+                .describe("Absolute drift from the target weight, in basis points"),
+            }),
+          )
+          .optional()
+          .describe("Per-mint weight, target, and drift recorded by a rebalance tick"),
       })
+      .passthrough()
       .optional()
       .describe("Kind state persisted with this Tick"),
     reason: z

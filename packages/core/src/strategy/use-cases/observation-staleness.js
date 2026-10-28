@@ -24,6 +24,42 @@ const limitMs = (strategy, options) => {
   return intervals * (intervalOf(strategy) ?? FALLBACK_MS);
 };
 
+/**
+ * A rebalance quote is stale when `priceAt` or any `priceAt:<mint>` is older than the limit.
+ * `priceAt` is the oldest of those mint timestamps, so one field is enough.
+ * @param {Readonly<Record<string, string | number>>} observations
+ * @returns {{ readonly reason: string; readonly remedy: string } | undefined}
+ */
+export const quoteIsStale = (observations) => {
+  if (typeof observations.stalenessMs !== "number") return undefined;
+  const stamps = priceStamps(observations);
+  const now = observations.instant;
+  if (typeof now !== "number" || stamps.length === 0) return missingStamp();
+  const oldest = Math.min(...stamps);
+  if (now - oldest <= observations.stalenessMs) return undefined;
+  return {
+    reason: "price is older than the staleness limit",
+    remedy: "retry when the price feed returns a newer quote",
+  };
+};
+
+/** @param {Readonly<Record<string, string | number>>} observations */
+const priceStamps = (observations) => {
+  /** @type {number[]} */
+  const stamps = [];
+  for (const [key, value] of Object.entries(observations)) {
+    if (typeof value === "number" && (key === "priceAt" || key.startsWith("priceAt:"))) {
+      stamps.push(value);
+    }
+  }
+  return stamps;
+};
+
+const missingStamp = () => ({
+  reason: "price observation has no timestamp",
+  remedy: "retry when the price feed returns a timestamped quote",
+});
+
 /** @param {import("@solos-sh/actions").Strategy} strategy */
 const intervalOf = (strategy) => {
   const source = strategy.tickSource;

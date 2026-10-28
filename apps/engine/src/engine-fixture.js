@@ -107,13 +107,29 @@ const boot = async (options, release) => {
   /** @type {string[]} */
   const logs = [];
   const restore = captureStderr(logs);
-  const handle = await launch({ options, identity, directory, surfnet, restore });
+  const handle = await launch({
+    options: withSwapRpc(options, surfnet.rpcUrl),
+    identity,
+    directory,
+    surfnet,
+    restore,
+  });
   return presented(handle, { identity, directory, surfnet, logs, restore, release, options });
 };
 
 const freshSigner = async () => {
   const seed = randomSeed();
   return { privateKey: await seedToPrivateKeyString(seed), signer: await seedAddress(seed) };
+};
+
+/**
+ * The fixture prices balances against the Surfpool this engine just attached.
+ * @param {import("./engine-test-env.js").TestEngineOptions} options
+ * @param {string} rpcUrl
+ */
+const withSwapRpc = (options, rpcUrl) => {
+  if (options.swapFixture === undefined) return options;
+  return { ...options, swapFixture: { ...options.swapFixture, rpcUrl } };
 };
 
 /** @param {{ dataDir?: string }} options */

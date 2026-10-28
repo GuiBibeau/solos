@@ -16,7 +16,7 @@ export const registerInput = z.object({
   params: z
     .unknown()
     .describe(
-      "Parameters for that kind. schedule and trigger are accepted; rebalance, range, and carry fail until their issues ship",
+      "Parameters for that kind. schedule, trigger, and rebalance are accepted; range and carry fail until their issues ship",
     ),
   tickSource: z
     .unknown()

@@ -1,7 +1,8 @@
 // @ts-check
-import { BalanceReader, PriceFeed, Signer } from "@solos/core";
+import { BalanceReader, PortfolioReader, PriceFeed, Signer } from "@solos/core";
 import { ObservationReader, StrategyRepository } from "@solos/core/strategy";
 import { Effect, Layer } from "effect";
+import { readRebalance } from "./tick-observe-rebalance.js";
 import { quotePrice } from "./tick-price.js";
 
 /** Production reader: schedule lamports, the Tick instant, and a trigger's USD price. */
@@ -10,10 +11,11 @@ export const liveObservationReader = Layer.effect(
   Effect.gen(function* () {
     const signer = yield* Signer;
     const balances = yield* BalanceReader;
+    const portfolio = yield* PortfolioReader;
     const feed = yield* PriceFeed;
     const strategies = yield* StrategyRepository;
     return {
-      read: (request) => readLive({ signer, balances, feed, strategies }, request),
+      read: (request) => readLive({ signer, balances, portfolio, feed, strategies }, request),
     };
   }),
 );
@@ -22,6 +24,7 @@ export const liveObservationReader = Layer.effect(
  * @param {{
  *   signer: import("@solos/core/wallet").SignerShape;
  *   balances: import("@solos/core/wallet").BalanceReaderShape;
+ *   portfolio: import("./tick-observe-rebalance.js").PortfolioRead;
  *   feed: import("./tick-price.js").PriceReader;
  *   strategies: import("./tick-price.js").StrategyLoad;
  * }} sources
@@ -29,6 +32,9 @@ export const liveObservationReader = Layer.effect(
  */
 const readLive = (sources, request) =>
   Effect.gen(function* () {
+    if (request.names.some((name) => name.startsWith("balance:"))) {
+      return yield* readRebalance(sources, request);
+    }
     const wantsPrice = request.names.some((name) => name === "price" || name === "priceAt");
     const quote = wantsPrice ? yield* quotePrice(sources, request) : undefined;
     /** @type {Record<string, string | number>} */

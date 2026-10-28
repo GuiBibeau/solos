@@ -6,6 +6,7 @@ import { ObservationReader } from "../ports/observation-reader.js";
 import { ObservationStaleness } from "../ports/observation-staleness.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
 import { TickRepository } from "../ports/tick-repository.js";
+import { quoteIsStale } from "./observation-staleness.js";
 import { recordDecision, storeSkip } from "./tick-record.js";
 
 /**
@@ -29,7 +30,8 @@ export const runTick = (strategy) =>
     if (observed === undefined) {
       return yield* storeSkip(strategy, { tickId, dueAt, now, previous });
     }
-    const decision = evaluateKind(strategy, yield* enrich(strategy, observed, dueAt), previous);
+    const enriched = yield* enrich(strategy, observed, dueAt);
+    const decision = finishDecision(strategy, enriched, evaluateKind(strategy, enriched, previous));
     return yield* recordDecision(strategy, {
       tickId,
       dueAt,
@@ -47,7 +49,7 @@ export const runTick = (strategy) =>
  */
 const enrich = (strategy, observations, instant) =>
   Effect.gen(function* () {
-    if (strategy.kind !== "trigger") return observations;
+    if (strategy.kind !== "trigger" && strategy.kind !== "rebalance") return observations;
     const configured = yield* Effect.serviceOption(ObservationStaleness);
     const stalenessMs = Option.isNone(configured)
       ? defaultStaleness(strategy)
@@ -60,6 +62,20 @@ const defaultStaleness = (strategy) => {
   const source = strategy.tickSource;
   const every = source.type === "clock" ? source.every : undefined;
   return (every ?? 60_000) * 2;
+};
+
+/**
+ * A stale rebalance quote skips the tick. A missing price stays a failure from evaluate.
+ * @param {import("@solos-sh/actions").Strategy} strategy
+ * @param {Readonly<Record<string, string | number>>} observations
+ * @param {ReturnType<typeof evaluateKind>} decision
+ */
+const finishDecision = (strategy, observations, decision) => {
+  if (strategy.kind !== "rebalance") return decision;
+  if ("failure" in decision && decision.failure !== undefined) return decision;
+  const stale = quoteIsStale(observations);
+  if (stale === undefined) return decision;
+  return { actions: [], state: decision.state, note: stale.reason, skip: stale };
 };
 
 /**

@@ -24,6 +24,7 @@ import { bootTicks } from "./tick-boot.js";
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
  *   stalenessIntervals?: number;
  *   stalenessMs?: number;
+ *   swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
  * }} StartInput
  */
 
@@ -75,6 +76,7 @@ const strategyStart = (input, mode) => ({
   ...(input.now !== undefined && { now: input.now }),
   ...(input.observations !== undefined && { observations: input.observations }),
   ...(input.quote !== undefined && { quote: input.quote }),
+  ...(input.swapFixture !== undefined && { swapFixture: input.swapFixture }),
   ...stalenessOptions(input),
 });
 
@@ -88,6 +90,7 @@ const strategyStart = (input, mode) => ({
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
  *   stalenessIntervals?: number;
  *   stalenessMs?: number;
+ *   swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
  * }} StrategyStart
  */
 
@@ -100,7 +103,9 @@ const listen = async (env, start, paper) => {
   const solanaEnv = loadSolanaEnv(hostEnv(env, paper));
   const db = openIntents(path.join(start.dataDir, "intents.sqlite"));
   const mount = await strategyMount(db, start);
-  const runtime = ManagedRuntime.make(runtimeLayer(solanaEnv, env, mount));
+  const runtime = ManagedRuntime.make(
+    runtimeLayer({ solanaEnv, env, mount, swapFixture: start.swapFixture }),
+  );
   /** @type {{ runDue: () => Promise<unknown>; stop: () => Promise<void> }} */
   let ticks = { runDue: async () => undefined, stop: async () => undefined };
   try {
@@ -155,6 +160,7 @@ const layerOptions = (input) => ({
   ...(input.quote !== undefined && { quote: input.quote }),
   ...(input.stalenessIntervals !== undefined && { stalenessIntervals: input.stalenessIntervals }),
   ...(input.stalenessMs !== undefined && { stalenessMs: input.stalenessMs }),
+  ...(input.swapFixture !== undefined && { swapFixture: input.swapFixture }),
 });
 
 /**
@@ -171,16 +177,22 @@ const explicitMount = async (db, options) => {
 };
 
 /**
- * @param {import("@solos/solana").SolanaEnv} solanaEnv
- * @param {Record<string, string | undefined>} env
- * @param {Awaited<ReturnType<typeof strategyMount>>} mount
+ * @param {{
+ *   solanaEnv: import("@solos/solana").SolanaEnv;
+ *   env: Record<string, string | undefined>;
+ *   mount: Awaited<ReturnType<typeof strategyMount>>;
+ *   swapFixture: import("./swap-fixture.js").SwapFixtureConfig | undefined;
+ * }} input
  */
-const runtimeLayer = (solanaEnv, env, mount) => {
-  const host = engineHostLayer(solanaEnv, env.SOLOS_LOG_LEVEL, env.OTEL_EXPORTER_OTLP_ENDPOINT);
-  if (mount === undefined) return host;
-  return mount.layer.pipe(Layer.provideMerge(host));
+const runtimeLayer = (input) => {
+  const host = engineHostLayer(
+    input.solanaEnv,
+    input.env.SOLOS_LOG_LEVEL,
+    input.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+  );
+  if (input.mount === undefined) return host;
+  return input.mount.layer.pipe(Layer.provideMerge(host));
 };
-
 /** @param {import("@solos/core/wallet").SignerShape} service */
 const addressOf = (service) => service.address();
 

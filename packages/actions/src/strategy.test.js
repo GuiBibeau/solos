@@ -100,8 +100,7 @@ describe("Strategy contract", () => {
     ).toContain("trailingBps must be an integer from 50 to 9000");
   });
 
-  test("rebalance, range, and carry fail naming the child issue that ships them", () => {
-    expect(messages({ ...schedule(), kind: "rebalance", params: {} })).toContain("#200");
+  test("range and carry fail naming the child issue that ships them", () => {
     expect(messages({ ...schedule(), kind: "range", params: {} })).toContain("#201");
     expect(messages({ ...schedule(), kind: "carry", params: {} })).toContain("#202");
   });
