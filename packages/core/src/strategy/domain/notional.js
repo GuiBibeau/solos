@@ -1,7 +1,7 @@
 // @ts-check
 import { WSOL_MINT } from "@solos-sh/actions";
 import { addDecimal, divDecimalUp, mulDecimal } from "./decimal.js";
-import { isLiquidityAction } from "./supported-action.js";
+import { isLiquidityAction, isPerpAction } from "./supported-action.js";
 
 /**
  * Price and the mint's verified decimals. Callers pass the decimals a mint read returned.
@@ -26,6 +26,7 @@ import { isLiquidityAction } from "./supported-action.js";
  * @param {PricedAmount & { readonly feeUsd: string } & Partial<LiquidityPriced>} priced
  */
 export const reserveUsdFor = (action, priced) => {
+  if (isPerpAction(action.type)) return addDecimal(perpPrincipal(action), priced.feeUsd);
   if (!isLiquidityAction(action.type)) {
     return addDecimal(slippageUsd(inputUsd(action, priced), slippageBps(action)), priced.feeUsd);
   }
@@ -34,6 +35,7 @@ export const reserveUsdFor = (action, priced) => {
 
 /** Input notional in USD, without the slippage or fee buffer. @param {import("@solos-sh/actions").Action} action @param {PricedAmount & Partial<LiquidityPriced>} priced */
 export const actualUsdFor = (action, priced) => {
+  if (isPerpAction(action.type)) return perpPrincipal(action);
   if (isLiquidityAction(action.type)) return liquidityPrincipal(action, priced);
   return inputUsd(action, priced);
 };
@@ -55,6 +57,19 @@ const liquidityPrincipal = (action, priced) => {
   if (action.type === "remove_liquidity") return fractionUsd(priced.valueUsd ?? "0", action.bps);
   if (action.type !== "add_liquidity") return "0";
   return addDecimal(legUsd(action.amountA, priced), legUsd(action.amountB, otherLeg(priced)));
+};
+
+/** Open reserves the USD notional. Close reserves none of it. @param {import("@solos-sh/actions").Action} action */
+const perpPrincipal = (action) =>
+  action.type === "open_perp" ? microUsd(action.notionalUsd) : "0";
+
+/** 1e6 USD units to a decimal USD string. @param {string} micro */
+const microUsd = (micro) => {
+  if (!/^\d+$/.test(micro)) return "0";
+  const digits = BigInt(micro).toString().padStart(7, "0");
+  const frac = digits.slice(-6).replace(/0+$/, "");
+  const whole = digits.slice(0, -6);
+  return frac === "" ? whole : `${whole}.${frac}`;
 };
 
 /** @param {string} valueUsd @param {number} bps */

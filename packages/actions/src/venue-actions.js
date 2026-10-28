@@ -39,6 +39,7 @@ export const WithdrawPerpCollateralActionSchema = z.object({
 
 export const OpenPerpActionSchema = z.object({
   type: z.literal("open_perp"),
+  protocol: z.literal("phoenix").optional().describe("Perp protocol; Phoenix in v1"),
   market: z
     .string()
     .regex(/^[A-Z][A-Z0-9]{1,15}(?:-PERP)?$/)
@@ -54,6 +55,7 @@ export const OpenPerpActionSchema = z.object({
 
 export const ClosePerpActionSchema = z.object({
   type: z.literal("close_perp"),
+  protocol: z.literal("phoenix").optional().describe("Perp protocol; Phoenix in v1"),
   market: z.string().regex(/^[A-Z][A-Z0-9]{1,15}(?:-PERP)?$/),
   ...traderScope,
   limitPriceUsd: PositiveDecimalSchema.pipe(z.string().max(40)).describe(

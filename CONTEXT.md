@@ -86,8 +86,8 @@ is reconciled on each clock pass on the same path as startup. The Tick lifecycle
 that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
 Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
 or swarm uses to tell its registrations apart. It is never authorization.
-`schedule`, `trigger`, `rebalance`, and `range` are defined in `@solos-sh/actions`. `carry`
-is a name until its issue ships. A `schedule` Strategy ticks on its clock. A `trigger` Strategy
+`schedule`, `trigger`, `rebalance`, `range`, and `carry` are defined in `@solos-sh/actions`.
+A `schedule` Strategy ticks on its clock. A `trigger` Strategy
 ticks on that same clock and emits its Action when a USD price is strictly above or below a line:
 a limit or a stop (`below` plus `priceUsd`), a take-profit (`above` plus `priceUsd`), or a trailing
 stop or trailing entry (`trailingBps`). `once` defaults to true and the Strategy moves to `done`
@@ -104,6 +104,14 @@ withdraws the position, closes it, opens an empty position of the same `width` c
 active bin, and deposits the withdrawn amounts. `maxRecentersPerDay` is that kind's own budget.
 The tick state records the active bin, the position range, the outside streak, recenters today,
 and the last recenter's Intent ids.
+A `carry` Strategy ticks on that same clock and harvests Phoenix funding while staying
+delta-neutral. Entry requires the trailing mean funding APR over `lookbackHours` to clear both
+`entryHurdleAprPct` and the break-even APR `roundTripCostPct * 8760 / expectedHoldHours`. The
+tick then opens a Phoenix short and swaps the quote mint into `spotMint`, perp leg first. Exit,
+when that mean falls below `exitHurdleAprPct` or below zero, closes the perp and swaps the
+entered spot amount back. A short with no spot leg emits `close_perp` with reason `unwind` and
+pauses after the tick. The kind does not onboard or deposit. The tick state records the trailing
+mean, both hurdles, the break-even APR, the legs, and `entryAt`.
 States are `active`,
 `paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
@@ -145,6 +153,9 @@ wallet balance, decimals, and USD price, plus `priceAt` as the oldest of those q
 and wrapped SOL both count as wrapped SOL. A range Tick reads the Meteora pool (`activeId`,
 `binStep`, both mints and decimals, `priceAPerB`, and the read time), the LP position (its
 address, bin range, token amounts, and USD value), both token prices, and the tick instant.
+A carry Tick reads the Phoenix funding snapshot (current APR, history, and the read time), the
+spot mint's USD price as the mark, the perp side and size, onboarding and account equity, and
+the spot and quote balances, decimals, and USD prices.
 The kind never reads them itself.
 A missing, errored, or stale trigger price records `skipped_observation` and leaves the trigger's
 trailing reference unchanged. A missing or non-positive rebalance price fails the tick and names
@@ -165,7 +176,10 @@ the actual `meta.fee`, priced at the quote's SOL price. A landed execution error
 fee, at that same price. A `remove_liquidity` hold is the position's USD value times `bps / 10000`,
 plus a SOL fee. `close_position` and `open_position` hold only that SOL fee. An `add_liquidity`
 that redeposits funds withdrawn in the same tick holds only the SOL fee, because the principal
-was already counted. A standalone deposit prices `amountA` and `amountB`. An unverified mint is refused at reserve with `MintDecimalsUnverified`
+was already counted. A standalone deposit prices `amountA` and `amountB`. An `open_perp` hold is
+the USD notional (`notionalUsd / 1e6`) plus a SOL fee. A `close_perp` hold is only that SOL fee.
+On a carry entry the notional therefore counts twice: once on the short and once on the quote
+swap at max slippage. An unverified mint is refused at reserve with `MintDecimalsUnverified`
 (HTTP 503) and nothing is stored. `maxNotionalPerTickUsd` caps the sum of those reserves that share
 a `tickId`.
 

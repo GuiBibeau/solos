@@ -39,6 +39,36 @@ answer, through the real CLI and a real stdio MCP child against the loopback fix
 One print in that window is negative: `-0.000098` at `2026-10-28T06:00:00.000Z` (shorts pay longs).
 The full series is in the pull request that added the read.
 
+## Funding carry on paper (#202, second half)
+
+No mainnet transaction. A Surfpool engine with an injected funding Observation registers a
+`carry` Strategy: `SOL-PERP`, notional `100` USD, entry hurdle `10`, exit hurdle `4`,
+`roundTripCostPct` `0` (break-even APR `0`), spot wrapped SOL, quote USDC. The legs settle
+through the paper submit hook. Surfpool does not run the Phoenix program, so the funding print,
+the trader, and the balances are Observations rather than a Phoenix HTTP fixture.
+
+Enter, with current APR `20` and a flat book:
+
+- trailing mean `20`, above the entry hurdle `10` and the break-even `0`
+- `open_perp` short, protocol `phoenix`, notional `100000000` (1e6 USD units), limit `149.25`
+  (mark `150` minus 50 bps)
+- swap USDC to wrapped SOL for `100000000` base units
+- state records `spotAmount` `666666666`, `entryAt`, both hurdles, and the break-even
+
+`solos strategy status <id>` shows those fields on `lastTick.state`, and the tick note prints
+`trailingMeanAprPct`, the hurdle, and `breakEvenAprPct`.
+
+Exit, after the Observation moves to APR `1` with the short and the entered spot still present:
+
+- `close_perp` with limit `150.75` (mark plus 50 bps)
+- swap of the entered `666666666` spot base units back to USDC
+- `entryAt` is unchanged
+
+A separate unit tick forces the spot swap to fail after `open_perp` settles. The Strategy
+pauses. The reason names step 1, `swap`, and the Intent. The next tick, still flat in the
+Observation but with `naked` set, emits `close_perp` with reason `unwind` and pauses again.
+Spend on this paper round: **zero**.
+
 ## Explicit trader onboarding (#101)
 
 The default trader scope is the configured signer with both Phoenix trader indices fixed to zero.

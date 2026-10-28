@@ -32,6 +32,7 @@ describe("clock cadence", () => {
     expect(isClockKind("trigger")).toBe(true);
     expect(isClockKind("rebalance")).toBe(true);
     expect(isClockKind("range")).toBe(true);
+    expect(isClockKind("carry")).toBe(true);
     const rebalance = {
       kind: /** @type {const} */ ("rebalance"),
       tickSource: { type: /** @type {const} */ ("clock"), every: 60_000 },

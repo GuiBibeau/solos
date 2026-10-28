@@ -16,8 +16,12 @@ list of Actions and an optional tick count. `trigger` watches one mint's price. 
 target weights and swaps through one quote mint when a weight leaves its band. `range` keeps one
 Meteora DLMM position centred on the active bin: `protocol`, `pool`, `position`, `width` (1..70),
 `recenterWhenOutsideFor`, `maxRecentersPerDay` (1..24), and `maxSlippageBps` (default 50). A
-confirmed removal may record `amountA` and `amountB` as the quoted proceeds. `carry` is named in
-the union and fails validation until its issue ships. A
+confirmed removal may record `amountA` and `amountB` as the quoted proceeds. `carry` holds a
+Phoenix short against a spot long of the same `notionalUsd` when the trailing funding APR clears
+`entryHurdleAprPct` and the break-even APR from `roundTripCostPct` and `expectedHoldHours`.
+`exitHurdleAprPct` must be strictly lower. `quoteMint` defaults to USDC, `roundTripCostPct` to
+0.3, `maxSlippageBps` to 50, and `maxLeverage` to 1. An open or close perp Action may name
+`protocol: "phoenix"`. A
 `stream` tick source fails until streams exist. A clock source sets exactly one of `every` or
 `cron`. The Registry assigns the id.
 

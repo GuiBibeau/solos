@@ -6,10 +6,10 @@ A Strategy is a registered description of later work: a kind, that kind's parame
 source, Bounds, and a lifecycle state. Registering one stores it. A `schedule` Strategy ticks
 on its clock: the Engine observes, evaluates, reserves each Action, and sends. A schedule or
 trigger action is `transfer_sol` or `swap`. A range tick may also reserve `remove_liquidity`,
-`close_position`, `open_position`, and `add_liquidity`. Any other action type is refused at
+`close_position`, `open_position`, and `add_liquidity`. A carry tick may reserve `open_perp`,
+`close_perp`, and `swap`. Any other action type is refused at
 registration with `UnsupportedStrategyAction`, and again before a tick reserves or sends.
-`schedule`, `trigger`, `rebalance`, and `range` are the kinds the contract accepts. `carry` is a
-name that fails until its issue ships.
+`schedule`, `trigger`, `rebalance`, `range`, and `carry` are the kinds the contract accepts.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
 `solos strategy`, both of which talk to the Engine over HTTP. Core registers the twelve MCP
@@ -164,6 +164,54 @@ same funds.
 `solos strategy status <id>` shows, on `lastTick.state`, the active bin, the position range,
 `outsideStreak`, `recentersToday`, and `lastRecenterIntents` from the last completed recenter.
 Those Intent ids stay on later inside-range ticks.
+
+A `carry` harvests Phoenix funding with a delta-neutral pair: a short perpetual and the same
+notional of `spotMint`, bought with `quoteMint` (USDC by default). It ticks on the same clock.
+`notionalUsd` is the USD size of each leg. `entryHurdleAprPct` and `exitHurdleAprPct` are
+trailing-mean APR thresholds, and the exit hurdle must be strictly lower. `lookbackHours` is
+the mean's window (1 to 168). `expectedHoldHours` amortises `roundTripCostPct` (default 0.3)
+into a break-even APR of `roundTripCostPct * 8760 / expectedHoldHours`. `maxSlippageBps`
+defaults to 50. `maxLeverage` defaults to 1.
+
+```json
+{
+  "kind": "carry",
+  "params": {
+    "market": "SOL-PERP",
+    "spotMint": "So11111111111111111111111111111111111111112",
+    "notionalUsd": "100",
+    "entryHurdleAprPct": "12",
+    "exitHurdleAprPct": "4",
+    "lookbackHours": 24,
+    "expectedHoldHours": 72
+  }
+}
+```
+
+The trailing mean uses funding history inside the lookback, plus samples the Strategy has
+already recorded. A single-hour spike does not clear the hurdle while earlier prints in the
+window hold the mean down. With no earlier sample, the current APR is the mean. Entry requires
+the mean to exceed both the entry hurdle and the break-even APR. The tick then emits
+`open_perp` short, then a swap from the quote mint into `spotMint`. The short's limit is the
+spot mint's USD price, which stands in for the mark, tightened by `maxSlippageBps`. Exit, when
+an open carry's mean falls below the exit hurdle or below zero, emits `close_perp` and then
+swaps the entered spot amount back. The note on every tick prints the trailing mean, the hurdle
+that applied, and the break-even APR.
+
+The trader must already be onboarded and funded. The kind does not onboard or deposit. A
+missing onboarding or insufficient collateral or quote balance fails the tick and emits nothing.
+If the perp short is open and the spot leg is missing, including after a swap fails once the
+short has filled, the tick emits only `close_perp` with reason `unwind` and `pauseAfter`. The
+Engine pauses the Strategy and names the failed step and Intent. Resuming runs that unwind and
+pauses again when it completes. There is no automatic retry of the spot leg.
+
+`open_perp` reserves `notionalUsd` plus a SOL fee. The swap reserves that notional at max
+slippage plus a SOL fee, so the entry counts the notional twice against the per-tick cap.
+`close_perp` reserves only the SOL fee.
+
+`solos strategy status <id>` shows, on `lastTick.state`, `trailingMeanAprPct`,
+`entryHurdleAprPct`, `exitHurdleAprPct`, `breakEvenAprPct`, the short `market`, `spotAmount`,
+and `entryAt` from the last tick.
 
 ## Tools
 
