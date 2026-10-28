@@ -21,6 +21,7 @@ export const ENGINE_TOKEN = "engine-integration-token";
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
  *   stalenessIntervals?: number;
  *   stalenessMs?: number;
+ *   swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
  * }} TestEngineOptions
  */
 
@@ -36,6 +37,7 @@ export const forwardStart = (options) => ({
   ...whenSet("quote", options.quote),
   ...whenSet("stalenessIntervals", options.stalenessIntervals),
   ...whenSet("stalenessMs", options.stalenessMs),
+  ...whenSet("swapFixture", options.swapFixture),
 });
 
 /** @param {string} key @param {unknown} value */

@@ -7,8 +7,8 @@ source, Bounds, and a lifecycle state. Registering one stores it. A `schedule` S
 on its clock: the Engine observes, evaluates, reserves each Action, and sends. A schedule or
 trigger action is only `transfer_sol` or `swap` for now. Any other action type is refused at
 registration with `UnsupportedStrategyAction`. A tick that still carries one fails the same
-way, before a reserve or a send. `schedule` and `trigger` are the kinds the contract accepts.
-`rebalance`, `range`, and `carry` are names that fail until their issues ship.
+way, before a reserve or a send. `schedule`, `trigger`, and `rebalance` are the kinds the contract
+accepts. `range` and `carry` are names that fail until their issues ship.
 
 The Engine owns the Registry (ADR-0037). Callers reach it with these tools or with
 `solos strategy`, both of which talk to the Engine over HTTP. Core registers the twelve MCP
@@ -79,6 +79,46 @@ price that is missing, a feed error, or a quote older than the staleness limit r
 `skipped_observation` with the feed's reason and leaves `bestPriceUsd` unchanged. The limit
 defaults to two tick intervals. `SOLOS_OBSERVATION_STALENESS` sets a duration such as `2m` or
 an interval count such as `2`.
+
+## Rebalance
+
+A `rebalance` holds target mint weights and ticks on the same clock. Native SOL is wrapped SOL
+(`So11111111111111111111111111111111111111112`).
+
+```json
+{
+  "kind": "rebalance",
+  "params": {
+    "targets": {
+      "So11111111111111111111111111111111111111112": "0.50",
+      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "0.30",
+      "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": "0.20"
+    },
+    "bandBps": 300,
+    "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "minTradeUsd": "5",
+    "maxSlippageBps": 50
+  }
+}
+```
+
+`targets` needs at least two mints. Each weight is a positive decimal in `(0, 1)` and the weights
+sum to 1 within `1e-6`. `bandBps` is an integer from 1 to 5000. `quoteMint` defaults to USDC.
+`minTradeUsd` is a positive decimal. `maxSlippageBps` defaults to 50. When `bounds.allowedMints`
+is non-empty it must list every target and the quote mint.
+
+Each tick values wallet cash. Overweight mints sell into the quote mint. Underweight mints buy
+from it. The quote mint, when it is a target, absorbs the residual, so the plan never swaps the
+quote mint for itself and never routes token-to-token. Legs smaller than `minTradeUsd` are
+skipped. Trades run largest USD notional first, sells before buys on a tie. A missing or
+non-positive price fails the tick and names the mint. A quote older than the staleness limit
+records `skipped_observation`.
+
+`solos strategy status <id>` returns `lastTick.state.mints`: each target's `weight`, `target`,
+and `driftBps`, plus the Actions that tick emitted and each Intent's state. When a later swap
+exceeds `maxNotionalPerTickUsd`, that swap and the ones after it are not sent. The tick records
+`skipped_bounds` with the cap reason and the step. Leading intents stay settled. The next tick
+emits only what is still outside the band.
 
 ## Tools
 

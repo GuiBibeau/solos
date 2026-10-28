@@ -1,26 +1,30 @@
 // @ts-check
-import { ActionExecutor, PriceFeed, errorEnvelope, toJsonSafe } from "@solos/core";
+import { ActionExecutor, PriceFeed, Signer, errorEnvelope, toJsonSafe } from "@solos/core";
 import { TickSubmit } from "@solos/core/strategy";
 import { SolanaRpc, landedFeeLamports, signedIntentNote } from "@solos/solana";
 import { Effect, Layer } from "effect";
 import { claimIntent, failIntent, readIntent, recordSigned, settleIntent } from "./intents.js";
 import { paidFeeUsd } from "./paid-fee.js";
+import { openSwapLedger, runSwapOrExecute } from "./swap-fixture.js";
 
 /**
  * Claim the Intent, sign through the Engine executor, then settle or fail the row.
  * A repeat claim returns the stored row and does not send again.
  * @param {import("bun:sqlite").Database} db
+ * @param {import("./swap-fixture.js").SwapFixtureConfig | undefined} [swapFixture]
  */
-export const engineTickSubmit = (db) =>
+export const engineTickSubmit = (db, swapFixture) =>
   Layer.effect(
     TickSubmit,
     Effect.gen(function* () {
       const executor = yield* ActionExecutor;
       const prices = yield* PriceFeed;
       const rpc = yield* SolanaRpc;
+      const ledger =
+        swapFixture === undefined ? undefined : openSwapLedger(swapFixture, yield* Signer);
       return {
         submit: (input) =>
-          submitOne(db, executor, input).pipe(
+          submitOne(db, { executor, ledger }, input).pipe(
             Effect.provideService(PriceFeed, prices),
             Effect.provideService(SolanaRpc, rpc),
           ),
@@ -30,22 +34,22 @@ export const engineTickSubmit = (db) =>
 
 /**
  * @param {import("bun:sqlite").Database} db
- * @param {import("@solos/core/shared").ActionExecutorShape} executor
+ * @param {{ executor: import("@solos/core/shared").ActionExecutorShape; ledger: import("./swap-fixture.js").SwapLedger | undefined }} deps
  * @param {{ intentId: string; action: import("@solos-sh/actions").Action }} input
  */
-const submitOne = (db, executor, input) => {
+const submitOne = (db, deps, input) => {
   const claim = claimIntent(db, input.intentId, { action: input.action, simulated: true });
   if (claim.state !== "claimed") return Effect.succeed(stored(claim));
-  return send(db, executor, input);
+  return send(db, deps, input);
 };
 
 /**
  * @param {import("bun:sqlite").Database} db
- * @param {import("@solos/core/shared").ActionExecutorShape} executor
+ * @param {{ executor: import("@solos/core/shared").ActionExecutorShape; ledger: import("./swap-fixture.js").SwapLedger | undefined }} deps
  * @param {{ intentId: string; action: import("@solos-sh/actions").Action }} input
  */
-const send = (db, executor, input) =>
-  executor.execute(input.action, { skipSimulation: false, intentId: input.intentId }).pipe(
+const send = (db, deps, input) =>
+  runSwapOrExecute(deps.ledger, deps.executor, input).pipe(
     Effect.locally(signedIntentNote, (sealed) => {
       recordSigned(db, input.intentId, sealed);
     }),

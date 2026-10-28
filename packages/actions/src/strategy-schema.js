@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { TimestampSchema } from "./primitives.js";
 import { StrategyBoundsSchema } from "./strategy-bounds.js";
+import { RebalanceParamsSchema } from "./strategy-rebalance.js";
 import { ScheduleParamsSchema } from "./strategy-schedule.js";
 import { StrategyStateSchema } from "./strategy-state.js";
 import { TickSourceSchema } from "./strategy-tick-source.js";
@@ -21,7 +22,7 @@ const owner = z
   .describe("Label a swarm uses to tell its registrations apart. Never authorization");
 
 /** @type {Record<string, string>} */
-const LATER = { rebalance: "#200", range: "#201", carry: "#202" };
+const LATER = { range: "#201", carry: "#202" };
 
 const shared = {
   owner,
@@ -49,6 +50,15 @@ const assigned = {
     .describe("Why the Engine paused this Strategy, when it did"),
 };
 
+/**
+ * @param {unknown} params
+ * @returns {{ targets?: Readonly<Record<string, string>>; quoteMint?: string } | undefined}
+ */
+const rebalanceParams = (params) => {
+  if (typeof params !== "object" || params === null) return undefined;
+  return /** @type {{ targets?: Readonly<Record<string, string>>; quoteMint?: string }} */ (params);
+};
+
 /** @param {string} kind */
 const laterMessage = (kind) => {
   const issue = LATER[kind];
@@ -62,6 +72,43 @@ const laterMessage = (kind) => {
 const refuseLater = (value, ctx) => {
   const message = laterMessage(value.kind);
   if (message !== undefined) ctx.addIssue({ code: "custom", message });
+};
+
+/**
+ * Mints a rebalance tick may trade. Other kinds name none here.
+ * @param {{ kind: string; params: unknown }} draft
+ */
+const actionMints = (draft) => {
+  const params = rebalanceParams(draft.params);
+  if (draft.kind !== "rebalance" || params?.targets === undefined) return [];
+  return [...Object.keys(params.targets), params.quoteMint ?? ""];
+};
+
+/**
+ * A rebalance ticks on a clock. A non-empty allowlist must name every target and the quote.
+ * @param {{ kind: string; tickSource: { type: string }; bounds: { allowedMints: readonly string[] }; params: unknown }} draft
+ * @param {{ addIssue: (issue: { code: "custom"; message: string; path?: string[] }) => void }} ctx
+ */
+const rebalanceDraft = (draft, ctx) => {
+  if (draft.kind !== "rebalance") return;
+  if (draft.tickSource.type !== "clock") {
+    ctx.addIssue({
+      code: "custom",
+      message: "rebalance requires a clock tick source",
+      path: ["tickSource"],
+    });
+  }
+  const allowed = draft.bounds.allowedMints;
+  if (allowed.length === 0) return;
+  const mints = [...new Set(actionMints(draft))];
+  for (const mint of mints) {
+    if (mint.length === 0 || allowed.includes(mint)) continue;
+    ctx.addIssue({
+      code: "custom",
+      message: `mint ${mint} must be in bounds.allowedMints`,
+      path: ["bounds", "allowedMints"],
+    });
+  }
 };
 
 /** What a Caller submits. The Registry assigns the id, the state, and createdAt. */
@@ -79,7 +126,7 @@ export const StrategyDraftSchema = z
     }),
     z.object({
       kind: z.literal("rebalance").describe("Strategy kind"),
-      params: z.unknown().describe("rebalance parameters"),
+      params: RebalanceParamsSchema,
       ...shared,
     }),
     z.object({
@@ -94,6 +141,7 @@ export const StrategyDraftSchema = z
     }),
   ])
   .superRefine(refuseLater)
+  .superRefine(rebalanceDraft)
   .describe("A Strategy a Caller submits for registration");
 
 /** @typedef {z.infer<typeof StrategyDraftSchema>} StrategyDraft */
@@ -115,7 +163,7 @@ export const StrategySchema = z
     }),
     z.object({
       kind: z.literal("rebalance").describe("Strategy kind"),
-      params: z.unknown().describe("rebalance parameters"),
+      params: RebalanceParamsSchema,
       ...shared,
       ...assigned,
     }),
@@ -133,6 +181,7 @@ export const StrategySchema = z
     }),
   ])
   .superRefine(refuseLater)
+  .superRefine(rebalanceDraft)
   .describe("A registered Strategy");
 
 /** @typedef {z.infer<typeof StrategySchema>} Strategy */

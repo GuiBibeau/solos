@@ -84,7 +84,7 @@ over the configured Solana RPC (no provider key at all); `lend` has the Kamino r
 readers plus bounded deposits and withdrawals over the configured Solana RPC through the official
 Kamino klend-sdk (no provider key; one explicitly configured market); `strategy` registers a
 data-only Strategy with the Engine (ADR-0037) and can pause, resume, or cancel it — `allowedMints`
-can only narrow the Engine allowlist, and a `schedule` ticks on its clock. Core registers the twelve MCP tools
+can only narrow the Engine allowlist, and a `schedule`, `trigger`, or `rebalance` ticks on its clock. Core registers the twelve MCP tools
 unconditionally, so they always exist. The Engine serves the registry and the CLI includes
 `solos strategy`. In direct mode a strategy tool returns `EngineConfigMissing` because there's
 no Engine to hold a Registry; `portfolio`
