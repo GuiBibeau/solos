@@ -17,6 +17,7 @@ export const applyLifecycle = (strategy, outcome, now) =>
     if (outcome === "in_flight") return;
     if (outcome === "failed" && (yield* pauseFailures(strategy))) return;
     if (outcome === "executed" && (yield* finishCount(strategy))) return;
+    if (outcome === "executed" && (yield* finishOnce(strategy))) return;
     yield* scheduleNext(strategy, now);
   });
 
@@ -40,6 +41,14 @@ const consecutiveFailures = (ticks, limit) => {
   }
   return count >= limit;
 };
+
+/** A once-only trigger is done after the firing Intent settles. @param {import("@solos-sh/actions").Strategy} strategy */
+const finishOnce = (strategy) =>
+  Effect.gen(function* () {
+    if (strategy.kind !== "trigger" || strategy.params.once === false) return false;
+    yield* performEngineTransition(strategy.id, "done", null);
+    return true;
+  });
 
 /** @param {import("@solos-sh/actions").Strategy} strategy */
 const finishCount = (strategy) =>

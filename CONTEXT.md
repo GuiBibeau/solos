@@ -87,7 +87,11 @@ that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner l
 Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
 or swarm uses to tell its registrations apart. It is never authorization.
 `schedule` and `trigger` are defined in `@solos-sh/actions`. `rebalance`, `range`, and `carry`
-are names until their issues ship. A `schedule` Strategy ticks on its clock. States are `active`,
+are names until their issues ship. A `schedule` Strategy ticks on its clock. A `trigger` Strategy
+ticks on that same clock and emits its Action when a USD price is strictly above or below a line:
+a limit or a stop (`below` plus `priceUsd`), a take-profit (`above` plus `priceUsd`), or a trailing
+stop or trailing entry (`trailingBps`). `once` defaults to true and the Strategy moves to `done`
+after that Intent settles. States are `active`,
 `paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
 `StrategyTransitionRefused`.
@@ -122,8 +126,11 @@ Strategy to `done` with `nextDueAt` null, and failed ticks count toward `maxCons
 and pause at the limit. Ticks are appended. A read returns the newest first.
 
 **Observation** — one named fact a kind declares and the Engine reads before evaluate. A schedule
-Tick reads the signer's lamport balance and the Tick instant. The kind never reads them itself.
-A missing Observation records `skipped_observation`.
+Tick reads the signer's lamport balance and the Tick instant. A trigger Tick reads one mint's USD
+price and the quote timestamp. The kind never reads them itself.
+A missing, errored, or stale price records `skipped_observation` and leaves the trigger's trailing
+reference unchanged. The staleness limit defaults to two tick intervals. `SOLOS_OBSERVATION_STALENESS`
+sets a duration such as `2m` or an interval count such as `2`.
 
 **Notional** — the USD value of an Action's input, read when the Engine reserves it against a
 Strategy cap. A `transfer_sol` hold is the lamports sent plus the fee reserve the transfer builder

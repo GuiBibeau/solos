@@ -3,6 +3,7 @@ import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { intentIdFor } from "../domain/intent-id.js";
 import { buildTick } from "../domain/tick-build.js";
+import { stateAfterOutcome } from "../domain/trigger-kind.js";
 import { CapLedger } from "../ports/cap-ledger.js";
 import { IntentLookup } from "../ports/intent-lookup.js";
 import { SpendMeter } from "../ports/spend-meter.js";
@@ -181,6 +182,9 @@ const closedTick = (input) => ({
   outcome: input.outcome,
   intents: [...input.intents],
   finishedAt: input.outcome === "in_flight" ? null : input.now,
+  ...(input.tick.state !== undefined && {
+    state: stateAfterOutcome(input.tick.state, input.outcome),
+  }),
   ...(input.outcome === "failed" && {
     step: input.intents.length,
     reason: input.tick.reason ?? "the in-flight tick did not settle",

@@ -53,6 +53,28 @@ export const TickSchema = z
     actions: z.array(ActionSchema).describe("Actions evaluate returned, possibly empty"),
     intents: z.array(TickIntentSchema).describe("One Intent per executed Action, in order"),
     note: z.string().optional().describe("One sentence explaining the kind's decision"),
+    state: z
+      .object({
+        bestPriceUsd: z
+          .string()
+          .optional()
+          .describe("Trailing reference, or the last usable price for a fixed line"),
+        firedAt: z
+          .number()
+          .int()
+          .nullable()
+          .optional()
+          .describe("UTC millisecond the trigger last committed a fire"),
+        armed: z
+          .object({
+            bestPriceUsd: z.string().optional(),
+            firedAt: z.number().int().nullable().optional(),
+          })
+          .optional()
+          .describe("State restored when an in-flight fire does not settle"),
+      })
+      .optional()
+      .describe("Kind state persisted with this Tick"),
     reason: z
       .string()
       .optional()

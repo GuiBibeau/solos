@@ -9,7 +9,11 @@ import { ObservationReader } from "../ports/observation-reader.js";
  */
 export const scriptedObservationReader = (values) =>
   Layer.sync(ObservationReader, () => ({
-    read: (request) => Effect.sync(() => readScript(values(), request)),
+    read: (request) =>
+      Effect.try({
+        try: () => readScript(values(), request),
+        catch: (error) => error,
+      }),
   }));
 
 /**

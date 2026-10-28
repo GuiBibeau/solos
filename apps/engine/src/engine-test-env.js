@@ -19,6 +19,8 @@ export const ENGINE_TOKEN = "engine-integration-token";
  *   tickWindow?: number;
  *   observations?: () => Readonly<Record<string, string | number>>;
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
+ *   stalenessIntervals?: number;
+ *   stalenessMs?: number;
  * }} TestEngineOptions
  */
 
@@ -32,6 +34,8 @@ export const forwardStart = (options) => ({
   ...whenSet("tickWindow", options.tickWindow),
   ...whenSet("observations", options.observations),
   ...whenSet("quote", options.quote),
+  ...whenSet("stalenessIntervals", options.stalenessIntervals),
+  ...whenSet("stalenessMs", options.stalenessMs),
 });
 
 /** @param {string} key @param {unknown} value */
