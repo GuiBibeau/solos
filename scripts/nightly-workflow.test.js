@@ -69,7 +69,7 @@ const runReprint = async (log, verifyExit) => {
   return { stdout, stderr, code };
 };
 
-describe("nightly workflow", () => {
+describe("nightly workflow [integration]", () => {
   test("prune-canaries names the repository because the job does not check out", () => {
     const prune = job("prune-canaries");
     expect(prune).not.toContain("actions/checkout");
