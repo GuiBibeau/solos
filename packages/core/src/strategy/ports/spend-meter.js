@@ -12,10 +12,24 @@ import { Context } from "effect";
  */
 
 /**
+ * Prices and the position value a liquidity quote can use instead of reading them again.
+ * @typedef {{
+ *   readonly redeposit?: boolean;
+ *   readonly valueUsd?: string;
+ *   readonly mint?: string;
+ *   readonly priceA?: string;
+ *   readonly priceB?: string;
+ *   readonly decimalsA?: number;
+ *   readonly decimalsB?: number;
+ * }} SpendContext
+ */
+
+/**
  * Worst-case reservation and the measured spend for one Action, both USD decimal strings.
  * @typedef {{
  *   readonly quote: (
  *     action: import("@solos-sh/actions").Action,
+ *     context?: SpendContext,
  *   ) => import("effect").Effect.Effect<SpendQuote, unknown>;
  * }} SpendMeterShape
  */

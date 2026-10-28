@@ -150,6 +150,12 @@ export const ExecutionResultSchema = z.object({
   position: AddressSchema.optional().describe(
     "The position account a confirmed open created: a Meteora PositionV2 or a Raydium personal position. A generated secret key is never returned. Absent for every other action",
   ),
+  amountA: AmountSchema.optional().describe(
+    "Token A base units a confirmed removal quoted as proceeds, when the executor recorded them",
+  ),
+  amountB: AmountSchema.optional().describe(
+    "Token B base units a confirmed removal quoted as proceeds, when the executor recorded them",
+  ),
 });
 
 /** @typedef {z.infer<typeof ViolationSchema>} Violation */

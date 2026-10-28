@@ -22,6 +22,7 @@ export const ENGINE_TOKEN = "engine-integration-token";
  *   stalenessIntervals?: number;
  *   stalenessMs?: number;
  *   swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
+ *   settleAction?: import("./tick-settle.js").SettleAction;
  * }} TestEngineOptions
  */
 
@@ -38,6 +39,7 @@ export const forwardStart = (options) => ({
   ...whenSet("stalenessIntervals", options.stalenessIntervals),
   ...whenSet("stalenessMs", options.stalenessMs),
   ...whenSet("swapFixture", options.swapFixture),
+  ...whenSet("settleAction", options.settleAction),
 });
 
 /** @param {string} key @param {unknown} value */

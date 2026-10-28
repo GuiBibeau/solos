@@ -86,8 +86,8 @@ is reconciled on each clock pass on the same path as startup. The Tick lifecycle
 that kind's parameters, a tick source, Bounds, a lifecycle state, and an owner label. It emits
 Actions. It is not an Action, a Mandate, or a Signal. The owner is a free-text label a Caller
 or swarm uses to tell its registrations apart. It is never authorization.
-`schedule`, `trigger`, and `rebalance` are defined in `@solos-sh/actions`. `range` and `carry`
-are names until their issues ship. A `schedule` Strategy ticks on its clock. A `trigger` Strategy
+`schedule`, `trigger`, `rebalance`, and `range` are defined in `@solos-sh/actions`. `carry`
+is a name until its issue ships. A `schedule` Strategy ticks on its clock. A `trigger` Strategy
 ticks on that same clock and emits its Action when a USD price is strictly above or below a line:
 a limit or a stop (`below` plus `priceUsd`), a take-profit (`above` plus `priceUsd`), or a trailing
 stop or trailing entry (`trailingBps`). `once` defaults to true and the Strategy moves to `done`
@@ -97,6 +97,13 @@ wrapped SOL. Swaps route through one `quoteMint` (USDC by default): overweight m
 and underweight mints buy from it. When the quote mint is a target, its weight absorbs the residual.
 Legs below `minTradeUsd` are skipped. A missing or non-positive USD price fails the tick and names
 the mint. The tick state records each target mint's weight, target, and drift in basis points.
+A `range` Strategy ticks on that same clock and keeps one Meteora DLMM position centred on the
+pool's active bin. When the active bin stays outside the position's bin range for
+`recenterWhenOutsideFor` consecutive ticks, and the UTC day still has recenter budget, the tick
+withdraws the position, closes it, opens an empty position of the same `width` centred on the
+active bin, and deposits the withdrawn amounts. `maxRecentersPerDay` is that kind's own budget.
+The tick state records the active bin, the position range, the outside streak, recenters today,
+and the last recenter's Intent ids.
 States are `active`,
 `paused`, `done`, `expired`, and `failed`. `done`,
 `expired`, and `failed` are terminal. A move the state table does not allow is refused with
@@ -135,7 +142,10 @@ and pause at the limit. Ticks are appended. A read returns the newest first.
 Tick reads the signer's lamport balance and the Tick instant. A trigger Tick reads one mint's USD
 price and the quote timestamp. A rebalance Tick reads, for each target mint and the quote mint, the
 wallet balance, decimals, and USD price, plus `priceAt` as the oldest of those quotes. Native SOL
-and wrapped SOL both count as wrapped SOL. The kind never reads them itself.
+and wrapped SOL both count as wrapped SOL. A range Tick reads the Meteora pool (`activeId`,
+`binStep`, both mints and decimals, `priceAPerB`, and the read time), the LP position (its
+address, bin range, token amounts, and USD value), both token prices, and the tick instant.
+The kind never reads them itself.
 A missing, errored, or stale trigger price records `skipped_observation` and leaves the trigger's
 trailing reference unchanged. A missing or non-positive rebalance price fails the tick and names
 the mint. A rebalance quote older than the staleness limit records `skipped_observation`. The
@@ -152,7 +162,10 @@ is that input at max slippage plus the fee the built transaction can cost: one s
 plus the priority fee the swap builder sets locally (compute-unit price × limit), which assumes a
 single-signer swap. A confirmed swap settles the input notional plus
 the actual `meta.fee`, priced at the quote's SOL price. A landed execution error settles only that
-fee, at that same price. An unverified mint is refused at reserve with `MintDecimalsUnverified`
+fee, at that same price. A `remove_liquidity` hold is the position's USD value times `bps / 10000`,
+plus a SOL fee. `close_position` and `open_position` hold only that SOL fee. An `add_liquidity`
+that redeposits funds withdrawn in the same tick holds only the SOL fee, because the principal
+was already counted. A standalone deposit prices `amountA` and `amountB`. An unverified mint is refused at reserve with `MintDecimalsUnverified`
 (HTTP 503) and nothing is stored. `maxNotionalPerTickUsd` caps the sum of those reserves that share
 a `tickId`.
 

@@ -10,6 +10,7 @@ import { Context } from "effect";
  *   readonly remedy?: string;
  *   readonly feeUsd?: string;
  *   readonly feeLamports?: string;
+ *   readonly details?: Readonly<Record<string, unknown>>;
  * }} SubmitResult
  */
 

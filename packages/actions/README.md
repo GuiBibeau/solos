@@ -13,8 +13,11 @@ an integer of at least 1.
 `StrategySchema` is the registered Strategy on the same wire: one `kind`, that kind's parameters,
 a tick source, those bounds, a lifecycle state, and an owner label. `schedule` carries an ordered
 list of Actions and an optional tick count. `trigger` watches one mint's price. `rebalance` holds
-target weights and swaps through one quote mint when a weight leaves its band. `range` and
-`carry` are named in the union and fail validation until their issues ship. A
+target weights and swaps through one quote mint when a weight leaves its band. `range` keeps one
+Meteora DLMM position centred on the active bin: `protocol`, `pool`, `position`, `width` (1..70),
+`recenterWhenOutsideFor`, `maxRecentersPerDay` (1..24), and `maxSlippageBps` (default 50). A
+confirmed removal may record `amountA` and `amountB` as the quoted proceeds. `carry` is named in
+the union and fails validation until its issue ships. A
 `stream` tick source fails until streams exist. A clock source sets exactly one of `every` or
 `cron`. The Registry assigns the id.
 

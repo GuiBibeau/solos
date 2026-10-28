@@ -46,6 +46,7 @@ import { engineTickSubmit } from "./tick-submit.js";
  *         readonly solPriceUsd?: string;
  *       });
  *   readonly swapFixture?: import("./swap-fixture.js").SwapFixtureConfig;
+ *   readonly settleAction?: import("./tick-settle.js").SettleAction;
  * }} StrategyLayerOptions
  */
 
@@ -85,7 +86,7 @@ const sharedLayer = (db, options) => {
       ? liveObservationReader.pipe(Layer.provide(repository))
       : scriptedObservationReader(options.observations),
     options.quote === undefined ? liveSpendMeter : scriptedSpendMeter(options.quote),
-    engineTickSubmit(db, options.swapFixture),
+    engineTickSubmit(db, options.swapFixture, options.settleAction),
     engineIntentLookup(db),
   ).pipe(Layer.provideMerge(MintDecimalsLive()));
 };

@@ -1,6 +1,7 @@
 // @ts-check
 import { WSOL_MINT } from "@solos-sh/actions";
 import { addDecimal, divDecimalUp, mulDecimal } from "./decimal.js";
+import { isLiquidityAction } from "./supported-action.js";
 
 /**
  * Price and the mint's verified decimals. Callers pass the decimals a mint read returned.
@@ -8,22 +9,75 @@ import { addDecimal, divDecimalUp, mulDecimal } from "./decimal.js";
  */
 
 /**
+ * Extra prices a liquidity quote already observed. Fee-only actions ignore them.
+ * @typedef {{
+ *   readonly feeUsd: string;
+ *   readonly valueUsd?: string;
+ *   readonly redeposit?: boolean;
+ *   readonly priceB?: string;
+ *   readonly decimalsB?: number;
+ * }} LiquidityPriced
+ */
+
+/**
  * Worst-case USD for one Action: input notional at max slippage, plus the fee the built
  * transaction can cost. `feeUsd` is priced with the same SOL read the settle uses.
  * @param {import("@solos-sh/actions").Action} action
- * @param {PricedAmount & { readonly feeUsd: string }} priced
+ * @param {PricedAmount & { readonly feeUsd: string } & Partial<LiquidityPriced>} priced
  */
-export const reserveUsdFor = (action, priced) =>
-  addDecimal(slippageUsd(inputUsd(action, priced), slippageBps(action)), priced.feeUsd);
+export const reserveUsdFor = (action, priced) => {
+  if (!isLiquidityAction(action.type)) {
+    return addDecimal(slippageUsd(inputUsd(action, priced), slippageBps(action)), priced.feeUsd);
+  }
+  return addDecimal(liquidityPrincipal(action, priced), priced.feeUsd);
+};
 
-/** Input notional in USD, without the slippage or fee buffer. @param {import("@solos-sh/actions").Action} action @param {PricedAmount} priced */
-export const actualUsdFor = (action, priced) => inputUsd(action, priced);
+/** Input notional in USD, without the slippage or fee buffer. @param {import("@solos-sh/actions").Action} action @param {PricedAmount & Partial<LiquidityPriced>} priced */
+export const actualUsdFor = (action, priced) => {
+  if (isLiquidityAction(action.type)) return liquidityPrincipal(action, priced);
+  return inputUsd(action, priced);
+};
 
 /** Mint the reservation is judged against. @param {import("@solos-sh/actions").Action} action */
 export const mintOf = (action) => {
   if (action.type === "swap") return action.inputMint;
   return WSOL_MINT;
 };
+
+/**
+ * Withdrawn principal counts once. A same-tick redeposit, a close, and an open add no USD.
+ * @param {import("@solos-sh/actions").Action} action
+ * @param {Partial<LiquidityPriced> & Partial<PricedAmount>} priced
+ */
+const liquidityPrincipal = (action, priced) => {
+  if (action.type === "close_position" || action.type === "open_position") return "0";
+  if (action.type === "add_liquidity" && priced.redeposit === true) return "0";
+  if (action.type === "remove_liquidity") return fractionUsd(priced.valueUsd ?? "0", action.bps);
+  if (action.type !== "add_liquidity") return "0";
+  return addDecimal(legUsd(action.amountA, priced), legUsd(action.amountB, otherLeg(priced)));
+};
+
+/** @param {string} valueUsd @param {number} bps */
+const fractionUsd = (valueUsd, bps) => {
+  if (!/^\d+(\.\d+)?$/.test(valueUsd)) return "0";
+  return divDecimalUp(mulDecimal(valueUsd, String(bps)), "10000");
+};
+
+/**
+ * @param {string} amount
+ * @param {Partial<PricedAmount>} priced
+ */
+const legUsd = (amount, priced) => {
+  if (priced.priceUsd === undefined || priced.decimals === undefined) return "0";
+  if (!/^\d+$/.test(amount) || !/^\d+(\.\d+)?$/.test(priced.priceUsd)) return "0";
+  return divDecimalUp(mulDecimal(amount, priced.priceUsd), String(10n ** BigInt(priced.decimals)));
+};
+
+/** @param {Partial<LiquidityPriced>} priced @returns {Partial<PricedAmount>} */
+const otherLeg = (priced) => ({
+  ...(priced.priceB !== undefined && { priceUsd: priced.priceB }),
+  ...(priced.decimalsB !== undefined && { decimals: priced.decimalsB }),
+});
 
 /** @param {import("@solos-sh/actions").Action} action @param {PricedAmount} priced */
 const inputUsd = (action, priced) =>

@@ -75,7 +75,7 @@ export class UnsupportedStrategyAction extends /** @type {UnsupportedStrategyAct
     super({
       ...props,
       reason: props.reason ?? `scheduled action ${props.type ?? "unknown"} is not supported`,
-      remedy: "schedule transfer_sol or swap",
+      remedy: "use transfer_sol, swap, or a meteora liquidity action",
     });
   }
 }

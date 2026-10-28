@@ -5,6 +5,7 @@
 /** @typedef {import("./ports/strategy-registry.js").StrategyRegistryShape} StrategyRegistryShape */
 /** @typedef {import("./use-cases/memory-cap-ledger.js").MemoryCapLedgerOptions} MemoryCapLedgerOptions */
 /** @typedef {import("./ports/mint-decimals.js").MintDecimalsShape} MintDecimalsShape */
+/** @typedef {import("./ports/spend-meter.js").SpendContext} SpendContext */
 export { allowlistRefusal, widenedMint } from "./domain/allowlist.js";
 export { reserveRefusal, utcDay } from "./domain/cap-check.js";
 export { addDecimal, compareDecimal, plainDecimal, subtractDecimal } from "./domain/decimal.js";
@@ -16,8 +17,9 @@ export {
   StrategyTransitionRefused,
   UnsupportedStrategyAction,
 } from "./domain/errors.js";
-export { unsupportedStrategyAction } from "./domain/supported-action.js";
+export { unsupportedStrategyAction, isLiquidityAction } from "./domain/supported-action.js";
 export { firstTickActions } from "./domain/first-tick.js";
+export { positionValueUsd } from "./domain/range-math.js";
 export { actualUsdFor, mintOf, reserveUsdFor } from "./domain/notional.js";
 export { usdForLamports } from "./domain/usd-for-lamports.js";
 export { TickSchema } from "./domain/tick.js";

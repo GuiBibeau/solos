@@ -12,6 +12,7 @@ import { Submitter } from "../submission/submitter.js";
 import { JupiterSwapBuild } from "../swap/jupiter-swap-build-live.js";
 import { draftTokenAccountClose } from "../wallet/close-token-account-build.js";
 import { executionResult, simulationResult } from "./action-results.js";
+import { executionDetails } from "./execution-details.js";
 import { depositQuoteOf, draftLiquidityDeposit } from "./liquidity-deposit-build.js";
 import { draftLiquidityWithdraw, withdrawQuoteOf } from "./liquidity-withdraw-build.js";
 import { simulatePerpAction, executePerpAction } from "./perp-dispatch.js";
@@ -132,10 +133,7 @@ const execute = (deps, action, options) =>
       return yield* executePerpAction(perpDeps(deps), action, options);
     const planned = yield* plannedDraft(deps, action);
     const delivered = yield* submitDraft(deps.submission, planned, options);
-    const confirmed = yield* executionResult(action, delivered);
-    return planned.position === undefined
-      ? confirmed
-      : { ...confirmed, position: planned.position };
+    return executionDetails(yield* executionResult(action, delivered), planned);
   });
 
 /**

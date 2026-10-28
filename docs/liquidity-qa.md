@@ -345,3 +345,58 @@ Reconciliation for the QA report — every removal round records:
 A full removal (10000 bps) must leave a valid zero-liquidity position — still readable by
 `solos liquidity position`, NFT intact, never closed. Never report a removal QA as passed
 from fixture runs, and never spend beyond the stated budget.
+
+## Pool price read and a paper `range` recenter (#201)
+
+`solana_liquidity_get_pool` and `solos liquidity pool` read where a Meteora DLMM pool is
+trading. The response is `PoolState`: `activeId`, `binStep`, token A and token B mints and
+decimals, `priceAPerB`, and `at`. Orca and Raydium fail typed and name the position read.
+A position read now also reports `range` (`lowerBinId`/`upperBinId` on Meteora,
+`tickLower`/`tickUpper` on Orca and Raydium).
+
+```sh
+solos liquidity pool --protocol meteora --pool <LbPair>
+solos mcp call solana_liquidity_get_pool --args '{"protocol":"meteora","pool":"<LbPair>"}'
+```
+
+Offline, a seeded LbPair with a known `activeId` and `binStep` returns that `priceAPerB`.
+That read is what a `range` Strategy observes.
+
+A `range` Strategy recenters one Meteora position when the active bin has been outside the
+position for `recenterWhenOutsideFor` consecutive clock ticks, up to `maxRecentersPerDay`
+on the UTC day. The paper path below is the Surfpool integration, not a mainnet spend.
+Surfpool does not execute the Meteora program, so the tick's four Actions settle through
+the same account cheatcodes the other Meteora suites use: the withdrawal reports its
+amounts, the old PositionV2 is closed, a new PositionV2 is seeded on the centred window,
+and the deposit records those amounts. `solos strategy status <id>` then shows the active
+bin, the new range, a reset streak, recenters today, and the four Intent ids. The next
+tick, still inside that window, keeps those Intent ids and emits nothing.
+
+```text
+$ solos strategy status <id>
+{
+  "kind": "range",
+  "state": "active",
+  "params": { "protocol": "meteora", "pool": "<LbPair>", "position": "<new PositionV2>", "width": 5 },
+  "lastTick": {
+    "outcome": "executed",
+    "state": {
+      "activeId": 40,
+      "lowerBinId": 38,
+      "upperBinId": 42,
+      "outsideStreak": 0,
+      "recentersToday": 1,
+      "lastRecenterIntents": ["<remove>", "<close>", "<open>", "<add>"]
+    },
+    "actions": [
+      { "type": "remove_liquidity", "bps": 10000 },
+      { "type": "close_position" },
+      { "type": "open_position", "lowerBinId": 38, "width": 5 },
+      { "type": "add_liquidity", "amountA": "1000", "amountB": "2000" }
+    ]
+  }
+}
+```
+
+No live funded recenter is recorded here. That round is a separate operator-approved spend.
+

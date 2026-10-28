@@ -481,7 +481,7 @@ Register a Strategy with the Engine. Returns its id and active state. The Strate
 
 - `owner` (string, required): Label a swarm uses to tell its registrations apart. Never authorization
 - `kind` (schedule | trigger | rebalance | range | carry, required): Strategy kind: schedule, trigger, rebalance, range, or carry
-- `params` (any, required): Parameters for that kind. schedule, trigger, and rebalance are accepted; range and carry fail until their issues ship
+- `params` (any, required): Parameters for that kind. schedule, trigger, rebalance, and range are accepted; carry fails until its issue ships
 - `tickSource` (any, required): Clock tick source with exactly one of every or cron. Stream sources are not available yet
 - `bounds` (object, required): Limits on what one Strategy may spend
 
@@ -554,7 +554,7 @@ Validate a Strategy and resolve the observation a first tick would read, then re
 
 - `owner` (string, required): Label a swarm uses to tell its registrations apart. Never authorization
 - `kind` (schedule | trigger | rebalance | range | carry, required): Strategy kind: schedule, trigger, rebalance, range, or carry
-- `params` (any, required): Parameters for that kind. schedule, trigger, and rebalance are accepted; range and carry fail until their issues ship
+- `params` (any, required): Parameters for that kind. schedule, trigger, rebalance, and range are accepted; carry fails until its issue ships
 - `tickSource` (any, required): Clock tick source with exactly one of every or cron. Stream sources are not available yet
 - `bounds` (object, required): Limits on what one Strategy may spend
 
