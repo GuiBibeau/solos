@@ -1,8 +1,10 @@
 // @ts-check
 import { BalanceReader, PortfolioReader, PriceFeed, Signer } from "@solos/core";
 import { LiquidityVenue } from "@solos/core/liquidity";
-import { ObservationReader, StrategyRepository } from "@solos/core/strategy";
+import { PerpOnboarder, PerpVenue } from "@solos/core/perp";
+import { MintDecimals, ObservationReader, StrategyRepository } from "@solos/core/strategy";
 import { Effect, Layer } from "effect";
+import { readCarry } from "./tick-observe-carry.js";
 import { readRange } from "./tick-observe-range.js";
 import { readRebalance } from "./tick-observe-rebalance.js";
 import { quotePrice } from "./tick-price.js";
@@ -16,10 +18,16 @@ export const liveObservationReader = Layer.effect(
     const portfolio = yield* PortfolioReader;
     const feed = yield* PriceFeed;
     const liquidity = yield* LiquidityVenue;
+    const perp = yield* PerpVenue;
+    const onboarder = yield* PerpOnboarder;
+    const decimals = yield* MintDecimals;
     const strategies = yield* StrategyRepository;
     return {
       read: (request) =>
-        readLive({ signer, balances, portfolio, feed, liquidity, strategies }, request),
+        readLive(
+          { signer, balances, portfolio, feed, liquidity, perp, onboarder, decimals, strategies },
+          request,
+        ),
     };
   }),
 );
@@ -31,12 +39,16 @@ export const liveObservationReader = Layer.effect(
  *   portfolio: import("./tick-observe-rebalance.js").PortfolioRead;
  *   feed: import("./tick-price.js").PriceReader;
  *   liquidity: import("@solos/core/liquidity").LiquidityVenueShape;
+ *   perp: import("@solos/core/perp").PerpVenueShape;
+ *   onboarder: import("@solos/core/perp").PerpOnboarderShape;
+ *   decimals: import("@solos/core/strategy").MintDecimalsShape;
  *   strategies: import("./tick-price.js").StrategyLoad;
  * }} sources
  * @param {{ readonly names: readonly string[]; readonly strategyId: string; readonly instant: number }} request
  */
 const readLive = (sources, request) =>
   Effect.gen(function* () {
+    if (request.names.includes("currentAprPct")) return yield* readCarry(sources, request);
     if (request.names.includes("activeId")) return yield* readRange(sources, request);
     if (request.names.some((name) => name.startsWith("balance:"))) {
       return yield* readRebalance(sources, request);

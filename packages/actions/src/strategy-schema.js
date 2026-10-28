@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { TimestampSchema } from "./primitives.js";
 import { StrategyBoundsSchema } from "./strategy-bounds.js";
+import { CarryParamsSchema, refineCarryDraft } from "./strategy-carry.js";
 import { RangeParamsSchema } from "./strategy-range.js";
 import { RebalanceParamsSchema } from "./strategy-rebalance.js";
 import { ScheduleParamsSchema } from "./strategy-schedule.js";
@@ -21,9 +22,6 @@ const owner = z
   .string()
   .min(1)
   .describe("Label a swarm uses to tell its registrations apart. Never authorization");
-
-/** @type {Record<string, string>} */
-const LATER = { carry: "#202" };
 
 const shared = {
   owner,
@@ -59,21 +57,6 @@ const assigned = {
 const rebalanceParams = (params) => {
   if (typeof params !== "object" || params === null) return undefined;
   return /** @type {{ targets?: Readonly<Record<string, string>>; quoteMint?: string }} */ (params);
-};
-
-/** @param {string} kind */
-const laterMessage = (kind) => {
-  const issue = LATER[kind];
-  return issue === undefined ? undefined : `${kind} strategies ship in ${issue}`;
-};
-
-/**
- * @param {{ kind: string }} value
- * @param {{ addIssue: (issue: { code: "custom"; message: string }) => void }} ctx
- */
-const refuseLater = (value, ctx) => {
-  const message = laterMessage(value.kind);
-  if (message !== undefined) ctx.addIssue({ code: "custom", message });
 };
 
 /**
@@ -138,12 +121,12 @@ export const StrategyDraftSchema = z
     }),
     z.object({
       kind: z.literal("carry").describe("Strategy kind"),
-      params: z.unknown().describe("carry parameters"),
+      params: CarryParamsSchema,
       ...shared,
     }),
   ])
-  .superRefine(refuseLater)
   .superRefine(rebalanceDraft)
+  .superRefine(refineCarryDraft)
   .describe("A Strategy a Caller submits for registration");
 
 /** @typedef {z.infer<typeof StrategyDraftSchema>} StrategyDraft */
@@ -177,13 +160,13 @@ export const StrategySchema = z
     }),
     z.object({
       kind: z.literal("carry").describe("Strategy kind"),
-      params: z.unknown().describe("carry parameters"),
+      params: CarryParamsSchema,
       ...shared,
       ...assigned,
     }),
   ])
-  .superRefine(refuseLater)
   .superRefine(rebalanceDraft)
+  .superRefine(refineCarryDraft)
   .describe("A registered Strategy");
 
 /** @typedef {z.infer<typeof StrategySchema>} Strategy */

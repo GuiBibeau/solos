@@ -55,3 +55,4 @@ Pump file is named from ADR-0027 and ADR-0028. The rows below are the file title
 | [0041](0041-trigger-strategy-execution.md) | Trigger strategies tick on a clock and spend when a price crosses |
 | [0042](0042-rebalance-strategy-kind.md) | Rebalance strategies hold target weights and swap through one quote mint |
 | [0043](0043-range-strategy-kind.md) | Range strategies recenter one Meteora DLMM position when price leaves its bins |
+| [0044](0044-carry-strategy-kind.md) | Carry strategies harvest Phoenix funding with a spot long and a perp short |

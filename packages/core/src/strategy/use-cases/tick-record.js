@@ -145,10 +145,14 @@ const store = (strategy, input, result) =>
 
 /**
  * @param {Decision} decision
- * @param {{ outcome: string; intents?: ReadonlyArray<{ readonly intentId: string }> }} result
+ * @param {{ outcome: string; intents?: ReadonlyArray<{ readonly intentId: string; readonly state?: string }> }} result
  */
 const savedState = (decision, result) =>
-  withRecenterIntents(persistedState(decision, result.outcome), result.outcome, result.intents);
+  withRecenterIntents(
+    persistedState(decision, result.outcome, result),
+    result.outcome,
+    result.intents,
+  );
 
 /** @param {string | undefined} note */
 const noteOf = (note) => (note === undefined ? {} : { note });

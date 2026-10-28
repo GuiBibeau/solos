@@ -1,6 +1,7 @@
 // @ts-check
 import { ActionSchema } from "@solos-sh/actions";
 import { z } from "zod";
+import { carryTickFields } from "./tick-carry-state.js";
 import { rangeTickFields } from "./tick-range-state.js";
 
 /**
@@ -89,6 +90,7 @@ export const TickSchema = z
           .optional()
           .describe("Per-mint weight, target, and drift recorded by a rebalance tick"),
         ...rangeTickFields,
+        ...carryTickFields,
       })
       .passthrough()
       .optional()

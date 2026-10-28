@@ -12,6 +12,7 @@
 /** @typedef {import("./domain/funding.js").GetFundingInput} GetFundingInput */
 /** @typedef {import("./domain/funding.js").GetFundingRequest} GetFundingRequest */
 /** @typedef {import("./ports/perp-venue.js").PerpVenueShape} PerpVenueShape */
+/** @typedef {import("./ports/perp-onboarder.js").PerpOnboarderShape} PerpOnboarderShape */
 export {
   NoPositionToClose,
   PerpAccountCorrupt,

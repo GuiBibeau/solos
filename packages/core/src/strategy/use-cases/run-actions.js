@@ -1,5 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
+import { carrySpendContext } from "../domain/carry-plan.js";
 import { intentIdFor } from "../domain/intent-id.js";
 import { outcomeWhenStopped } from "../domain/tick.js";
 import { quoteContext } from "./range-handoff.js";
@@ -138,11 +139,9 @@ const oneStep = (step) =>
     tickId: step.input.tickId,
     intentId: intentIdFor(step.strategy.id, step.input.tickId, step.index),
     action: step.action,
-    context: quoteContext(
-      step.action,
-      step.input.observations,
-      priorTypes(step.actions, step.index),
-    ),
+    context:
+      quoteContext(step.action, step.input.observations, priorTypes(step.actions, step.index)) ??
+      carrySpendContext(step.action, step.input.observations),
   });
 
 /**

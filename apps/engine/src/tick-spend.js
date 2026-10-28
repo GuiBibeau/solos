@@ -6,6 +6,7 @@ import {
   UnsupportedStrategyAction,
   actualUsdFor,
   isLiquidityAction,
+  isPerpAction,
   mintOf,
   reserveUsdFor,
   unsupportedStrategyAction,
@@ -16,6 +17,7 @@ import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect, Layer } from "effect";
 import { transferNotionalUsd } from "./sol-notional.js";
 import { quoteLiquidity } from "./tick-spend-liquidity.js";
+import { quotePerp } from "./tick-spend-perp.js";
 
 /** Worst-case reservation from the price feed and the mint's verified decimals. */
 export const liveSpendMeter = Layer.effect(
@@ -40,6 +42,7 @@ const quoteAction = (deps, action, context) =>
     const refused = unsupportedStrategyAction(action.type);
     if (refused !== undefined) return yield* refused;
     if (isLiquidityAction(action.type)) return yield* quoteLiquidity(deps, action, context);
+    if (isPerpAction(action.type)) return yield* quotePerp(deps, action, context);
     const mint = mintOf(action);
     const price = yield* deps.feed.getPrice(mint);
     if (!isPositive(price.priceUsd)) return yield* missingPrice(mint, price.source);

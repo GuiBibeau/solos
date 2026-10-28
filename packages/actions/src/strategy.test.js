@@ -1,6 +1,7 @@
 // @ts-check
 import { describe, expect, test } from "bun:test";
 import {
+  CarryParamsSchema,
   ScheduleParamsSchema,
   StrategyBoundsSchema,
   StrategyDraftSchema,
@@ -56,6 +57,7 @@ describe("Strategy contract", () => {
       StrategyStateSchema,
       ScheduleParamsSchema,
       TriggerParamsSchema,
+      CarryParamsSchema,
     ]) {
       expect((schema.description ?? "").length).toBeGreaterThan(10);
     }
@@ -98,10 +100,6 @@ describe("Strategy contract", () => {
         params: { observe: { price: USDC }, condition: "below", trailingBps: 49, action: ACTION },
       }),
     ).toContain("trailingBps must be an integer from 50 to 9000");
-  });
-
-  test("carry fails naming the child issue that ships it", () => {
-    expect(messages({ ...schedule(), kind: "carry", params: {} })).toContain("#202");
   });
 
   test("stores a plain duration and an ISO-8601 duration as milliseconds", () => {

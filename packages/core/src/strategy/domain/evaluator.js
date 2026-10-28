@@ -1,4 +1,5 @@
 // @ts-check
+import { CARRY_OBSERVATIONS, evaluateCarry } from "./carry-kind.js";
 import { RANGE_OBSERVATIONS, evaluateRange } from "./range-kind.js";
 import { rebalanceObservations, evaluateRebalance } from "./rebalance-kind.js";
 import { SCHEDULE_OBSERVATIONS, evaluateSchedule } from "./schedule-kind.js";
@@ -14,6 +15,7 @@ export const observationNames = (strategy) => {
   if (strategy.kind === "trigger") return TRIGGER_OBSERVATIONS;
   if (strategy.kind === "rebalance") return rebalanceObservations(strategy.params);
   if (strategy.kind === "range") return RANGE_OBSERVATIONS;
+  if (strategy.kind === "carry") return CARRY_OBSERVATIONS;
   return [];
 };
 
@@ -28,9 +30,10 @@ export const evaluateKind = (strategy, observations, state) => {
   if (strategy.kind === "trigger") return evaluateTrigger(strategy.params, observations, state);
   if (strategy.kind === "rebalance") return evaluateRebalance(strategy.params, observations, state);
   if (strategy.kind === "range") return evaluateRange(strategy.params, observations, state);
+  if (strategy.kind === "carry") return evaluateCarry(strategy.params, observations, state);
   return {
     actions: /** @type {ReadonlyArray<import("@solos-sh/actions").Action>} */ ([]),
     state,
-    note: `${strategy.kind} is not a runnable kind`,
+    note: "kind is not runnable",
   };
 };

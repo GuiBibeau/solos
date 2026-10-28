@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import { StrategyRepository } from "../ports/strategy-repository.js";
 import { TickRepository } from "../ports/tick-repository.js";
 import { TickSource } from "../ports/tick-source.js";
+import { pauseCarryTick } from "./carry-pause.js";
 import { performEngineTransition } from "./perform-engine.js";
 
 /**
@@ -93,6 +94,7 @@ const finishCount = (strategy) =>
 const scheduleNext = (strategy, now) =>
   Effect.gen(function* () {
     if (yield* pausePartialRange(strategy)) return;
+    if (yield* pauseCarryTick(strategy)) return;
     const repository = yield* StrategyRepository;
     const current = yield* repository.load(strategy.id);
     if (current === undefined || current.state !== "active") return;

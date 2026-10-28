@@ -17,7 +17,11 @@ export {
   StrategyTransitionRefused,
   UnsupportedStrategyAction,
 } from "./domain/errors.js";
-export { unsupportedStrategyAction, isLiquidityAction } from "./domain/supported-action.js";
+export {
+  unsupportedStrategyAction,
+  isLiquidityAction,
+  isPerpAction,
+} from "./domain/supported-action.js";
 export { firstTickActions } from "./domain/first-tick.js";
 export { positionValueUsd } from "./domain/range-math.js";
 export { actualUsdFor, mintOf, reserveUsdFor } from "./domain/notional.js";
