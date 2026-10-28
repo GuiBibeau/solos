@@ -1,8 +1,8 @@
 // @ts-check
 import { Effect } from "effect";
 import { errorEnvelope } from "../../shared/domain/error-envelope.js";
-import { nextInstant } from "../domain/cadence.js";
 import { StrategyNotFound } from "../domain/errors.js";
+import { nextDueInstant } from "../domain/next-instant.js";
 import { refusalFor } from "../domain/transitions.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
 import { StrategyRepository } from "../ports/strategy-repository.js";
@@ -35,7 +35,12 @@ const moved = (current, state) =>
     const next = /** @type {typeof current.state} */ (state);
     if (next !== "active") return { ...current, state: next, nextDueAt: null };
     const now = yield* (yield* StrategyIds).now();
-    return { ...current, state: next, reason: null, nextDueAt: nextInstant(current, now) ?? null };
+    return {
+      ...current,
+      state: next,
+      reason: null,
+      nextDueAt: nextDueInstant(current, now) ?? null,
+    };
   });
 
 /**

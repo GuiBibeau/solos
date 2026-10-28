@@ -4,6 +4,7 @@ import { BoundsExceeded } from "../../shared/domain/engine-errors.js";
 import { floorRefusal, nextInstant } from "./cadence.js";
 import { nextCronAt } from "./cron.js";
 import { intentIdFor } from "./intent-id.js";
+import { isClockKind, nextDueInstant } from "./next-instant.js";
 
 const HOUR = Date.UTC(2026, 0, 1, 0, 30, 0);
 
@@ -21,6 +22,18 @@ describe("clock cadence", () => {
     } finally {
       Date.prototype.getHours = original;
     }
+  });
+
+  test("a trigger is due on the same clock interval as a schedule", () => {
+    const strategy = {
+      kind: /** @type {const} */ ("trigger"),
+      tickSource: { type: /** @type {const} */ ("clock"), every: 60_000 },
+    };
+    expect(isClockKind("trigger")).toBe(true);
+    expect(isClockKind("rebalance")).toBe(false);
+    expect(
+      nextDueInstant(/** @type {import("@solos-sh/actions").Strategy} */ (strategy), HOUR),
+    ).toBe(HOUR + 60_000);
   });
 
   test("an interval below the floor names the request and the floor", () => {

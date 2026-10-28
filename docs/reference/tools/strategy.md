@@ -53,7 +53,32 @@ Recorded tick outcomes are `missed`, `evaluated`, `executed`, `failed`, `skipped
 slippage refusal. `skipped_kill_switch` is a clock tick `KillSwitchEngaged` stopped before any
 action was sent. That tick does not simulate, send, or reserve, and it does not count toward
 `count`. A tick that already sent records `executed`, and `step` is the action the switch refused.
-`skipped_observation` is a missing declared read.
+`skipped_observation` is a missing, errored, or stale declared read.
+
+## Trigger
+
+A `trigger` watches one mint's USD price and emits its Action when that price is strictly above
+or strictly below a line. An exact match emits nothing. Traders use four names for this one kind:
+
+- **limit** — buy when the price falls below a fixed `priceUsd` (`condition: "below"`)
+- **stop** — sell when the price falls below a fixed `priceUsd` (`condition: "below"`)
+- **take-profit** — sell when the price rises above a fixed `priceUsd` (`condition: "above"`)
+- **trailing** — `trailingBps` from the best price since registration or the last fire. `below`
+  is a trailing stop (highest price). `above` is a trailing entry (lowest price)
+
+Set exactly one of `priceUsd` and `trailingBps`. `trailingBps` is an integer from 50 to 9000.
+`once` defaults to true: after the firing Intent settles, the Strategy is `done` and `nextDueAt`
+is null. A failed execution stays `active` and armed and counts toward `maxConsecutiveFailures`.
+A bounds or kill-switch refusal stays armed. `once: false` requires `cooldown` (a duration such
+as `10m`). While the cooldown runs, Ticks are `evaluated` with no Actions, and the trailing
+reference resets at the fire. The next fire waits until the cooldown has elapsed and the
+condition holds again.
+
+Each Tick records the price Observation and the trigger state (`bestPriceUsd`, `firedAt`). A
+price that is missing, a feed error, or a quote older than the staleness limit records
+`skipped_observation` with the feed's reason and leaves `bestPriceUsd` unchanged. The limit
+defaults to two tick intervals. `SOLOS_OBSERVATION_STALENESS` sets a duration such as `2m` or
+an interval count such as `2`.
 
 ## Tools
 

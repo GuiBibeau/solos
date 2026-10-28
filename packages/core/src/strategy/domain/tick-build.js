@@ -15,6 +15,7 @@
  *   readonly reason?: string;
  *   readonly remedy?: string;
  *   readonly step?: number;
+ *   readonly state?: import("./tick.js").Tick["state"];
  * }} input
  * @returns {import("./tick.js").Tick}
  */
@@ -32,4 +33,5 @@ export const buildTick = (input) => ({
   ...(input.reason !== undefined && { reason: input.reason }),
   ...(input.remedy !== undefined && { remedy: input.remedy }),
   ...(input.step !== undefined && { step: input.step }),
+  ...(input.state !== undefined && { state: input.state }),
 });

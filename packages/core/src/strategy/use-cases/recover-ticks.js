@@ -3,6 +3,8 @@ import { WSOL_MINT } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { intentIdFor } from "../domain/intent-id.js";
 import { buildTick } from "../domain/tick-build.js";
+import { stateAfterOutcome } from "../domain/trigger-kind.js";
+import { latestPersistedState } from "../domain/trigger-state.js";
 import { CapLedger } from "../ports/cap-ledger.js";
 import { IntentLookup } from "../ports/intent-lookup.js";
 import { SpendMeter } from "../ports/spend-meter.js";
@@ -49,7 +51,9 @@ const recoverMissed = (strategy, now) =>
       return yield* performEngineTransition(strategy.id, "expired", "expiresAt has passed");
     }
     const tickId = yield* (yield* StrategyIds).ulid();
-    yield* (yield* TickRepository).save(missedTick(strategy, tickId, now));
+    const ticks = yield* TickRepository;
+    const carried = latestPersistedState(yield* ticks.recent(strategy.id));
+    yield* ticks.save(missedTick(strategy, { tickId, now, state: carried }));
     yield* reschedule(strategy, now);
   });
 
@@ -181,6 +185,9 @@ const closedTick = (input) => ({
   outcome: input.outcome,
   intents: [...input.intents],
   finishedAt: input.outcome === "in_flight" ? null : input.now,
+  ...(input.tick.state !== undefined && {
+    state: stateAfterOutcome(input.tick.state, input.outcome),
+  }),
   ...(input.outcome === "failed" && {
     step: input.intents.length,
     reason: input.tick.reason ?? "the in-flight tick did not settle",
@@ -194,17 +201,23 @@ const reschedule = (strategy, now) =>
     yield* (yield* StrategyRepository).save({ ...strategy, nextDueAt });
   });
 
-/** @param {import("@solos-sh/actions").Strategy} strategy @param {string} tickId @param {number} now */
-const missedTick = (strategy, tickId, now) =>
+/**
+ * @param {import("@solos-sh/actions").Strategy} strategy
+ * @param {{ tickId: string; now: number; state: unknown }} input
+ */
+const missedTick = (strategy, input) =>
   buildTick({
-    tickId,
+    tickId: input.tickId,
     strategyId: strategy.id,
-    dueAt: strategy.nextDueAt ?? now,
-    startedAt: now,
-    finishedAt: now,
+    dueAt: strategy.nextDueAt ?? input.now,
+    startedAt: input.now,
+    finishedAt: input.now,
     outcome: "missed",
     observations: {},
     actions: [],
     intents: [],
     note: "the engine was down when this tick was due",
+    ...(input.state !== undefined && {
+      state: /** @type {import("../domain/tick.js").Tick["state"]} */ (input.state),
+    }),
   });

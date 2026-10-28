@@ -2,7 +2,8 @@
 import { StrategySchema } from "@solos-sh/actions";
 import { Effect } from "effect";
 import { allowlistRefusal, widenedMint } from "../domain/allowlist.js";
-import { floorRefusal, nextInstant } from "../domain/cadence.js";
+import { floorRefusal } from "../domain/cadence.js";
+import { nextDueInstant } from "../domain/next-instant.js";
 import { unsupportedStrategyAction } from "../domain/supported-action.js";
 import { CadenceFloor } from "../ports/cadence-floor.js";
 import { EngineAllowlist } from "../ports/engine-allowlist.js";
@@ -75,5 +76,5 @@ const stored = (draft, id, createdAt) => {
  */
 const scheduled = (strategy, now) => ({
   ...strategy,
-  nextDueAt: nextInstant(strategy, now) ?? null,
+  nextDueAt: nextDueInstant(strategy, now) ?? null,
 });

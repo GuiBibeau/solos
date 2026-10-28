@@ -7,7 +7,7 @@
 /** @typedef {import("./ports/mint-decimals.js").MintDecimalsShape} MintDecimalsShape */
 export { allowlistRefusal, widenedMint } from "./domain/allowlist.js";
 export { reserveRefusal, utcDay } from "./domain/cap-check.js";
-export { addDecimal, compareDecimal, subtractDecimal } from "./domain/decimal.js";
+export { addDecimal, compareDecimal, plainDecimal, subtractDecimal } from "./domain/decimal.js";
 export {
   KillSwitchEngaged,
   MintDecimalsUnverified,
@@ -30,6 +30,7 @@ export { EngineAllowlist } from "./ports/engine-allowlist.js";
 export { MintDecimals } from "./ports/mint-decimals.js";
 export { IntentLookup } from "./ports/intent-lookup.js";
 export { ObservationReader } from "./ports/observation-reader.js";
+export { ObservationStaleness } from "./ports/observation-staleness.js";
 export { RunMode } from "./ports/run-mode.js";
 export { SpendMeter } from "./ports/spend-meter.js";
 export { StrategyIds } from "./ports/strategy-ids.js";
@@ -49,6 +50,7 @@ export { listStrategiesTool } from "./tools/list-strategies.js";
 export { simulateRegisterTool } from "./tools/simulate-register.js";
 export { simulateUpdateTool } from "./tools/simulate-update.js";
 export { clockTickSource } from "./use-cases/clock-source.js";
+export { observationStaleness } from "./use-cases/observation-staleness.js";
 export { guardMintDecimals } from "./use-cases/guard-mint-decimals.js";
 export { registryConformance, repositoryConformance } from "./use-cases/conformance.js";
 export {

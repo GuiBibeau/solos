@@ -5,6 +5,7 @@ import {
   InProcessStrategyRegistry,
   RunMode,
   clockTickSource,
+  observationStaleness,
   scriptedObservationReader,
   scriptedSpendMeter,
 } from "@solos/core/strategy";
@@ -25,6 +26,8 @@ import { engineTickSubmit } from "./tick-submit.js";
  *   readonly minIntervalMs: number;
  *   readonly tickWindow: number;
  *   readonly dry: boolean;
+ *   readonly stalenessIntervals?: number;
+ *   readonly stalenessMs?: number;
  *   readonly now: () => number;
  *   readonly observations?: () => Readonly<Record<string, string | number>>;
  *   readonly quote?:
@@ -58,24 +61,30 @@ export const strategyLayer = (db, options) =>
  * @param {import("bun:sqlite").Database} db
  * @param {StrategyLayerOptions} options
  */
-const sharedLayer = (db, options) =>
-  Layer.mergeAll(
-    SqliteStrategyRepository(db),
+const sharedLayer = (db, options) => {
+  const repository = SqliteStrategyRepository(db);
+  return Layer.mergeAll(
+    repository,
     SqliteTickRepository(db, options.tickWindow),
     Layer.succeed(EngineAllowlist, { mints: options.allowedMints }),
     strategyIds(options.now),
     Layer.succeed(CadenceFloor, { minIntervalMs: options.minIntervalMs }),
     Layer.succeed(RunMode, { dry: options.dry }),
     clockTickSource,
+    observationStaleness({
+      ...(options.stalenessIntervals !== undefined && { intervals: options.stalenessIntervals }),
+      ...(options.stalenessMs !== undefined && { absoluteMs: options.stalenessMs }),
+    }),
     sqliteCapLedger(db, {
       boundsFor: (id) => strategyBounds(db, id),
       now: options.now,
       engineMints: () => options.allowedMints,
     }),
     options.observations === undefined
-      ? liveObservationReader
+      ? liveObservationReader.pipe(Layer.provide(repository))
       : scriptedObservationReader(options.observations),
     options.quote === undefined ? liveSpendMeter : scriptedSpendMeter(options.quote),
     engineTickSubmit(db),
     engineIntentLookup(db),
   ).pipe(Layer.provideMerge(MintDecimalsLive()));
+};

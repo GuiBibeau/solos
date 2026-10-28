@@ -7,6 +7,7 @@ import { syncHolds } from "./cap-sync.js";
 import { resolveAllowedMints, resolveStart } from "./config.js";
 import { compiledStrategyMount, engineHostLayer } from "./host.js";
 import { openIntents } from "./intents.js";
+import { stalenessOptions } from "./observation-limit.js";
 import { bootPaper } from "./paper.js";
 import { recoverIntents } from "./recover.js";
 import { installRedaction } from "./redact.js";
@@ -21,6 +22,8 @@ import { bootTicks } from "./tick-boot.js";
  *   now?: () => number;
  *   observations?: () => Readonly<Record<string, string | number>>;
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
+ *   stalenessIntervals?: number;
+ *   stalenessMs?: number;
  * }} StartInput
  */
 
@@ -72,6 +75,7 @@ const strategyStart = (input, mode) => ({
   ...(input.now !== undefined && { now: input.now }),
   ...(input.observations !== undefined && { observations: input.observations }),
   ...(input.quote !== undefined && { quote: input.quote }),
+  ...stalenessOptions(input),
 });
 
 /**
@@ -82,6 +86,8 @@ const strategyStart = (input, mode) => ({
  *   now?: () => number;
  *   observations?: () => Readonly<Record<string, string | number>>;
  *   quote?: import("./strategy-layer.js").StrategyLayerOptions["quote"];
+ *   stalenessIntervals?: number;
+ *   stalenessMs?: number;
  * }} StrategyStart
  */
 
@@ -147,6 +153,8 @@ const layerOptions = (input) => ({
   now: input.now ?? (() => Date.now()),
   ...(input.observations !== undefined && { observations: input.observations }),
   ...(input.quote !== undefined && { quote: input.quote }),
+  ...(input.stalenessIntervals !== undefined && { stalenessIntervals: input.stalenessIntervals }),
+  ...(input.stalenessMs !== undefined && { stalenessMs: input.stalenessMs }),
 });
 
 /**

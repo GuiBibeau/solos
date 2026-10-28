@@ -1,5 +1,6 @@
 // @ts-check
 import { Effect } from "effect";
+import { isClockKind } from "../domain/next-instant.js";
 import { StrategyIds } from "../ports/strategy-ids.js";
 import { StrategyRepository } from "../ports/strategy-repository.js";
 import { TickRepository } from "../ports/tick-repository.js";
@@ -25,7 +26,7 @@ export const runDueTicks = () =>
  */
 const isDue = (strategy, now) =>
   Effect.gen(function* () {
-    if (strategy.kind !== "schedule") return false;
+    if (!isClockKind(strategy.kind)) return false;
     const open = yield* (yield* TickRepository).list({
       strategyId: strategy.id,
       outcome: "in_flight",

@@ -80,6 +80,24 @@ describe("Strategy contract", () => {
         params: { observe: { price: USDC }, condition: "below", action: ACTION, once: false },
       }),
     ).toContain("cooldown is required when once is false");
+    const repeating = StrategyDraftSchema.parse({
+      ...trigger,
+      params: {
+        observe: { price: USDC },
+        condition: "below",
+        priceUsd: "150",
+        action: ACTION,
+        once: false,
+        cooldown: "10m",
+      },
+    });
+    expect(repeating.params.cooldown).toBe(600_000);
+    expect(
+      messages({
+        ...trigger,
+        params: { observe: { price: USDC }, condition: "below", trailingBps: 49, action: ACTION },
+      }),
+    ).toContain("trailingBps must be an integer from 50 to 9000");
   });
 
   test("rebalance, range, and carry fail naming the child issue that ships them", () => {
