@@ -29,6 +29,7 @@ export const SECRET_MARKER = "SECRET-UPSTREAM-BODY-MARKER";
  *     readonly timestamp?: number | string;
  *   }>;
  *   readonly fundingStatus?: number;
+ *   readonly rawFundingBody?: string;
  * }} PhoenixScript
  */
 
@@ -94,6 +95,24 @@ const onboardResponse = (script, url) => {
   return null;
 };
 
+/** A raw upstream body, when the script stands one in. @param {PhoenixScript} script */
+const hostileFunding = (script) => {
+  if (script.rawFundingBody === undefined) return undefined;
+  return new Response(script.rawFundingBody, {
+    status: script.fundingStatus ?? 200,
+    headers: JSON_HEADERS,
+  });
+};
+
+/** @param {{ fundingRatePercentage?: string; timestamp?: number | string } | undefined} entry */
+const currentFields = (entry) => {
+  if (entry?.fundingRatePercentage === undefined) return {};
+  return {
+    fundingRatePercentage: entry.fundingRatePercentage,
+    timestamp: entry.timestamp,
+  };
+};
+
 /**
  * Rates for one wire symbol. A missing entry is an empty series. `fundingStatus` forces the
  * route's HTTP status for provider-failure scripts.
@@ -101,14 +120,12 @@ const onboardResponse = (script, url) => {
  * @param {string} symbol
  */
 const fundingResponse = (script, symbol) => {
+  const hostile = hostileFunding(script);
+  if (hostile !== undefined) return hostile;
   if (script.fundingStatus !== undefined)
     return json({ error: "unavailable" }, script.fundingStatus);
   const entry = script.funding?.[symbol];
-  const current =
-    entry?.fundingRatePercentage === undefined
-      ? {}
-      : { fundingRatePercentage: entry.fundingRatePercentage, timestamp: entry.timestamp };
-  return json({ marketId: 1, symbol, rates: entry?.rates ?? [], ...current });
+  return json({ marketId: 1, symbol, rates: entry?.rates ?? [], ...currentFields(entry) });
 };
 
 /** @param {string} pathname */
